@@ -1,80 +1,84 @@
 /*
- * Licensed to Jörg Prante and xbib under one or more contributor 
- * license agreements. See the NOTICE.txt file distributed with this work
- * for additional information regarding copyright ownership.
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright (C) 2012 Jörg Prante and xbib
- * 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU Affero General Public License as published 
- * by the Free Software Foundation; either version 3 of the License, or 
- * (at your option) any later version.
- * This program is distributed in the hope that it will be useful, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
- * GNU Affero General Public License for more details.
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License 
- * along with this program; if not, see http://www.gnu.org/licenses 
- * or write to the Free Software Foundation, Inc., 51 Franklin Street, 
- * Fifth Floor, Boston, MA 02110-1301 USA.
- * 
- * The interactive user interfaces in modified source and object code 
- * versions of this program must display Appropriate Legal Notices, 
- * as required under Section 5 of the GNU Affero General Public License.
- * 
- * In accordance with Section 7(b) of the GNU Affero General Public 
- * License, these Appropriate Legal Notices must retain the display of the 
- * "Powered by xbib" logo. If the display of the logo is not reasonably 
- * feasible for technical reasons, the Appropriate Legal Notices must display
- * the words "Powered by xbib".
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.elasticsearch.rest.action;
 
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.common.collect.ImmutableSet;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.plugin.knapsack.io.Connection;
+import org.elasticsearch.plugin.knapsack.io.ConnectionFactory;
+import org.elasticsearch.plugin.knapsack.io.ConnectionService;
+import org.elasticsearch.plugin.knapsack.io.Packet;
+import org.elasticsearch.plugin.knapsack.io.Session;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
+import org.elasticsearch.rest.action.support.RestActions;
 import org.elasticsearch.search.SearchHit;
-import org.xbib.io.Connection;
-import org.xbib.io.ConnectionFactory;
-import org.xbib.io.ConnectionService;
-import org.xbib.io.Packet;
-import org.xbib.io.Session;
 
 public class RestExportAction extends BaseRestHandler {
 
+    private final SettingsFilter settingsFilter;
     private final static ConnectionService service = ConnectionService.getInstance();
 
     @Inject
     public RestExportAction(Settings settings, Client client,
-            RestController controller) {
+            RestController controller, SettingsFilter settingsFilter) {
         super(settings, client);
+        this.settingsFilter = settingsFilter;
 
+        controller.registerHandler(POST, "/_export", this);
         controller.registerHandler(POST, "/{index}/_export", this);
         controller.registerHandler(POST, "/{index}/{type}/_export", this);
     }
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
+        final String[] indices = RestActions.splitIndices(request.param("index", "_all"));
+        final String[] types = RestActions.splitTypes(request.param("type"));
         try {
+
             XContentBuilder builder = restContentBuilder(request)
                     .startObject()
                     .field("ok", true)
@@ -86,7 +90,8 @@ public class RestExportAction extends BaseRestHandler {
                 public void run() {
                     String index = request.param("index");
                     String type = request.param("type");
-                    String desc = index + (type != null ? "_" + type : "");
+                    String desc = (index != null ? index : "_all")
+                            + (type != null ? "_" + type : "");
                     setName("[Exporter Thread " + desc + "]");
                     long millis = request.paramAsLong("millis", 30000L);
                     int size = request.paramAsInt("size", 1000);
@@ -94,33 +99,50 @@ public class RestExportAction extends BaseRestHandler {
                     final String target = request.param("target", desc);
 
                     try {
-                        logger.info("cluster 'yellow' check before export of {}", target);
+                        logger.info("cluster 'yellow' check before exporting to {}", target);
 
                         ClusterHealthResponse healthResponse =
                                 client.admin().cluster().prepareHealth().setWaitForYellowStatus()
                                 .setTimeout("30s").execute().actionGet(30000);
 
                         if (healthResponse.isTimedOut()) {
-                            throw new IOException("cluster not healthy, cowardly refusing to continue with export");
+                            String msg = "cluster not healthy, cowardly refusing to continue with export";
+                            logger.error(msg);
+                            throw new IOException(msg);
                         }
 
-                       // client.admin().indices().prepareClose(index).execute().actionGet();
+                        logger.info("starting export to {}", target);
 
-                        logger.info("starting export of {}", target);
-
+                        // fire up TAR session
                         ConnectionFactory factory = service.getConnectionFactory(scheme);
                         Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
                         Session session = connection.createSession();
                         session.open(Session.Mode.WRITE);
-                        
+
+                        // export settings
+                        for (String s : indices) {
+                            session.write(new ElasticPacket(s, "_settings", null, getSettings(s)));
+                        }
+
+                        // export mappings
+                        for (String s : indices) {
+                            Map<String, String> mappings = getMapping(s, ImmutableSet.copyOf(types));
+                            for (String t : mappings.keySet()) {
+                                session.write(new ElasticPacket(s, t, "_mapping", mappings.get(t)));
+                            }
+                        }
+
+                        // export document _source fields
                         SearchRequestBuilder searchRequest = client.prepareSearch()
-                                .setIndices(index)
                                 .setSize(size)
                                 .setSearchType(SearchType.SCAN)
                                 .setScroll(TimeValue.timeValueMillis(millis));
-                        if (type != null) {
-                                searchRequest.setTypes(type);                  
-                        }                         
+                        if (indices != null) {
+                            searchRequest.setIndices(indices);
+                        }
+                        if (types != null) {
+                            searchRequest.setTypes(types);
+                        }
                         SearchResponse searchResponse = searchRequest.execute().actionGet();
 
                         while (true) {
@@ -128,19 +150,19 @@ public class RestExportAction extends BaseRestHandler {
                                     .setScroll(TimeValue.timeValueMillis(millis))
                                     .execute().actionGet();
                             for (SearchHit hit : searchResponse.hits()) {
-                                SearchHitPacket packet =
-                                        new SearchHitPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
+                                ElasticPacket packet =
+                                        new ElasticPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
                                 session.write(packet);
                             }
                             if (searchResponse.hits().hits().length == 0) {
                                 break;
                             }
                         }
-                        
+
                         session.close();
                         connection.close();
 
-                        logger.info("export of {} completed", target);
+                        logger.info("export to {} completed", target);
 
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
@@ -159,13 +181,62 @@ public class RestExportAction extends BaseRestHandler {
         }
     }
 
-    private class SearchHitPacket implements Packet<String> {
+    private String getSettings(String index) throws IOException {
+        final XContentBuilder builder = jsonBuilder();
+        ClusterStateResponse response = client.admin().cluster().prepareState()
+                .setFilterRoutingTable(true)
+                .setFilterNodes(true)
+                .setFilterIndices(index)
+                .execute().actionGet();
+        MetaData metaData = response.state().metaData();
+        if (!metaData.indices().isEmpty()) {
+            builder.startObject();
+            for (IndexMetaData indexMetaData : metaData) {
+                builder.startObject(indexMetaData.index(), XContentBuilder.FieldCaseConversion.NONE);
+                builder.startObject("settings");
+                for (Map.Entry<String, String> entry :
+                        settingsFilter.filterSettings(indexMetaData.settings()).getAsMap().entrySet()) {
+                    builder.field(entry.getKey(), entry.getValue());
+                }
+                builder.endObject();
+                builder.endObject();
+            }
+            builder.endObject();
+        }
+        return builder.string();
+    }
+
+    private Map<String, String> getMapping(String index, Set<String> types) throws IOException {
+        Map<String, String> mappings = new HashMap();
+        ClusterStateResponse response = client.admin().cluster().prepareState()
+                .setFilterRoutingTable(true)
+                .setFilterNodes(true)
+                .setFilterIndices(index)
+                .execute().actionGet();
+        MetaData metaData = response.state().metaData();
+        if (!metaData.indices().isEmpty()) {
+            IndexMetaData indexMetaData = metaData.iterator().next();
+            for (MappingMetaData mappingMd : indexMetaData.mappings().values()) {
+                if (types == null || types.isEmpty() || types.contains(mappingMd.type())) {
+                    final XContentBuilder builder = jsonBuilder();
+                    builder.startObject();
+                    builder.field(mappingMd.type());
+                    builder.map(mappingMd.sourceAsMap());
+                    builder.endObject();
+                    mappings.put(mappingMd.type(), builder.string());
+                }
+            }
+        }
+        return mappings;
+    }
+
+    private class ElasticPacket implements Packet<String> {
 
         String name;
         String packet;
 
-        SearchHitPacket(String index, String type, String id, String packet) {
-            this.name = index + "/" + type + "/" + id;
+        ElasticPacket(String index, String type, String id, String packet) {
+            this.name = index + "/" + type + (id != null ? "/" + id : "");
             this.packet = packet;
         }
 
@@ -176,14 +247,14 @@ public class RestExportAction extends BaseRestHandler {
 
         @Override
         public String getNumber() {
-            return null;
+            return null; // not numbered at all
         }
 
         @Override
         public String getPacket() {
             return packet;
         }
-        
+
         @Override
         public String toString() {
             return packet;

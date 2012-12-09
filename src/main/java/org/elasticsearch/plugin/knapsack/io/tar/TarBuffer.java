@@ -1,19 +1,22 @@
 /*
- * Copyright 2002,2004 The Apache Software Foundation.
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-package org.xbib.io.tar;
+package org.elasticsearch.plugin.knapsack.io.tar;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,18 +27,14 @@ import java.io.OutputStream;
  * input stream. This concept goes back to the days of blocked tape drives and
  * special io devices. In the Java universe, the only real function that this
  * class performs is to ensure that files have the correct "block" size, or
- * other tars will complain.<p>You should never have a need to access this
- * class directly. TarBuffers are created by Tar IO Streams.</p>
+ * other tars will complain.You should never have a need to access this
+ * class directly. TarBuffers are created by Tar IO Streams.
  *
  * @author <a href="mailto:time@ice.com">Timothy Gerard Endres</a>
  * @author <a href="mailto:peter@apache.org">Peter Donald</a>
  */
-public class TarBuffer {
+class TarBuffer implements TarConstants {
 
-    /** the default record size */
-    public static final int DEFAULT_RECORDSIZE = 512;
-    /** the default block size */
-    public static final int DEFAULT_BLOCKSIZE = DEFAULT_RECORDSIZE * 20;
     private InputStream input;
     private OutputStream output;
     private byte[] blockbuffer;
@@ -45,28 +44,28 @@ public class TarBuffer {
     private int recordsize;
     private int recsperblock;
 
-    public TarBuffer(final InputStream input) {
-        this(input, TarBuffer.DEFAULT_BLOCKSIZE);
+    TarBuffer(final InputStream input) {
+        this(input, DEFAULT_BLOCKSIZE);
     }
 
-    public TarBuffer(final InputStream input, final int blockSize) {
-        this(input, blockSize, TarBuffer.DEFAULT_RECORDSIZE);
+    TarBuffer(final InputStream input, final int blockSize) {
+        this(input, blockSize, DEFAULT_RECORDSIZE);
     }
 
-    public TarBuffer(InputStream input, int blockSize, int recordSize) {
+    TarBuffer(InputStream input, int blockSize, int recordSize) {
         this.input = input;
         initialize(blockSize, recordSize);
     }
 
-    public TarBuffer(OutputStream output) {
-        this(output, TarBuffer.DEFAULT_BLOCKSIZE);
+    TarBuffer(OutputStream output) {
+        this(output, DEFAULT_BLOCKSIZE);
     }
 
-    public TarBuffer(OutputStream output, int blockSize) {
-        this(output, blockSize, TarBuffer.DEFAULT_RECORDSIZE);
+    TarBuffer(OutputStream output, int blockSize) {
+        this(output, blockSize, DEFAULT_RECORDSIZE);
     }
 
-    public TarBuffer(OutputStream output, int blockSize, int recordSize) {
+    TarBuffer(OutputStream output, int blockSize, int recordSize) {
         this.output = output;
         initialize(blockSize, recordSize);
     }
@@ -74,7 +73,6 @@ public class TarBuffer {
     public void close() throws IOException {
         if (null != output) {
             flushBlock();
-
             if ((output != System.out) && (output != System.err)) {
                 output.close();
                 output = null;
@@ -118,7 +116,6 @@ public class TarBuffer {
         this.recordsize = recordsize;
         this.recsperblock = (blocksize / recordsize);
         this.blockbuffer = new byte[blocksize];
-
         if (input != null) {
             this.currblkidx = -1;
             this.currrecidx = recsperblock;
@@ -210,11 +207,9 @@ public class TarBuffer {
             final String message = "reading (via skip) from an output buffer";
             throw new IOException(message);
         }
-
         if ((currrecidx >= recsperblock) && (!readBlock())) {
             return; // UNDONE
         }
-
         currrecidx++;
     }
 
@@ -229,12 +224,10 @@ public class TarBuffer {
         if (output == null) {
             throw new IOException("writing to an input buffer");
         }
-
         if (record.length != recordsize) {
             throw new IOException("record to write has length '"
                     + record.length + "' which is not the record size of '" + recordsize + "'");
         }
-
         if (currrecidx >= recsperblock) {
             if (output == null) {
                 throw new IOException("writing to an input buffer");
@@ -244,9 +237,7 @@ public class TarBuffer {
             currrecidx = 0;
             currblkidx++;
         }
-
         System.arraycopy(record, 0, blockbuffer, (currrecidx * recordsize), recordsize);
-
         this.currrecidx++;
     }
 
@@ -265,7 +256,6 @@ public class TarBuffer {
             throw new IOException("record has length '" + buffer.length
                     + "' with offset '" + offset + "' which is less than the record size of '" + recordsize + "'");
         }
-
         if (currrecidx >= recsperblock) {
             if (output == null) {
                 throw new IOException("writing to an input buffer");
@@ -275,9 +265,7 @@ public class TarBuffer {
             this.currrecidx = 0;
             this.currblkidx++;
         }
-
         System.arraycopy(buffer, offset, blockbuffer, (currrecidx * recordsize), recordsize);
-
         this.currrecidx++;
     }
 }

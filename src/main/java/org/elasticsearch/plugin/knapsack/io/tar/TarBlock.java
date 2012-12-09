@@ -16,18 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.xbib.io;
+package org.elasticsearch.plugin.knapsack.io.tar;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.net.URI;
 
-public interface StreamCodec<I extends InputStream,O extends OutputStream> {
+/**
+ * A TAR block consists of a header and and input stream for the data
+ *
+ * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
+ */
+public class TarBlock {
 
-    String getName();
-    
-    I decode(InputStream in) throws IOException;
-    
-    O encode(OutputStream out) throws IOException;
-    
+    private TarBlockHeader blockHeader;
+    private URI uri;
+    private byte[] block;
+
+    public TarBlock(URI uri, TarBlockHeader blockHeader, byte[] block) {
+        this.uri = uri;
+        this.blockHeader = blockHeader;
+        this.block = block;
+    }
+
+    public byte[] getBlock() {
+        return block;
+    }
+
+    public TarBlockHeader getHeader() {
+        return blockHeader;
+    }
+
+    public URI getTarBlockURI() {
+        return uri;
+    }
 }

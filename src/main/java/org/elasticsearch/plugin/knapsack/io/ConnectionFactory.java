@@ -16,18 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.xbib.io;
+package org.elasticsearch.plugin.knapsack.io;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.net.URI;
 
-public interface StreamCodec<I extends InputStream,O extends OutputStream> {
+/**
+ *  A connection factory interface
+ *
+ *  @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
+ */
+public interface ConnectionFactory<S extends Session> {
 
-    String getName();
-    
-    I decode(InputStream in) throws IOException;
-    
-    O encode(OutputStream out) throws IOException;
-    
+    /**
+     * Creates a new connection
+     *
+     * @param uri the URI for the connection
+     *
+     * @return the connection
+     *
+     * @throws IOException if the connection can not be established
+     */
+    Connection<S> getConnection(URI uri) throws IOException;
+
+    /**
+     * Checks if this connection factory can provide this URI scheme.
+     *
+     * @param scheme the URI scheme to check
+     *
+     * @return true if the scheme can be provided, otherwise false
+     */
+    boolean providesScheme(String scheme);
+
 }

@@ -1,19 +1,22 @@
 /*
- * Copyright 2002,2004 The Apache Software Foundation.
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-package org.xbib.io.tar;
+package org.elasticsearch.plugin.knapsack.io.tar;
 
 import java.io.File;
 import java.util.Date;
@@ -50,51 +53,34 @@ import java.util.Locale;
  * @see TarInputStream
  * @see TarOutputStream
  */
-public class TarEntry {
+class TarEntry implements TarConstants {
 
-    /** The length of the name field in a header buffer. */
-    public static final int NAMELEN = 100;
-
-    /** The entry's minor device number. */
     private File file;
 
-    /** The entry's user name. */
     private StringBuilder groupName;
 
-    /** The entry's link flag. */
     private StringBuilder linkName;
 
-    /** The entry's link name. */
     private StringBuilder magic;
 
-    /** name */
     private StringBuilder name;
 
-    /** The entry's magic tag. */
     private StringBuilder userName;
 
-    /** The entry's checksum. */
     private byte linkFlag;
 
-    /** The entry's group name. */
     private int devMajor;
 
-    /** The entry's major device number. */
     private int devMinor;
 
-    /** The entry's user id. */
     private int groupID;
 
-    /** The entry's name. */
-    private int mode;
-
-    /** The entry's permission mode. */
     private int userID;
 
-    /** The entry's size. */
     private long modTime;
 
-    /** The entry's group id. */
+    private int mode;
+
     private long size;
 
     /**
@@ -103,14 +89,12 @@ public class TarEntry {
      *
      * @param name the name of the entry
      */
-    public TarEntry(String name) {
+    TarEntry(String name) {
         this();
-
         final boolean isDir = name.endsWith("/");
-
         this.name = new StringBuilder(name);
         this.mode = isDir ? 040755 : 0100644; // octal
-        this.linkFlag = isDir ? TarConstants.LF_DIR : TarConstants.LF_NORMAL;
+        this.linkFlag = isDir ? LF_DIR : LF_NORMAL;
         this.modTime = (new Date()).getTime() / 1000;
         this.linkName = new StringBuilder("");
         this.userName = new StringBuilder("");
@@ -123,12 +107,12 @@ public class TarEntry {
      * @param name Description of Parameter
      * @param linkFlag Description of Parameter
      */
-    public TarEntry(String name, byte linkFlag) {
+    TarEntry(String name, byte linkFlag) {
         this(name);
         this.linkFlag = linkFlag;
     }
 
-    public TarEntry(String name, String linkName, byte linkFlag) {
+    TarEntry(String name, String linkName, byte linkFlag) {
         this(name, linkFlag);
         this.linkName = new StringBuilder(linkName);
     }
@@ -139,13 +123,12 @@ public class TarEntry {
      *
      * @param file The file that the entry represents.
      */
-    public TarEntry(File file) {
+    TarEntry(File file) {
         this();
         this.file = file;
         String name = file.getPath();
         // Strip off drive letters!
         final String osName = System.getProperty("os.name").toLowerCase(Locale.US);
-
         if (-1 != osName.indexOf("netware")) {
             if (name.length() > 2) {
                 final char ch1 = name.charAt(0);
@@ -162,23 +145,18 @@ public class TarEntry {
                 name = name.substring(colon + 1);
             }
         }
-
         name = name.replace(File.separatorChar, '/');
-
         // No absolute pathnames
         // Windows (and Posix?) paths can start with "\\NetworkDrive\",
         // so we loop on starting /'s.
         while (name.startsWith("/")) {
             name = name.substring(1);
         }
-
         linkName = new StringBuilder("");
         this.name = new StringBuilder(name);
-
         if (file.isDirectory()) {
             mode = 040755; // octal
             linkFlag = TarConstants.LF_DIR;
-
             if (name.charAt(name.length() - 1) != '/') {
                 this.name.append("/");
             }
@@ -186,7 +164,6 @@ public class TarEntry {
             mode = 0100644; // octal
             linkFlag = TarConstants.LF_NORMAL;
         }
-
         size = file.length();
         modTime = file.lastModified() / 1000;
         devMajor = 0;
@@ -198,7 +175,7 @@ public class TarEntry {
      *
      * @param header The header bytes from a tar archive entry.
      */
-    public TarEntry(final byte[] header) {
+    TarEntry(final byte[] header) {
         this();
         parseTarHeader(header);
     }
@@ -210,13 +187,10 @@ public class TarEntry {
         magic = new StringBuilder(TarConstants.TMAGIC);
         name = new StringBuilder();
         linkName = new StringBuilder();
-
         String user = System.getProperty("user.name", "");
-
         if (user.length() > 31) {
             user = user.substring(0, 31);
         }
-
         userName = new StringBuilder(user);
         groupName = new StringBuilder("");
     }
@@ -231,14 +205,11 @@ public class TarEntry {
         if ((null == file) || !file.isDirectory()) {
             return new TarEntry[0];
         }
-
         final String[] list = file.list();
         final TarEntry[] result = new TarEntry[list.length];
-
         for (int i = 0; i < list.length; ++i) {
             result[i] = new TarEntry(new File(file, list[i]));
         }
-
         return result;
     }
 
@@ -345,15 +316,13 @@ public class TarEntry {
         if (file != null) {
             return file.isDirectory();
         }
-
-        if (linkFlag == TarConstants.LF_DIR) {
+        if (linkFlag == LF_DIR) {
             return true;
         }
-
+        // heuristic
         if (getName().endsWith("/")) {
             return true;
         }
-
         return false;
     }
 
@@ -386,8 +355,8 @@ public class TarEntry {
     private void parseTarHeader(byte[] header) {
         int offset = 0;
 
-        name = parseName(header, offset, NAMELEN);
-        offset += NAMELEN;
+        name = parseName(header, offset, FILE_NAME_SIZE);
+        offset += FILE_NAME_SIZE;
         mode = (int)parseOctal(header, offset, TarConstants.MODELEN);
         offset += TarConstants.MODELEN;
         userID = (int)parseOctal(header, offset, TarConstants.UIDLEN);
@@ -401,8 +370,8 @@ public class TarEntry {
         //checkSum = (int)parseOctal(header, offset, TarConstants.CHKSUMLEN);
         offset += TarConstants.CHKSUMLEN;
         linkFlag = header[offset++];
-        linkName = parseName(header, offset, NAMELEN);
-        offset += NAMELEN;
+        linkName = parseName(header, offset, FILE_NAME_SIZE);
+        offset += FILE_NAME_SIZE;
         magic = parseName(header, offset, TarConstants.MAGICLEN);
         offset += TarConstants.MAGICLEN;
         userName = parseName(header, offset, TarConstants.UNAMELEN);
@@ -504,7 +473,7 @@ public class TarEntry {
     public void writeEntryHeader(byte[] buffer) {
         int offset = 0;
 
-        offset = getNameBytes(name, buffer, offset, NAMELEN);
+        offset = getNameBytes(name, buffer, offset, FILE_NAME_SIZE);
         offset = getOctalBytes(mode, buffer, offset, TarConstants.MODELEN);
         offset = getOctalBytes(userID, buffer, offset, TarConstants.UIDLEN);
         offset = getOctalBytes(groupID, buffer, offset, TarConstants.GIDLEN);
@@ -518,7 +487,7 @@ public class TarEntry {
         }
 
         buffer[offset++] = linkFlag;
-        offset = getNameBytes(linkName, buffer, offset, NAMELEN);
+        offset = getNameBytes(linkName, buffer, offset, FILE_NAME_SIZE);
         offset = getNameBytes(magic, buffer, offset, TarConstants.MAGICLEN);
         offset = getNameBytes(userName, buffer, offset, TarConstants.UNAMELEN);
         offset = getNameBytes(groupName, buffer, offset, TarConstants.GNAMELEN);

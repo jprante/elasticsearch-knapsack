@@ -1,19 +1,22 @@
 /*
- * Copyright 2002,2004 The Apache Software Foundation.
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
-package org.xbib.io.tar;
+package org.elasticsearch.plugin.knapsack.io.tar;
 
 /**
  * This interface contains all the definitions used in the package.
@@ -22,7 +25,30 @@ package org.xbib.io.tar;
  * @author <a href="mailto:stefano@apache.org">Stefano Mazzocchi</a>
  */
 interface TarConstants {
-
+    /**
+     * Flag to indicate that an error should be generated if an attempt
+     * is made to write an entry that exceeds the 100 char POSIX limit.
+     */
+    int LONGFILE_ERROR = 0;
+    /**
+     * Flag to indicate that entry name should be truncated if an
+     * attempt is made to write an entry that exceeds the 100 char POSIX
+     * limit.
+     */
+    int LONGFILE_TRUNCATE = 1;
+    /**
+     * Flag to indicate that entry name should be formatted according
+     * to GNU tar extension if an attempt is made to write an entry that
+     * exceeds the 100 char POSIX limit. Note that this makes the jar
+     * unreadable by non-GNU tar commands.
+     */
+    int LONGFILE_GNU = 2;
+    /** the default record size */
+    int DEFAULT_RECORDSIZE = 512;
+    
+    /** the default block size */
+    int DEFAULT_BLOCKSIZE = 512 * 20;
+    
     int FILE_NAME_SIZE = 100;
     /**
      * The name of the GNU tar entry which contains a long name.
@@ -44,6 +70,10 @@ interface TarConstants {
      * Link file type.
      */
     byte LF_LINK = (byte) '1';
+    /**
+     * Symbolic link file type.
+     */
+    byte LF_SYMLINK = (byte) '2';
     /**
      * Character device file type.
      */
@@ -68,15 +98,6 @@ interface TarConstants {
      * Identifies the next file on the tape as having a long name.
      */
     byte LF_GNUTYPE_LONGNAME = (byte) 'L';
-    /**
-     * LF_ constants represent the "link flag" of an entry, or more commonly,
-     * the "entry type". This is the "old way" of indicating a normal file.
-     */
-    byte LF_OLDNORM = 0;
-    /**
-     * Symbolic link file type.
-     */
-    byte LF_SYMLINK = (byte) '2';
     /**
      * The length of the checksum field in a header buffer.
      */

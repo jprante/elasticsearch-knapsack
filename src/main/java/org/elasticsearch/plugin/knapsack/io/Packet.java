@@ -16,18 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.xbib.io;
+package org.elasticsearch.plugin.knapsack.io;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-
-public interface StreamCodec<I extends InputStream,O extends OutputStream> {
+/**
+ * A packet is data with a given name and some package information
+ *
+ * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
+ */
+public interface Packet<P> {
 
     String getName();
-    
-    I decode(InputStream in) throws IOException;
-    
-    O encode(OutputStream out) throws IOException;
-    
+
+    String getNumber();
+
+    P getPacket();
 }

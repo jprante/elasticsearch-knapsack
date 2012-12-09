@@ -1,69 +1,70 @@
 /*
- * Licensed to Jörg Prante and xbib under one or more contributor 
- * license agreements. See the NOTICE.txt file distributed with this work
- * for additional information regarding copyright ownership.
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright (C) 2012 Jörg Prante and xbib
- * 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU Affero General Public License as published 
- * by the Free Software Foundation; either version 3 of the License, or 
- * (at your option) any later version.
- * This program is distributed in the hope that it will be useful, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
- * GNU Affero General Public License for more details.
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License 
- * along with this program; if not, see http://www.gnu.org/licenses 
- * or write to the Free Software Foundation, Inc., 51 Franklin Street, 
- * Fifth Floor, Boston, MA 02110-1301 USA.
- * 
- * The interactive user interfaces in modified source and object code 
- * versions of this program must display Appropriate Legal Notices, 
- * as required under Section 5 of the GNU Affero General Public License.
- * 
- * In accordance with Section 7(b) of the GNU Affero General Public 
- * License, these Appropriate Legal Notices must retain the display of the 
- * "Powered by xbib" logo. If the display of the logo is not reasonably 
- * feasible for technical reasons, the Appropriate Legal Notices must display
- * the words "Powered by xbib".
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.elasticsearch.rest.action;
 
+import static org.elasticsearch.client.Requests.putMappingRequest;
+import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.plugin.knapsack.BulkOperation;
+import org.elasticsearch.plugin.knapsack.io.BulkOperation;
+import org.elasticsearch.plugin.knapsack.io.Connection;
+import org.elasticsearch.plugin.knapsack.io.ConnectionFactory;
+import org.elasticsearch.plugin.knapsack.io.ConnectionService;
+import org.elasticsearch.plugin.knapsack.io.Packet;
+import org.elasticsearch.plugin.knapsack.io.Session;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
-import org.xbib.io.Connection;
-import org.xbib.io.ConnectionFactory;
-import org.xbib.io.ConnectionService;
-import org.xbib.io.Packet;
-import org.xbib.io.Session;
 
 public class RestImportAction extends BaseRestHandler {
 
     private final static ConnectionService service = ConnectionService.getInstance();
+    private final Map<String, String> indices = new HashMap();
+    private final Map<String, String> mappings = new HashMap();
+    private final Set<String> created = new HashSet();
 
     @Inject
     public RestImportAction(Settings settings, Client client,
             RestController controller) {
         super(settings, client);
 
+        controller.registerHandler(POST, "/_import", this);
         controller.registerHandler(POST, "/{index}/_import", this);
         controller.registerHandler(POST, "/{index}/{type}/_import", this);
     }
@@ -80,14 +81,14 @@ public class RestImportAction extends BaseRestHandler {
             new Thread() {
                 @Override
                 public void run() {
-                    String index = request.param("index");
-                    String type = request.param("type");
-                    String desc = index + (type != null ? "_" + type : "");
-                    setName("[Importer Thread "+ desc + "]");
+                    String newIndex = request.param("index", "_all");
+                    String newType = request.param("type");
+                    String desc = newIndex + (newType != null ? "_" + newType : "");
+                    setName("[Importer Thread " + desc + "]");
                     int size = request.paramAsInt("size", 100);
                     final String scheme = request.param("scheme", "targz");
                     final String target = request.param("target", desc);
-                    
+
                     BulkOperation op = new BulkOperation(client, logger)
                             .setBulkSize(size)
                             .setMaxActiveRequests(10);
@@ -112,18 +113,41 @@ public class RestImportAction extends BaseRestHandler {
 
                         Packet<String> packet;
                         while ((packet = session.read()) != null) {
-                            String[] name = packet.getName().split("/");
-                            if (name.length == 3) {
-                                op.index(name[0], name[1], name[2], packet.getPacket());
-                            } else if (name.length == 2) {
-                                op.index(name[0], null, name[1], packet.getPacket());                                
+                            String[] entry = packet.getName().split("/");
+                            String index = entry.length > 0 ? entry[0] : null;
+                            String type = entry.length > 1 ? entry[1] : null;
+                            String id = entry.length > 2 ? entry[2] : null;
+                            // re-map to new index/type
+                            if (newIndex != null && !newIndex.equals("_all")) {
+                                index = newIndex;
+                            }
+                            if (newType != null) {
+                                type = newType;
+                            }
+                            if (entry.length == 3) {
+                                if ("_mapping".equals(entry[2])) {
+                                    mappings.put(index + "/" + type, packet.getPacket());
+                                } else {
+                                    // index document
+                                    if (!createIndex(index)) {
+                                        throw new IOException("unable to create index " + index);
+                                    }
+                                    if (!createMapping(index, type)) {
+                                        throw new IOException("unable to create mapping " + index + "/" + type);
+                                    }
+                                    op.index(index, type, id, packet.getPacket());
+                                }
+                            } else if (entry.length == 2) {
+                                if ("_settings".equals(entry[1])) {
+                                    indices.put(index, packet.getPacket());
+                                }
                             } else {
                                 logger.warn("skipping entry {}", packet.getName());
                             }
                         }
 
                         logger.info("import of {} completed", target);
-                        
+
                         session.close();
                         connection.close();
 
@@ -132,7 +156,7 @@ public class RestImportAction extends BaseRestHandler {
                     } finally {
                         try {
                             op.flush();
-                            
+
                         } catch (IOException ex) {
                             logger.error(ex.getMessage(), ex);
                         }
@@ -150,4 +174,48 @@ public class RestImportAction extends BaseRestHandler {
         }
     }
 
+    private boolean createIndex(String index) {
+        if ("_all".equals(index)) {
+            return true;
+        }
+        if (created.contains(index)) {
+            return true;
+        }
+        String s = indices.get(index);
+        if (s == null) {
+            s = indices.get("_all");
+        }
+        logger.info("creating index {} from import", index);
+        created.add(index);
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
+        createIndexRequest.source(s);
+        CreateIndexResponse response = client.admin().indices().create(createIndexRequest).actionGet();
+        return response.acknowledged();
+    }
+
+    private boolean createMapping(String index, String type) {
+        if ("_all".equals(index)) {
+            return true;
+        }
+        if ("_settings".equals(type)) {
+            return true;
+        }
+        String desc = index + "/" + type;
+        if (created.contains(desc)) {
+            return true;
+        }
+        String m = mappings.get(desc);
+        if (m == null) {
+            m = mappings.get("_all/" + type);
+        }
+        logger.info("creating mapping {} from import", desc);
+        created.add(desc);
+        PutMappingRequest putMappingRequest = putMappingRequest(index);
+        putMappingRequest.listenerThreaded(false);
+        putMappingRequest.type(type);
+        putMappingRequest.source(m);
+        putMappingRequest.timeout(timeValueSeconds(10));
+        PutMappingResponse response = client.admin().indices().putMapping(putMappingRequest).actionGet();
+        return response.acknowledged();
+    }
 }
