@@ -30,7 +30,7 @@ Example
 
 Note: you must have the _source field enabled, otherwise the Knapsack export will not work.
 
-Let's assume a simple index.::
+Let's assume a simple index::
 
    curl -XDELETE localhost:9200/test
    curl -XPUT localhost:9200/test/test/1 -d '{"key":"value 1"}'
