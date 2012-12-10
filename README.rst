@@ -10,11 +10,11 @@ It uses TAR archives and compression for input/output.
 Installation
 ------------
 
-The current version of the plugin is **1.0.0**
+The current version of the plugin is **1.0.1**
 
 In order to install the plugin, please run
 
-``bin/plugin -install jprante/elasticsearch-knapsack/1.0.0``.
+``bin/plugin -install jprante/elasticsearch-knapsack/1.0.1``.
 
 Be aware, in case the version number is omitted, you will have the source code installed for manual compilation.
 
@@ -22,6 +22,7 @@ Be aware, in case the version number is omitted, you will have the source code i
 Compound Plugin  ElasticSearch
 ================ ================
 master           0.20.x -> master
+1.0.1            0.20.x           
 1.0.0            0.20.x           
 ================ ================
 
