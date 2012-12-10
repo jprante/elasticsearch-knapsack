@@ -124,25 +124,20 @@ public class RestImportAction extends BaseRestHandler {
                             if (newType != null) {
                                 type = newType;
                             }
-                            if (entry.length == 3) {
+                            if (entry.length == 2) {
+                                if ("_settings".equals(entry[1])) {
+                                    indices.put(index, packet.getPacket());
+                                }
+                            } else if (entry.length == 3) {
                                 if ("_mapping".equals(entry[2])) {
                                     mappings.put(index + "/" + type, packet.getPacket());
                                 } else {
                                     // index document
-                                    if (!createIndex(index)) {
-                                        throw new IOException("unable to create index " + index);
-                                    }
                                     if (!createMapping(index, type)) {
                                         throw new IOException("unable to create mapping " + index + "/" + type);
                                     }
                                     op.index(index, type, id, packet.getPacket());
                                 }
-                            } else if (entry.length == 2) {
-                                if ("_settings".equals(entry[1])) {
-                                    indices.put(index, packet.getPacket());
-                                }
-                            } else {
-                                logger.warn("skipping entry {}", packet.getName());
                             }
                         }
 
@@ -185,20 +180,20 @@ public class RestImportAction extends BaseRestHandler {
         if (s == null) {
             s = indices.get("_all");
         }
-        logger.info("creating index {} from import", index);
         created.add(index);
+        logger.info("creating index {} from import", index);
         CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
         createIndexRequest.source(s);
         CreateIndexResponse response = client.admin().indices().create(createIndexRequest).actionGet();
         return response.acknowledged();
     }
 
-    private boolean createMapping(String index, String type) {
+    private boolean createMapping(String index, String type) throws IOException {
         if ("_all".equals(index)) {
             return true;
         }
-        if ("_settings".equals(type)) {
-            return true;
+        if (!createIndex(index)) {
+            throw new IOException("unable to create index " + index);
         }
         String desc = index + "/" + type;
         if (created.contains(desc)) {
@@ -208,8 +203,8 @@ public class RestImportAction extends BaseRestHandler {
         if (m == null) {
             m = mappings.get("_all/" + type);
         }
-        logger.info("creating mapping {} from import", desc);
         created.add(desc);
+        logger.info("creating mapping {} from import", desc);
         PutMappingRequest putMappingRequest = putMappingRequest(index);
         putMappingRequest.listenerThreaded(false);
         putMappingRequest.type(type);

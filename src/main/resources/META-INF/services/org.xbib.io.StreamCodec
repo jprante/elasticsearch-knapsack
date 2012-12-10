@@ -1,0 +1,5 @@
+org.xbib.io.compress.GzipStreamCodec
+org.xbib.io.compress.Bzip2StreamCodec
+org.xbib.io.compress.ZStreamCodec
+org.xbib.io.compress.XZStreamCodec
+org.xbib.io.compress.LZFStreamCodec

@@ -12,11 +12,8 @@
             <unpack>false</unpack>
             <scope>compile</scope>
             <includes>
-                <include>org.xbib:xbib-compress</include>
+                <include>org.elasticsearch.plugin</include>
             </includes>
-            <excludes>
-                <exclude>org.elasticsearch:elasticsearch</exclude>
-            </excludes>
         </dependencySet>
     </dependencySets>  
     <fileSets>
