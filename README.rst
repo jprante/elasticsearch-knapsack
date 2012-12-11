@@ -10,11 +10,11 @@ It uses TAR archives and compression for input/output.
 Installation
 ------------
 
-The current version of the plugin is **1.0.1**
+The current version of the plugin is **1.0.2**
 
 In order to install the plugin, please run
 
-``bin/plugin -install jprante/elasticsearch-knapsack/1.0.1``.
+``bin/plugin -install jprante/elasticsearch-knapsack/1.0.2``.
 
 Be aware, in case the version number is omitted, you will have the source code installed for manual compilation.
 
@@ -22,6 +22,7 @@ Be aware, in case the version number is omitted, you will have the source code i
 Compound Plugin  ElasticSearch
 ================ ================
 master           0.20.x -> master
+1.0.2            0.20.x           
 1.0.1            0.20.x           
 1.0.0            0.20.x           
 ================ ================
@@ -84,6 +85,21 @@ and check you have copied the data to a new index with::
 
    curl -XGET localhost:9200/test2/test2/1
    {"_index":"test2","_type":"test2","_id":"1","_version":1,"exists":true, "_source" : {"key":"value 1"}}
+
+Choosing a different location
+-----------------------------
+
+With the ``target`` parameter, you can choose a path and alternative name for your tar archive. Example::
+
+   curl -XPOST 'localhost:9200/_export?target=/big/space/archive.tar.gz'
+
+Compression
+-----------
+
+You can select a ``.tar.gz``, ``.tar.bz2``, or ``.tar.xz`` suffix for the corresponding compression algorithm. Example::
+
+   curl -XPOST 'localhost:9200/_export?target=/my/archive.tar.bz2'
+
 
 Caution
 =======

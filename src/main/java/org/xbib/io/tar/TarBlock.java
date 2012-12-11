@@ -16,36 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io;
+package org.xbib.io.tar;
 
-import java.io.IOException;
 import java.net.URI;
 
 /**
- *  A connection factory interface
+ * A TAR block consists of a header and and input stream for the data
  *
- *  @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
+ * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public interface ConnectionFactory<S extends Session> {
+public class TarBlock {
 
-    /**
-     * Creates a new connection
-     *
-     * @param uri the URI for the connection
-     *
-     * @return the connection
-     *
-     * @throws IOException if the connection can not be established
-     */
-    Connection<S> getConnection(URI uri) throws IOException;
+    private TarBlockHeader blockHeader;
+    private URI uri;
+    private byte[] block;
 
-    /**
-     * Checks if this connection factory can provide this URI scheme.
-     *
-     * @param scheme the URI scheme to check
-     *
-     * @return true if the scheme can be provided, otherwise false
-     */
-    boolean providesScheme(String scheme);
+    public TarBlock(URI uri, TarBlockHeader blockHeader, byte[] block) {
+        this.uri = uri;
+        this.blockHeader = blockHeader;
+        this.block = block;
+    }
 
+    public byte[] getBlock() {
+        return block;
+    }
+
+    public TarBlockHeader getHeader() {
+        return blockHeader;
+    }
+
+    public URI getTarBlockURI() {
+        return uri;
+    }
 }

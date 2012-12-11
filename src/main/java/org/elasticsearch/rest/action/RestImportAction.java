@@ -38,19 +38,21 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.plugin.knapsack.io.BulkOperation;
-import org.elasticsearch.plugin.knapsack.io.Connection;
-import org.elasticsearch.plugin.knapsack.io.ConnectionFactory;
-import org.elasticsearch.plugin.knapsack.io.ConnectionService;
-import org.elasticsearch.plugin.knapsack.io.Packet;
-import org.elasticsearch.plugin.knapsack.io.Session;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
+import org.xbib.io.BulkOperation;
+import org.xbib.io.Connection;
+import org.xbib.io.ConnectionFactory;
+import org.xbib.io.ConnectionService;
+import org.xbib.io.Packet;
+import org.xbib.io.Session;
+import org.xbib.io.StreamCodecService;
 
 public class RestImportAction extends BaseRestHandler {
 
@@ -71,6 +73,9 @@ public class RestImportAction extends BaseRestHandler {
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
+        final String newIndex = request.param("index", "_all");
+        final String newType = request.param("type");
+        final String desc = newIndex + (newType != null ? "_" + newType : "");
         try {
             XContentBuilder builder = restContentBuilder(request)
                     .startObject()
@@ -78,16 +83,18 @@ public class RestImportAction extends BaseRestHandler {
                     .endObject();
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
 
-            new Thread() {
+            EsExecutors.daemonThreadFactory(settings, "Knapsack import [" + desc + "]")
+                    .newThread(new Thread() {
                 @Override
                 public void run() {
-                    String newIndex = request.param("index", "_all");
-                    String newType = request.param("type");
-                    String desc = newIndex + (newType != null ? "_" + newType : "");
-                    setName("[Importer Thread " + desc + "]");
                     int size = request.paramAsInt("size", 100);
-                    final String scheme = request.param("scheme", "targz");
                     final String target = request.param("target", desc);
+                    String scheme = request.param("scheme", "targz");
+                    for (String codec : StreamCodecService.getCodecs()) {
+                        if (target.endsWith(codec)) {
+                            scheme = "tar" + codec;
+                        }
+                    }
 
                     BulkOperation op = new BulkOperation(client, logger)
                             .setBulkSize(size)
@@ -157,7 +164,7 @@ public class RestImportAction extends BaseRestHandler {
                         }
                     }
                 }
-            }.start();
+            }).start();
 
         } catch (IOException ex) {
             try {

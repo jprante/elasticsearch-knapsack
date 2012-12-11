@@ -16,36 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
-
-import java.net.URI;
+package org.xbib.io;
 
 /**
- * A TAR block consists of a header and and input stream for the data
+ * A packet is data with a given name and some package information
  *
  * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public class TarBlock {
+public interface Packet<P> {
 
-    private TarBlockHeader blockHeader;
-    private URI uri;
-    private byte[] block;
+    String getName();
 
-    public TarBlock(URI uri, TarBlockHeader blockHeader, byte[] block) {
-        this.uri = uri;
-        this.blockHeader = blockHeader;
-        this.block = block;
-    }
+    String getNumber();
 
-    public byte[] getBlock() {
-        return block;
-    }
-
-    public TarBlockHeader getHeader() {
-        return blockHeader;
-    }
-
-    public URI getTarBlockURI() {
-        return uri;
-    }
+    P getPacket();
 }

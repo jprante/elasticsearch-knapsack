@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
+package org.xbib.io.tar;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.elasticsearch.plugin.knapsack.io.ObjectPacket;
-import org.elasticsearch.plugin.knapsack.io.Packet;
+import org.xbib.io.ObjectPacket;
+import org.xbib.io.Packet;
 
 /**
  * TAR entry read operation

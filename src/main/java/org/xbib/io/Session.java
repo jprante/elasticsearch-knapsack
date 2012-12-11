@@ -16,45 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
+package org.xbib.io;
 
 import java.io.IOException;
-import java.net.URI;
-import org.elasticsearch.plugin.knapsack.io.Connection;
-import org.elasticsearch.plugin.knapsack.io.ConnectionFactory;
+import java.io.Serializable;
 
 /**
- * Tar connection factory
+ * The Session interface is a serializable object for being opened, receive
+ * operations, and being closed. Sessions must be opened before the first
+ * operation and closed after the last operation.
  *
  * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public final class TarConnectionFactory implements ConnectionFactory<TarSession> {
+public interface Session<P extends Packet> extends Serializable {
 
-    /**
-     * Get connection
-     *
-     * @param uri the connection URI
-     *
-     * @return a new connection
-     *
-     * @throws IOException if connection can not be established
-     */
-    @Override
-    public Connection<TarSession> getConnection(final URI uri) throws IOException {
-         TarConnection connection = new TarConnection();
-         connection.setURI(uri);
-         return connection;
+    enum Mode {
+
+        READ, WRITE, READ_WRITE, APPEND, DEFERRED_WRITE, DRY, CONTROL, DELETE;
     }
 
     /**
-     * Check if scheme is provided
+     * Open valve with a given input/output mode
      *
-     * @param scheme the scheme to be checked
-     *
-     * @return true if scheme is provided
+     * @throws IOException if valve can not be opened
      */
-    @Override
-    public boolean providesScheme(String scheme) {
-        return scheme.startsWith("tar");
-    }
+    void open(Mode mode) throws IOException;
+
+    P newPacket();
+    
+    P read() throws IOException;
+
+    void write(P packet) throws IOException;
+
+    /**
+     * Close valve
+     *
+     * @throws IOException if valve can not be closed
+     */
+    void close() throws IOException;
+
+    /**
+     * Checks if this session has been successfully opened.
+     *
+     * @return true if the session is open
+     */
+    boolean isOpen();
 }

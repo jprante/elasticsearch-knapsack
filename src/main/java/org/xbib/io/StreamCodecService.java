@@ -21,6 +21,7 @@ package org.xbib.io;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 public class StreamCodecService {
@@ -48,5 +49,9 @@ public class StreamCodecService {
             return codecs.get(suffix);
         }
         throw new IllegalArgumentException("Stream codec for " + suffix + " not found in " + codecs);
+    }
+    
+    public static Set<String> getCodecs() {
+        return codecs.keySet();
     }
 }

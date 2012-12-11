@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
+package org.xbib.io.tar;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import org.elasticsearch.plugin.knapsack.io.ObjectPacket;
-import org.elasticsearch.plugin.knapsack.io.Packet;
-import org.elasticsearch.plugin.knapsack.io.Session;
+import org.xbib.io.ObjectPacket;
+import org.xbib.io.Packet;
+import org.xbib.io.Session;
 import org.xbib.io.StreamCodecService;
 
 /**
@@ -157,11 +157,11 @@ public class TarSession implements Session {
         return isOpen;
     }
 
-    public TarInputStream getInputStream() {
+    TarInputStream getInputStream() {
         return in;
     }
 
-    public TarOutputStream getOutputStream() {
+    TarOutputStream getOutputStream() {
         return out;
     }
 
@@ -172,13 +172,15 @@ public class TarSession implements Session {
      * @param s
      * @throws IOException
      */
-    private synchronized void createFileOutputStream(String s)
-            throws IOException {
-        File f = new File(part + s);
+    private synchronized void createFileOutputStream(String suffix) throws IOException {
+        File f = new File(part + (part.endsWith(suffix) ? "" : suffix));
         if (!f.getAbsoluteFile().getParentFile().exists()
                 && !f.getAbsoluteFile().getParentFile().mkdirs()) {
             throw new RuntimeException(
                     "Could not create directories to store file: " + f);
+        }
+        if (f.exists()) {
+            throw new IOException("file " + f.getAbsolutePath() + " already exists");
         }
         this.fout = new FileOutputStream(f);
     }

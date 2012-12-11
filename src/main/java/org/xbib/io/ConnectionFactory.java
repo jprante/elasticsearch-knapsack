@@ -16,42 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io;
+package org.xbib.io;
 
 import java.io.IOException;
 import java.net.URI;
 
 /**
- *  A Connection is an access to a resource via a scheme or a protocol.
- *  Each connection can serve multiple sessions in parallel.
+ *  A connection factory interface
  *
  *  @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public interface Connection<S extends Session> {
+public interface ConnectionFactory<S extends Session> {
 
     /**
-     * Set URI of this connection
-     * @param uri
-     */
-    Connection setURI(URI uri);
-
-    /**
-     * Get URI of this connection 
-     */
-    URI getURI();
-
-    /**
-     * Close connection and close all sessions
-     */
-    void close() throws IOException;
-
-    /**
-     * Create a new session on this connection
+     * Creates a new connection
      *
-     * @return the session
+     * @param uri the URI for the connection
      *
-     * @throws IOException if the session can not be created
+     * @return the connection
+     *
+     * @throws IOException if the connection can not be established
      */
-    S createSession() throws IOException;
+    Connection<S> getConnection(URI uri) throws IOException;
+
+    /**
+     * Checks if this connection factory can provide this URI scheme.
+     *
+     * @param scheme the URI scheme to check
+     *
+     * @return true if the scheme can be provided, otherwise false
+     */
+    boolean providesScheme(String scheme);
 
 }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io;
+package org.xbib.io;
 
 public class ObjectPacket implements Packet<Object> {
     

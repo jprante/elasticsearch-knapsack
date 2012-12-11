@@ -6,7 +6,7 @@
 
     <groupId>org.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <name>elasticsearch-knapsack</name>

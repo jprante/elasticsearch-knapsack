@@ -16,18 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io;
+package org.xbib.io;
+
+import java.io.IOException;
+import java.net.URI;
 
 /**
- * A packet is data with a given name and some package information
+ *  A Connection is an access to a resource via a scheme or a protocol.
+ *  Each connection can serve multiple sessions in parallel.
  *
- * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
+ *  @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public interface Packet<P> {
+public interface Connection<S extends Session> {
 
-    String getName();
+    /**
+     * Set URI of this connection
+     * @param uri
+     */
+    Connection setURI(URI uri);
 
-    String getNumber();
+    /**
+     * Get URI of this connection 
+     */
+    URI getURI();
 
-    P getPacket();
+    /**
+     * Close connection and close all sessions
+     */
+    void close() throws IOException;
+
+    /**
+     * Create a new session on this connection
+     *
+     * @return the session
+     *
+     * @throws IOException if the session can not be created
+     */
+    S createSession() throws IOException;
+
 }

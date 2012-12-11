@@ -16,48 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
+package org.xbib.io.tar;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import org.elasticsearch.plugin.knapsack.io.Connection;
+import org.xbib.io.Connection;
+import org.xbib.io.ConnectionFactory;
 
 /**
- * A TAR connection
+ * Tar connection factory
  *
  * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
  */
-public class TarConnection implements Connection<TarSession> {
+public final class TarConnectionFactory implements ConnectionFactory<TarSession> {
 
-    private List<TarSession> sessions = new ArrayList<TarSession>();
-    private URI uri;
-
+    /**
+     * Get connection
+     *
+     * @param uri the connection URI
+     *
+     * @return a new connection
+     *
+     * @throws IOException if connection can not be established
+     */
     @Override
-    public TarConnection setURI(URI uri) {
-        this.uri = uri;
-        return this;
+    public Connection<TarSession> getConnection(final URI uri) throws IOException {
+         TarConnection connection = new TarConnection();
+         connection.setURI(uri);
+         return connection;
     }
 
+    /**
+     * Check if scheme is provided
+     *
+     * @param scheme the scheme to be checked
+     *
+     * @return true if scheme is provided
+     */
     @Override
-    public URI getURI() {
-        return uri;
-    }
-
-    @Override
-    public TarSession createSession() throws IOException {
-        TarSession session = new TarSession();
-        session.setName(uri.getSchemeSpecificPart());
-        session.setScheme(uri.getScheme());
-        sessions.add(session);
-        return session;
-    }
-
-    @Override
-    public void close() throws IOException {
-        for (TarSession session : sessions) {
-            session.close();
-        }
+    public boolean providesScheme(String scheme) {
+        return scheme.startsWith("tar");
     }
 }

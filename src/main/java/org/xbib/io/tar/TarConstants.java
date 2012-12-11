@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack.io.tar;
+package org.xbib.io.tar;
 
 /**
  * This interface contains all the definitions used in the package.
