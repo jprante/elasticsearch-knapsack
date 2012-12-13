@@ -200,12 +200,12 @@ public class RestExportAction extends BaseRestHandler {
         if (!metaData.indices().isEmpty()) {
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
-                builder.startObject().startObject("settings");
+                builder.startObject();
                 for (Map.Entry<String, String> entry :
                         settingsFilter.filterSettings(indexMetaData.settings()).getAsMap().entrySet()) {
                     builder.field(entry.getKey(), entry.getValue());
                 }
-                builder.endObject().endObject();
+                builder.endObject();
                 settings.put(indexMetaData.index(), builder.string());
             }
         }

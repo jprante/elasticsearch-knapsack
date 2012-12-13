@@ -24,7 +24,9 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +39,7 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -73,8 +76,11 @@ public class RestImportAction extends BaseRestHandler {
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
+        final Map<String, String> params = request.params();
         final String newIndex = request.param("index", "_all");
         final String newType = request.param("type");
+        final int size = request.paramAsInt("bulk_size", 100);
+        final int maxActiveBulkRequest = request.paramAsInt("max_active_bulks", 10);
         final String desc = newIndex + (newType != null ? "_" + newType : "");
         try {
             XContentBuilder builder = restContentBuilder(request)
@@ -87,7 +93,6 @@ public class RestImportAction extends BaseRestHandler {
                     .newThread(new Thread() {
                 @Override
                 public void run() {
-                    int size = request.paramAsInt("size", 100);
                     final String target = request.param("target", desc);
                     String scheme = request.param("scheme", "targz");
                     for (String codec : StreamCodecService.getCodecs()) {
@@ -98,7 +103,7 @@ public class RestImportAction extends BaseRestHandler {
 
                     BulkOperation op = new BulkOperation(client, logger)
                             .setBulkSize(size)
-                            .setMaxActiveRequests(10);
+                            .setMaxActiveRequests(maxActiveBulkRequest);
 
                     try {
                         logger.info("cluster 'yellow' check before import of {}", target);
@@ -133,16 +138,35 @@ public class RestImportAction extends BaseRestHandler {
                             }
                             if (entry.length == 2) {
                                 if ("_settings".equals(entry[1])) {
-                                    indices.put(index, packet.getPacket());
+                                    String settings;
+                                    if (params.containsKey(index + "_settings")) {
+                                        InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");
+                                        settings = Streams.copyToString(reader);
+                                        reader.close();
+                                    } else {
+                                        settings = packet.getPacket();
+                                    }
+                                    indices.put(index, settings);
+                                    if (!createIndex(index)) {
+                                        throw new IOException("unable to create index '" + index + "' with settings " + settings);
+                                    }
                                 }
                             } else if (entry.length == 3) {
+                                String mapping;
                                 if ("_mapping".equals(entry[2])) {
-                                    mappings.put(index + "/" + type, packet.getPacket());
+                                    if (params.containsKey(index + "_" + type + "_mapping")) {
+                                        InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");
+                                        mapping = Streams.copyToString(reader);
+                                        reader.close();                                        
+                                    } else {
+                                        mapping = packet.getPacket();
+                                    }
+                                    mappings.put(index + "/" + type, mapping);
+                                    if (!createMapping(index, type)) {
+                                        throw new IOException("unable to create index type '" + index + "/" + type + "' with mapping " + mapping);
+                                    }
                                 } else {
                                     // index document
-                                    if (!createMapping(index, type)) {
-                                        throw new IOException("unable to create mapping " + index + "/" + type);
-                                    }
                                     op.index(index, type, id, packet.getPacket());
                                 }
                             }

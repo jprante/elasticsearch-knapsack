@@ -10,22 +10,29 @@ It uses TAR archives and compression for input/output.
 Installation
 ------------
 
-The current version of the plugin is **1.0.2**
+**DISCLAIMER:** Github uploads are disabled. Plugin installs with automatic github downloading are not possible any more. Please use one of the links to get the zip archive and install manually. Unpack the zip archive in the folder ``$ES_HOME/plugins/knapsack``. Sorry for the inconvenience.
 
-In order to install the plugin, please run
+Prerequisite: Elasticsearch version 0.20.x
+
+The current version of the plugin is **1.0.3**
+
+`elasticsearch-knapsack-1.0.3.zip <https://raw.github.com/jprante/elasticsearch-knapsack/master/downloads/elasticsearch-knapsack-1.0.3.zip>`_
+
+Previous versions
+
+`elasticsearch-knapsack-1.0.2.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.2.zip>`_
+
+`elasticsearch-knapsack-1.0.1.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.1.zip>`_
+
+`elasticsearch-knapsack-1.0.0.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.0.zip>`_
+
+In order to install older versions of the plugin, you can also run
 
 ``bin/plugin -install jprante/elasticsearch-knapsack/1.0.2``.
 
 Be aware, in case the version number is omitted, you will have the source code installed for manual compilation.
 
-================ ================
-Compound Plugin  ElasticSearch
-================ ================
-master           0.20.x -> master
-1.0.2            0.20.x           
-1.0.1            0.20.x           
-1.0.0            0.20.x           
-================ ================
+
 
 Example
 =======
@@ -99,6 +106,55 @@ Compression
 You can select a ``.tar.gz``, ``.tar.bz2``, or ``.tar.xz`` suffix for the corresponding compression algorithm. Example::
 
    curl -XPOST 'localhost:9200/_export?target=/my/archive.tar.bz2'
+
+Modifying settings and mappings
+-------------------------------
+
+You can overwrite the settings and mapping when importing by using parameters in the form ``<index>_settings=<filename>`` or `<index>_<type>_mapping=<filename>`. General example::
+
+    curl -XPOST 'localhost:9200/myindex/mytype/_import?myindex_settings=/my/new/mysettings.json&myindex_mytype_mapping=/my/new/mapping.json'
+
+The following statements demonstrate how you can change the number of shards from the default ``5`` to ``1`` and replica from 1 to 0 for an index ``test``::
+
+    curl -XDELETE localhost:9200/test
+    curl -XPUT 'localhost:9200/test/test/1' -d '{"key":"value 1"}'
+    curl -XPUT 'localhost:9200/test/test/2' -d '{"key":"value 2"}'
+    curl -XPUT 'localhost:9200/test2/foo/1' -d '{"key":"value 1"}'
+    curl -XPUT 'localhost:9200/test2/bar/1' -d '{"key":"value 1"}'
+    curl -XPOST 'localhost:9200/test/_export'
+    tar zxvf test.tar.gz test/_settings
+    echo '{"index.number_of_shards":"1","index.number_of_replicas":"0","index.version.created":"200199"}' > test/_settings
+    curl -XDELETE 'localhost:9200/test'
+    curl -XPOST 'localhost:9200/test/_import?test_settings=test/_settings'
+    curl -XGET 'localhost:9200/test/_settings?pretty'
+    curl -XPOST 'localhost:9200/test/_search?q=*&pretty'
+
+The result is::
+
+  {
+    "took" : 2,
+    "timed_out" : false,
+    "_shards" : {
+      "total" : 1,
+      "successful" : 1,
+      "failed" : 0
+    },
+    "hits" : {
+      "total" : 2,
+      "max_score" : 1.0,
+      "hits" : [ {
+        "_index" : "test",
+        "_type" : "test",
+         "_id" : "1",
+        "_score" : 1.0, "_source" : {"key":"value 1"}
+      }, {
+        "_index" : "test",
+        "_type" : "test",
+        "_id" : "2",
+        "_score" : 1.0, "_source" : {"key":"value 2"}
+      } ]
+    }
+  }
 
 
 Caution
