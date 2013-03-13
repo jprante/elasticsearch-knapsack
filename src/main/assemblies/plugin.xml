@@ -13,6 +13,7 @@
             <scope>compile</scope>
             <includes>
                 <include>org.elasticsearch.plugin</include>
+                <include>org.apache.commons:*</include>
             </includes>
         </dependencySet>
     </dependencySets>  
