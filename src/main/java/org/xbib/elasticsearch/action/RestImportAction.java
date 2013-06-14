@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.rest.action;
+package org.xbib.elasticsearch.action;
 
 import static org.elasticsearch.client.Requests.putMappingRequest;
 import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
@@ -216,7 +216,7 @@ public class RestImportAction extends BaseRestHandler {
         CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
         createIndexRequest.source(s);
         CreateIndexResponse response = client.admin().indices().create(createIndexRequest).actionGet();
-        return response.acknowledged();
+        return response.isAcknowledged();
     }
 
     private boolean createMapping(String index, String type) throws IOException {
@@ -242,6 +242,6 @@ public class RestImportAction extends BaseRestHandler {
         putMappingRequest.source(m);
         putMappingRequest.timeout(timeValueSeconds(10));
         PutMappingResponse response = client.admin().indices().putMapping(putMappingRequest).actionGet();
-        return response.acknowledged();
+        return response.isAcknowledged();
     }
 }

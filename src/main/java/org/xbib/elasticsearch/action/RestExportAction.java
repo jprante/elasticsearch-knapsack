@@ -16,18 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.rest.action;
-
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.rest.RestRequest.Method.POST;
-import static org.elasticsearch.rest.RestStatus.OK;
-import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
+package org.xbib.elasticsearch.action;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
@@ -45,11 +41,6 @@ import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.xbib.io.Connection;
-import org.xbib.io.ConnectionFactory;
-import org.xbib.io.ConnectionService;
-import org.xbib.io.Packet;
-import org.xbib.io.Session;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
@@ -58,7 +49,19 @@ import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
 import org.elasticsearch.rest.action.support.RestActions;
 import org.elasticsearch.search.SearchHit;
+
+import org.xbib.io.Connection;
+import org.xbib.io.ConnectionFactory;
+import org.xbib.io.ConnectionService;
+import org.xbib.io.Packet;
+import org.xbib.io.Session;
 import org.xbib.io.StreamCodecService;
+
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestStatus.OK;
+import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
+
 
 public class RestExportAction extends BaseRestHandler {
 
@@ -156,11 +159,11 @@ public class RestExportAction extends BaseRestHandler {
                             searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
                                     .setScroll(TimeValue.timeValueMillis(millis))
                                     .execute().actionGet();
-                            for (SearchHit hit : searchResponse.hits()) {
+                            for (SearchHit hit : searchResponse.getHits()) {
                                 ElasticPacket packet = new ElasticPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
                                 session.write(packet);
                             }
-                            if (searchResponse.hits().hits().length == 0) {
+                            if (searchResponse.getHits().getHits().length == 0) {
                                 break;
                             }
                         }
@@ -172,8 +175,6 @@ public class RestExportAction extends BaseRestHandler {
 
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
-                    } finally {
-                        //client.admin().indices().prepareOpen(index).execute().actionGet();
                     }
                 }
             }).start();
@@ -196,7 +197,7 @@ public class RestExportAction extends BaseRestHandler {
             request.setFilterIndices(index);
         }
         ClusterStateResponse response = request.execute().actionGet();
-        MetaData metaData = response.state().metaData();
+        MetaData metaData = response.getState().metaData();
         if (!metaData.indices().isEmpty()) {
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
@@ -219,7 +220,7 @@ public class RestExportAction extends BaseRestHandler {
                 .setFilterNodes(true)
                 .setFilterIndices(index)
                 .execute().actionGet();
-        MetaData metaData = response.state().metaData();
+        MetaData metaData = response.getState().metaData();
         if (!metaData.indices().isEmpty()) {
             IndexMetaData indexMetaData = metaData.iterator().next();
             for (MappingMetaData mappingMd : indexMetaData.mappings().values()) {

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.plugin.knapsack;
+package org.xbib.elasticsearch.knapsack;
 
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.rest.RestModule;
-import org.elasticsearch.rest.action.RestExportAction;
-import org.elasticsearch.rest.action.RestImportAction;
+import org.xbib.elasticsearch.action.RestExportAction;
+import org.xbib.elasticsearch.action.RestImportAction;
 
 public class KnapsackPlugin extends AbstractPlugin {
 

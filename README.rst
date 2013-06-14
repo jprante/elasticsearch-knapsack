@@ -1,41 +1,34 @@
-.. image:: elasticsearch-knapsack/raw/master/Knapsack.png
+.. image:: ../../../elasticsearch-knapsack/raw/master/Knapsack.png
 
 Elasticsearch Knapsack Plugin
 =============================
 
 Knapsack is an index export/import plugin for `Elasticsearch <http://github.com/elasticsearch/elasticsearch>`_.
 
-It uses TAR archives and compression for input/output.
+It uses tar archive format and gzip compression for input/output.
 
 Installation
 ------------
 
-**DISCLAIMER:** Github uploads are disabled. Plugin installs with automatic github downloading are not possible any more. Please use one of the links to get the zip archive and install manually. Unpack the zip archive in the folder ``$ES_HOME/plugins/knapsack``. Sorry for the inconvenience.
+Current version of the plugin is **2.0.0** (June 14, 2013)
 
-Prerequisite: Elasticsearch version 0.20.x
+Prerequisites::
 
-The current version of the plugin is **1.0.3**
+  Elasticsearch 0.90.x
 
-`elasticsearch-knapsack-1.0.3.zip <https://raw.github.com/jprante/elasticsearch-knapsack/master/downloads/elasticsearch-knapsack-1.0.3.zip>`_
+Bintray:
 
-Previous versions
+https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
 
-`elasticsearch-knapsack-1.0.2.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.2.zip>`_
+`Direct download <http://dl.bintray.com/content/jprante/elasticsearch-plugins/org/xbib/elasticsearch/elasticsearch-knapsack/2.0.0/elasticsearch-knapsack-2.0.0.zip>`_
 
-`elasticsearch-knapsack-1.0.1.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.1.zip>`_
+Command::
 
-`elasticsearch-knapsack-1.0.0.zip <https://github.com/downloads/jprante/elasticsearch-knapsack/elasticsearch-knapsack-1.0.0.zip>`_
-
-In order to install older versions of the plugin, you can also run
-
-``bin/plugin -install jprante/elasticsearch-knapsack/1.0.2``.
-
-Be aware, in case the version number is omitted, you will have the source code installed for manual compilation.
+  ./bin/plugin -url http://bit.ly/... -install knapsack
 
 
-
-Example
-=======
+Documentation
+-------------
 
 Note: you must have the _source field enabled, otherwise the Knapsack export will not work.
 
@@ -162,7 +155,10 @@ The result is::
 Caution
 =======
 
-Knapsack is very simple and works without locking or snapshots. So it is up to you to organize the safe export and import. If the index changes while Knapsack is exporting, you may lose data in the export. Do not run Knapsack in parallel on the same export.
+Knapsack is very simple and works without locking or index snapshots.
+So it is up to you to organize the safe export and import.
+If the index changes while Knapsack is exporting, you may lose data in the export.
+Do not run Knapsack in parallel on the same export.
 
 
 License

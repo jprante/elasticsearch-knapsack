@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.elasticsearch.plugin</groupId>
+    <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
 
     <name>elasticsearch-knapsack</name>
     <description>
-       Knapsack is a simple backup/restore service for Elasticsearch
+       Knapsack is a simple backup/restore tool for Elasticsearch
     </description>
 
     <inceptionYear>2012</inceptionYear>
@@ -30,9 +30,17 @@
         <url>http://github.com/jprante/elasticsearch-knapsack</url>
     </scm>
 
+    <distributionManagement>
+        <repository>
+            <id>bintray-jprante-elasticsearch-plugins-elasticsearch-knapsack</id>
+            <name>jprante-elasticsearch-plugins-elasticsearch-knapsack</name>
+            <url>https://api.bintray.com/maven/jprante/elasticsearch-plugins/elasticsearch-knapsack</url>
+        </repository>
+    </distributionManagement>
+
     <properties>
-        <elasticsearch.version>0.20.5</elasticsearch.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <elasticsearch.version>0.90.1</elasticsearch.version>
     </properties>
 
     <dependencies>
@@ -94,6 +102,17 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.12.4</version>
+                <configuration>
+                    <includes>
+                        <include>**/*Tests.java</include>
+                        <include>**/Test*.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>2.2.1</version>
                 <executions>
@@ -110,7 +129,7 @@
                 <version>2.3</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
-                    <outputDirectory>${basedir}/downloads/</outputDirectory>
+                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
                     <descriptors>
                         <descriptor>${basedir}/src/main/assemblies/plugin.xml</descriptor>
                     </descriptors>
@@ -123,18 +142,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.12.4</version>
-                <configuration>
-                    <includes>
-                        <include>**/*Tests.java</include>
-                        <include>**/Test*.java</include>
-                    </includes>
-                </configuration>
             </plugin>
         </plugins>
     </build>

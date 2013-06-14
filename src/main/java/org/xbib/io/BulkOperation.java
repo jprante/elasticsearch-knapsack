@@ -37,19 +37,30 @@ import org.elasticsearch.common.logging.ESLogger;
 public class BulkOperation {
 
     private String index;
+
     private String type;
+
     private String id;
+
     private Client client;
+
     private ESLogger logger;
+
     private int bulkSize = 100;
+
     private int maxActiveRequests = 30;
+
     private long millisBeforeContinue = 60000L;
+
     private int totalTimeouts;
+
     private static final int MAX_TOTAL_TIMEOUTS = 10;
+
     private static final AtomicInteger activeBulks = new AtomicInteger(0);
+
     private static final AtomicLong counter = new AtomicLong(0);
+
     private ThreadLocal<BulkRequestBuilder> currentBulk = new ThreadLocal();
-    private boolean versioning;
 
     public BulkOperation(Client client, ESLogger logger) {
         this.client = client;
@@ -218,7 +229,8 @@ public class BulkOperation {
                         logger.error("bulk request has failures: {}", bulkResponse.buildFailureMessage());
                     } else {
                         final long totalActions = counter.addAndGet(numberOfActions);
-                        logger.info("bulk request success ({} millis, {} docs, total of {} docs)", bulkResponse.tookInMillis(), numberOfActions, totalActions);
+                        logger.info("bulk request success ({} millis, {} docs, total of {} docs)",
+                                bulkResponse.getTookInMillis(), numberOfActions, totalActions);
                     }
                     activeBulks.decrementAndGet();
                     synchronized (activeBulks) {
