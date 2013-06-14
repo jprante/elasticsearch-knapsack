@@ -24,7 +24,7 @@ https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch
 
 Command::
 
-  ./bin/plugin -url http://bit.ly/... -install knapsack
+  ./bin/plugin -url http://bit.ly/19zYGu2 -install knapsack
 
 
 Documentation
