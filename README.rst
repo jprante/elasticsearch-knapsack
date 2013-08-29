@@ -20,7 +20,7 @@ Bintray:
 
 https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
 
-`Direct download <http://dl.bintray.com/content/jprante/elasticsearch-plugins/org/xbib/elasticsearch/elasticsearch-knapsack/2.0.0/elasticsearch-knapsack-2.0.0.zip>`_
+`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0/elasticsearch-knapsack-2.0.0.zip?direct>`_
 
 Command::
 
