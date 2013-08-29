@@ -10,11 +10,11 @@ It uses tar archive format and gzip compression for input/output.
 Installation
 ------------
 
-Current version of the plugin is **2.0.0** (June 14, 2013)
+Current version of the plugin is **2.0.1** (August 29, 2013)
 
 Prerequisites::
 
-  Elasticsearch 0.90.x
+  Elasticsearch 0.90.3+
 
 Bintray:
 

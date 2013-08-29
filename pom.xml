@@ -6,7 +6,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>2.0.0</version>
+    <version>2.0.1</version>
     <packaging>jar</packaging>
 
     <name>elasticsearch-knapsack</name>
@@ -40,7 +40,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>0.90.1</elasticsearch.version>
+        <elasticsearch.version>0.90.3</elasticsearch.version>
     </properties>
 
     <dependencies>
@@ -60,7 +60,6 @@
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
-
 
         <dependency>
             <groupId>org.testng</groupId>

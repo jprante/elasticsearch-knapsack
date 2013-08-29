@@ -198,16 +198,16 @@ public class RestExportAction extends BaseRestHandler {
         }
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().metaData();
-        if (!metaData.indices().isEmpty()) {
+        if (!metaData.getIndices().isEmpty()) {
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
                 builder.startObject();
                 for (Map.Entry<String, String> entry :
-                        settingsFilter.filterSettings(indexMetaData.settings()).getAsMap().entrySet()) {
+                        settingsFilter.filterSettings(indexMetaData.getSettings()).getAsMap().entrySet()) {
                     builder.field(entry.getKey(), entry.getValue());
                 }
                 builder.endObject();
-                settings.put(indexMetaData.index(), builder.string());
+                settings.put(indexMetaData .getIndex(), builder.string());
             }
         }
         return settings;
@@ -220,10 +220,10 @@ public class RestExportAction extends BaseRestHandler {
                 .setFilterNodes(true)
                 .setFilterIndices(index)
                 .execute().actionGet();
-        MetaData metaData = response.getState().metaData();
-        if (!metaData.indices().isEmpty()) {
+        MetaData metaData = response.getState().getMetaData();
+        if (!metaData.getIndices().isEmpty()) {
             IndexMetaData indexMetaData = metaData.iterator().next();
-            for (MappingMetaData mappingMd : indexMetaData.mappings().values()) {
+            for (MappingMetaData mappingMd : indexMetaData.getMappings().values()) {
                 if (types == null || types.isEmpty() || types.contains(mappingMd.type())) {
                     final XContentBuilder builder = jsonBuilder();
                     builder.startObject();
