@@ -20,11 +20,11 @@ Bintray:
 
 https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
 
-`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0/elasticsearch-knapsack-2.0.0.zip?direct>`_
+`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.1/elasticsearch-knapsack-2.0.1.zip>`_
 
 Command::
 
-  ./bin/plugin -url http://bit.ly/19zYGu2 -install knapsack
+  ./bin/plugin -url http://bit.ly/1dsSLtv -install knapsack
 
 
 Documentation
