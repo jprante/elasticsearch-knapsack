@@ -126,9 +126,14 @@ public class RestImportAction extends BaseRestHandler {
                         Packet<String> packet;
                         while ((packet = session.read()) != null) {
                             String[] entry = packet.getName().split("/");
-                            String index = entry.length > 0 ? entry[0] : null;
-                            String type = entry.length > 1 ? entry[1] : null;
-                            String id = entry.length > 2 ? entry[2] : null;
+                            int entryIndexStart = 0;
+                            //skip entry with . and ..
+                            if(entry[0].equals(".") || entry[0].equals("..")) {
+                            	entryIndexStart = 1;
+                            }
+                            String index = entry.length > (entryIndexStart + 0) ? entry[entryIndexStart + 0] : null;
+                            String type = entry.length > (entryIndexStart+ 1) ? entry[entryIndexStart + 1] : null;
+                            String id = entry.length > (entryIndexStart + 2) ? entry[entryIndexStart + 2] : null;
                             // re-map to new index/type
                             if (newIndex != null && !newIndex.equals("_all")) {
                                 index = newIndex;
@@ -136,8 +141,8 @@ public class RestImportAction extends BaseRestHandler {
                             if (newType != null) {
                                 type = newType;
                             }
-                            if (entry.length == 2) {
-                                if ("_settings".equals(entry[1])) {
+                            if (entry.length == (entryIndexStart + 2)) {
+                                if ("_settings".equals(entry[entryIndexStart + 1])) {
                                     String settings;
                                     if (params.containsKey(index + "_settings")) {
                                         InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");
@@ -151,9 +156,9 @@ public class RestImportAction extends BaseRestHandler {
                                         throw new IOException("unable to create index '" + index + "' with settings " + settings);
                                     }
                                 }
-                            } else if (entry.length == 3) {
+                            } else if (entry.length == (entryIndexStart + 3)) {
                                 String mapping;
-                                if ("_mapping".equals(entry[2])) {
+                                if ("_mapping".equals(entry[entryIndexStart + 2])) {
                                     if (params.containsKey(index + "_" + type + "_mapping")) {
                                         InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");
                                         mapping = Streams.copyToString(reader);

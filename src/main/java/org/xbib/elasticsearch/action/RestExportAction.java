@@ -20,6 +20,7 @@ package org.xbib.elasticsearch.action;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -201,12 +202,16 @@ public class RestExportAction extends BaseRestHandler {
         if (!metaData.getIndices().isEmpty()) {
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
-                builder.startObject();
+                
+                HashMap<String, HashMap> settingsMap = new HashMap<String, HashMap>();
+                
                 for (Map.Entry<String, String> entry :
                         settingsFilter.filterSettings(indexMetaData.getSettings()).getAsMap().entrySet()) {
-                    builder.field(entry.getKey(), entry.getValue());
+                	this.addPropertyToHashMap(settingsMap, entry.getKey(), entry.getValue());
                 }
-                builder.endObject();
+                
+                this.hashMapToJson(settingsMap, builder);
+                
                 settings.put(indexMetaData .getIndex(), builder.string());
             }
         }
@@ -267,4 +272,79 @@ public class RestExportAction extends BaseRestHandler {
             return packet;
         }
     }
+    
+    private void addPropertyToHashMap(HashMap<String, HashMap> json, String property, String value) {
+
+		Object parent;
+		Object current;
+		String lastKey = null;
+
+    	parent = json;
+    	current = json;
+    	String myPropertyField[] = property.split("\\.");
+    	for(int i = 0; i < myPropertyField.length; i++) {
+    		if(myPropertyField[i].matches("\\d+")) {
+    			current = new ArrayList();
+    			if(parent instanceof HashMap) {
+        			if((current = ((HashMap)parent).get(lastKey)) == null || !(current instanceof ArrayList)) {
+        				current = new ArrayList();
+        			}
+    				((HashMap)parent).put(lastKey, current);
+    			}else if(parent instanceof ArrayList) {
+    				((ArrayList)parent).add(current);
+    			}
+    			parent = current;
+    		} else {
+    			parent = current;
+    			current = new HashMap();
+    			if(parent instanceof HashMap) {
+        			if((current = ((HashMap)parent).get(myPropertyField[i])) == null) {
+        				current = new HashMap();
+        			}
+    				((HashMap)parent).put(myPropertyField[i], current);
+    			}
+    			
+    			if(parent instanceof ArrayList) {
+    				((ArrayList)parent).add(current);
+    			}
+    		}
+
+    		lastKey = myPropertyField[i];
+    	}
+    	
+		if(current instanceof ArrayList) {
+			((ArrayList)current).add(value);
+		} else if(parent instanceof HashMap) {
+			((HashMap)parent).put(lastKey, value);
+		}
+    }
+    
+	private void hashMapToJson(Map map, XContentBuilder json) throws IOException {
+		Set<Map.Entry<String, Object>> entries = map.entrySet();
+		json.startObject();
+		for(Map.Entry<String, Object> entry : entries) {
+			
+			json.field(entry.getKey());
+			if(entry.getValue() instanceof ArrayList) {
+				json.startArray();
+				ArrayList list = (ArrayList)entry.getValue();
+				for(int i = 0; i < list.size(); i++) {
+					if(list.get(i) instanceof Map) {
+						json.startObject();
+						this.hashMapToJson((Map)list.get(i), json);
+						json.endObject();
+					} else if(list.get(i) instanceof String) {
+						json.value(list.get(i));
+					}
+				}
+				json.endArray();
+			} else if(entry.getValue() instanceof Map) {
+				this.hashMapToJson((Map)entry.getValue(), json);
+			} else {
+				json.value(entry.getValue());
+			}
+			
+		}
+		json.endObject();
+	}
 }
