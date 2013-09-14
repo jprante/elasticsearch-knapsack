@@ -1,4 +1,4 @@
-.. image:: ../../../elasticsearch-knapsack/raw/master/Knapsack.png
+.. image:: ../../../elasticsearch-knapsack/raw/master/knapsack.png
 
 Elasticsearch Knapsack Plugin
 =============================

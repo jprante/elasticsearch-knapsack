@@ -1,21 +1,4 @@
-/*
- * Licensed to ElasticSearch and Shay Banon under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. ElasticSearch licenses this
- * file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
+
 package org.xbib.elasticsearch.action;
 
 import static org.elasticsearch.client.Requests.putMappingRequest;
@@ -87,40 +70,40 @@ public class RestImportAction extends BaseRestHandler {
                     .startObject()
                     .field("ok", true)
                     .endObject();
+
+            ClusterHealthResponse healthResponse =
+                    client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+                            .setTimeout("30s").execute().actionGet(30000);
+
+            if (healthResponse.isTimedOut()) {
+                throw new IOException("cluster not healthy, cowardly refusing to continue with export");
+            }
+
+            final String target = request.param("target", desc);
+            String scheme = request.param("scheme", "targz");
+            for (String codec : StreamCodecService.getCodecs()) {
+                if (target.endsWith(codec)) {
+                    scheme = "tar" + codec;
+                }
+            }
+
+            ConnectionFactory factory = service.getConnectionFactory(scheme);
+            final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
+            final Session session = connection.createSession();
+            session.open(Session.Mode.READ);
+
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
 
             EsExecutors.daemonThreadFactory(settings, "Knapsack import [" + desc + "]")
                     .newThread(new Thread() {
                 @Override
                 public void run() {
-                    final String target = request.param("target", desc);
-                    String scheme = request.param("scheme", "targz");
-                    for (String codec : StreamCodecService.getCodecs()) {
-                        if (target.endsWith(codec)) {
-                            scheme = "tar" + codec;
-                        }
-                    }
 
                     BulkOperation op = new BulkOperation(client, logger)
                             .setBulkSize(size)
                             .setMaxActiveRequests(maxActiveBulkRequest);
 
                     try {
-                        logger.info("cluster 'yellow' check before import of {}", target);
-
-                        ClusterHealthResponse healthResponse =
-                                client.admin().cluster().prepareHealth().setWaitForYellowStatus()
-                                .setTimeout("30s").execute().actionGet(30000);
-
-                        if (healthResponse.isTimedOut()) {
-                            throw new IOException("cluster not healthy, cowardly refusing to continue with export");
-                        }
-
-                        ConnectionFactory factory = service.getConnectionFactory(scheme);
-                        Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
-                        Session session = connection.createSession();
-                        session.open(Session.Mode.READ);
-
                         logger.info("starting import of {}", target);
 
                         Packet<String> packet;

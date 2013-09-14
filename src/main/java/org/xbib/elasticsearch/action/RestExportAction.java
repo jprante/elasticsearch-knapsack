@@ -1,21 +1,4 @@
-/*
- * Licensed to ElasticSearch and Shay Banon under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. ElasticSearch licenses this
- * file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
+
 package org.xbib.elasticsearch.action;
 
 import java.io.IOException;
@@ -92,6 +75,29 @@ public class RestExportAction extends BaseRestHandler {
                     .startObject()
                     .field("ok", true)
                     .endObject();
+
+            ClusterHealthResponse healthResponse =
+                    client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+                            .setTimeout("30s").execute().actionGet(30000);
+
+            if (healthResponse.isTimedOut()) {
+                String msg = "cluster not healthy, cowardly refusing to continue with export";
+                logger.error(msg);
+                throw new IOException(msg);
+            }
+
+            final String target = request.param("target", desc);
+            String scheme = request.param("scheme", "targz");
+            for (String codec : StreamCodecService.getCodecs()) {
+                if (target.endsWith(codec)) {
+                    scheme = "tar" + codec;
+                }
+            }
+            ConnectionFactory factory = service.getConnectionFactory(scheme);
+            final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
+            final Session session = connection.createSession();
+            session.open(Session.Mode.WRITE);
+
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
 
             EsExecutors.daemonThreadFactory(settings, "Knapsack export [" + desc + "]")
@@ -101,43 +107,19 @@ public class RestExportAction extends BaseRestHandler {
                     setName("[Exporter Thread " + desc + "]");
                     long millis = request.paramAsLong("millis", 30000L);
                     int size = request.paramAsInt("size", 1000);
-                    final String target = request.param("target", desc);
-                    String scheme = request.param("scheme", "targz");
-                    for (String codec : StreamCodecService.getCodecs()) {
-                        if (target.endsWith(codec)) {
-                            scheme = "tar" + codec;
-                        }
-                    }
 
                     try {
-                        logger.info("cluster 'yellow' check before exporting to {}", target);
-
-                        ClusterHealthResponse healthResponse =
-                                client.admin().cluster().prepareHealth().setWaitForYellowStatus()
-                                .setTimeout("30s").execute().actionGet(30000);
-
-                        if (healthResponse.isTimedOut()) {
-                            String msg = "cluster not healthy, cowardly refusing to continue with export";
-                            logger.error(msg);
-                            throw new IOException(msg);
-                        }
 
                         logger.info("starting export to {}", target);
-
-                        // fire up TAR session
-                        ConnectionFactory factory = service.getConnectionFactory(scheme);
-                        Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
-                        Session session = connection.createSession();
-                        session.open(Session.Mode.WRITE);
 
                         // export settings & mappings
                         for (String s : indices) {
                             Map<String, String> settings = getSettings(s);
-                            for (String idx : settings.keySet()) {
-                                session.write(new ElasticPacket(idx, "_settings", null, settings.get(idx)));
-                                Map<String, String> mappings = getMapping(idx, ImmutableSet.copyOf(types));
-                                for (String tx : mappings.keySet()) {
-                                    session.write(new ElasticPacket(idx, tx, "_mapping", mappings.get(tx)));
+                            for (String index : settings.keySet()) {
+                                session.write(new ElasticPacket(index, "_settings", null, settings.get(index)));
+                                Map<String, String> mappings = getMapping(index, ImmutableSet.copyOf(types));
+                                for (String type : mappings.keySet()) {
+                                    session.write(new ElasticPacket(index, type, "_mapping", mappings.get(type)));
                                 }
                             }
                         }
@@ -159,12 +141,12 @@ public class RestExportAction extends BaseRestHandler {
                             searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
                                     .setScroll(TimeValue.timeValueMillis(millis))
                                     .execute().actionGet();
+                            if (searchResponse.getHits().getHits().length == 0) {
+                                break;
+                            }
                             for (SearchHit hit : searchResponse.getHits()) {
                                 ElasticPacket packet = new ElasticPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
                                 session.write(packet);
-                            }
-                            if (searchResponse.getHits().getHits().length == 0) {
-                                break;
                             }
                         }
 
@@ -207,7 +189,7 @@ public class RestExportAction extends BaseRestHandler {
                     builder.field(entry.getKey(), entry.getValue());
                 }
                 builder.endObject();
-                settings.put(indexMetaData .getIndex(), builder.string());
+                settings.put(indexMetaData.getIndex(), builder.string());
             }
         }
         return settings;
@@ -250,11 +232,6 @@ public class RestExportAction extends BaseRestHandler {
         @Override
         public String getName() {
             return name;
-        }
-
-        @Override
-        public String getNumber() {
-            return null; // not numbered at all
         }
 
         @Override

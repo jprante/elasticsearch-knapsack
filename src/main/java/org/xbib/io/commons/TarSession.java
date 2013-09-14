@@ -1,21 +1,4 @@
-/*
- * Licensed to ElasticSearch and Shay Banon under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. ElasticSearch licenses this
- * file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
+
 package org.xbib.io.commons;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -33,16 +16,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Tar Session
- *
- * @author <a href="mailto:joergprante@gmail.com">J&ouml;rg Prante</a>
- */
 public class TarSession implements Session {
 
     private static final String CHARSET_NAME = "UTF-8";
@@ -196,7 +176,6 @@ public class TarSession implements Session {
 
     @Override
     public Packet read() throws IOException {
-        //return readOp.read(this);
         if (!isOpen()) {
             throw new IOException("not open");
         }
@@ -218,20 +197,17 @@ public class TarSession implements Session {
 
     @Override
     public void write(Packet packet) throws IOException {
-        //writeOp.write(this, packet);
         if (packet == null || packet.toString() == null) {
             throw new IOException("no packet to write");
         }
         byte[] buf = packet.toString().getBytes(CHARSET_NAME);
         if (buf.length > 0) {
-            String name = createEntryName(packet.getName(), packet.getNumber());
+            String name = createEntryName(packet.getName());
             TarArchiveEntry entry = new TarArchiveEntry(name);
             entry.setModTime(new Date());
             entry.setSize(buf.length);
-            //getOutputStream().putNextEntry(entry);
             getOutputStream().putArchiveEntry(entry);
             getOutputStream().write(buf);
-            //getOutputStream().closeEntry();
             getOutputStream().closeArchiveEntry();
         }
     }
@@ -245,18 +221,16 @@ public class TarSession implements Session {
     }
 
 
-    private String createEntryName(String name, String number) {
+    private String createEntryName(String name) {
         StringBuilder sb = new StringBuilder();
         if (name != null && name.length() > 0) {
-            sb.append(name);
-        }
-        if (number != null) {
-            // distribute numbered entries over 12-digit directories (10.000 per directory)
-            String d = nf.format(counter.incrementAndGet());
-            sb.append("/").append(d.substring(0, 4))
-                    .append("/").append(d.substring(4, 8))
-                    .append("/").append(d.substring(8, 12))
-                    .append("/").append(number);
+            // normalize name if it contains relative "." or ".."
+            try {
+                URI n = new URI("file:" + name).normalize();
+                sb.append(n.getSchemeSpecificPart());
+            } catch (URISyntaxException e) {
+                sb.append(name);
+            }
         }
         return sb.toString();
     }
