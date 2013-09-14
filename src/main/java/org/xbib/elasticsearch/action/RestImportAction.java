@@ -24,14 +24,14 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -66,7 +66,7 @@ public class RestImportAction extends BaseRestHandler {
 
     @Inject
     public RestImportAction(Settings settings, Client client,
-            RestController controller) {
+                            RestController controller) {
         super(settings, client);
 
         controller.registerHandler(POST, "/_import", this);
@@ -91,104 +91,109 @@ public class RestImportAction extends BaseRestHandler {
 
             EsExecutors.daemonThreadFactory(settings, "Knapsack import [" + desc + "]")
                     .newThread(new Thread() {
-                @Override
-                public void run() {
-                    final String target = request.param("target", desc);
-                    String scheme = request.param("scheme", "targz");
-                    for (String codec : StreamCodecService.getCodecs()) {
-                        if (target.endsWith(codec)) {
-                            scheme = "tar" + codec;
-                        }
-                    }
+                        @Override
+                        public void run() {
 
-                    BulkOperation op = new BulkOperation(client, logger)
-                            .setBulkSize(size)
-                            .setMaxActiveRequests(maxActiveBulkRequest);
+                            created.clear();
 
-                    try {
-                        logger.info("cluster 'yellow' check before import of {}", target);
-
-                        ClusterHealthResponse healthResponse =
-                                client.admin().cluster().prepareHealth().setWaitForYellowStatus()
-                                .setTimeout("30s").execute().actionGet(30000);
-
-                        if (healthResponse.isTimedOut()) {
-                            throw new IOException("cluster not healthy, cowardly refusing to continue with export");
-                        }
-
-                        ConnectionFactory factory = service.getConnectionFactory(scheme);
-                        Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
-                        Session session = connection.createSession();
-                        session.open(Session.Mode.READ);
-
-                        logger.info("starting import of {}", target);
-
-                        Packet<String> packet;
-                        while ((packet = session.read()) != null) {
-                            String[] entry = packet.getName().split("/");
-                            String index = entry.length > 0 ? entry[0] : null;
-                            String type = entry.length > 1 ? entry[1] : null;
-                            String id = entry.length > 2 ? entry[2] : null;
-                            // re-map to new index/type
-                            if (newIndex != null && !newIndex.equals("_all")) {
-                                index = newIndex;
-                            }
-                            if (newType != null) {
-                                type = newType;
-                            }
-                            if (entry.length == 2) {
-                                if ("_settings".equals(entry[1])) {
-                                    String settings;
-                                    if (params.containsKey(index + "_settings")) {
-                                        InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");
-                                        settings = Streams.copyToString(reader);
-                                        reader.close();
-                                    } else {
-                                        settings = packet.getPacket();
-                                    }
-                                    indices.put(index, settings);
-                                    if (!createIndex(index)) {
-                                        throw new IOException("unable to create index '" + index + "' with settings " + settings);
-                                    }
-                                }
-                            } else if (entry.length == 3) {
-                                String mapping;
-                                if ("_mapping".equals(entry[2])) {
-                                    if (params.containsKey(index + "_" + type + "_mapping")) {
-                                        InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");
-                                        mapping = Streams.copyToString(reader);
-                                        reader.close();                                        
-                                    } else {
-                                        mapping = packet.getPacket();
-                                    }
-                                    mappings.put(index + "/" + type, mapping);
-                                    if (!createMapping(index, type)) {
-                                        throw new IOException("unable to create index type '" + index + "/" + type + "' with mapping " + mapping);
-                                    }
-                                } else {
-                                    // index document
-                                    op.index(index, type, id, packet.getPacket());
+                            final String target = request.param("target", desc);
+                            String scheme = request.param("scheme", "targz");
+                            for (String codec : StreamCodecService.getCodecs()) {
+                                if (target.endsWith(codec)) {
+                                    scheme = "tar" + codec;
                                 }
                             }
+
+                            BulkOperation op = new BulkOperation(client, logger)
+                                    .setBulkSize(size)
+                                    .setMaxActiveRequests(maxActiveBulkRequest);
+
+                            try {
+                                logger.info("cluster 'yellow' check before import of {}", target);
+
+                                ClusterHealthResponse healthResponse =
+                                        client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+                                                .setTimeout("30s").execute().actionGet(30000);
+
+                                if (healthResponse.isTimedOut()) {
+                                    throw new IOException("cluster not healthy, cowardly refusing to continue with export");
+                                }
+
+                                ConnectionFactory factory = service.getConnectionFactory(scheme);
+                                Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
+                                Session session = connection.createSession();
+                                session.open(Session.Mode.READ);
+
+                                logger.info("starting import of {}", target);
+
+                                Packet<String> packet;
+                                while ((packet = session.read()) != null) {
+                                    String[] entry = packet.getName().split("/");
+                                    String index = entry.length > 0 ? entry[0] : null;
+                                    String type = entry.length > 1 ? entry[1] : null;
+                                    String id = entry.length > 2 ? entry[2] : null;
+                                    // re-map to new index/type
+                                    if (newIndex != null && !newIndex.equals("_all")) {
+                                        index = newIndex;
+                                    }
+                                    if (newType != null) {
+                                        type = newType;
+                                    }
+                                    if (entry.length == 2) {
+                                        if ("_settings".equals(entry[1])) {
+                                            String settings;
+                                            if (params.containsKey(index + "_settings")) {
+                                                settings = new String(Streams.copyToByteArray(new File(params.get(index + "_settings"))), "UTF-8");
+                                            } else if (params.containsKey("_settings")) {
+                                                settings = new String(Streams.copyToByteArray(new File(params.get("_settings"))), "UTF-8");
+                                            } else {
+                                                settings = packet.getPacket();
+                                            }
+                                            indices.put(index, settings);
+                                            if (!createIndex(index)) {
+                                                throw new IOException("unable to create index '" + index + "' with settings " + settings);
+                                            }
+                                        }
+                                    } else if (entry.length == 3) {
+                                        String mapping;
+                                        if ("_mapping".equals(entry[2])) {
+                                            if (params.containsKey(index + "_" + type + "_mapping")) {
+                                                mapping = new String(Streams.copyToByteArray(new File(params.get(index + "_" + type + "_mapping"))), "UTF-8");
+                                            } else if (params.containsKey(index + "_mapping")) {
+                                                mapping = new String(Streams.copyToByteArray(new File(params.get(index + "_mapping"))), "UTF-8");
+                                            } else if (params.containsKey("_mapping")) {
+                                                mapping = new String(Streams.copyToByteArray(new File(params.get("_mapping"))), "UTF-8");
+                                            } else {
+                                                mapping = packet.getPacket();
+                                            }
+                                            mappings.put(index + "/" + type, mapping);
+                                            if (!createMapping(index, type)) {
+                                                throw new IOException("unable to create index type '" + index + "/" + type + "' with mapping " + mapping);
+                                            }
+                                        } else {
+                                            // index document
+                                            op.index(index, type, id, packet.getPacket());
+                                        }
+                                    }
+                                }
+
+                                logger.info("import of {} completed", target);
+
+                                session.close();
+                                connection.close();
+
+                            } catch (Exception e) {
+                                logger.error(e.getMessage(), e);
+                            } finally {
+                                try {
+                                    op.flush();
+
+                                } catch (IOException ex) {
+                                    logger.error(ex.getMessage(), ex);
+                                }
+                            }
                         }
-
-                        logger.info("import of {} completed", target);
-
-                        session.close();
-                        connection.close();
-
-                    } catch (Exception e) {
-                        logger.error(e.getMessage(), e);
-                    } finally {
-                        try {
-                            op.flush();
-
-                        } catch (IOException ex) {
-                            logger.error(ex.getMessage(), ex);
-                        }
-                    }
-                }
-            }).start();
+                    }).start();
 
         } catch (IOException ex) {
             try {
