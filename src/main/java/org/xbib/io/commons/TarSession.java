@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class TarSession implements Session {
 
+    private static final String CHARSET_NAME = "UTF-8";
     private final StreamCodecService codecFactory = StreamCodecService.getInstance();
     private boolean isOpen;
     private FileInputStream fin;
@@ -211,7 +212,7 @@ public class TarSession implements Session {
         packet.setName(name);
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         IOUtils.copy(getInputStream(), bout);
-        packet.setPacket(new String(bout.toByteArray()));
+        packet.setPacket(new String(bout.toByteArray() , CHARSET_NAME));
         return packet;
     }
 
@@ -221,7 +222,7 @@ public class TarSession implements Session {
         if (packet == null || packet.toString() == null) {
             throw new IOException("no packet to write");
         }
-        byte[] buf = packet.toString().getBytes();
+        byte[] buf = packet.toString().getBytes(CHARSET_NAME);
         if (buf.length > 0) {
             String name = createEntryName(packet.getName(), packet.getNumber());
             TarArchiveEntry entry = new TarArchiveEntry(name);
