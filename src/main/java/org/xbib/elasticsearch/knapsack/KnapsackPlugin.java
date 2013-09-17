@@ -18,26 +18,36 @@
  */
 package org.xbib.elasticsearch.knapsack;
 
+import org.elasticsearch.cluster.settings.ClusterDynamicSettingsModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.rest.RestModule;
 import org.xbib.elasticsearch.action.RestExportAction;
+import org.xbib.elasticsearch.action.RestExportStateAction;
 import org.xbib.elasticsearch.action.RestImportAction;
+import org.xbib.elasticsearch.action.RestImportStateAction;
 
 public class KnapsackPlugin extends AbstractPlugin {
 
-    @Override
-    public String name() {
-        return "knapsack";
-    }
+	@Override
+	public String name() {
+		return "knapsack";
+	}
 
-    @Override
-    public String description() {
-        return "Knapsack plugin";
-    }  
-  
-    public void onModule(RestModule module) {
-        module.addRestAction(RestExportAction.class);
-        module.addRestAction(RestImportAction.class);
-    }
+	@Override
+	public String description() {
+		return "Knapsack plugin";
+	}
+
+	public void onModule(RestModule module) {
+		module.addRestAction(RestExportAction.class);
+		module.addRestAction(RestExportStateAction.class);
+		module.addRestAction(RestImportAction.class);
+		module.addRestAction(RestImportStateAction.class);
+	}
+
+	public void onModule(ClusterDynamicSettingsModule module) {
+		module.addDynamicSettings(KnapsackService.EXPORT_STATE_SETTING_NAME);
+		module.addDynamicSettings(KnapsackService.IMPORT_STATE_SETTING_NAME);
+	}
 
 }

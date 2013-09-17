@@ -69,6 +69,11 @@ with the result file test.tar.gz, or even all data with::
 
 with the result file _all.tar.gz
 
+You can view the state of your exports with::
+
+   curl -XGET localhost:9200/_export/state
+   {"timestamp":1379776971842,"exports":[{"id":"Tm9AGQGXSMSdZvVoW6QZfA","start_timestamp":1379776971840,"indices":["_all"],"types":[],"target":"/path/to/archive/test_test.tar.gz"}]}
+
 Importing
 ---------
 
@@ -87,6 +92,11 @@ and check you have copied the data to a new index with::
 
    curl -XGET localhost:9200/test2/test2/1
    {"_index":"test2","_type":"test2","_id":"1","_version":1,"exists":true, "_source" : {"key":"value 1"}}
+
+You can view the state of your imports with::
+
+   curl -XGET localhost:9200/_import/state
+   {"timestamp":1379776971842,"imports":[{"id":"Tm9AGQGXSMSdZvVoW6QZfA","start_timestamp":1379776971840,"indices":["_all"],"types":[],"target":"/path/to/archive/test_test"}]}
 
 Choosing a different location
 -----------------------------
