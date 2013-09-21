@@ -11,16 +11,17 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.collect.Maps;
+import org.elasticsearch.common.collect.Sets;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.settings.Settings;
@@ -32,6 +33,8 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
+import org.xbib.elasticsearch.knapsack.Knapsack;
+import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.io.BulkOperation;
 import org.xbib.io.Connection;
 import org.xbib.io.ConnectionFactory;
@@ -42,15 +45,18 @@ import org.xbib.io.StreamCodecService;
 
 public class RestImportAction extends BaseRestHandler {
 
-    private final static ConnectionService service = ConnectionService.getInstance();
-    private final Map<String, String> indices = new HashMap();
-    private final Map<String, String> mappings = new HashMap();
-    private final Set<String> created = new HashSet();
+		private final KnapsackService knapsackService;
+	
+    @SuppressWarnings("unchecked")
+		private final static ConnectionService<ConnectionFactory<Session<Packet<String>>>> service = ConnectionService.getInstance();
+    private final Map<String, String> indices = Maps.newHashMap();
+    private final Map<String, String> mappings = Maps.newHashMap();
+    private final Set<String> created = Sets.newHashSet();
 
     @Inject
-    public RestImportAction(Settings settings, Client client,
-            RestController controller) {
+    public RestImportAction(Settings settings, Client client, RestController controller, KnapsackService knapsackService) {
         super(settings, client);
+        this.knapsackService = knapsackService;
 
         controller.registerHandler(POST, "/_import", this);
         controller.registerHandler(POST, "/{index}/_import", this);
@@ -87,9 +93,9 @@ public class RestImportAction extends BaseRestHandler {
                 }
             }
 
-            ConnectionFactory factory = service.getConnectionFactory(scheme);
-            final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
-            final Session session = connection.createSession();
+            ConnectionFactory<Session<Packet<String>>> factory = service.getConnectionFactory(scheme);
+            final Connection<Session<Packet<String>>> connection = factory.getConnection(URI.create(scheme + ":" + target));
+            final Session<Packet<String>> session = connection.createSession();
             session.open(Session.Mode.READ);
 
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
@@ -98,14 +104,15 @@ public class RestImportAction extends BaseRestHandler {
                     .newThread(new Thread() {
                 @Override
                 public void run() {
-
                     BulkOperation op = new BulkOperation(client, logger)
                             .setBulkSize(size)
                             .setMaxActiveRequests(maxActiveBulkRequest);
 
+                    final Knapsack knapsack = new Knapsack(new String[] {newIndex}, newType != null ? new String[] {newType} : null, target);
                     try {
                         logger.info("starting import of {}", target);
-
+        								knapsackService.addImport(knapsack);
+        								
                         Packet<String> packet;
                         while ((packet = session.read()) != null) {
                             String[] entry = packet.getName().split("/");
@@ -165,7 +172,7 @@ public class RestImportAction extends BaseRestHandler {
                     } finally {
                         try {
                             op.flush();
-
+                            knapsackService.removeExport(knapsack);
                         } catch (IOException ex) {
                             logger.error(ex.getMessage(), ex);
                         }
