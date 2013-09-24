@@ -17,6 +17,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.ImmutableSet;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -30,7 +31,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
-import org.elasticsearch.rest.action.support.RestActions;
 import org.elasticsearch.search.SearchHit;
 
 import org.xbib.io.Connection;
@@ -64,8 +64,8 @@ public class RestExportAction extends BaseRestHandler {
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
-        final String[] indices = RestActions.splitIndices(request.param("index", "_all"));
-        final String[] types = RestActions.splitTypes(request.param("type"));
+        final String[] indices = Strings.splitStringByCommaToArray(request.param("index", "_all"));
+        final String[] types = Strings.splitStringByCommaToArray(request.param("type"));
         final String index = request.param("index");
         final String type = request.param("type");
         final String desc = (index != null ? index : "_all")
