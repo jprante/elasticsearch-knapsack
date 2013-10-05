@@ -12,21 +12,21 @@ It uses tar archive format and gzip compression for input/output.
 Installation
 ------------
 
-Current version of the plugin is **2.0.2** (Sep 14, 2013)
+Current version of the plugin is **2.1.0** (Oct 5, 2013)
 
 Prerequisites::
 
-  Elasticsearch 0.90.3+
+  Elasticsearch 0.90.5
 
 Bintray:
 
 https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
 
-`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.2/elasticsearch-knapsack-2.0.2.zip>`_
+`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.2/elasticsearch-knapsack-2.1.0.zip>`_
 
 Command::
 
-  ./bin/plugin -url http://bit.ly/141fhU3 -install knapsack
+  ./bin/plugin -url http://bit.ly/17GFBnY -install knapsack
 
 
 Documentation
