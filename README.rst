@@ -1,6 +1,6 @@
 .. image:: ../../../elasticsearch-knapsack/raw/master/knapsack.png
 
-by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino.html/>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
+by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
 
 Elasticsearch Knapsack Plugin
 =============================
