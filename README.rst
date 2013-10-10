@@ -29,6 +29,8 @@ Command::
   ./bin/plugin -url http://bit.ly/17GFBnY -install knapsack
 
 
+Do not forget to restart the node.
+
 Documentation
 -------------
 

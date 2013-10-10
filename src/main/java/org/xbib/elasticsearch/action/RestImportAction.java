@@ -66,7 +66,6 @@ public class RestImportAction extends BaseRestHandler {
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
-        final Map<String, String> params = request.params();
         final String newIndex = request.param("index", "_all");
         final String newType = request.param("type");
         final String desc = newIndex + (newType != null ? "_" + newType : "");
@@ -128,6 +127,8 @@ public class RestImportAction extends BaseRestHandler {
 
         private final String target;
 
+        private String timeout;
+
         ImportThread(RestRequest request, Connection<Session> connection, Session session, String target) {
             this.request = request;
             this.connection = connection;
@@ -143,6 +144,7 @@ public class RestImportAction extends BaseRestHandler {
             final int maxActiveBulkRequest = request.paramAsInt("max_active_bulks", 10);
             final String newIndex = request.param("index", "_all");
             final String newType = request.param("type");
+            timeout = request.param("timeout", "30s");
 
             BulkOperation op = new BulkOperation(client, logger)
                     .setBulkSize(size)
@@ -231,7 +233,7 @@ public class RestImportAction extends BaseRestHandler {
             created.add(index);
             logger.info("creating index {} from import with settings {}", index, settings);
             CreateIndexRequest createIndexRequest = createIndexRequest(index);
-            createIndexRequest.listenerThreaded(false);
+            createIndexRequest.listenerThreaded(false).timeout(timeout);
             if (settings != null) {
                 createIndexRequest.source(settings);
             }
@@ -256,7 +258,7 @@ public class RestImportAction extends BaseRestHandler {
             created.add(desc);
             logger.info("creating mapping {} from import", desc);
             PutMappingRequest putMappingRequest = putMappingRequest(index);
-            putMappingRequest.listenerThreaded(false);
+            putMappingRequest.listenerThreaded(false).timeout(timeout);
             putMappingRequest.type(type);
             if (mapping != null) {
                 putMappingRequest.source(mapping);
