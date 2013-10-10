@@ -233,7 +233,7 @@ public class RestImportAction extends BaseRestHandler {
             created.add(index);
             logger.info("creating index {} from import with settings {}", index, settings);
             CreateIndexRequest createIndexRequest = createIndexRequest(index);
-            createIndexRequest.listenerThreaded(false).timeout(timeout);
+            createIndexRequest.timeout(timeout);
             if (settings != null) {
                 createIndexRequest.source(settings);
             }
@@ -258,12 +258,11 @@ public class RestImportAction extends BaseRestHandler {
             created.add(desc);
             logger.info("creating mapping {} from import", desc);
             PutMappingRequest putMappingRequest = putMappingRequest(index);
-            putMappingRequest.listenerThreaded(false).timeout(timeout);
+            putMappingRequest.timeout(timeout);
             putMappingRequest.type(type);
             if (mapping != null) {
                 putMappingRequest.source(mapping);
             }
-            putMappingRequest.timeout(timeValueSeconds(10));
             PutMappingResponse response = client.admin().indices().putMapping(putMappingRequest).actionGet();
             return response.isAcknowledged();
         }
