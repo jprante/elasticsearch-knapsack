@@ -1,4 +1,4 @@
-.. image:: ../../../elasticsearch-knapsack/raw/master/knapsack.png
+.. image:: ../../../elasticsearch-knapsack/raw/master/src/site/resources/knapsack.png
 
 Image by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
 
@@ -25,14 +25,20 @@ ES version     Plugin     Release date       Command
 0.90.5         **2.1.3**  Oct 26, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1afkfAY
 =============  =========  =================  ===========================================================
 
-Bintray:
+Do not forget to restart the node after installation.
 
-https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
+Project docs
+------------
 
-Do not forget to restart the node.
+The Maven project site is available at `Github <http://jprante.github.io/elasticsearch-knapsack>`_
+
+Binaries
+--------
+
+Binaries are available at `Bintray <https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack>`_
 
 Documentation
--------------
+=============
 
 Note: you must have the _source field enabled, otherwise the Knapsack export will not work.
 
