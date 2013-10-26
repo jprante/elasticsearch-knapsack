@@ -1,6 +1,6 @@
 .. image:: ../../../elasticsearch-knapsack/raw/master/knapsack.png
 
-by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
+Image by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
 
 Elasticsearch Knapsack Plugin
 =============================
@@ -12,22 +12,22 @@ It uses tar archive format and gzip compression for input/output.
 Installation
 ------------
 
-Current version of the plugin is **2.1.2** (Oct 11, 2013)
+Current version of the plugin is **2.1.3** (Oct 26, 2013)
 
 Prerequisites::
 
-  Elasticsearch 0.90.5
+  Elasticsearch 0.90+
+
+=============  =========  =================  ===========================================================
+ES version     Plugin     Release date       Command
+-------------  ---------  -----------------  -----------------------------------------------------------
+0.90.5         2.1.2      Oct 11, 2013       ./bin/plugin --install knapsack --url http://bit.ly/19D6upG
+0.90.5         **2.1.3**  Oct 26, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1afkfAY
+=============  =========  =================  ===========================================================
 
 Bintray:
 
 https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
-
-`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.1.2/elasticsearch-knapsack-2.1.2.zip>`_
-
-Command::
-
-  ./bin/plugin -url http://bit.ly/19D6upG -install knapsack
-
 
 Do not forget to restart the node.
 

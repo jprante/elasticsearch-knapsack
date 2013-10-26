@@ -59,7 +59,7 @@ public class TarSession implements Session {
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
-                        this.in = new TarArchiveInputStream(codecFactory.getCodec("gz").decode(fin));
+                        this.in = new TarArchiveInputStream(codecFactory.getCodec("gz").decode(fin), "UTF-8");
                         this.isOpen = true;
                     } else {
                         throw new FileNotFoundException("check existence or access rights: " + s);
@@ -69,7 +69,7 @@ public class TarSession implements Session {
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
-                        this.in = new TarArchiveInputStream(codecFactory.getCodec("bz2").decode(fin));
+                        this.in = new TarArchiveInputStream(codecFactory.getCodec("bz2").decode(fin), "UTF-8");
                         this.isOpen = true;
                     } else {
                         throw new FileNotFoundException("check existence or access rights: " + s);
@@ -79,7 +79,7 @@ public class TarSession implements Session {
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
-                        this.in = new TarArchiveInputStream(codecFactory.getCodec("xz").decode(fin));
+                        this.in = new TarArchiveInputStream(codecFactory.getCodec("xz").decode(fin), "UTF-8");
                         this.isOpen = true;
                     } else {
                         throw new FileNotFoundException("check existence or access rights: " + s);
@@ -89,7 +89,7 @@ public class TarSession implements Session {
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
-                        this.in = new TarArchiveInputStream(fin);
+                        this.in = new TarArchiveInputStream(fin, "UTF-8");
                         this.isOpen = true;
                     } else {
                         throw new FileNotFoundException("check existence or access rights: " + s);
@@ -99,22 +99,22 @@ public class TarSession implements Session {
             case WRITE:
                 if (scheme.equals("targz")) {
                     createFileOutputStream(".tar.gz");
-                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("gz").encode(fout));
+                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("gz").encode(fout), "UTF-8");
                     out.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
                     this.isOpen = true;
                 } else if (scheme.equals("tarbz2")) {
                     createFileOutputStream(".tar.bz2");
-                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("bz2").encode(fout));
+                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("bz2").encode(fout), "UTF-8");
                     out.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
                     this.isOpen = true;
                 } else if (scheme.equals("tarxz")) {
                     createFileOutputStream(".tar.xz");
-                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("xz").encode(fout));
+                    this.out = new TarArchiveOutputStream(codecFactory.getCodec("xz").encode(fout), "UTF-8");
                     out.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
                     this.isOpen = true;
                 } else {
                     createFileOutputStream(".tar");
-                    this.out = new TarArchiveOutputStream(fout);
+                    this.out = new TarArchiveOutputStream(fout, "UTF-8");
                     out.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
                     this.isOpen = true;
                 }
