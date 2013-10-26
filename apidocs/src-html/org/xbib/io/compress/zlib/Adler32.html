@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
+<span class="sourceLineNo">002</span>Copyright (c) 2000,2001,2002,2003 ymnk, JCraft,Inc. All rights reserved.<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>Redistribution and use in source and binary forms, with or without<a name="line.4"></a>
+<span class="sourceLineNo">005</span>modification, are permitted provided that the following conditions are met:<a name="line.5"></a>
+<span class="sourceLineNo">006</span><a name="line.6"></a>
+<span class="sourceLineNo">007</span>1. Redistributions of source code must retain the above copyright notice,<a name="line.7"></a>
+<span class="sourceLineNo">008</span>this list of conditions and the following disclaimer.<a name="line.8"></a>
+<span class="sourceLineNo">009</span><a name="line.9"></a>
+<span class="sourceLineNo">010</span>2. Redistributions in binary form must reproduce the above copyright <a name="line.10"></a>
+<span class="sourceLineNo">011</span>notice, this list of conditions and the following disclaimer in <a name="line.11"></a>
+<span class="sourceLineNo">012</span>the documentation and/or other materials provided with the distribution.<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>3. The names of the authors may not be used to endorse or promote products<a name="line.14"></a>
+<span class="sourceLineNo">015</span>derived from this software without specific prior written permission.<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES,<a name="line.17"></a>
+<span class="sourceLineNo">018</span>INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND<a name="line.18"></a>
+<span class="sourceLineNo">019</span>FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JCRAFT,<a name="line.19"></a>
+<span class="sourceLineNo">020</span>INC. OR ANY CONTRIBUTORS TO THIS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,<a name="line.20"></a>
+<span class="sourceLineNo">021</span>INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT<a name="line.21"></a>
+<span class="sourceLineNo">022</span>LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,<a name="line.22"></a>
+<span class="sourceLineNo">023</span>OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF<a name="line.23"></a>
+<span class="sourceLineNo">024</span>LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING<a name="line.24"></a>
+<span class="sourceLineNo">025</span>NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,<a name="line.25"></a>
+<span class="sourceLineNo">026</span>EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.<a name="line.26"></a>
+<span class="sourceLineNo">027</span> */<a name="line.27"></a>
+<span class="sourceLineNo">028</span>/*<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * This program is based on zlib-1.1.3, so all credit should go authors<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * Jean-loup Gailly(jloup@gzip.org) and Mark Adler(madler@alumni.caltech.edu)<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * and contributors of zlib.<a name="line.31"></a>
+<span class="sourceLineNo">032</span> */<a name="line.32"></a>
+<span class="sourceLineNo">033</span>package org.xbib.io.compress.zlib;<a name="line.33"></a>
+<span class="sourceLineNo">034</span><a name="line.34"></a>
+<span class="sourceLineNo">035</span>public class Adler32 {<a name="line.35"></a>
+<span class="sourceLineNo">036</span><a name="line.36"></a>
+<span class="sourceLineNo">037</span>    // largest prime smaller than 65536<a name="line.37"></a>
+<span class="sourceLineNo">038</span>    private static final int BASE = 65521;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>    // NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) &lt;= 2^32-1<a name="line.39"></a>
+<span class="sourceLineNo">040</span>    private static final int NMAX = 5552;<a name="line.40"></a>
+<span class="sourceLineNo">041</span><a name="line.41"></a>
+<span class="sourceLineNo">042</span>    private Adler32() {<a name="line.42"></a>
+<span class="sourceLineNo">043</span>    }<a name="line.43"></a>
+<span class="sourceLineNo">044</span><a name="line.44"></a>
+<span class="sourceLineNo">045</span>    public static long adler32(long adler, byte[] buf, int ind, int len) {<a name="line.45"></a>
+<span class="sourceLineNo">046</span>        if (buf == null) {<a name="line.46"></a>
+<span class="sourceLineNo">047</span>            return 1L;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>        }<a name="line.48"></a>
+<span class="sourceLineNo">049</span>        int index = ind;<a name="line.49"></a>
+<span class="sourceLineNo">050</span>        long s1 = adler &amp; 0xffff;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        long s2 = (adler &gt;&gt; 16) &amp; 0xffff;<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        int k;<a name="line.52"></a>
+<span class="sourceLineNo">053</span><a name="line.53"></a>
+<span class="sourceLineNo">054</span>        while (len &gt; 0) {<a name="line.54"></a>
+<span class="sourceLineNo">055</span>            k = len &lt; NMAX ? len : NMAX;<a name="line.55"></a>
+<span class="sourceLineNo">056</span>            len -= k;<a name="line.56"></a>
+<span class="sourceLineNo">057</span>            while (k &gt;= 16) {<a name="line.57"></a>
+<span class="sourceLineNo">058</span>                s1 += buf[index++] &amp; 0xff;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>                s2 += s1;<a name="line.59"></a>
+<span class="sourceLineNo">060</span>                s1 += buf[index++] &amp; 0xff;<a name="line.60"></a>
+<span class="sourceLineNo">061</span>                s2 += s1;<a name="line.61"></a>
+<span class="sourceLineNo">062</span>                s1 += buf[index++] &amp; 0xff;<a name="line.62"></a>
+<span class="sourceLineNo">063</span>                s2 += s1;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>                s1 += buf[index++] &amp; 0xff;<a name="line.64"></a>
+<span class="sourceLineNo">065</span>                s2 += s1;<a name="line.65"></a>
+<span class="sourceLineNo">066</span>                s1 += buf[index++] &amp; 0xff;<a name="line.66"></a>
+<span class="sourceLineNo">067</span>                s2 += s1;<a name="line.67"></a>
+<span class="sourceLineNo">068</span>                s1 += buf[index++] &amp; 0xff;<a name="line.68"></a>
+<span class="sourceLineNo">069</span>                s2 += s1;<a name="line.69"></a>
+<span class="sourceLineNo">070</span>                s1 += buf[index++] &amp; 0xff;<a name="line.70"></a>
+<span class="sourceLineNo">071</span>                s2 += s1;<a name="line.71"></a>
+<span class="sourceLineNo">072</span>                s1 += buf[index++] &amp; 0xff;<a name="line.72"></a>
+<span class="sourceLineNo">073</span>                s2 += s1;<a name="line.73"></a>
+<span class="sourceLineNo">074</span>                s1 += buf[index++] &amp; 0xff;<a name="line.74"></a>
+<span class="sourceLineNo">075</span>                s2 += s1;<a name="line.75"></a>
+<span class="sourceLineNo">076</span>                s1 += buf[index++] &amp; 0xff;<a name="line.76"></a>
+<span class="sourceLineNo">077</span>                s2 += s1;<a name="line.77"></a>
+<span class="sourceLineNo">078</span>                s1 += buf[index++] &amp; 0xff;<a name="line.78"></a>
+<span class="sourceLineNo">079</span>                s2 += s1;<a name="line.79"></a>
+<span class="sourceLineNo">080</span>                s1 += buf[index++] &amp; 0xff;<a name="line.80"></a>
+<span class="sourceLineNo">081</span>                s2 += s1;<a name="line.81"></a>
+<span class="sourceLineNo">082</span>                s1 += buf[index++] &amp; 0xff;<a name="line.82"></a>
+<span class="sourceLineNo">083</span>                s2 += s1;<a name="line.83"></a>
+<span class="sourceLineNo">084</span>                s1 += buf[index++] &amp; 0xff;<a name="line.84"></a>
+<span class="sourceLineNo">085</span>                s2 += s1;<a name="line.85"></a>
+<span class="sourceLineNo">086</span>                s1 += buf[index++] &amp; 0xff;<a name="line.86"></a>
+<span class="sourceLineNo">087</span>                s2 += s1;<a name="line.87"></a>
+<span class="sourceLineNo">088</span>                s1 += buf[index++] &amp; 0xff;<a name="line.88"></a>
+<span class="sourceLineNo">089</span>                s2 += s1;<a name="line.89"></a>
+<span class="sourceLineNo">090</span>                k -= 16;<a name="line.90"></a>
+<span class="sourceLineNo">091</span>            }<a name="line.91"></a>
+<span class="sourceLineNo">092</span>            if (k != 0) {<a name="line.92"></a>
+<span class="sourceLineNo">093</span>                do {<a name="line.93"></a>
+<span class="sourceLineNo">094</span>                    s1 += buf[index++] &amp; 0xff;<a name="line.94"></a>
+<span class="sourceLineNo">095</span>                    s2 += s1;<a name="line.95"></a>
+<span class="sourceLineNo">096</span>                } while (--k != 0);<a name="line.96"></a>
+<span class="sourceLineNo">097</span>            }<a name="line.97"></a>
+<span class="sourceLineNo">098</span>            s1 %= BASE;<a name="line.98"></a>
+<span class="sourceLineNo">099</span>            s2 %= BASE;<a name="line.99"></a>
+<span class="sourceLineNo">100</span>        }<a name="line.100"></a>
+<span class="sourceLineNo">101</span>        return (s2 &lt;&lt; 16) | s1;<a name="line.101"></a>
+<span class="sourceLineNo">102</span>    }<a name="line.102"></a>
+<span class="sourceLineNo">103</span>}<a name="line.103"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>
