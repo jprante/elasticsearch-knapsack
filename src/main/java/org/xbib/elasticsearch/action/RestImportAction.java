@@ -96,12 +96,10 @@ public class RestImportAction extends BaseRestHandler {
             final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
             final Session session = connection.createSession();
             session.open(Session.Mode.READ);
-
             EsExecutors.daemonThreadFactory(settings, "Knapsack import [" + desc + "]")
                     .newThread(new ImportThread(request, connection, session, target)).start();
-
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             try {
                 logger.error(ex.getMessage(), ex);
                 channel.sendResponse(new XContentThrowableRestResponse(request, ex));

@@ -12,17 +12,18 @@ It uses tar archive format and gzip compression for input/output.
 Installation
 ------------
 
-Current version of the plugin is **2.1.3** (Oct 26, 2013)
+Current version of the plugin is **2.1.4** (Oct 28, 2013)
+
+.. image:: https://travis-ci.org/jprante/elasticsearch-knapsack.png
 
 Prerequisites::
 
-  Elasticsearch 0.90+
+  Elasticsearch 0.90.5+
 
 =============  =========  =================  ===========================================================
 ES version     Plugin     Release date       Command
 -------------  ---------  -----------------  -----------------------------------------------------------
-0.90.5         2.1.2      Oct 11, 2013       ./bin/plugin --install knapsack --url http://bit.ly/19D6upG
-0.90.5         **2.1.3**  Oct 26, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1afkfAY
+0.90.5         **2.1.4**  Oct 28, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1ipne90
 =============  =========  =================  ===========================================================
 
 Do not forget to restart the node after installation.

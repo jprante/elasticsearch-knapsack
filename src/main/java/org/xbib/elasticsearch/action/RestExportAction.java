@@ -72,28 +72,23 @@ public class RestExportAction extends BaseRestHandler {
 
     @Override
     public void handleRequest(final RestRequest request, RestChannel channel) {
-        final String index = request.param("index");
-        final String type = request.param("type");
-        final String[] indices = Strings.splitStringByCommaToArray(request.param("index", "_all"));
-        final String[] types = Strings.splitStringByCommaToArray(request.param("type"));
-        final String desc = (index != null ? index : "_all")
-                + (type != null ? "_" + type : "");
         try {
+            final String index = request.param("index");
+            final String type = request.param("type");
+            final String desc = (index != null ? index : "_all")
+                    + (type != null ? "_" + type : "");
             XContentBuilder builder = restContentBuilder(request)
                     .startObject()
                     .field("ok", true)
                     .endObject();
-
             ClusterHealthResponse healthResponse =
                     client.admin().cluster().prepareHealth().setWaitForYellowStatus()
                             .setTimeout("30s").execute().actionGet(30000);
-
             if (healthResponse.isTimedOut()) {
                 String msg = "cluster not healthy, cowardly refusing to continue with export";
                 logger.error(msg);
                 throw new IOException(msg);
             }
-
             final String target = request.param("target", desc);
             String scheme = request.param("scheme", "targz");
             for (String codec : StreamCodecService.getCodecs()) {
@@ -101,86 +96,103 @@ public class RestExportAction extends BaseRestHandler {
                     scheme = "tar" + codec;
                 }
             }
-
             ConnectionService service = ConnectionService.getInstance();
             ConnectionFactory factory = service.getConnectionFactory(scheme);
             final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
             final Session session = connection.createSession();
             session.open(Session.Mode.WRITE);
-
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
-
             EsExecutors.daemonThreadFactory(settings, "Knapsack export [" + desc + "]")
-                    .newThread(new Thread() {
-                @Override
-                public void run() {
-                    setName("[Exporter Thread " + desc + "]");
-                    long millis = request.paramAsLong("millis", 30000L);
-                    int size = request.paramAsInt("size", 1000);
-
-                    final KnapsackStatus status = new KnapsackStatus(indices, types, target);
-                    try {
-                        logger.info("starting export to {}", target);
-                        knapsackService.addExport(status);
-                        // export settings & mappings
-                        for (String s : indices) {
-                            Map<String, String> settings = getSettings(s);
-                            for (String index : settings.keySet()) {
-                                session.write(new ElasticPacket(index, "_settings", null, settings.get(index)));
-                                Map<String, String> mappings = getMapping(index, ImmutableSet.copyOf(types));
-                                for (String type : mappings.keySet()) {
-                                    session.write(new ElasticPacket(index, type, "_mapping", mappings.get(type)));
-                                }
-                            }
-                        }
-
-                        // export document _source fields
-                        SearchRequestBuilder searchRequest = client.prepareSearch()
-                                .setSize(size)
-                                .setSearchType(SearchType.SCAN)
-                                .setScroll(TimeValue.timeValueMillis(millis));
-                        if (indices != null && !"_all".equals(index)) {
-                            searchRequest.setIndices(indices);
-                        }
-                        if (types != null) {
-                            searchRequest.setTypes(types);
-                        }
-                        SearchResponse searchResponse = searchRequest.execute().actionGet();
-                        while (searchResponse.getScrollId() != null) {
-                            searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
-                                    .setScroll(TimeValue.timeValueMillis(millis))
-                                    .execute().actionGet();
-                            if (searchResponse.getHits().getHits().length == 0) {
-                                break;
-                            }
-                            for (SearchHit hit : searchResponse.getHits()) {
-                                ElasticPacket packet = new ElasticPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
-                                session.write(packet);
-                            }
-                        }
-
-                        session.close();
-                        connection.close();
-
-                        logger.info("export to {} completed", target);
-
-                    } catch (Exception e) {
-                        logger.error(e.getMessage(), e);
-                    } finally {
-                        try {
-                            knapsackService.removeExport(status);
-                        } catch (IOException e) {
-                            logger.error(e.getMessage(), e);
-                        }
-                    }
-                }
-            }).start();
-
-        } catch (IOException ex) {
+                    .newThread(new ExportThread(request, connection, session, target)).start();
+        } catch (Exception ex) {
             try {
+                logger.error(ex.getMessage(), ex);
                 channel.sendResponse(new XContentThrowableRestResponse(request, ex));
             } catch (Exception ex2) {
                 logger.error(ex2.getMessage(), ex2);
+            }
+        }
+    }
+
+    private class ExportThread extends Thread {
+
+        private final RestRequest request;
+
+        private final Connection<Session> connection;
+
+        private final Session session;
+
+        private final String target;
+
+        private final String[] indices;
+
+        private final String[] types;
+
+        public ExportThread(RestRequest request, Connection<Session> connection,
+                            Session session, String target) {
+            this.request = request;
+            this.connection = connection;
+            this.session = session;
+            this.target = target;
+            this.indices = Strings.splitStringByCommaToArray(request.param("index", "_all"));
+            this.types = request.param("type") != null ?
+                    Strings.splitStringByCommaToArray(request.param("type")) : null;
+        }
+
+        @Override
+        public void run() {
+            long millis = request.paramAsLong("millis", 30000L);
+            int size = request.paramAsInt("size", 1000);
+            final KnapsackStatus status = new KnapsackStatus(indices, types, target);
+            try {
+                logger.info("starting export to {}", target);
+                knapsackService.addExport(status);
+                // export settings & mappings
+                for (String s : indices) {
+                    Map<String, String> settings = getSettings(s);
+                    for (String index : settings.keySet()) {
+                        session.write(new ElasticPacket(index, "_settings", null, settings.get(index)));
+                        Map<String, String> mappings = getMapping(index, ImmutableSet.copyOf(types));
+                        for (String type : mappings.keySet()) {
+                            session.write(new ElasticPacket(index, type, "_mapping", mappings.get(type)));
+                        }
+                    }
+                }
+                // export document _source fields
+                SearchRequestBuilder searchRequest = client.prepareSearch()
+                        .setSize(size)
+                        .setSearchType(SearchType.SCAN)
+                        .setScroll(TimeValue.timeValueMillis(millis));
+                if (indices != null && !"_all".equals(indices[0])) {
+                    searchRequest.setIndices(indices);
+                }
+                if (types != null) {
+                    searchRequest.setTypes(types);
+                }
+                SearchResponse searchResponse = searchRequest.execute().actionGet();
+                while (searchResponse.getScrollId() != null) {
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
+                            .setScroll(TimeValue.timeValueMillis(millis))
+                            .execute().actionGet();
+                    if (searchResponse.getHits().getHits().length == 0) {
+                        break;
+                    }
+                    for (SearchHit hit : searchResponse.getHits()) {
+                        ElasticPacket packet = new ElasticPacket(hit.getIndex(), hit.getType(), hit.getId(), hit.getSourceAsString());
+                        session.write(packet);
+                    }
+                }
+                session.close();
+                connection.close();
+                logger.info("export to {} completed", target);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            } finally {
+                try {
+                    knapsackService.removeExport(status);
+                } catch (IOException e) {
+                    logger.error(e.getMessage(), e);
+                }
             }
         }
     }
