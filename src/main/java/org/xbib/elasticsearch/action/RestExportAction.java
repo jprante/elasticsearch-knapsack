@@ -152,7 +152,7 @@ public class RestExportAction extends BaseRestHandler {
                     Map<String, String> settings = getSettings(s);
                     for (String index : settings.keySet()) {
                         session.write(new ElasticPacket(index, "_settings", null, settings.get(index)));
-                        Map<String, String> mappings = getMapping(index, ImmutableSet.copyOf(types));
+                        Map<String, String> mappings = getMapping(index, types != null ? ImmutableSet.copyOf(types) : null);
                         for (String type : mappings.keySet()) {
                             session.write(new ElasticPacket(index, type, "_mapping", mappings.get(type)));
                         }

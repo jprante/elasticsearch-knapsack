@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>2.1.4</version>
+    <version>2.1.5</version>
 
     <packaging>jar</packaging>
 
@@ -42,10 +42,23 @@
         </repository>
     </distributionManagement>
 
+    <repositories>
+        <repository>
+            <id>bintray-elasticsearch-plugins</id>
+            <url>http://dl.bintray.com/jprante/elasticsearch-plugins</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <properties>
         <github.global.server>github</github.global.server>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>0.90.3</elasticsearch.version>
+        <elasticsearch.version>0.90.6</elasticsearch.version>
     </properties>
 
     <dependencies>
