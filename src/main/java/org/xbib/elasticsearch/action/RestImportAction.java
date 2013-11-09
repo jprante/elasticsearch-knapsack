@@ -1,6 +1,7 @@
 
 package org.xbib.elasticsearch.action;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -166,41 +167,42 @@ public class RestImportAction extends BaseRestHandler {
                     if (newType != null) {
                         type = newType;
                     }
-                    if (entry.length == 2) {
-                        if ("_settings".equals(entry[1])) {
-                            String settings;
-                            if (params.containsKey(index + "_settings")) {
-                                InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");
-                                settings = Streams.copyToString(reader);
-                                reader.close();
-                            } else {
-                                settings = packet.getPacket();
-                            }
-                            logger.info("index {}: got settings {}", index, settings);
-                            indices.put(index, settings);
-                            if (!createIndex(index)) {
-                                throw new IOException("unable to create index '" + index + "' with settings " + settings);
-                            }
-                        }
-                    } else if (entry.length == 3) {
-                        String mapping;
-                        if ("_mapping".equals(entry[2])) {
-                            if (params.containsKey(index + "_" + type + "_mapping")) {
-                                InputStreamReader reader = new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");
-                                mapping = Streams.copyToString(reader);
-                                reader.close();
-                            } else {
-                                mapping = packet.getPacket();
-                            }
-                            mappings.put(index + "/" + type, mapping);
-                            if (!createMapping(index, type)) {
-                                throw new IOException("unable to create index type '" + index + "/" + type + "' with mapping " + mapping);
-                            }
-                        } else {
-                            // index document
-                            op.index(index, type, id, packet.getPacket());
-                        }
-                    }
+					if (entry.length == 2) {
+						if ("_settings".equals(entry[1])) {
+							String settings;
+							if (params.containsKey(index + "_settings")) {
+								settings = new String(Streams.copyToByteArray(new File(params.get(index + "_settings"))), "UTF-8");
+							} else if (params.containsKey("_settings")) {
+								settings = new String(Streams.copyToByteArray(new File(params.get("_settings"))), "UTF-8");
+							} else {
+								settings = packet.getPacket();
+							}
+							indices.put(index, settings);
+							if (!createIndex(index)) {
+								throw new IOException("unable to create index '" + index + "' with settings " + settings);
+							}
+						}
+					} else if (entry.length == 3) {
+						String mapping;
+						if ("_mapping".equals(entry[2])) {
+							if (params.containsKey(index + "_" + type + "_mapping")) {
+								mapping = new String(Streams.copyToByteArray(new File(params.get(index + "_" + type + "_mapping"))), "UTF-8");
+							} else if (params.containsKey(index + "_mapping")) {
+								mapping = new String(Streams.copyToByteArray(new File(params.get(index + "_mapping"))), "UTF-8");
+							} else if (params.containsKey("_mapping")) {
+								mapping = new String(Streams.copyToByteArray(new File(params.get("_mapping"))), "UTF-8");
+							} else {
+								mapping = packet.getPacket();
+							}
+							mappings.put(index + "/" + type, mapping);
+							if (!createMapping(index, type)) {
+								throw new IOException("unable to create index type '" + index + "/" + type + "' with mapping " + mapping);
+							}
+						} else {
+							// index document
+							op.index(index, type, id, packet.getPacket());
+						}
+					}
                 }
                 logger.info("import of {} completed", target);
                 session.close();

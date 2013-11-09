@@ -115,11 +115,12 @@ You can select a ``.tar.gz``, ``.tar.bz2``, or ``.tar.xz`` suffix for the corres
 Modifying settings and mappings
 -------------------------------
 
-You can overwrite the settings and mapping when importing by using parameters in the form ``<index>_settings=<filename>`` or ``<index>_<type>_mapping=<filename>``. 
+You can overwrite the settings and mapping when importing by using parameters in the form ``[<index>]_settings=<filename>`` or ``[<index>[_<type>]]_mapping=<filename>``.
 
 General example::
 
     curl -XPOST 'localhost:9200/myindex/mytype/_import?myindex_settings=/my/new/mysettings.json&myindex_mytype_mapping=/my/new/mapping.json'
+    curl -XPOST 'localhost:9200/myindex/_import?_settings=/my/new/settings.json&myindex_mapping=/my/new/mapping.json'
 
 The following statements demonstrate how you can change the number of shards from the default ``5`` to ``1`` and replica from ``1`` to ``0`` for an index ``test``::
 
