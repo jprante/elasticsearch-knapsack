@@ -1,4 +1,6 @@
-.. image:: ../../../elasticsearch-knapsack/raw/master/Knapsack.png
+.. image:: ../../../elasticsearch-knapsack/raw/master/src/site/resources/knapsack.png
+
+Image by `DaPino <http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html>`_ `CC Attribution-Noncommercial 3.0 <http://creativecommons.org/licenses/by-nc/3.0/>`_
 
 Elasticsearch Knapsack Plugin
 =============================
@@ -10,25 +12,35 @@ It uses tar archive format and gzip compression for input/output.
 Installation
 ------------
 
-Current version of the plugin is **2.0.1** (August 29, 2013)
+Current version of the plugin is **2.1.5** (Nov 6, 2013)
+
+.. image:: https://travis-ci.org/jprante/elasticsearch-knapsack.png
 
 Prerequisites::
 
-  Elasticsearch 0.90.3+
+  Elasticsearch 0.90.5+
 
-Bintray:
+=============  =========  =================  ===========================================================
+ES version     Plugin     Release date       Command
+-------------  ---------  -----------------  -----------------------------------------------------------
+0.90.5         **2.1.4**  Oct 28, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1ipne90
+0.90.6         **2.1.5**  Nov 6, 2013        ./bin/plugin --install knapsack --url http://bit.ly/17cn710
+=============  =========  =================  ===========================================================
 
-https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack
+Do not forget to restart the node after installation.
 
-`Direct download <http://dl.bintray.com/jprante/elasticsearch-plugins/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.1/elasticsearch-knapsack-2.0.1.zip>`_
+Project docs
+------------
 
-Command::
+The Maven project site is available at `Github <http://jprante.github.io/elasticsearch-knapsack>`_
 
-  ./bin/plugin -url http://bit.ly/1dsSLtv -install knapsack
+Binaries
+--------
 
+Binaries are available at `Bintray <https://bintray.com/pkg/show/general/jprante/elasticsearch-plugins/elasticsearch-knapsack>`_
 
 Documentation
--------------
+=============
 
 Note: you must have the _source field enabled, otherwise the Knapsack export will not work.
 

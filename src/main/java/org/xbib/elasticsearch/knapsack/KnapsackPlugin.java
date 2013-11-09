@@ -18,6 +18,7 @@
  */
 package org.xbib.elasticsearch.knapsack;
 
+import org.elasticsearch.cluster.settings.ClusterDynamicSettingsModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.rest.RestModule;
 import org.xbib.elasticsearch.action.RestExportAction;
@@ -38,6 +39,11 @@ public class KnapsackPlugin extends AbstractPlugin {
     public void onModule(RestModule module) {
         module.addRestAction(RestExportAction.class);
         module.addRestAction(RestImportAction.class);
+    }
+
+    public void onModule(ClusterDynamicSettingsModule module) {
+        module.addDynamicSettings(KnapsackService.EXPORT_STATE_SETTING_NAME);
+        module.addDynamicSettings(KnapsackService.IMPORT_STATE_SETTING_NAME);
     }
 
 }
