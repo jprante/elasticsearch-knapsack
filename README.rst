@@ -106,7 +106,7 @@ While exports or imports or running, you can check the state with::
 
     curl -XGET localhost:9200/_export/state
 
-or
+or::
 
     curl -XGET localhost:9200/_import/state
 
