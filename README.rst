@@ -98,6 +98,19 @@ and check you have copied the data to a new index with::
    curl -XGET localhost:9200/test2/test2/1
    {"_index":"test2","_type":"test2","_id":"1","_version":1,"exists":true, "_source" : {"key":"value 1"}}
 
+
+State
+-----
+
+While exports or imports or running, you can check the state with::
+
+    curl -XGET localhost:9200/_export/state
+
+or
+
+    curl -XGET localhost:9200/_import/state
+
+
 Choosing a different location
 -----------------------------
 
