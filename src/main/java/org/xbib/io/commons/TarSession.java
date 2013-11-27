@@ -55,7 +55,7 @@ public class TarSession implements Session {
         switch (mode) {
             case READ:
                 if (scheme.startsWith("targz")) {
-                    String s = part + ".tar.gz";
+                    String s = (part.endsWith("tar.gz")) ? part : part + ".tar.gz";
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
@@ -65,7 +65,7 @@ public class TarSession implements Session {
                         throw new FileNotFoundException("check existence or access rights: " + s);
                     }
                 } else if (scheme.startsWith("tarbz2")) {
-                    String s = part + ".tar.bz2";
+                    String s = (part.endsWith("tar.bz2")) ? part : part + ".tar.bz2";
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
@@ -75,7 +75,7 @@ public class TarSession implements Session {
                         throw new FileNotFoundException("check existence or access rights: " + s);
                     }
                 } else if (scheme.startsWith("tarxz")) {
-                    String s = part + ".tar.xz";
+                    String s = (part.endsWith(".tar.xz")) ? part : part + ".tar.xz";
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
@@ -85,7 +85,7 @@ public class TarSession implements Session {
                         throw new FileNotFoundException("check existence or access rights: " + s);
                     }
                 } else {
-                    String s = part + ".tar";
+                    String s = (part.endsWith(".tar")) ? part : part + ".tar";
                     File f = new File(s);
                     if (f.isFile() && f.canRead()) {
                         this.fin = new FileInputStream(f);
