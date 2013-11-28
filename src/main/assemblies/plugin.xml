@@ -14,6 +14,10 @@
             <includes>
                 <include>org.xbib.elasticsearch.plugin</include>
                 <include>org.apache.commons:*</include>
+                <include>*aws*</include>
+                <include>*commons*</include>
+                <include>*jackson*</include>
+                <include>*http*</include>
             </includes>
         </dependencySet>
     </dependencySets>  

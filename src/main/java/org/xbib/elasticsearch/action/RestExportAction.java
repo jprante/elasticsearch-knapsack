@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.Set;
+import java.net.MalformedURLException;
 
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
@@ -29,6 +30,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
 import org.elasticsearch.search.SearchHit;
@@ -41,6 +43,9 @@ import org.xbib.io.ConnectionService;
 import org.xbib.io.Packet;
 import org.xbib.io.Session;
 import org.xbib.io.StreamCodecService;
+import org.xbib.elasticsearch.s3.S3;
+import org.xbib.elasticsearch.s3.S3Factory;
+import org.xbib.elasticsearch.s3.S3Service;
 
 import static org.elasticsearch.common.collect.Maps.newHashMap;
 import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
@@ -68,6 +73,10 @@ public class RestExportAction extends BaseRestHandler {
         controller.registerHandler(POST, "/{index}/_export", this);
         controller.registerHandler(POST, "/{index}/{type}/_export", this);
         controller.registerHandler(GET, "/_export/state",  new RestKnapsackExportStatus());
+
+        controller.registerHandler(POST, "/_export/{s3}", this);
+        controller.registerHandler(POST, "/{index}/_export/{s3}", this);
+        controller.registerHandler(POST, "/{index}/{type}/_export/{s3}", this);
     }
 
     @Override
@@ -96,6 +105,19 @@ public class RestExportAction extends BaseRestHandler {
                     scheme = "tar" + codec;
                 }
             }
+
+            final String s3path = request.param("s3path", null);
+            final String s3bucket = request.param("s3bucket", null);
+            final String s3 = request.param("s3", null);
+
+            if(s3 != null){
+                if(s3path == null || s3bucket == null){
+                    logger.error("s3bucket and s3path parameters are required for s3 transfers");
+                    channel.sendResponse(new XContentThrowableRestResponse(request, RestStatus.BAD_REQUEST, 
+                            new MalformedURLException("s3bucket and s3path parameters are required for s3 transfers")));
+                }
+            }
+
             ConnectionService service = ConnectionService.getInstance();
             ConnectionFactory factory = service.getConnectionFactory(scheme);
             final Connection<Session> connection = factory.getConnection(URI.create(scheme + ":" + target));
@@ -103,7 +125,7 @@ public class RestExportAction extends BaseRestHandler {
             session.open(Session.Mode.WRITE);
             channel.sendResponse(new XContentRestResponse(request, OK, builder));
             EsExecutors.daemonThreadFactory(settings, "Knapsack export [" + desc + "]")
-                    .newThread(new ExportThread(request, connection, session, target)).start();
+                    .newThread(new ExportThread(request, connection, session, target, s3path, s3bucket)).start();
         } catch (Exception ex) {
             try {
                 logger.error(ex.getMessage(), ex);
@@ -128,12 +150,18 @@ public class RestExportAction extends BaseRestHandler {
 
         private final String[] types;
 
+        private final String s3bucket;
+
+        private final String s3path;
+
         public ExportThread(RestRequest request, Connection<Session> connection,
-                            Session session, String target) {
+                            Session session, String target, String s3path, String s3bucket) {
             this.request = request;
             this.connection = connection;
             this.session = session;
             this.target = target;
+            this.s3path = s3path;
+            this.s3bucket = s3bucket;
             this.indices = Strings.splitStringByCommaToArray(request.param("index", "_all"));
             this.types = request.param("type") != null ?
                     Strings.splitStringByCommaToArray(request.param("type")) : null;
@@ -185,6 +213,16 @@ public class RestExportAction extends BaseRestHandler {
                 session.close();
                 connection.close();
                 logger.info("export to {} completed", target);
+
+                String s3 = request.param("s3", null);
+                if(s3 != null){
+                    S3Service s3service = S3Service.getInstance();
+                    S3Factory s3Factory = s3service.getS3Factory();
+                    S3 s3client = s3Factory.getS3(target, request.param("accesskey"), request.param("secretkey"));
+                    s3client.writeToS3(s3bucket, s3path);
+                    logger.info("transfer of {} to s3 completed", target);
+                }
+
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             } finally {
