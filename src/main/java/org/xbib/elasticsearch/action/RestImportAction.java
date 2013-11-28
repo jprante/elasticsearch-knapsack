@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.Map;
 import java.util.Set;
+import java.net.MalformedURLException;
 
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -24,6 +25,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
 
@@ -36,6 +38,9 @@ import org.xbib.io.ConnectionService;
 import org.xbib.io.Packet;
 import org.xbib.io.Session;
 import org.xbib.io.StreamCodecService;
+import org.xbib.elasticsearch.s3.S3;
+import org.xbib.elasticsearch.s3.S3Factory;
+import org.xbib.elasticsearch.s3.S3Service;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.client.Requests.putMappingRequest;
@@ -62,6 +67,10 @@ public class RestImportAction extends BaseRestHandler {
         controller.registerHandler(POST, "/{index}/_import", this);
         controller.registerHandler(POST, "/{index}/{type}/_import", this);
         controller.registerHandler(GET, "/_import/state", new RestKnapsackImportStatus());
+
+        controller.registerHandler(POST, "/_import/{s3}", this);
+        controller.registerHandler(POST, "/{index}/_import/{s3}", this);
+        controller.registerHandler(POST, "/{index}/{type}/_import/{s3}", this);
     }
 
     @Override
@@ -89,6 +98,23 @@ public class RestImportAction extends BaseRestHandler {
                 if (target.endsWith(codec)) {
                     scheme = "tar" + codec;
                 }
+            }
+
+            final String s3path = request.param("s3path", null);
+            final String s3bucket = request.param("s3bucket", null);
+            final String s3 = request.param("s3", null);
+
+            if(s3 != null){
+                if(s3path == null || s3bucket == null){
+                    logger.error("s3bucket and s3path parameters are required for s3 transfers");
+                    channel.sendResponse(new XContentThrowableRestResponse(request, RestStatus.BAD_REQUEST, 
+                            new MalformedURLException("s3bucket and s3path parameters are required for s3 transfers")));
+                }
+                S3Service s3service = S3Service.getInstance();
+                S3Factory s3Factory = s3service.getS3Factory();
+                S3 s3client = s3Factory.getS3(target, request.param("accesskey"), request.param("secretkey"));
+                s3client.readFromS3(s3bucket, s3path);
+                logger.info("transfer of {} to s3 completed", target);
             }
 
             ConnectionService service = ConnectionService.getInstance();
