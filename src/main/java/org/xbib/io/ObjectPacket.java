@@ -2,55 +2,29 @@
 package org.xbib.io;
 
 public class ObjectPacket implements Packet<Object> {
-    
+
     private String name;
-    private String number;
-    private String link;
+
     private Object object;
 
     public ObjectPacket() {
     }
-    
-    public ObjectPacket(String name, String number, String link) {
-        setName(name);
-        setNumber(number);
-        setLink(link);
-    }
 
-    public ObjectPacket(String name, String number, String link, Object object) {
-        this(name, number, link);
-        setPacket(object);
-    }
-
-    public void setName(String name) {
+    public ObjectPacket name(String name) {
         this.name = name;
+        return this;
     }
 
-    public String getName() {
+    public String name() {
         return name;
     }
 
-    public void setNumber(String number) {
-        this.number = number;
-    }
-
-    public String getNumber() {
-        return number;
-    }
-
-    public void setLink(String link) {
-        this.link = link;
-    }
-
-    public String getLink() {
-        return link;
-    }
-
-    public void setPacket(Object object) {
+    public ObjectPacket packet(Object object) {
         this.object = object;
+        return this;
     }
-    
-    public Object getPacket() {
+
+    public Object packet() {
         return object;
     }
 
@@ -58,6 +32,5 @@ public class ObjectPacket implements Packet<Object> {
     public String toString() {
         return object.toString();
     }
-    
-    
+
 }

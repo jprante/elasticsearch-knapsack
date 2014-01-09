@@ -1,81 +1,65 @@
-/*
-Copyright (c) 2000,2001,2002,2003 ymnk, JCraft,Inc. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright 
-notice, this list of conditions and the following disclaimer in 
-the documentation and/or other materials provided with the distribution.
-
-3. The names of the authors may not be used to endorse or promote products
-derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JCRAFT,
-INC. OR ANY CONTRIBUTORS TO THIS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * This program is based on zlib-1.1.3, so all credit should go authors
- * Jean-loup Gailly(jloup@gzip.org) and Mark Adler(madler@alumni.caltech.edu)
- * and contributors of zlib.
- */
 package org.xbib.io.compress.zlib;
 
 public class ZStream {
 
     private final static int MAX_WBITS = 15;        // 32K LZ77 window
+
     private final static int DEF_WBITS = MAX_WBITS;
+
     private final static int Z_STREAM_ERROR = -2;
+
     protected byte[] nextin;     // next input byte
+
     protected int nextinindex;
+
     protected int availin;       // number of bytes available at next_in
+
     protected long totalin;      // total nb of input bytes read so far
+
     protected byte[] nextout;    // next output byte should be put there
+
     protected int nextoutindex;
+
     protected int availout;      // remaining free space at next_out
+
     protected long totalout;     // total nb of bytes output so far
+
     protected String msg;
+
     protected Deflate dstate;
+
     protected Inflate istate;
+
     protected int dataType; // best guess about the data type: ascii or binary
+
     protected long adler;
 
-    final public int inflateInit() {
+    public int inflateInit() {
         return inflateInit(DEF_WBITS);
     }
 
-    final public int inflateInit(boolean nowrap) {
+    public int inflateInit(boolean nowrap) {
         return inflateInit(DEF_WBITS, nowrap);
     }
 
-    final public int inflateInit(int w) {
+    public int inflateInit(int w) {
         return inflateInit(w, false);
     }
 
-    final public int inflateInit(int w, boolean nowrap) {
+    public int inflateInit(int w, boolean nowrap) {
         istate = new Inflate();
         return istate.inflateInit(this, nowrap ? -w : w);
     }
 
-    final public int inflate(int f) {
+    public int inflate(int f) {
         if (istate == null) {
             return Z_STREAM_ERROR;
         }
         return istate.inflate(this, f);
     }
 
-    final public int inflateEnd() {
+    public int inflateEnd() {
         if (istate == null) {
             return Z_STREAM_ERROR;
         }
@@ -84,33 +68,33 @@ public class ZStream {
         return ret;
     }
 
-    final public int inflateSync() {
+    public int inflateSync() {
         if (istate == null) {
             return Z_STREAM_ERROR;
         }
         return istate.inflateSync(this);
     }
 
-    final public int inflateSetDictionary(byte[] dictionary, int dictLength) {
+    public int inflateSetDictionary(byte[] dictionary, int dictLength) {
         if (istate == null) {
             return Z_STREAM_ERROR;
         }
         return istate.inflateSetDictionary(this, dictionary, dictLength);
     }
 
-    final public int deflateInit(int level) {
+    public int deflateInit(int level) {
         return deflateInit(level, MAX_WBITS);
     }
 
-    final public int deflateInit(int level, boolean nowrap) {
+    public int deflateInit(int level, boolean nowrap) {
         return deflateInit(level, MAX_WBITS, nowrap);
     }
 
-    final public int deflateInit(int level, int bits) {
+    public int deflateInit(int level, int bits) {
         return deflateInit(level, bits, false);
     }
 
-    final public int deflateInit(int level, int bits, boolean nowrap) {
+    public int deflateInit(int level, int bits, boolean nowrap) {
         dstate = new Deflate();
         return dstate.deflateInit(this, level, nowrap ? -bits : bits);
     }

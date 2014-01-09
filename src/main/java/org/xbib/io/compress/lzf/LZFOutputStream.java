@@ -1,24 +1,19 @@
+
 package org.xbib.io.compress.lzf;
+
+import org.xbib.io.compress.BufferRecycler;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import org.xbib.io.compress.BufferRecycler;
 
 /**
- * Decorator {@link OutputStream} implementation that will compress output using
+ * Decorator {@link java.io.OutputStream} implementation that will compress output using
  * LZF compression algorithm, given uncompressed input to write. Its counterpart
  * is {@link LZFInputStream}; although in some ways
  * {@link LZFCompressingInputStream} can be seen as the opposite.
- *
- * @author jon hartlaub
- * @author Tatu Saloranta
- *
- * @see LZFInputStream
- * @see LZFCompressingInputStream
  */
 public class LZFOutputStream extends OutputStream {
 
-    private static final int OUTPUT_BUFFER_SIZE = LZFChunk.MAX_CHUNK_LEN;
     private final ChunkEncoder _encoder;
     private final BufferRecycler _recycler;
     protected final OutputStream _outputStream;
@@ -39,10 +34,14 @@ public class LZFOutputStream extends OutputStream {
      // Construction, configuration
      */
     public LZFOutputStream(final OutputStream outputStream) {
-        _encoder = new ChunkEncoder(OUTPUT_BUFFER_SIZE);
+        this(outputStream, LZFChunk.MAX_CHUNK_LEN);
+    }
+
+    public LZFOutputStream(final OutputStream outputStream, int bufsize) {
+        _encoder = new ChunkEncoder(bufsize);
         _recycler = BufferRecycler.instance();
         _outputStream = outputStream;
-        _outputBuffer = _recycler.allocOutputBuffer(OUTPUT_BUFFER_SIZE);
+        _outputBuffer = _recycler.allocOutputBuffer(bufsize);
         _outputStreamClosed = false;
     }
 
@@ -128,18 +127,11 @@ public class LZFOutputStream extends OutputStream {
         }
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Additional public methods
-     ///////////////////////////////////////////////////////////////////////
-     */
     /**
-     * Method that can be used to find underlying {@link OutputStream} that we
+     * Method that can be used to find underlying {@link java.io.OutputStream} that we
      * write encoded LZF encoded data into, after compressing it. Will never
      * return null; although underlying stream may be closed (if this stream has
      * been closed).
-     *
-     * @since 0.8
      */
     public OutputStream getUnderlyingOutputStream() {
         return _outputStream;
@@ -148,8 +140,6 @@ public class LZFOutputStream extends OutputStream {
     /**
      * Accessor for checking whether call to "flush()" will first finish the
      * current block or not
-     *
-     * @since 0.8
      */
     public boolean getFinishBlockOnFlush() {
         return _cfgFinishBlockOnFlush;
@@ -161,8 +151,6 @@ public class LZFOutputStream extends OutputStream {
      * typically results in lower compression ratio as larger blocks compress
      * better; but may be necessary for network connections to ensure timely
      * sending of data.
-     *
-     * @since 0.8
      */
     public LZFOutputStream finishBlock() throws IOException {
         checkNotClosed();
@@ -172,11 +160,6 @@ public class LZFOutputStream extends OutputStream {
         return this;
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Internal methods
-     ///////////////////////////////////////////////////////////////////////
-     */
     /**
      * Compress and write the current block to the OutputStream
      */

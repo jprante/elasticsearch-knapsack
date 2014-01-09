@@ -2,36 +2,48 @@
 package org.xbib.io;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.net.URI;
+import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.WeakHashMap;
 
+/**
+ * The Connection service
+ */
+public final class ConnectionService<S extends Session> {
 
-public final class ConnectionService<F extends ConnectionFactory> {
+    private final Map<String, ConnectionFactory<S>> factories = new WeakHashMap<String, ConnectionFactory<S>>();
 
     private final static ConnectionService instance = new ConnectionService();
 
     private ConnectionService() {
+        ServiceLoader<ConnectionFactory> loader = ServiceLoader.load(ConnectionFactory.class);
+        for (ConnectionFactory factory : loader) {
+            if (!factories.containsKey(factory.getName())) {
+                factories.put(factory.getName(), factory);
+            }
+        }
     }
 
-    public static ConnectionService getInstance() {
+    public static <S extends Session> ConnectionService<S> getInstance() {
         return instance;
     }
 
-    public synchronized F getConnectionFactory(String scheme)
+    public ConnectionFactory<S> getConnectionFactory(String name)
             throws IOException {
-        if (scheme == null) {
-            throw new IllegalArgumentException("no connection scheme given");
+        if (factories.containsKey(name)) {
+            return factories.get(name);
         }
-        ConnectionFactory factory;
-        ServiceLoader<ConnectionFactory> loader = ServiceLoader.load(ConnectionFactory.class);
-        Iterator<ConnectionFactory> it = loader.iterator();
-        while (it.hasNext()) {
-            factory = it.next();
-            if (scheme != null && factory.providesScheme(scheme)) {
-                return (F) factory;
+        throw new ServiceConfigurationError("no connection factory found for scheme " + name);
+    }
+
+    public ConnectionFactory<S> getConnectionFactory(URI uri) {
+        for (ConnectionFactory<S> factory : factories.values()) {
+            if (factory.canOpen(uri)) {
+                return factory;
             }
         }
-        throw new ServiceConfigurationError("no connection factory found for scheme " + scheme);
+        throw new ServiceConfigurationError("no connection factory found for " + uri);
     }
 }

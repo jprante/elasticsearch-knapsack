@@ -1,3 +1,4 @@
+
 package org.xbib.io.compress.lzf;
 
 import java.io.IOException;
@@ -6,9 +7,6 @@ import java.io.InputStream;
 /**
  * Decoder that handles decoding of sequence of encoded LZF chunks, combining
  * them into a single contiguous result byte array.
- *
- * @author Tatu Saloranta (tatu.saloranta@iki.fi)
- *
  */
 public abstract class ChunkDecoder {
 
@@ -21,6 +19,7 @@ public abstract class ChunkDecoder {
     /*
      * Public API
      */
+
     /**
      * Method for decompressing a block of input data encoded in LZF block
      * structure (compatible with lzf command line utility), and can consist of
@@ -62,7 +61,7 @@ public abstract class ChunkDecoder {
      * or more complete chunks; partial chunks can not be handled.
      */
     public int decode(final byte[] sourceBuffer, int inPtr, int inLength,
-            final byte[] targetBuffer) throws IOException {
+                      final byte[] targetBuffer) throws IOException {
         int outPtr = 0;
         int blockNr = 0;
 
@@ -102,8 +101,8 @@ public abstract class ChunkDecoder {
      * Main decode from a stream. Decompressed bytes are placed in the
      * outputBuffer, inputBuffer is a "scratch-area".
      *
-     * @param is An input stream of LZF compressed bytes
-     * @param inputBuffer A byte array used as a scratch area.
+     * @param is           An input stream of LZF compressed bytes
+     * @param inputBuffer  A byte array used as a scratch area.
      * @param outputBuffer A byte array in which the result is returned
      * @return The number of bytes placed in the outputBuffer.
      */
@@ -121,6 +120,7 @@ public abstract class ChunkDecoder {
      // Public static methods
      ///////////////////////////////////////////////////////////////////////
      */
+
     /**
      * Helper method that will calculate total uncompressed size, for sequence
      * of one or more LZF blocks stored in given byte array. Will do basic
@@ -209,7 +209,7 @@ public abstract class ChunkDecoder {
     }
 
     protected final static void readFully(InputStream is, boolean compressed,
-            byte[] outputBuffer, int offset, int len) throws IOException {
+                                          byte[] outputBuffer, int offset, int len) throws IOException {
         int left = len;
         while (left > 0) {
             int count = is.read(outputBuffer, offset, left);

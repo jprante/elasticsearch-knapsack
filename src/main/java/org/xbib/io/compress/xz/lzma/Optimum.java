@@ -1,12 +1,3 @@
-/*
- * Optimum
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lzma;
 

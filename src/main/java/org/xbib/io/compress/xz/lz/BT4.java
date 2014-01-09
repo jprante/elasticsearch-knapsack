@@ -1,12 +1,3 @@
-/*
- * Binary Tree match finder with 2-, 3-, and 4-byte hashing
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
@@ -25,7 +16,7 @@ final class BT4 extends LZEncoder {
     }
 
     BT4(int dictSize, int beforeSizeMin, int readAheadMax,
-            int niceLen, int matchLenMax, int depthLimit) {
+        int niceLen, int matchLenMax, int depthLimit) {
         super(dictSize, beforeSizeMin, readAheadMax, niceLen, matchLenMax);
 
         cyclicSize = dictSize + 1;
@@ -53,8 +44,9 @@ final class BT4 extends LZEncoder {
                 lzPos -= normalizationOffset;
             }
 
-            if (++cyclicPos == cyclicSize)
+            if (++cyclicPos == cyclicSize) {
                 cyclicPos = 0;
+            }
         }
 
         return avail;
@@ -68,12 +60,14 @@ final class BT4 extends LZEncoder {
         int avail = movePos();
 
         if (avail < matchLenLimit) {
-            if (avail == 0)
+            if (avail == 0) {
                 return matches;
+            }
 
             matchLenLimit = avail;
-            if (niceLenLimit > avail)
+            if (niceLenLimit > avail) {
                 niceLenLimit = avail;
+            }
         }
 
         hash.calcHashes(buf, readPos);
@@ -109,8 +103,9 @@ final class BT4 extends LZEncoder {
         // If a match was found, see how long it is.
         if (matches.count > 0) {
             while (lenBest < matchLenLimit && buf[readPos + lenBest - delta2]
-                                              == buf[readPos + lenBest])
+                    == buf[readPos + lenBest]) {
                 ++lenBest;
+            }
 
             matches.len[matches.count - 1] = lenBest;
 
@@ -124,8 +119,9 @@ final class BT4 extends LZEncoder {
 
         // Long enough match wasn't found so easily. Look for better matches
         // from the binary tree.
-        if (lenBest < 3)
+        if (lenBest < 3) {
             lenBest = 3;
+        }
 
         int depth = depthLimit;
 
@@ -147,13 +143,15 @@ final class BT4 extends LZEncoder {
             }
 
             int pair = (cyclicPos - delta
-                        + (delta > cyclicPos ? cyclicSize : 0)) << 1;
+                    + (delta > cyclicPos ? cyclicSize : 0)) << 1;
             int len = Math.min(len0, len1);
 
             if (buf[readPos + len - delta] == buf[readPos + len]) {
-                while (++len < matchLenLimit)
-                    if (buf[readPos + len - delta] != buf[readPos + len])
+                while (++len < matchLenLimit) {
+                    if (buf[readPos + len - delta] != buf[readPos + len]) {
                         break;
+                    }
+                }
 
                 if (len > lenBest) {
                     lenBest = len;
@@ -202,7 +200,7 @@ final class BT4 extends LZEncoder {
             }
 
             int pair = (cyclicPos - delta
-                        + (delta > cyclicPos ? cyclicSize : 0)) << 1;
+                    + (delta > cyclicPos ? cyclicSize : 0)) << 1;
             int len = Math.min(len0, len1);
 
             if (buf[readPos + len - delta] == buf[readPos + len]) {
@@ -239,8 +237,9 @@ final class BT4 extends LZEncoder {
             int avail = movePos();
 
             if (avail < niceLenLimit) {
-                if (avail == 0)
+                if (avail == 0) {
                     continue;
+                }
 
                 niceLenLimit = avail;
             }

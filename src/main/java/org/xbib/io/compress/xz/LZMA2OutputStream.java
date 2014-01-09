@@ -1,20 +1,12 @@
-/*
- * LZMA2OutputStream
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
+import org.xbib.io.compress.xz.lz.LZEncoder;
+import org.xbib.io.compress.xz.lzma.LZMAEncoder;
+import org.xbib.io.compress.xz.rangecoder.RangeEncoder;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
-import org.xbib.io.compress.xz.lz.LZEncoder;
-import org.xbib.io.compress.xz.rangecoder.RangeEncoder;
-import org.xbib.io.compress.xz.lzma.LZMAEncoder;
 
 class LZMA2OutputStream extends FinishableOutputStream {
     static final int COMPRESSED_SIZE_MAX = 64 << 10;
@@ -37,7 +29,7 @@ class LZMA2OutputStream extends FinishableOutputStream {
 
     private static int getExtraSizeBefore(int dictSize) {
         return COMPRESSED_SIZE_MAX > dictSize
-               ? COMPRESSED_SIZE_MAX - dictSize : 0;
+                ? COMPRESSED_SIZE_MAX - dictSize : 0;
     }
 
     static int getMemoryUsage(LZMA2Options options) {
@@ -45,13 +37,14 @@ class LZMA2OutputStream extends FinishableOutputStream {
         int dictSize = options.getDictSize();
         int extraSizeBefore = getExtraSizeBefore(dictSize);
         return 70 + LZMAEncoder.getMemoryUsage(options.getMode(),
-                                               dictSize, extraSizeBefore,
-                                               options.getMatchFinder());
+                dictSize, extraSizeBefore,
+                options.getMatchFinder());
     }
 
     LZMA2OutputStream(FinishableOutputStream out, LZMA2Options options) {
-        if (out == null)
+        if (out == null) {
             throw new NullPointerException();
+        }
 
         this.out = out;
         outData = new DataOutputStream(out);
@@ -78,19 +71,22 @@ class LZMA2OutputStream extends FinishableOutputStream {
 
     public void write(int b) throws IOException {
         byte[] buf = new byte[1];
-        buf[0] = (byte)b;
+        buf[0] = (byte) b;
         write(buf, 0, 1);
     }
 
     public void write(byte[] buf, int off, int len) throws IOException {
-        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length)
+        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length) {
             throw new IndexOutOfBoundsException();
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
             while (len > 0) {
@@ -99,8 +95,9 @@ class LZMA2OutputStream extends FinishableOutputStream {
                 len -= used;
                 pendingSize += used;
 
-                if (lzma.encodeForLZMA2())
+                if (lzma.encodeForLZMA2()) {
                     writeChunk();
+                }
             }
         } catch (IOException e) {
             exception = e;
@@ -136,15 +133,17 @@ class LZMA2OutputStream extends FinishableOutputStream {
         int control;
 
         if (propsNeeded) {
-            if (dictResetNeeded)
+            if (dictResetNeeded) {
                 control = 0x80 + (3 << 5);
-            else
+            } else {
                 control = 0x80 + (2 << 5);
+            }
         } else {
-            if (stateResetNeeded)
+            if (stateResetNeeded) {
                 control = 0x80 + (1 << 5);
-            else
+            } else {
                 control = 0x80;
+            }
         }
 
         control |= (uncompressedSize - 1) >>> 16;
@@ -153,8 +152,9 @@ class LZMA2OutputStream extends FinishableOutputStream {
         outData.writeShort(uncompressedSize - 1);
         outData.writeShort(compressedSize - 1);
 
-        if (propsNeeded)
+        if (propsNeeded) {
             outData.writeByte(props);
+        }
 
         rc.write(out);
 
@@ -179,8 +179,9 @@ class LZMA2OutputStream extends FinishableOutputStream {
     private void writeEndMarker() throws IOException {
         assert !finished;
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
         lz.setFinishing();
 
@@ -200,11 +201,13 @@ class LZMA2OutputStream extends FinishableOutputStream {
     }
 
     public void flush() throws IOException {
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
             lz.setFlushing();
@@ -241,20 +244,23 @@ class LZMA2OutputStream extends FinishableOutputStream {
             if (!finished) {
                 try {
                     writeEndMarker();
-                } catch (IOException e) {}
+                } catch (IOException e) {
+                }
             }
 
             try {
                 out.close();
             } catch (IOException e) {
-                if (exception == null)
+                if (exception == null) {
                     exception = e;
+                }
             }
 
             out = null;
         }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
     }
 }

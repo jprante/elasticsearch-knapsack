@@ -1,12 +1,3 @@
-/*
- * BCJ filter for SPARC instructions
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.simple;
 
@@ -27,25 +18,26 @@ public final class SPARC implements SimpleFilter {
             if ((buf[i] == 0x40 && (buf[i + 1] & 0xC0) == 0x00)
                     || (buf[i] == 0x7F && (buf[i + 1] & 0xC0) == 0xC0)) {
                 int src = ((buf[i] & 0xFF) << 24)
-                          | ((buf[i + 1] & 0xFF) << 16)
-                          | ((buf[i + 2] & 0xFF) << 8)
-                          | (buf[i + 3] & 0xFF);
+                        | ((buf[i + 1] & 0xFF) << 16)
+                        | ((buf[i + 2] & 0xFF) << 8)
+                        | (buf[i + 3] & 0xFF);
                 src <<= 2;
 
                 int dest;
-                if (isEncoder)
+                if (isEncoder) {
                     dest = src + (pos + i - off);
-                else
+                } else {
                     dest = src - (pos + i - off);
+                }
 
                 dest >>>= 2;
                 dest = (((0 - ((dest >>> 22) & 1)) << 22) & 0x3FFFFFFF)
-                       | (dest & 0x3FFFFF) | 0x40000000;
+                        | (dest & 0x3FFFFF) | 0x40000000;
 
-                buf[i] = (byte)(dest >>> 24);
-                buf[i + 1] = (byte)(dest >>> 16);
-                buf[i + 2] = (byte)(dest >>> 8);
-                buf[i + 3] = (byte)dest;
+                buf[i] = (byte) (dest >>> 24);
+                buf[i + 1] = (byte) (dest >>> 16);
+                buf[i + 2] = (byte) (dest >>> 8);
+                buf[i + 3] = (byte) dest;
             }
         }
 

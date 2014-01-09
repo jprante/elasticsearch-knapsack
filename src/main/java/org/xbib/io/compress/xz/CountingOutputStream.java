@@ -1,20 +1,12 @@
-/*
- * CountingOutputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.OutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Counts the number of bytes written to an output stream.
- * <p>
+ * <p/>
  * The <code>finish</code> method does nothing.
  * This is <code>FinishableOutputStream</code> instead
  * of <code>OutputStream</code> solely because it allows
@@ -30,14 +22,16 @@ class CountingOutputStream extends FinishableOutputStream {
 
     public void write(int b) throws IOException {
         out.write(b);
-        if (size >= 0)
+        if (size >= 0) {
             ++size;
+        }
     }
 
     public void write(byte[] b, int off, int len) throws IOException {
         out.write(b, off, len);
-        if (size >= 0)
+        if (size >= 0) {
             size += len;
+        }
     }
 
     public void flush() throws IOException {

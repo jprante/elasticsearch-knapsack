@@ -1,18 +1,10 @@
-/*
- * SeekableFileInputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
 import java.io.File;
-import java.io.RandomAccessFile;
-import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  * Wraps a {@link java.io.RandomAccessFile RandomAccessFile}
@@ -49,14 +41,14 @@ public class SeekableFileInputStream extends SeekableInputStream {
     }
 
     /**
-     * Calls {@link RandomAccessFile#read() randomAccessFile.read()}.
+     * Calls {@link java.io.RandomAccessFile#read() randomAccessFile.read()}.
      */
     public int read() throws IOException {
         return randomAccessFile.read();
     }
 
     /**
-     * Calls {@link RandomAccessFile#read(byte[]) randomAccessFile.read(buf)}.
+     * Calls {@link java.io.RandomAccessFile#read(byte[]) randomAccessFile.read(buf)}.
      */
     public int read(byte[] buf) throws IOException {
         return randomAccessFile.read(buf);
@@ -64,37 +56,37 @@ public class SeekableFileInputStream extends SeekableInputStream {
 
     /**
      * Calls
-     * {@link RandomAccessFile#read(byte[],int,int)
-     *        randomAccessFile.read(buf, off, len)}.
+     * {@link java.io.RandomAccessFile#read(byte[], int, int)
+     * randomAccessFile.read(buf, off, len)}.
      */
     public int read(byte[] buf, int off, int len) throws IOException {
         return randomAccessFile.read(buf, off, len);
     }
 
     /**
-     * Calls {@link RandomAccessFile#close() randomAccessFile.close()}.
+     * Calls {@link java.io.RandomAccessFile#close() randomAccessFile.close()}.
      */
     public void close() throws IOException {
         randomAccessFile.close();
     }
 
     /**
-     * Calls {@link RandomAccessFile#length() randomAccessFile.length()}.
+     * Calls {@link java.io.RandomAccessFile#length() randomAccessFile.length()}.
      */
     public long length() throws IOException {
         return randomAccessFile.length();
     }
 
     /**
-     * Calls {@link RandomAccessFile#getFilePointer()
-                    randomAccessFile.getFilePointer()}.
+     * Calls {@link java.io.RandomAccessFile#getFilePointer()
+     * randomAccessFile.getFilePointer()}.
      */
     public long position() throws IOException {
         return randomAccessFile.getFilePointer();
     }
 
     /**
-     * Calls {@link RandomAccessFile#seek(long) randomAccessFile.seek(long)}.
+     * Calls {@link java.io.RandomAccessFile#seek(long) randomAccessFile.seek(long)}.
      */
     public void seek(long pos) throws IOException {
         randomAccessFile.seek(pos);

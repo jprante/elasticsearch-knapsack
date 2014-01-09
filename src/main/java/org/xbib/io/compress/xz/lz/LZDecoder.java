@@ -1,18 +1,10 @@
-/*
- * LZDecoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
+import org.xbib.io.compress.xz.CorruptedInputException;
+
 import java.io.DataInputStream;
 import java.io.IOException;
-import org.xbib.io.compress.xz.CorruptedInputException;
 
 public final class LZDecoder {
     private final byte[] buf;
@@ -43,10 +35,11 @@ public final class LZDecoder {
     }
 
     public void setLimit(int outMax) {
-        if (buf.length - pos <= outMax)
+        if (buf.length - pos <= outMax) {
             limit = buf.length;
-        else
+        } else {
             limit = pos + outMax;
+        }
     }
 
     public boolean hasSpace() {
@@ -63,8 +56,9 @@ public final class LZDecoder {
 
     public int getByte(int dist) {
         int offset = pos - dist - 1;
-        if (dist >= pos)
+        if (dist >= pos) {
             offset += buf.length;
+        }
 
         return buf[offset] & 0xFF;
     }
@@ -72,35 +66,41 @@ public final class LZDecoder {
     public void putByte(byte b) {
         buf[pos++] = b;
 
-        if (full < pos)
+        if (full < pos) {
             full = pos;
+        }
     }
 
     public void repeat(int dist, int len) throws IOException {
-        if (dist < 0 || dist >= full)
+        if (dist < 0 || dist >= full) {
             throw new CorruptedInputException();
+        }
 
         int left = Math.min(limit - pos, len);
         pendingLen = len - left;
         pendingDist = dist;
 
         int back = pos - dist - 1;
-        if (dist >= pos)
+        if (dist >= pos) {
             back += buf.length;
+        }
 
         do {
             buf[pos++] = buf[back++];
-            if (back == buf.length)
+            if (back == buf.length) {
                 back = 0;
+            }
         } while (--left > 0);
 
-        if (full < pos)
+        if (full < pos) {
             full = pos;
+        }
     }
 
     public void repeatPending() throws IOException {
-        if (pendingLen > 0)
+        if (pendingLen > 0) {
             repeat(pendingDist, pendingLen);
+        }
     }
 
     public void copyUncompressed(DataInputStream inData, int len)
@@ -109,14 +109,16 @@ public final class LZDecoder {
         inData.readFully(buf, pos, copySize);
         pos += copySize;
 
-        if (full < pos)
+        if (full < pos) {
             full = pos;
+        }
     }
 
     public int flush(byte[] out, int outOff) {
         int copySize = pos - start;
-        if (pos == buf.length)
+        if (pos == buf.length) {
             pos = 0;
+        }
 
         System.arraycopy(buf, start, out, outOff, copySize);
         start = pos;

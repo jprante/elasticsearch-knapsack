@@ -1,11 +1,3 @@
-/*
- * UncompressedLZMA2OutputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
@@ -30,8 +22,9 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
     }
 
     UncompressedLZMA2OutputStream(FinishableOutputStream out) {
-        if (out == null)
+        if (out == null) {
             throw new NullPointerException();
+        }
 
         this.out = out;
         outData = new DataOutputStream(out);
@@ -39,19 +32,22 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
 
     public void write(int b) throws IOException {
         byte[] buf = new byte[1];
-        buf[0] = (byte)b;
+        buf[0] = (byte) b;
         write(buf, 0, 1);
     }
 
     public void write(byte[] buf, int off, int len) throws IOException {
-        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length)
+        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length) {
             throw new IndexOutOfBoundsException();
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
             while (len > 0) {
@@ -60,8 +56,9 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
                 len -= copySize;
                 uncompPos += copySize;
 
-                if (uncompPos == uncompBuf.length)
+                if (uncompPos == uncompBuf.length) {
                     writeChunk();
+                }
             }
         } catch (IOException e) {
             exception = e;
@@ -78,15 +75,18 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
     }
 
     private void writeEndMarker() throws IOException {
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
-            if (uncompPos > 0)
+            if (uncompPos > 0) {
                 writeChunk();
+            }
 
             out.write(0x00);
         } catch (IOException e) {
@@ -96,15 +96,18 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
     }
 
     public void flush() throws IOException {
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
-            if (uncompPos > 0)
+            if (uncompPos > 0) {
                 writeChunk();
+            }
 
             out.flush();
         } catch (IOException e) {
@@ -133,20 +136,23 @@ class UncompressedLZMA2OutputStream extends FinishableOutputStream {
             if (!finished) {
                 try {
                     writeEndMarker();
-                } catch (IOException e) {}
+                } catch (IOException e) {
+                }
             }
 
             try {
                 out.close();
             } catch (IOException e) {
-                if (exception == null)
+                if (exception == null) {
                     exception = e;
+                }
             }
 
             out = null;
         }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
     }
 }

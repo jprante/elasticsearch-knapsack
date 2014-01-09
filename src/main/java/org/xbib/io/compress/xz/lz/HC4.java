@@ -1,12 +1,3 @@
-/*
- * Hash Chain match finder with 2-, 3-, and 4-byte hashing
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
@@ -32,7 +23,7 @@ final class HC4 extends LZEncoder {
      * See <code>LZEncoder.getInstance</code> for parameter descriptions.
      */
     HC4(int dictSize, int beforeSizeMin, int readAheadMax,
-            int niceLen, int matchLenMax, int depthLimit) {
+        int niceLen, int matchLenMax, int depthLimit) {
         super(dictSize, beforeSizeMin, readAheadMax, niceLen, matchLenMax);
 
         hash = new Hash234(dictSize);
@@ -57,7 +48,7 @@ final class HC4 extends LZEncoder {
      * Moves to the next byte, checks that there is enough available space,
      * and possibly normalizes the hash tables and the hash chain.
      *
-     * @return      number of bytes available, including the current byte
+     * @return number of bytes available, including the current byte
      */
     private int movePos() {
         int avail = movePos(4, 4);
@@ -70,8 +61,9 @@ final class HC4 extends LZEncoder {
                 lzPos -= normalizationOffset;
             }
 
-            if (++cyclicPos == cyclicSize)
+            if (++cyclicPos == cyclicSize) {
                 cyclicPos = 0;
+            }
         }
 
         return avail;
@@ -84,12 +76,14 @@ final class HC4 extends LZEncoder {
         int avail = movePos();
 
         if (avail < matchLenLimit) {
-            if (avail == 0)
+            if (avail == 0) {
                 return matches;
+            }
 
             matchLenLimit = avail;
-            if (niceLenLimit > avail)
+            if (niceLenLimit > avail) {
                 niceLenLimit = avail;
+            }
         }
 
         hash.calcHashes(buf, readPos);
@@ -127,21 +121,24 @@ final class HC4 extends LZEncoder {
         // If a match was found, see how long it is.
         if (matches.count > 0) {
             while (lenBest < matchLenLimit && buf[readPos + lenBest - delta2]
-                                              == buf[readPos + lenBest])
+                    == buf[readPos + lenBest]) {
                 ++lenBest;
+            }
 
             matches.len[matches.count - 1] = lenBest;
 
             // Return if it is long enough (niceLen or reached the end of
             // the dictionary).
-            if (lenBest >= niceLenLimit)
+            if (lenBest >= niceLenLimit) {
                 return matches;
+            }
         }
 
         // Long enough match wasn't found so easily. Look for better matches
         // from the hash chain.
-        if (lenBest < 3)
+        if (lenBest < 3) {
             lenBest = 3;
+        }
 
         int depth = depthLimit;
 
@@ -151,11 +148,12 @@ final class HC4 extends LZEncoder {
             // Return if the search depth limit has been reached or
             // if the distance of the potential match exceeds the
             // dictionary size.
-            if (depth-- == 0 || delta >= cyclicSize)
+            if (depth-- == 0 || delta >= cyclicSize) {
                 return matches;
+            }
 
             currentMatch = chain[cyclicPos - delta
-                                 + (delta > cyclicPos ? cyclicSize : 0)];
+                    + (delta > cyclicPos ? cyclicSize : 0)];
 
             // Test the first byte and the first new byte that would give us
             // a match that is at least one byte longer than lenBest. This
@@ -164,9 +162,11 @@ final class HC4 extends LZEncoder {
                     && buf[readPos - delta] == buf[readPos]) {
                 // Calculate the length of the match.
                 int len = 0;
-                while (++len < matchLenLimit)
-                    if (buf[readPos + len - delta] != buf[readPos + len])
+                while (++len < matchLenLimit) {
+                    if (buf[readPos + len - delta] != buf[readPos + len]) {
                         break;
+                    }
+                }
 
                 // Use the match if and only if it is better than the longest
                 // match found so far.
@@ -178,8 +178,9 @@ final class HC4 extends LZEncoder {
 
                     // Return if it is long enough (niceLen or reached the
                     // end of the dictionary).
-                    if (len >= niceLenLimit)
+                    if (len >= niceLenLimit) {
                         return matches;
+                    }
                 }
             }
         }

@@ -1,12 +1,3 @@
-/*
- * 2-, 3-, and 4-byte hashing
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
@@ -35,8 +26,9 @@ final class Hash234 extends CRC32Hash {
         h |= h >>> 8;
         h >>>= 1;
         h |= 0xFFFF;
-        if (h > (1 << 24))
+        if (h > (1 << 24)) {
             h >>>= 1;
+        }
 
         return h + 1;
     }
@@ -44,7 +36,7 @@ final class Hash234 extends CRC32Hash {
     static int getMemoryUsage(int dictSize) {
         // Sizes of the hash arrays + a little extra
         return (HASH_2_SIZE + HASH_3_SIZE + getHash4Size(dictSize))
-               / (1024 / 4) + 4;
+                / (1024 / 4) + 4;
     }
 
     Hash234(int dictSize) {

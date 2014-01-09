@@ -1,12 +1,3 @@
-/*
- * LZMAEncoderFast
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lzma;
 
@@ -27,15 +18,15 @@ final class LZMAEncoderFast extends LZMAEncoder {
     }
 
     LZMAEncoderFast(RangeEncoder rc, int lc, int lp, int pb,
-                           int dictSize, int extraSizeBefore,
-                           int niceLen, int mf, int depthLimit) {
+                    int dictSize, int extraSizeBefore,
+                    int niceLen, int mf, int depthLimit) {
         super(rc, LZEncoder.getInstance(dictSize,
-                                        Math.max(extraSizeBefore,
-                                                 EXTRA_SIZE_BEFORE),
-                                        EXTRA_SIZE_AFTER,
-                                        niceLen, MATCH_LEN_MAX,
-                                        mf, depthLimit),
-              lc, lp, pb, dictSize, niceLen);
+                Math.max(extraSizeBefore,
+                        EXTRA_SIZE_BEFORE),
+                EXTRA_SIZE_AFTER,
+                niceLen, MATCH_LEN_MAX,
+                mf, depthLimit),
+                lc, lp, pb, dictSize, niceLen);
     }
 
     private boolean changePair(int smallDist, int bigDist) {
@@ -46,8 +37,9 @@ final class LZMAEncoderFast extends LZMAEncoder {
         // Get the matches for the next byte unless readAhead indicates
         // that we already got the new matches during the previous call
         // to this function.
-        if (readAhead == -1)
+        if (readAhead == -1) {
             matches = getMatches();
+        }
 
         back = -1;
 
@@ -56,16 +48,18 @@ final class LZMAEncoderFast extends LZMAEncoder {
         // enough bytes remaining to encode a match at all, return
         // immediately to encode this byte as a literal.
         int avail = Math.min(lz.getAvail(), MATCH_LEN_MAX);
-        if (avail < MATCH_LEN_MIN)
+        if (avail < MATCH_LEN_MIN) {
             return 1;
+        }
 
         // Look for a match from the previous four match distances.
         int bestRepLen = 0;
         int bestRepIndex = 0;
         for (int rep = 0; rep < REPS; ++rep) {
             int len = lz.getMatchLen(reps[rep], avail);
-            if (len < MATCH_LEN_MIN)
+            if (len < MATCH_LEN_MIN) {
                 continue;
+            }
 
             // If it is long enough, return it.
             if (len >= niceLen) {
@@ -96,16 +90,18 @@ final class LZMAEncoderFast extends LZMAEncoder {
 
             while (matches.count > 1
                     && mainLen == matches.len[matches.count - 2] + 1) {
-                if (!changePair(matches.dist[matches.count - 2], mainDist))
+                if (!changePair(matches.dist[matches.count - 2], mainDist)) {
                     break;
+                }
 
                 --matches.count;
                 mainLen = matches.len[matches.count - 1];
                 mainDist = matches.dist[matches.count - 1];
             }
 
-            if (mainLen == MATCH_LEN_MIN && mainDist >= 0x80)
+            if (mainLen == MATCH_LEN_MIN && mainDist >= 0x80) {
                 mainLen = 1;
+            }
         }
 
         if (bestRepLen >= MATCH_LEN_MIN) {
@@ -118,8 +114,9 @@ final class LZMAEncoderFast extends LZMAEncoder {
             }
         }
 
-        if (mainLen < MATCH_LEN_MIN || avail <= MATCH_LEN_MIN)
+        if (mainLen < MATCH_LEN_MIN || avail <= MATCH_LEN_MIN) {
             return 1;
+        }
 
         // Get the next match. Test if it is better than the current match.
         // If so, encode the current byte as a literal.
@@ -131,18 +128,21 @@ final class LZMAEncoderFast extends LZMAEncoder {
 
             if ((newLen >= mainLen && newDist < mainDist)
                     || (newLen == mainLen + 1
-                        && !changePair(mainDist, newDist))
+                    && !changePair(mainDist, newDist))
                     || newLen > mainLen + 1
                     || (newLen + 1 >= mainLen
-                        && mainLen >= MATCH_LEN_MIN + 1
-                        && changePair(newDist, mainDist)))
+                    && mainLen >= MATCH_LEN_MIN + 1
+                    && changePair(newDist, mainDist))) {
                 return 1;
+            }
         }
 
         int limit = Math.max(mainLen - 1, MATCH_LEN_MIN);
-        for (int rep = 0; rep < REPS; ++rep)
-            if (lz.getMatchLen(reps[rep], limit) == limit)
+        for (int rep = 0; rep < REPS; ++rep) {
+            if (lz.getMatchLen(reps[rep], limit) == limit) {
                 return 1;
+            }
+        }
 
         back = mainDist + REPS;
         skip(mainLen - 2);

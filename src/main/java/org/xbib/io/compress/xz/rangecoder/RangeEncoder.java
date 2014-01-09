@@ -1,17 +1,8 @@
-/*
- * RangeEncoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.rangecoder;
 
-import java.io.OutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public final class RangeEncoder extends RangeCoder {
     private static final int MOVE_REDUCING_BITS = 4;
@@ -35,7 +26,7 @@ public final class RangeEncoder extends RangeCoder {
 
     static {
         for (int i = (1 << MOVE_REDUCING_BITS) / 2; i < BIT_MODEL_TOTAL;
-                i += (1 << MOVE_REDUCING_BITS)) {
+             i += (1 << MOVE_REDUCING_BITS)) {
             int w = i;
             int bitCount = 0;
 
@@ -51,7 +42,7 @@ public final class RangeEncoder extends RangeCoder {
 
             prices[i >> MOVE_REDUCING_BITS]
                     = (BIT_MODEL_TOTAL_BITS << BIT_PRICE_SHIFT_BITS)
-                      - 15 - bitCount;
+                    - 15 - bitCount;
         }
     }
 
@@ -73,8 +64,9 @@ public final class RangeEncoder extends RangeCoder {
     }
 
     public int finish() {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 5; ++i) {
             shiftLow();
+        }
 
         return bufPos;
     }
@@ -84,17 +76,17 @@ public final class RangeEncoder extends RangeCoder {
     }
 
     private void shiftLow() {
-        int lowHi = (int)(low >>> 32);
+        int lowHi = (int) (low >>> 32);
 
         if (lowHi != 0 || low < 0xFF000000L) {
             int temp = cache;
 
             do {
-                buf[bufPos++] = (byte)(temp + lowHi);
+                buf[bufPos++] = (byte) (temp + lowHi);
                 temp = 0xFF;
             } while (--cacheSize != 0);
 
-            cache = (byte)(low >>> 24);
+            cache = (byte) (low >>> 24);
         }
 
         ++cacheSize;
@@ -108,12 +100,12 @@ public final class RangeEncoder extends RangeCoder {
         // NOTE: Any non-zero value for bit is taken as 1.
         if (bit == 0) {
             range = bound;
-            probs[index] = (short)(
+            probs[index] = (short) (
                     prob + ((BIT_MODEL_TOTAL - prob) >>> MOVE_BITS));
         } else {
             low += bound & 0xFFFFFFFFL;
             range -= bound;
-            probs[index] = (short)(prob - (prob >>> MOVE_BITS));
+            probs[index] = (short) (prob - (prob >>> MOVE_BITS));
         }
 
         if ((range & TOP_MASK) == 0) {
@@ -126,7 +118,7 @@ public final class RangeEncoder extends RangeCoder {
         // NOTE: Unlike in encodeBit(), here bit must be 0 or 1.
         assert bit == 0 || bit == 1;
         return prices[(prob ^ ((-bit) & (BIT_MODEL_TOTAL - 1)))
-                      >>> MOVE_REDUCING_BITS];
+                >>> MOVE_REDUCING_BITS];
     }
 
     public void encodeBitTree(short[] probs, int symbol) {
@@ -139,8 +131,9 @@ public final class RangeEncoder extends RangeCoder {
             encodeBit(probs, index, bit);
 
             index <<= 1;
-            if (bit != 0)
+            if (bit != 0) {
                 index |= 1;
+            }
 
         } while (mask != 1);
     }

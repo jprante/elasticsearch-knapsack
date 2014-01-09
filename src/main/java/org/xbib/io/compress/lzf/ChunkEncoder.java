@@ -1,25 +1,15 @@
-/* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
- * file except in compliance with the License. You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
- * OF ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
+
 package org.xbib.io.compress.lzf;
+
+import org.xbib.io.compress.BufferRecycler;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import org.xbib.io.compress.BufferRecycler;
 
 /**
  * Class that handles actual encoding of individual chunks. Resulting chunks can
  * be compressed or non-compressed; compression is only used if it actually
  * reduces chunk size (including overhead of additional header bytes)
- *
- * @author Tatu Saloranta (tatu.saloranta@iki.fi)
  */
 public final class ChunkEncoder {
     // Beyond certain point we won't be able to compress; let's use 16 bytes as cut-off
@@ -49,7 +39,7 @@ public final class ChunkEncoder {
 
     /**
      * @param totalLength Total encoded length; used for calculating size of
-     * hash table to use
+     *                    hash table to use
      */
     public ChunkEncoder(int totalLength) {
         int largestChunkLen = Math.max(totalLength, LZFChunk.MAX_CHUNK_LEN);
@@ -86,6 +76,7 @@ public final class ChunkEncoder {
      // Public API
      ///////////////////////////////////////////////////////////////////////
      */
+
     /**
      * Method to close once encoder is no longer in use. Note: after calling
      * this method, further calls to {@link #encodeChunk} will fail
@@ -220,7 +211,7 @@ public final class ChunkEncoder {
     }
 
     private final int handleTail(byte[] in, int inPos, int inEnd, byte[] out, int outPos,
-            int literals) {
+                                 int literals) {
         while (inPos < inEnd) {
             out[outPos++] = in[inPos++];
             literals++;

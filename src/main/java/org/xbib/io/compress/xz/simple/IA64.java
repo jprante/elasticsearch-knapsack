@@ -1,12 +1,3 @@
-/*
- * BCJ filter for Itanium (IA-64) instructions
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.simple;
 
@@ -15,7 +6,7 @@ public final class IA64 implements SimpleFilter {
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             4, 4, 6, 6, 0, 0, 7, 7,
-            4, 4, 0, 0, 4, 4, 0, 0 };
+            4, 4, 0, 0, 4, 4, 0, 0};
 
     private final boolean isEncoder;
     private int pos;
@@ -34,31 +25,35 @@ public final class IA64 implements SimpleFilter {
             int mask = BRANCH_TABLE[instrTemplate];
 
             for (int slot = 0, bitPos = 5; slot < 3; ++slot, bitPos += 41) {
-                if (((mask >>> slot) & 1) == 0)
+                if (((mask >>> slot) & 1) == 0) {
                     continue;
+                }
 
                 int bytePos = bitPos >>> 3;
                 int bitRes = bitPos & 7;
 
                 long instr = 0;
-                for (int j = 0; j < 6; ++j)
+                for (int j = 0; j < 6; ++j) {
                     instr |= (buf[i + bytePos + j] & 0xFFL) << (8 * j);
+                }
 
                 long instrNorm = instr >>> bitRes;
 
                 if (((instrNorm >>> 37) & 0x0F) != 0x05
-                        || ((instrNorm >>> 9) & 0x07) != 0x00)
+                        || ((instrNorm >>> 9) & 0x07) != 0x00) {
                     continue;
+                }
 
-                int src = (int)((instrNorm >>> 13) & 0x0FFFFF);
-                src |= ((int)(instrNorm >>> 36) & 1) << 20;
+                int src = (int) ((instrNorm >>> 13) & 0x0FFFFF);
+                src |= ((int) (instrNorm >>> 36) & 1) << 20;
                 src <<= 4;
 
                 int dest;
-                if (isEncoder)
+                if (isEncoder) {
                     dest = src + (pos + i - off);
-                else
+                } else {
                     dest = src - (pos + i - off);
+                }
 
                 dest >>>= 4;
 
@@ -69,8 +64,9 @@ public final class IA64 implements SimpleFilter {
                 instr &= (1 << bitRes) - 1;
                 instr |= instrNorm << bitRes;
 
-                for (int j = 0; j < 6; ++j)
-                    buf[i + bytePos + j] = (byte)(instr >>> (8 * j));
+                for (int j = 0; j < 6; ++j) {
+                    buf[i + bytePos + j] = (byte) (instr >>> (8 * j));
+                }
             }
         }
 

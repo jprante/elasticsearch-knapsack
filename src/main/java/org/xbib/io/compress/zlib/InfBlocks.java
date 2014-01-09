@@ -1,35 +1,4 @@
-/*
-Copyright (c) 2000,2001,2002,2003 ymnk, JCraft,Inc. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright 
-notice, this list of conditions and the following disclaimer in 
-the documentation and/or other materials provided with the distribution.
-
-3. The names of the authors may not be used to endorse or promote products
-derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JCRAFT,
-INC. OR ANY CONTRIBUTORS TO THIS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * This program is based on zlib-1.1.3, so all credit should go authors
- * Jean-loup Gailly(jloup@gzip.org) and Mark Adler(madler@alumni.caltech.edu)
- * and contributors of zlib.
- */
 package org.xbib.io.compress.zlib;
 
 final class InfBlocks {
@@ -37,14 +6,14 @@ final class InfBlocks {
     private final static int MANY = 1440;
     // And'ing with mask[n] masks the lower n bits
     private final static int[] inflate_mask = {
-        0x00000000, 0x00000001, 0x00000003, 0x00000007, 0x0000000f,
-        0x0000001f, 0x0000003f, 0x0000007f, 0x000000ff, 0x000001ff,
-        0x000003ff, 0x000007ff, 0x00000fff, 0x00001fff, 0x00003fff,
-        0x00007fff, 0x0000ffff
+            0x00000000, 0x00000001, 0x00000003, 0x00000007, 0x0000000f,
+            0x0000001f, 0x0000003f, 0x0000007f, 0x000000ff, 0x000001ff,
+            0x000003ff, 0x000007ff, 0x00000fff, 0x00001fff, 0x00003fff,
+            0x00007fff, 0x0000ffff
     };
     // Table for deflate from PKZIP's appnote.txt.
     private final static int[] border = { // Order of the bit length code lengths
-        16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
+            16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
     };
     private final static int Z_OK = 0;
     private final static int Z_STREAM_END = 1;
@@ -444,7 +413,8 @@ final class InfBlocks {
                             index = i;
                         }
                     }
-                    tb[0] = -1; {
+                    tb[0] = -1;
+                {
                     int[] bl = new int[1];
                     int[] bd = new int[1];
                     int[] tl = new int[1];

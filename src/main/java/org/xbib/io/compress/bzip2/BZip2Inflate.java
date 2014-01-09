@@ -1,25 +1,4 @@
-/*
- * Copyright  2001-2004 The Apache Software Foundation
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- */
 
-/*
- * This package is based on the work done by Keiron Liddle, Aftex Software
- * <keiron@aftexsw.com> to whom the Ant project is very grateful for his
- * great code.
- */
 package org.xbib.io.compress.bzip2;
 
 import java.io.ByteArrayInputStream;
@@ -29,7 +8,6 @@ import java.io.IOException;
 /**
  * An input stream that decompresses from the BZip2 format (without the file
  * header chars) to be read as any other stream.
- *
  */
 public class BZip2Inflate implements Bzip2Constants {
 
@@ -94,9 +72,13 @@ public class BZip2Inflate implements Bzip2Constants {
     private char z;
 
     public BZip2Inflate() {
+        this(8192);
+    }
+
+    public BZip2Inflate(int bufsize) {
         ll8 = null;
         tt = null;
-        this.inputBuffer = new ByteArrayOutputStream(8192);
+        this.inputBuffer = new ByteArrayOutputStream(bufsize);
         bsSetStream();
     }
 
@@ -279,8 +261,8 @@ public class BZip2Inflate implements Bzip2Constants {
     }
 
     private void hbCreateDecodeTables(int[] limit, int[] base,
-            int[] perm, char[] length,
-            int minLen, int maxLen, int alphaSize) {
+                                      int[] perm, char[] length,
+                                      int minLen, int maxLen, int alphaSize) {
         int pp, i, j, vec;
 
         pp = 0;

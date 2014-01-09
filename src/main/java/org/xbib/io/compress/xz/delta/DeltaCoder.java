@@ -1,11 +1,3 @@
-/*
- * DeltaCoder
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.delta;
 
@@ -19,8 +11,9 @@ abstract class DeltaCoder {
     int pos = 0;
 
     DeltaCoder(int distance) {
-        if (distance < DISTANCE_MIN || distance > DISTANCE_MAX)
+        if (distance < DISTANCE_MIN || distance > DISTANCE_MAX) {
             throw new IllegalArgumentException();
+        }
 
         this.distance = distance;
     }

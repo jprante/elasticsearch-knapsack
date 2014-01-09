@@ -1,42 +1,14 @@
-/*
-Copyright (c) 2000,2001,2002,2003 ymnk, JCraft,Inc. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright 
-notice, this list of conditions and the following disclaimer in 
-the documentation and/or other materials provided with the distribution.
-
-3. The names of the authors may not be used to endorse or promote products
-derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JCRAFT,
-INC. OR ANY CONTRIBUTORS TO THIS SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * This program is based on zlib-1.1.3, so all credit should go authors
- * Jean-loup Gailly(jloup@gzip.org) and Mark Adler(madler@alumni.caltech.edu)
- * and contributors of zlib.
- */
 package org.xbib.io.compress.zlib;
 
 public final class Deflate {
 
     private static final int MAX_MEM_LEVEL = 9;
+
     private static final int Z_DEFAULT_COMPRESSION = -1;
+
     private static final int MAX_WBITS = 15;            // 32K LZ77 window
+
     private static final int DEF_MEM_LEVEL = 8;
 
     static final class Config {
@@ -48,7 +20,7 @@ public final class Deflate {
         private int func;
 
         private Config(int goodlength, int maxlazy,
-                int nicelength, int maxchain, int func) {
+                       int nicelength, int maxchain, int func) {
             this.goodlength = goodlength;
             this.maxlazy = maxlazy;
             this.nicelength = nicelength;
@@ -56,9 +28,13 @@ public final class Deflate {
             this.func = func;
         }
     }
+
     private static final int STORED = 0;
+
     private static final int FAST = 1;
+
     private static final int SLOW = 2;
+
     private static final Config[] CONFIG_TABLE;
 
     static {
@@ -76,17 +52,18 @@ public final class Deflate {
         CONFIG_TABLE[8] = new Config(32, 128, 258, 1024, SLOW);
         CONFIG_TABLE[9] = new Config(32, 258, 258, 4096, SLOW);
     }
+
     private static final String[] zerrmsg = {
-        "need dictionary", // Z_NEED_DICT       2
-        "stream end", // Z_STREAM_END      1
-        "", // Z_OK              0
-        "file error", // Z_ERRNO         (-1)
-        "stream error", // Z_STREAM_ERROR  (-2)
-        "data error", // Z_DATA_ERROR    (-3)
-        "insufficient memory", // Z_MEM_ERROR     (-4)
-        "buffer error", // Z_BUF_ERROR     (-5)
-        "incompatible version",// Z_VERSION_ERROR (-6)
-        ""
+            "need dictionary", // Z_NEED_DICT       2
+            "stream end", // Z_STREAM_END      1
+            "", // Z_OK              0
+            "file error", // Z_ERRNO         (-1)
+            "stream error", // Z_STREAM_ERROR  (-2)
+            "data error", // Z_DATA_ERROR    (-3)
+            "insufficient memory", // Z_MEM_ERROR     (-4)
+            "buffer error", // Z_BUF_ERROR     (-5)
+            "incompatible version",// Z_VERSION_ERROR (-6)
+            ""
     };
     // block not completed, need more input or more output
     private static final int NEED_MORE = 0;
@@ -351,8 +328,8 @@ public final class Deflate {
     // when the heap property is re-established (each father smaller than its
     // two sons).
     protected void pqdownheap(short[] tree, // the tree to restore
-            int kk // node to move down
-            ) {
+                              int kk // node to move down
+    ) {
         int k = kk;
         int v = heap[k];
         int j = k << 1;  // left son of k
@@ -386,8 +363,8 @@ public final class Deflate {
     // Scan a literal or distance tree to determine the frequencies of the codes
     // in the bit length tree.
     private void scanTree(short[] tree,// the tree to be scanned
-            int maxcode // and its largest code of non zero frequency
-            ) {
+                          int maxcode // and its largest code of non zero frequency
+    ) {
         int n;                     // iterates over all tree elements
         int prevlen = -1;          // last emitted length
         int curlen;                // length of current code
@@ -481,8 +458,8 @@ public final class Deflate {
     // Send a literal or distance tree in compressed form, using the codes in
     // bl_tree.
     private void sendTree(short[] tree,// the tree to be sent
-            int max_code // and its largest code of non zero frequency
-            ) {
+                          int max_code // and its largest code of non zero frequency
+    ) {
         int n;                     // iterates over all tree elements
         int prevlen = -1;          // last emitted length
         int curlen;                // length of current code
@@ -606,8 +583,8 @@ public final class Deflate {
     // Save the match info and tally the frequency counts. Return true if
     // the current block must be flushed.
     private boolean trTally(int dist, // distance of matched string
-            int lc // match length-MIN_MATCH or unmatched char (if dist==0)
-            ) {
+                            int lc // match length-MIN_MATCH or unmatched char (if dist==0)
+    ) {
 
         pendingBuf[dBuf + lastLit * 2] = (byte) (dist >>> 8);
         pendingBuf[dBuf + lastLit * 2 + 1] = (byte) dist;
@@ -743,9 +720,9 @@ public final class Deflate {
     // Copy a stored block, storing first the length and its
     // one's complement if requested.
     private void copyBlock(int buf, // the input data
-            int len, // its length
-            boolean header // true if block header must be written
-            ) {        
+                           int len, // its length
+                           boolean header // true if block header must be written
+    ) {
         biWindup();      // align on byte boundary
         lastEobLen = 8; // enough lookahead for inflate
 
@@ -832,9 +809,9 @@ public final class Deflate {
 
     // Send a stored block
     private void trStoredBlock(int buf, // input block
-            int storedlen, // length of input block
-            boolean eof // true if this is the last block for a file
-            ) {
+                               int storedlen, // length of input block
+                               boolean eof // true if this is the last block for a file
+    ) {
         sendBits((STORED_BLOCK << 1) + (eof ? 1 : 0), 3);  // send block type
         copyBlock(buf, storedlen, true);          // with header
     }
@@ -842,9 +819,9 @@ public final class Deflate {
     // Determine the best encoding for the current block: dynamic trees, static
     // trees or store, and output the encoded block to the zip file.
     private void trFlushBlock(int buf, // input block, or NULL if too old
-            int storedlen, // length of input block
-            boolean eof // true if this is the last block for a file
-            ) {
+                              int storedlen, // length of input block
+                              boolean eof // true if this is the last block for a file
+    ) {
         int optlenb, staticlenb;// opt_len and static_len in bytes
         int maxblindex = 0;      // index of last bit length code of non zero freq
 
@@ -1336,7 +1313,7 @@ public final class Deflate {
     }
 
     private int deflateInit2(ZStream strm, int level, int method, int windowBits,
-            int memLevel, int strategy) {
+                             int memLevel, int strategy) {
         int nheader = 0;
 
         strm.msg = null;

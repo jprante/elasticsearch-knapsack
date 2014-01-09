@@ -1,12 +1,3 @@
-/*
- * State
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lzma;
 
@@ -30,7 +21,8 @@ final class State {
 
     private int state;
 
-    State() {}
+    State() {
+    }
 
     State(State other) {
         state = other.state;
@@ -49,12 +41,13 @@ final class State {
     }
 
     void updateLiteral() {
-        if (state <= SHORTREP_LIT_LIT)
+        if (state <= SHORTREP_LIT_LIT) {
             state = LIT_LIT;
-        else if (state <= LIT_SHORTREP)
+        } else if (state <= LIT_SHORTREP) {
             state -= 3;
-        else
+        } else {
             state -= 6;
+        }
     }
 
     void updateMatch() {

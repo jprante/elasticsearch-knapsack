@@ -1,17 +1,16 @@
+
 package org.xbib.io.compress.lzf;
+
+import org.xbib.io.compress.BufferRecycler;
 
 import java.io.IOException;
 import java.io.InputStream;
-import org.xbib.io.compress.BufferRecycler;
 
 /**
- * Decorator {@link InputStream} implementation used for reading
+ * Decorator {@link java.io.InputStream} implementation used for reading
  * <b>uncompressed</b> data and <b>compressing</b> it on the fly, such that
  * reads return compressed data. It is reverse of {@link LZFInputStream} (which
  * instead uncompresses data).
- *
- * @author Tatu Saloranta
- *
  */
 public class LZFCompressingInputStream extends InputStream {
 
@@ -77,11 +76,6 @@ public class LZFCompressingInputStream extends InputStream {
         _cfgFullReads = b;
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // InputStream implementation
-     ///////////////////////////////////////////////////////////////////////
-     */
     @Override
     public int available() {
         // if closed, return -1;
@@ -199,7 +193,7 @@ public class LZFCompressingInputStream extends InputStream {
     /**
      * Fill the uncompressed bytes buffer by reading the underlying inputStream.
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     protected boolean readyBuffer() throws IOException {
         if (_bufferPosition < _bufferLength) {

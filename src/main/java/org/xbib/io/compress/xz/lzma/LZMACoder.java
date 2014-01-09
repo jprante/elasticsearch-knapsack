@@ -1,12 +1,3 @@
-/*
- * LZMACoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lzma;
 
@@ -17,8 +8,8 @@ abstract class LZMACoder {
 
     static final int MATCH_LEN_MIN = 2;
     static final int MATCH_LEN_MAX = MATCH_LEN_MIN + LengthCoder.LOW_SYMBOLS
-                                     + LengthCoder.MID_SYMBOLS
-                                     + LengthCoder.HIGH_SYMBOLS - 1;
+            + LengthCoder.MID_SYMBOLS
+            + LengthCoder.HIGH_SYMBOLS - 1;
 
     static final int DIST_STATES = 4;
     static final int DIST_SLOTS = 1 << 6;
@@ -44,17 +35,17 @@ abstract class LZMACoder {
     final short[] isRep2 = new short[State.STATES];
     final short[][] isRep0Long = new short[State.STATES][POS_STATES_MAX];
     final short[][] distSlots = new short[DIST_STATES][DIST_SLOTS];
-    final short[][] distSpecial = { new short[2], new short[2],
-                                    new short[4], new short[4],
-                                    new short[8], new short[8],
-                                    new short[16], new short[16],
-                                    new short[32], new short[32] };
+    final short[][] distSpecial = {new short[2], new short[2],
+            new short[4], new short[4],
+            new short[8], new short[8],
+            new short[16], new short[16],
+            new short[32], new short[32]};
     final short[] distAlign = new short[ALIGN_SIZE];
 
     static final int getDistState(int len) {
         return len < DIST_STATES + MATCH_LEN_MIN
-               ? len - MATCH_LEN_MIN
-               : DIST_STATES - 1;
+                ? len - MATCH_LEN_MIN
+                : DIST_STATES - 1;
     }
 
     LZMACoder(int pb) {
@@ -68,22 +59,26 @@ abstract class LZMACoder {
         reps[3] = 0;
         state.reset();
 
-        for (int i = 0; i < isMatch.length; ++i)
+        for (int i = 0; i < isMatch.length; ++i) {
             RangeCoder.initProbs(isMatch[i]);
+        }
 
         RangeCoder.initProbs(isRep);
         RangeCoder.initProbs(isRep0);
         RangeCoder.initProbs(isRep1);
         RangeCoder.initProbs(isRep2);
 
-        for (int i = 0; i < isRep0Long.length; ++i)
+        for (int i = 0; i < isRep0Long.length; ++i) {
             RangeCoder.initProbs(isRep0Long[i]);
+        }
 
-        for (int i = 0; i < distSlots.length; ++i)
+        for (int i = 0; i < distSlots.length; ++i) {
             RangeCoder.initProbs(distSlots[i]);
+        }
 
-        for (int i = 0; i < distSpecial.length; ++i)
+        for (int i = 0; i < distSpecial.length; ++i) {
             RangeCoder.initProbs(distSpecial[i]);
+        }
 
         RangeCoder.initProbs(distAlign);
     }
@@ -128,11 +123,13 @@ abstract class LZMACoder {
         void reset() {
             RangeCoder.initProbs(choice);
 
-            for (int i = 0; i < low.length; ++i)
+            for (int i = 0; i < low.length; ++i) {
                 RangeCoder.initProbs(low[i]);
+            }
 
-            for (int i = 0; i < low.length; ++i)
+            for (int i = 0; i < low.length; ++i) {
                 RangeCoder.initProbs(mid[i]);
+            }
 
             RangeCoder.initProbs(high);
         }

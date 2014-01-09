@@ -1,11 +1,3 @@
-/*
- * CRC32
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.check;
 
@@ -23,10 +15,10 @@ public class CRC32 extends Check {
 
     public byte[] finish() {
         long value = state.getValue();
-        byte[] buf = new byte[] { (byte)(value),
-                                  (byte)(value >>> 8),
-                                  (byte)(value >>> 16),
-                                  (byte)(value >>> 24) };
+        byte[] buf = new byte[]{(byte) (value),
+                (byte) (value >>> 8),
+                (byte) (value >>> 16),
+                (byte) (value >>> 24)};
         state.reset();
         return buf;
     }

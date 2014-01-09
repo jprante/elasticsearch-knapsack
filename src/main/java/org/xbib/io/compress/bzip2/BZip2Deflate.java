@@ -1,25 +1,4 @@
-/*
- * Copyright  2001-2004 The Apache Software Foundation
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- */
 
-/*
- * This package is based on the work done by Keiron Liddle, Aftex Software
- * <keiron@aftexsw.com> to whom the Ant project is very grateful for his
- * great code.
- */
 package org.xbib.io.compress.bzip2;
 
 import java.io.ByteArrayInputStream;
@@ -28,15 +7,13 @@ import java.io.IOException;
 
 /**
  * A class to compress any input into the BZip2 format.
- *
+ * <p/>
  * This class is a Q&D rewrite from the CBZip2OutputStream from the Ant program.
  * The goal was to provide a class that is compatible in use to the standard
  * java.util.zip.Deflate class.
- *
+ * <p/>
  * Unlike the original class by default the stream will contain the BZ header
  * (0x42, 0x5A) as the first 2 bytes in the stream.
- *
- * Like the original this class is licensed under the Apache License version 2.0
  */
 public class BZip2Deflate implements Bzip2Constants {
 
@@ -110,10 +87,10 @@ public class BZip2Deflate implements Bzip2Constants {
 
     /**
      * Default constructor
-     *
+     * <p/>
      * This contructor has the same effect as calling BZip2Deflate(9,true)
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public BZip2Deflate() throws IOException {
         this(9, 8192, true);
@@ -121,11 +98,11 @@ public class BZip2Deflate implements Bzip2Constants {
 
     /**
      * Contructor
-     *
+     * <p/>
      * This contructor has the same effect as calling BZip2Deflate(inBlockSize, true)
      *
      * @param inBlockSize input blocksize
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public BZip2Deflate(int inBlockSize) throws IOException {
         this(inBlockSize, 8192, true);
@@ -134,9 +111,9 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Contructor
      *
-     * @param inBlockSize	input blocksize
-     * @param writeBZHeader	true is you want to automatically add the BZ header.
-     * @throws IOException
+     * @param inBlockSize   input blocksize
+     * @param writeBZHeader true is you want to automatically add the BZ header.
+     * @throws java.io.IOException
      */
     public BZip2Deflate(int inBlockSize, int bufferSize, boolean writeBZHeader) throws IOException {
         this.wroteHeader = !writeBZHeader;
@@ -163,7 +140,7 @@ public class BZip2Deflate implements Bzip2Constants {
     }
 
     protected static void hbMakeCodeLengths(char[] len, int[] freq,
-            int alphaSize, int maxLen) throws IOException {
+                                            int alphaSize, int maxLen) throws IOException {
         /*
         Nodes and heap entries run from 1.  Entry 0
         for both the heap and nodes is a sentinel.
@@ -307,7 +284,7 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Resets deflater so that a new set of input data can be processed.
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void reset() throws IOException {
         block = null;
@@ -326,7 +303,6 @@ public class BZip2Deflate implements Bzip2Constants {
 
     /**
      * Closes the compressor and discards any unprocessed input.
-     *
      */
     public void end() {
         try {
@@ -341,7 +317,7 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Sets input data for compression.
      *
-     * @param bv	data to add
+     * @param bv data to add
      * @return the number of bytes in the outbuffer after adding this input
      */
     public int setInput(int bv) throws IOException {
@@ -371,9 +347,9 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Sets input data for compression.
      *
-     * @param b	byte array to add
+     * @param b byte array to add
      * @return the number of bytes in the outbuffer after adding this input
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public int setInput(byte[] b) throws IOException {
         return this.setInput(b, 0, b.length);
@@ -382,11 +358,11 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Sets input data for compression.
      *
-     * @param b	byte array to add
+     * @param b      byte array to add
      * @param offset index in the array to start adding
-     * @param len number of bytes to add from array
+     * @param len    number of bytes to add from array
      * @return the number of bytes in the outbuffer after adding this input
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public int setInput(byte[] b, int offset, int len) throws IOException {
         int rc = 0;
@@ -451,9 +427,9 @@ public class BZip2Deflate implements Bzip2Constants {
     /**
      * Fills specified buffer with compressed data.
      *
-     * @param b array to fill
-     * @param off	index to start filling at
-     * @param len	maximum number of bytes to add
+     * @param b   array to fill
+     * @param off index to start filling at
+     * @param len maximum number of bytes to add
      * @return number of bytes added to the array
      */
     public int deflate(byte[] b, int off, int len) {
@@ -513,12 +489,13 @@ public class BZip2Deflate implements Bzip2Constants {
             writeRun();
         }
     }
+
     private boolean closed = false;
 
     /**
      * When called, indicates that compression should end with the current contents of the input buffer.
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void finish() throws IOException {
         if (closed) {
@@ -587,7 +564,8 @@ public class BZip2Deflate implements Bzip2Constants {
     public boolean needsInput() {
         return (this.inputBuffer.size() == 0 && !this.closed);
     }
-    private int blockCRC,  combinedCRC;
+
+    private int blockCRC, combinedCRC;
 
     private void initialize() throws IOException {
         bytesOut = 0;
@@ -600,6 +578,7 @@ public class BZip2Deflate implements Bzip2Constants {
 
         combinedCRC = 0;
     }
+
     private int allowableBlockSize;
 
     private void initBlock() {
@@ -679,7 +658,7 @@ public class BZip2Deflate implements Bzip2Constants {
     }
 
     private void hbAssignCodes(int[] code, char[] length, int minLen,
-            int maxLen, int alphaSize) {
+                               int maxLen, int alphaSize) {
         int n, vec, i;
 
         vec = 0;
@@ -773,7 +752,8 @@ public class BZip2Deflate implements Bzip2Constants {
             nGroups = 6;
         }
 
-        /* Generate an initial set of coding tables */ {
+        /* Generate an initial set of coding tables */
+        {
             int nPart, remF, tFreq, aFreq;
 
             nPart = nGroups;
@@ -1057,6 +1037,7 @@ public class BZip2Deflate implements Bzip2Constants {
         generateMTFValues();
         sendMTFValues();
     }
+
     private ByteArrayOutputStream inputBuffer;
     private ByteArrayInputStream outputBuffer;
 
@@ -1226,7 +1207,7 @@ public class BZip2Deflate implements Bzip2Constants {
                         ltLo++;
                         unLo++;
                         continue;
-                    }                    
+                    }
                     if (n > 0) {
                         break;
                     }
@@ -1245,7 +1226,7 @@ public class BZip2Deflate implements Bzip2Constants {
                         gtHi--;
                         unHi--;
                         continue;
-                    }                    
+                    }
                     if (n < 0) {
                         break;
                     }
@@ -1315,7 +1296,7 @@ public class BZip2Deflate implements Bzip2Constants {
         if (last >= 0) {
             for (i = 0; i < NUM_OVERSHOOT_BYTES; i++) {
                 block[last + i + 2] = block[(i % (last + 1)) + 1];
-           }
+            }
         }
         for (i = 0; i <= last + NUM_OVERSHOOT_BYTES; i++) {
             quadrant[i] = 0;
@@ -1423,7 +1404,7 @@ public class BZip2Deflate implements Bzip2Constants {
                         int lo = ftab[sb] & CLEARMASK;
                         int hi = (ftab[sb + 1] & CLEARMASK) - 1;
                         if (hi > lo) {
-                            qSort3(lo, hi, 2);                            
+                            qSort3(lo, hi, 2);
                             if (workDone > workLimit && firstAttempt) {
                                 return;
                             }
@@ -1474,7 +1455,7 @@ public class BZip2Deflate implements Bzip2Constants {
                 }
 
                 for (j = ftab[ss << 8] & CLEARMASK;
-                        j < (ftab[(ss + 1) << 8] & CLEARMASK); j++) {
+                     j < (ftab[(ss + 1) << 8] & CLEARMASK); j++) {
                     c1 = block[zptr[j]];
                     if (!bigDone[c1]) {
                         zptr[copy[c1]] = zptr[j] == 0 ? last : zptr[j] - 1;
@@ -1677,8 +1658,8 @@ public class BZip2Deflate implements Bzip2Constants {
     usually small, typically <= 20.
      */
     private int[] incs = {1, 4, 13, 40, 121, 364, 1093, 3280,
-        9841, 29524, 88573, 265720,
-        797161, 2391484};
+            9841, 29524, 88573, 265720,
+            797161, 2391484};
 
     private void allocateCompressStructures() {
         int n = BASE_BLOCK_SIZE * blockSize100k;

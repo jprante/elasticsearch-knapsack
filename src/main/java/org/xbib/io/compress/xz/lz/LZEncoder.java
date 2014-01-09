@@ -1,17 +1,8 @@
-/*
- * LZEncoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
-import java.io.OutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public abstract class LZEncoder {
     public static final int MF_HC4 = 0x04;
@@ -44,10 +35,11 @@ public abstract class LZEncoder {
 
     static void normalize(int[] positions, int normalizationOffset) {
         for (int i = 0; i < positions.length; ++i) {
-            if (positions[i] <= normalizationOffset)
+            if (positions[i] <= normalizationOffset) {
                 positions[i] = 0;
-            else
+            } else {
                 positions[i] -= normalizationOffset;
+            }
         }
     }
 
@@ -72,7 +64,7 @@ public abstract class LZEncoder {
             int matchLenMax, int mf) {
         // Buffer size + a little extra
         int m = getBufSize(dictSize, extraSizeBefore, extraSizeAfter,
-                           matchLenMax) / 1024 + 10;
+                matchLenMax) / 1024 + 10;
 
         switch (mf) {
             case MF_HC4:
@@ -92,27 +84,20 @@ public abstract class LZEncoder {
 
     /**
      * Creates a new LZEncoder.
-     * <p>
-     * @param       dictSize    dictionary size
+     * <p/>
      *
-     * @param       extraSizeBefore
-     *                          number of bytes to keep available in the
-     *                          history in addition to dictSize
-     *
-     * @param       extraSizeAfter
-     *                          number of bytes that must be available
-     *                          after current position + matchLenMax
-     *
-     * @param       niceLen     if a match of at least <code>niceLen</code>
-     *                          bytes is found, be happy with it and don't
-     *                          stop looking for longer matches
-     *
-     * @param       matchLenMax don't test for matches longer than
-     *                          <code>matchLenMax</code> bytes
-     *
-     * @param       mf          match finder ID
-     *
-     * @param       depthLimit  match finder search depth limit
+     * @param dictSize        dictionary size
+     * @param extraSizeBefore number of bytes to keep available in the
+     *                        history in addition to dictSize
+     * @param extraSizeAfter  number of bytes that must be available
+     *                        after current position + matchLenMax
+     * @param niceLen         if a match of at least <code>niceLen</code>
+     *                        bytes is found, be happy with it and don't
+     *                        stop looking for longer matches
+     * @param matchLenMax     don't test for matches longer than
+     *                        <code>matchLenMax</code> bytes
+     * @param mf              match finder ID
+     * @param depthLimit      match finder search depth limit
      */
     public static LZEncoder getInstance(
             int dictSize, int extraSizeBefore, int extraSizeAfter,
@@ -120,11 +105,11 @@ public abstract class LZEncoder {
         switch (mf) {
             case MF_HC4:
                 return new HC4(dictSize, extraSizeBefore, extraSizeAfter,
-                               niceLen, matchLenMax, depthLimit);
+                        niceLen, matchLenMax, depthLimit);
 
             case MF_BT4:
                 return new BT4(dictSize, extraSizeBefore, extraSizeAfter,
-                               niceLen, matchLenMax, depthLimit);
+                        niceLen, matchLenMax, depthLimit);
         }
 
         throw new IllegalArgumentException();
@@ -136,7 +121,7 @@ public abstract class LZEncoder {
     LZEncoder(int dictSize, int extraSizeBefore, int extraSizeAfter,
               int niceLen, int matchLenMax) {
         buf = new byte[getBufSize(dictSize, extraSizeBefore, extraSizeAfter,
-                                  matchLenMax)];
+                matchLenMax)];
 
         keepSizeBefore = extraSizeBefore + dictSize;
         keepSizeAfter = extraSizeAfter + matchLenMax;
@@ -189,21 +174,24 @@ public abstract class LZEncoder {
         assert !finishing;
 
         // Move the sliding window if needed.
-        if (readPos >= buf.length - keepSizeAfter)
+        if (readPos >= buf.length - keepSizeAfter) {
             moveWindow();
+        }
 
         // Try to fill the dictionary buffer. If it becomes full,
         // some of the input bytes may be left unused.
-        if (len > buf.length - writePos)
+        if (len > buf.length - writePos) {
             len = buf.length - writePos;
+        }
 
         System.arraycopy(in, off, buf, writePos, len);
         writePos += len;
 
         // Set the new readLimit but only if there's enough data to allow
         // encoding of at least one more byte.
-        if (writePos >= keepSizeAfter)
+        if (writePos >= keepSizeAfter) {
             readLimit = writePos - keepSizeAfter;
+        }
 
         // After flushing or setting a preset dictionary there may be pending
         // data that hasn't been ran through the match finder yet.
@@ -264,7 +252,7 @@ public abstract class LZEncoder {
 
     /**
      * Get the number of bytes available, including the current byte.
-     * <p>
+     * <p/>
      * Note that the result is undefined if <code>getMatches</code> or
      * <code>skip</code> hasn't been called yet and no preset dictionary
      * is being used.
@@ -284,11 +272,11 @@ public abstract class LZEncoder {
 
     /**
      * Gets the byte from the given backward offset.
-     * <p>
+     * <p/>
      * The current byte is at <code>0</code>, the previous byte
      * at <code>1</code> etc. To get a byte at zero-based distance,
      * use <code>getByte(dist + 1)<code>.
-     * <p>
+     * <p/>
      * This function is equivalent to <code>getByte(0, backward)</code>.
      */
     public int getByte(int backward) {
@@ -307,17 +295,17 @@ public abstract class LZEncoder {
     /**
      * Get the length of a match at the given distance.
      *
-     * @param       dist        zero-based distance of the match to test
-     * @param       lenLimit    don't test for a match longer than this
-     *
-     * @return      length of the match; it is in the range [0, lenLimit]
+     * @param dist     zero-based distance of the match to test
+     * @param lenLimit don't test for a match longer than this
+     * @return length of the match; it is in the range [0, lenLimit]
      */
     public int getMatchLen(int dist, int lenLimit) {
         int backPos = readPos - dist - 1;
         int len = 0;
 
-        while (len < lenLimit && buf[readPos + len] == buf[backPos + len])
+        while (len < lenLimit && buf[readPos + len] == buf[backPos + len]) {
             ++len;
+        }
 
         return len;
     }
@@ -325,19 +313,19 @@ public abstract class LZEncoder {
     /**
      * Get the length of a match at the given distance and forward offset.
      *
-     * @param       forward     forward offset
-     * @param       dist        zero-based distance of the match to test
-     * @param       lenLimit    don't test for a match longer than this
-     *
-     * @return      length of the match; it is in the range [0, lenLimit]
+     * @param forward  forward offset
+     * @param dist     zero-based distance of the match to test
+     * @param lenLimit don't test for a match longer than this
+     * @return length of the match; it is in the range [0, lenLimit]
      */
     public int getMatchLen(int forward, int dist, int lenLimit) {
         int curPos = readPos + forward;
         int backPos = curPos - dist - 1;
         int len = 0;
 
-        while (len < lenLimit && buf[curPos + len] == buf[backPos + len])
+        while (len < lenLimit && buf[curPos + len] == buf[backPos + len]) {
             ++len;
+        }
 
         return len;
     }
@@ -348,16 +336,17 @@ public abstract class LZEncoder {
      * useless for actual encoding since match finder's results should
      * naturally always be valid if it isn't broken.
      *
-     * @param       matches     return value from <code>getMatches</code>
-     *
-     * @return      true if matches are valid, false if match finder is broken
+     * @param matches return value from <code>getMatches</code>
+     * @return true if matches are valid, false if match finder is broken
      */
     public boolean verifyMatches(Matches matches) {
         int lenLimit = Math.min(getAvail(), matchLenMax);
 
-        for (int i = 0; i < matches.count; ++i)
-            if (getMatchLen(matches.dist[i], lenLimit) != matches.len[i])
+        for (int i = 0; i < matches.count; ++i) {
+            if (getMatchLen(matches.dist[i], lenLimit) != matches.len[i]) {
                 return false;
+            }
+        }
 
         return true;
     }
@@ -366,18 +355,15 @@ public abstract class LZEncoder {
      * Moves to the next byte, checks if there is enough input available,
      * and returns the amount of input available.
      *
-     * @param       requiredForFlushing
-     *                          minimum number of available bytes when
-     *                          flushing; encoding may be continued with
-     *                          new input after flushing
-     * @param       requiredForFinishing
-     *                          minimum number of available bytes when
-     *                          finishing; encoding must not be continued
-     *                          after finishing or the match finder state
-     *                          may be corrupt
-     *
-     * @return      the number of bytes available or zero if there
-     *              is not enough input available
+     * @param requiredForFlushing  minimum number of available bytes when
+     *                             flushing; encoding may be continued with
+     *                             new input after flushing
+     * @param requiredForFinishing minimum number of available bytes when
+     *                             finishing; encoding must not be continued
+     *                             after finishing or the match finder state
+     *                             may be corrupt
+     * @return the number of bytes available or zero if there
+     * is not enough input available
      */
     int movePos(int requiredForFlushing, int requiredForFinishing) {
         assert requiredForFlushing >= requiredForFinishing;

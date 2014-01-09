@@ -1,1 +1,4 @@
-org.xbib.io.commons.TarConnectionFactory
+org.xbib.io.archivers.cpio.CpioConnectionFactory
+org.xbib.io.archivers.tar.TarConnectionFactory
+org.xbib.io.archivers.zip.ZipConnectionFactory
+org.xbib.io.archivers.s3.S3ConnectionFactory

@@ -1,23 +1,16 @@
-/*
- * IndexDecoder
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.index;
 
-import java.io.IOException;
-import java.io.EOFException;
-import java.util.zip.CheckedInputStream;
-import org.xbib.io.compress.xz.common.DecoderUtil;
-import org.xbib.io.compress.xz.common.StreamFlags;
-import org.xbib.io.compress.xz.SeekableInputStream;
 import org.xbib.io.compress.xz.CorruptedInputException;
 import org.xbib.io.compress.xz.MemoryLimitException;
+import org.xbib.io.compress.xz.SeekableInputStream;
 import org.xbib.io.compress.xz.UnsupportedOptionsException;
+import org.xbib.io.compress.xz.common.DecoderUtil;
+import org.xbib.io.compress.xz.common.StreamFlags;
+
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.zip.CheckedInputStream;
 
 public class IndexDecoder extends IndexBase {
     private final BlockInfo info = new BlockInfo();
@@ -49,8 +42,9 @@ public class IndexDecoder extends IndexBase {
         CheckedInputStream inChecked = new CheckedInputStream(in, crc32);
 
         // Index Indicator
-        if (inChecked.read() != 0x00)
+        if (inChecked.read() != 0x00) {
             throw new CorruptedInputException("XZ Index is corrupt");
+        }
 
         try {
             // Number of Records
@@ -60,28 +54,31 @@ public class IndexDecoder extends IndexBase {
             // This test isn't exact because it ignores Index Indicator,
             // Number of Records, and CRC32 fields, but this is good enough
             // to catch the most obvious problems.
-            if (count >= streamFooterFlags.backwardSize / 2)
+            if (count >= streamFooterFlags.backwardSize / 2) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
 
             // If the Record count doesn't fit into an int, we cannot
             // allocate the arrays to hold the Records.
-            if (count > Integer.MAX_VALUE)
+            if (count > Integer.MAX_VALUE) {
                 throw new UnsupportedOptionsException("XZ Index has over "
                         + Integer.MAX_VALUE + " Records");
+            }
 
             // Calculate approximate memory requirements and check the
             // memory usage limit.
-            memoryUsage = 1 + (int)((16L * count + 1023) / 1024);
-            if (memoryLimit >= 0 && memoryUsage > memoryLimit)
+            memoryUsage = 1 + (int) ((16L * count + 1023) / 1024);
+            if (memoryLimit >= 0 && memoryUsage > memoryLimit) {
                 throw new MemoryLimitException(memoryUsage, memoryLimit);
+            }
 
             // Allocate the arrays for the Records.
-            unpadded = new long[(int)count];
-            uncompressed = new long[(int)count];
+            unpadded = new long[(int) count];
+            uncompressed = new long[(int) count];
             int record = 0;
 
             // Decode the Records.
-            for (int i = (int)count; i > 0; --i) {
+            for (int i = (int) count; i > 0; --i) {
                 // Get the next Record.
                 long unpaddedSize = DecoderUtil.decodeVLI(inChecked);
                 long uncompressedSize = DecoderUtil.decodeVLI(inChecked);
@@ -90,8 +87,9 @@ public class IndexDecoder extends IndexBase {
                 // checked only once per loop iteration instead of for
                 // every input byte read, it's still possible that
                 // EOFException gets thrown with corrupt input.
-                if (in.position() > endPos)
+                if (in.position() > endPos) {
                     throw new CorruptedInputException("XZ Index is corrupt");
+                }
 
                 // Add the new Record.
                 unpadded[record] = blocksSum + unpaddedSize;
@@ -101,8 +99,9 @@ public class IndexDecoder extends IndexBase {
                 assert record == recordCount;
 
                 // Remember the uncompressed size of the largest Block.
-                if (largestBlockSize < uncompressedSize)
+                if (largestBlockSize < uncompressedSize) {
                     largestBlockSize = uncompressedSize;
+                }
             }
         } catch (EOFException e) {
             // EOFException is caught just in case a corrupt input causes
@@ -113,19 +112,24 @@ public class IndexDecoder extends IndexBase {
         // Validate that the size of the Index field matches
         // Backward Size.
         int indexPaddingSize = getIndexPaddingSize();
-        if (in.position() + indexPaddingSize != endPos)
+        if (in.position() + indexPaddingSize != endPos) {
             throw new CorruptedInputException("XZ Index is corrupt");
+        }
 
         // Index Padding
-        while (indexPaddingSize-- > 0)
-            if (inChecked.read() != 0x00)
+        while (indexPaddingSize-- > 0) {
+            if (inChecked.read() != 0x00) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
+        }
 
         // CRC32
         long value = crc32.getValue();
-        for (int i = 0; i < 4; ++i)
-            if (((value >>> (i * 8)) & 0xFF) != in.read())
+        for (int i = 0; i < 4; ++i) {
+            if (((value >>> (i * 8)) & 0xFF) != in.read()) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
+        }
     }
 
     public BlockInfo locate(long target) {
@@ -137,10 +141,11 @@ public class IndexDecoder extends IndexBase {
         while (left < right) {
             int i = left + (right - left) / 2;
 
-            if (uncompressed[i] <= target)
+            if (uncompressed[i] <= target) {
                 left = i + 1;
-            else
+            } else {
                 right = i;
+            }
         }
 
         pos = left;

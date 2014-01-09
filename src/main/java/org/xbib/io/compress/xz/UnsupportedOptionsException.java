@@ -1,11 +1,3 @@
-/*
- * UnsupportedOptionsException
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
@@ -20,13 +12,14 @@ public class UnsupportedOptionsException extends XZIOException {
      * Creates a new UnsupportedOptionsException with null
      * as its error detail message.
      */
-    public UnsupportedOptionsException() {}
+    public UnsupportedOptionsException() {
+    }
 
     /**
      * Creates a new UnsupportedOptionsException with the given
      * error detail message.
      *
-     * @param       s           error detail message
+     * @param s error detail message
      */
     public UnsupportedOptionsException(String s) {
         super(s);

@@ -1,23 +1,16 @@
-/*
- * IndexHash
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.index;
 
-import java.io.InputStream;
+import org.xbib.io.compress.xz.CorruptedInputException;
+import org.xbib.io.compress.xz.XZIOException;
+import org.xbib.io.compress.xz.common.DecoderUtil;
+
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.zip.CheckedInputStream;
-import org.xbib.io.compress.xz.common.DecoderUtil;
-import org.xbib.io.compress.xz.XZIOException;
-import org.xbib.io.compress.xz.CorruptedInputException;
 
 public class IndexHash extends IndexBase {
     private org.xbib.io.compress.xz.check.Check hash;
@@ -51,8 +44,9 @@ public class IndexHash extends IndexBase {
 
         // Get and validate the Number of Records field.
         long storedRecordCount = DecoderUtil.decodeVLI(inChecked);
-        if (storedRecordCount != recordCount)
+        if (storedRecordCount != recordCount) {
             throw new CorruptedInputException("XZ Index is corrupt");
+        }
 
         // Decode and hash the Index field and compare it to
         // the hash value calculated from the decoded Blocks.
@@ -69,26 +63,32 @@ public class IndexHash extends IndexBase {
 
             if (stored.blocksSum > blocksSum
                     || stored.uncompressedSum > uncompressedSum
-                    || stored.indexListSize > indexListSize)
+                    || stored.indexListSize > indexListSize) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
         }
 
         if (stored.blocksSum != blocksSum
                 || stored.uncompressedSum != uncompressedSum
                 || stored.indexListSize != indexListSize
-                || !Arrays.equals(stored.hash.finish(), hash.finish()))
+                || !Arrays.equals(stored.hash.finish(), hash.finish())) {
             throw new CorruptedInputException("XZ Index is corrupt");
+        }
 
         // Index Padding
         DataInputStream inData = new DataInputStream(inChecked);
-        for (int i = getIndexPaddingSize(); i > 0; --i)
-            if (inData.readUnsignedByte() != 0x00)
+        for (int i = getIndexPaddingSize(); i > 0; --i) {
+            if (inData.readUnsignedByte() != 0x00) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
+        }
 
         // CRC32
         long value = crc32.getValue();
-        for (int i = 0; i < 4; ++i)
-            if (((value >>> (i * 8)) & 0xFF) != inData.readUnsignedByte())
+        for (int i = 0; i < 4; ++i) {
+            if (((value >>> (i * 8)) & 0xFF) != inData.readUnsignedByte()) {
                 throw new CorruptedInputException("XZ Index is corrupt");
+            }
+        }
     }
 }

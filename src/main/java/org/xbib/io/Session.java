@@ -2,9 +2,13 @@
 package org.xbib.io;
 
 import java.io.IOException;
-import java.io.Serializable;
 
-public interface Session<P extends Packet> extends Serializable {
+/**
+ * The Session interface is used for being opened, receive
+ * operations, and being closed. Sessions must be opened before the first
+ * operation and closed after the last operation.
+ */
+public interface Session<P extends Packet> {
 
     enum Mode {
 
@@ -14,12 +18,12 @@ public interface Session<P extends Packet> extends Serializable {
     /**
      * Open valve with a given input/output mode
      *
-     * @throws IOException if valve can not be opened
+     * @throws java.io.IOException if valve can not be opened
      */
     void open(Mode mode) throws IOException;
 
     P newPacket();
-    
+
     P read() throws IOException;
 
     void write(P packet) throws IOException;
@@ -27,7 +31,7 @@ public interface Session<P extends Packet> extends Serializable {
     /**
      * Close valve
      *
-     * @throws IOException if valve can not be closed
+     * @throws java.io.IOException if valve can not be closed
      */
     void close() throws IOException;
 

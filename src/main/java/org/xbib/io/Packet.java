@@ -1,9 +1,16 @@
 
 package org.xbib.io;
 
+/**
+ * A packet for transporting data chunks in sessions
+ */
 public interface Packet<P> {
 
-    String getName();
+    String name();
 
-    P getPacket();
+    Packet<P> name(String name);
+
+    P packet();
+
+    Packet<P> packet(P packet);
 }

@@ -1,11 +1,3 @@
-/*
- * None
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.check;
 
@@ -15,7 +7,8 @@ public class None extends Check {
         name = "None";
     }
 
-    public void update(byte[] buf, int off, int len) {}
+    public void update(byte[] buf, int off, int len) {
+    }
 
     public byte[] finish() {
         byte[] empty = new byte[0];

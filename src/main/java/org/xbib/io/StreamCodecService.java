@@ -8,7 +8,8 @@ import java.util.WeakHashMap;
 
 public class StreamCodecService {
 
-    private final static Map<String, StreamCodec> codecs = new WeakHashMap();
+    private final static Map<String, StreamCodec> codecs = new WeakHashMap<String, StreamCodec>();
+
     private final static StreamCodecService instance = new StreamCodecService();
 
     private StreamCodecService() {
@@ -30,7 +31,7 @@ public class StreamCodecService {
         }
         throw new IllegalArgumentException("Stream codec for " + suffix + " not found in " + codecs);
     }
-    
+
     public static Set<String> getCodecs() {
         return codecs.keySet();
     }

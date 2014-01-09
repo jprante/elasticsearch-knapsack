@@ -1,12 +1,3 @@
-/*
- * CRC32Hash
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lz;
 
@@ -23,10 +14,11 @@ class CRC32Hash {
             int r = i;
 
             for (int j = 0; j < 8; ++j) {
-                if ((r & 1) != 0)
+                if ((r & 1) != 0) {
                     r = (r >>> 1) ^ CRC32_POLY;
-                else
+                } else {
                     r >>>= 1;
+                }
             }
 
             crcTable[i] = r;

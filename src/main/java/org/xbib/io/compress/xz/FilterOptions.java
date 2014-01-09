@@ -1,17 +1,8 @@
-/*
- * FilterOptions
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Base class for filter-specific options classes.
@@ -26,8 +17,9 @@ public abstract class FilterOptions implements Cloneable {
     public static int getEncoderMemoryUsage(FilterOptions[] options) {
         int m = 0;
 
-        for (int i = 0; i < options.length; ++i)
+        for (int i = 0; i < options.length; ++i) {
             m += options[i].getEncoderMemoryUsage();
+        }
 
         return m;
     }
@@ -41,8 +33,9 @@ public abstract class FilterOptions implements Cloneable {
     public static int getDecoderMemoryUsage(FilterOptions[] options) {
         int m = 0;
 
-        for (int i = 0; i < options.length; ++i)
+        for (int i = 0; i < options.length; ++i) {
             m += options[i].getDecoderMemoryUsage();
+        }
 
         return m;
     }
@@ -76,5 +69,6 @@ public abstract class FilterOptions implements Cloneable {
 
     abstract FilterEncoder getFilterEncoder();
 
-    FilterOptions() {}
+    FilterOptions() {
+    }
 }

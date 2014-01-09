@@ -1,35 +1,28 @@
-/*
- * SeekableXZInputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.EOFException;
+import org.xbib.io.compress.xz.check.Check;
 import org.xbib.io.compress.xz.common.DecoderUtil;
 import org.xbib.io.compress.xz.common.StreamFlags;
-import org.xbib.io.compress.xz.check.Check;
-import org.xbib.io.compress.xz.index.IndexDecoder;
 import org.xbib.io.compress.xz.index.BlockInfo;
+import org.xbib.io.compress.xz.index.IndexDecoder;
+
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Decompresses a .xz file in random access mode.
  * This supports decompressing concatenated .xz files.
- * <p>
+ * <p/>
  * Each .xz file consist of one or more Streams. Each Stream consist of zero
  * or more Blocks. Each Stream contains an Index of Streams' Blocks.
  * The Indexes from all Streams are loaded in RAM by a constructor of this
  * class. A typical .xz file has only one Stream, and parsing its Index will
  * need only three or four seeks.
- * <p>
+ * <p/>
  * To make random access possible, the data in a .xz file must be splitted
  * into multiple Blocks of reasonable size. Decompression can only start at
  * a Block boundary. When seeking to an uncompressed offset that is not at
@@ -38,29 +31,29 @@ import org.xbib.io.compress.xz.index.BlockInfo;
  * mean faster seeks to arbitrary uncompressed offsets. On the other hand,
  * smaller Blocks mean worse compression. So one has to make a compromise
  * between random access speed and compression ratio.
- * <p>
+ * <p/>
  * Implementation note: This class uses linear search to locate the correct
  * Stream from the data structures in RAM. It was the simplest to implement
  * and should be fine as long as there aren't too many Streams. The correct
  * Block inside a Stream is located using binary search and thus is fast
  * even with a huge number of Blocks.
- *
+ * <p/>
  * <h4>Memory usage</h4>
- * <p>
+ * <p/>
  * The amount of memory needed for the Indexes is taken into account when
  * checking the memory usage limit. Each Stream is calculated to need at
  * least 1&nbsp;KiB of memory and each Block 16 bytes of memory, rounded up
  * to the next kibibyte. So unless the file has a huge number of Streams or
  * Blocks, these don't take significant amount of memory.
- *
+ * <p/>
  * <h4>Creating random-accessible .xz files</h4>
- * <p>
+ * <p/>
  * When using {@link XZOutputStream}, a new Block can be started by calling
  * its {@link XZOutputStream#endBlock() endBlock} method. If you know
  * that the decompressor will need to seek only to certain offsets, it can
  * be a good idea to start a new Block at (some of) these offsets (and
  * perhaps only at these offsets to get better compression ratio).
- * <p>
+ * <p/>
  * liblzma in XZ Utils supports starting a new Block with
  * <code>LZMA_FULL_FLUSH</code>. XZ Utils 5.1.1alpha added threaded
  * compression which creates multi-Block .xz files. XZ Utils 5.1.1alpha
@@ -93,7 +86,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
     /**
      * List of IndexDecoders, one for each Stream in the file.
      */
-    private final ArrayList streams = new ArrayList();
+    private final ArrayList<IndexDecoder> streams = new ArrayList<IndexDecoder>();
 
     /**
      * IndexDecoder from which the current Block is being decoded.
@@ -158,26 +151,17 @@ public class SeekableXZInputStream extends SeekableInputStream {
     /**
      * Creates a new seekable XZ decompressor without a memory usage limit.
      *
-     * @param       in          seekable input stream containing one or more
-     *                          XZ Streams; the whole input stream is used
-     *
-     * @throws      XZFormatException
-     *                          input is not in the XZ format
-     *
-     * @throws      CorruptedInputException
-     *                          XZ data is corrupt or truncated
-     *
-     * @throws      UnsupportedOptionsException
-     *                          XZ headers seem valid but they specify
-     *                          options not supported by this implementation
-     *
-     * @throws      EOFException
-     *                          less than 6 bytes of input was available
-     *                          from <code>in</code>, or (unlikely) the size
-     *                          of the underlying stream got smaller while
-     *                          this was reading from it
-     *
-     * @throws      IOException may be thrown by <code>in</code>
+     * @param in seekable input stream containing one or more
+     *           XZ Streams; the whole input stream is used
+     * @throws XZFormatException           input is not in the XZ format
+     * @throws CorruptedInputException     XZ data is corrupt or truncated
+     * @throws UnsupportedOptionsException XZ headers seem valid but they specify
+     *                                     options not supported by this implementation
+     * @throws java.io.EOFException        less than 6 bytes of input was available
+     *                                     from <code>in</code>, or (unlikely) the size
+     *                                     of the underlying stream got smaller while
+     *                                     this was reading from it
+     * @throws java.io.IOException         may be thrown by <code>in</code>
      */
     public SeekableXZInputStream(SeekableInputStream in)
             throws IOException {
@@ -188,34 +172,22 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * Creates a new seekable XZ decomporessor with an optional
      * memory usage limit.
      *
-     * @param       in          seekable input stream containing one or more
-     *                          XZ Streams; the whole input stream is used
-     *
-     * @param       memoryLimit memory usage limit in kibibytes (KiB)
-     *                          or <code>-1</code> to impose no
-     *                          memory usage limit
-     *
-     * @throws      XZFormatException
-     *                          input is not in the XZ format
-     *
-     * @throws      CorruptedInputException
-     *                          XZ data is corrupt or truncated
-     *
-     * @throws      UnsupportedOptionsException
-     *                          XZ headers seem valid but they specify
-     *                          options not supported by this implementation
-     *
-     * @throws      MemoryLimitException
-     *                          decoded XZ Indexes would need more memory
-     *                          than allowed by the memory usage limit
-     *
-     * @throws      EOFException
-     *                          less than 6 bytes of input was available
-     *                          from <code>in</code>, or (unlikely) the size
-     *                          of the underlying stream got smaller while
-     *                          this was reading from it
-     *
-     * @throws      IOException may be thrown by <code>in</code>
+     * @param in          seekable input stream containing one or more
+     *                    XZ Streams; the whole input stream is used
+     * @param memoryLimit memory usage limit in kibibytes (KiB)
+     *                    or <code>-1</code> to impose no
+     *                    memory usage limit
+     * @throws XZFormatException           input is not in the XZ format
+     * @throws CorruptedInputException     XZ data is corrupt or truncated
+     * @throws UnsupportedOptionsException XZ headers seem valid but they specify
+     *                                     options not supported by this implementation
+     * @throws MemoryLimitException        decoded XZ Indexes would need more memory
+     *                                     than allowed by the memory usage limit
+     * @throws java.io.EOFException        less than 6 bytes of input was available
+     *                                     from <code>in</code>, or (unlikely) the size
+     *                                     of the underlying stream got smaller while
+     *                                     this was reading from it
+     * @throws java.io.IOException         may be thrown by <code>in</code>
      */
     public SeekableXZInputStream(SeekableInputStream in, int memoryLimit)
             throws IOException {
@@ -227,23 +199,26 @@ public class SeekableXZInputStream extends SeekableInputStream {
             in.seek(0);
             byte[] buf = new byte[XZ.HEADER_MAGIC.length];
             inData.readFully(buf);
-            if (!Arrays.equals(buf, XZ.HEADER_MAGIC))
+            if (!Arrays.equals(buf, XZ.HEADER_MAGIC)) {
                 throw new XZFormatException();
+            }
         }
 
         // Get the file size and verify that it is a multiple of 4 bytes.
         long pos = in.length();
-        if ((pos & 3) != 0)
+        if ((pos & 3) != 0) {
             throw new CorruptedInputException(
                     "XZ file size is not a multiple of 4 bytes");
+        }
 
         // Parse the headers starting from the end of the file.
         byte[] buf = new byte[DecoderUtil.STREAM_HEADER_SIZE];
         long streamPadding = 0;
 
         while (pos > 0) {
-            if (pos < DecoderUtil.STREAM_HEADER_SIZE)
+            if (pos < DecoderUtil.STREAM_HEADER_SIZE) {
                 throw new CorruptedInputException();
+            }
 
             // Read the potential Stream Footer.
             in.seek(pos - DecoderUtil.STREAM_HEADER_SIZE);
@@ -265,9 +240,10 @@ public class SeekableXZInputStream extends SeekableInputStream {
             // Decode the Stream Footer and check if Backward Size
             // looks reasonable.
             StreamFlags streamFooter = DecoderUtil.decodeStreamFooter(buf);
-            if (streamFooter.backwardSize >= pos)
+            if (streamFooter.backwardSize >= pos) {
                 throw new CorruptedInputException(
                         "Backward Size in XZ Stream Footer is too big");
+            }
 
             // Check that the Check ID is supported. Store it in case this
             // is the first Stream in the file.
@@ -282,7 +258,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
             // Decode the Index field.
             try {
                 index = new IndexDecoder(in, streamFooter, streamPadding,
-                                         memoryLimit);
+                        memoryLimit);
             } catch (MemoryLimitException e) {
                 // IndexDecoder doesn't know how much memory we had
                 // already needed so we need to recreate the exception.
@@ -300,15 +276,17 @@ public class SeekableXZInputStream extends SeekableInputStream {
             }
 
             // Remember the uncompressed size of the largest Block.
-            if (largestBlockSize < index.getLargestBlockSize())
+            if (largestBlockSize < index.getLargestBlockSize()) {
                 largestBlockSize = index.getLargestBlockSize();
+            }
 
             // Calculate the offset to the beginning of this XZ Stream and
             // check that it looks sane.
             long off = index.getStreamSize() - DecoderUtil.STREAM_HEADER_SIZE;
-            if (pos < off)
+            if (pos < off) {
                 throw new CorruptedInputException("XZ Index indicates "
                         + "too big compressed size for the XZ Stream");
+            }
 
             // Seek to the beginning of this Stream.
             pos -= off;
@@ -319,15 +297,17 @@ public class SeekableXZInputStream extends SeekableInputStream {
             StreamFlags streamHeader = DecoderUtil.decodeStreamHeader(buf);
 
             // Verify that the Stream Header matches the Stream Footer.
-            if (!DecoderUtil.areStreamFlagsEqual(streamHeader, streamFooter))
+            if (!DecoderUtil.areStreamFlagsEqual(streamHeader, streamFooter)) {
                 throw new CorruptedInputException(
                         "XZ Stream Footer does not match Stream Header");
+            }
 
             // Update the total uncompressed size of the file and check that
             // it doesn't overflow.
             uncompressedSize += index.getUncompressedSize();
-            if (uncompressedSize < 0)
+            if (uncompressedSize < 0) {
                 throw new UnsupportedOptionsException("XZ file is too big");
+            }
 
             // Add this Stream to the list of Streams.
             streams.add(index);
@@ -346,7 +326,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * Gets the types of integrity checks used in the .xz file.
      * Multiple checks are possible only if there are multiple
      * concatenated XZ Streams.
-     * <p>
+     * <p/>
      * The returned value has a bit set for every check type that is present.
      * For example, if CRC64 and SHA-256 were used, the return value is
      * <code>(1&nbsp;&lt;&lt;&nbsp;XZ.CHECK_CRC64)
@@ -381,16 +361,13 @@ public class SeekableXZInputStream extends SeekableInputStream {
     /**
      * Decompresses the next byte from this input stream.
      *
-     * @return      the next decompressed byte, or <code>-1</code>
-     *              to indicate the end of the compressed stream
-     *
-     * @throws      CorruptedInputException
-     * @throws      UnsupportedOptionsException
-     * @throws      MemoryLimitException
-     *
-     * @throws      XZIOException if the stream has been closed
-     *
-     * @throws      IOException may be thrown by <code>in</code>
+     * @return the next decompressed byte, or <code>-1</code>
+     * to indicate the end of the compressed stream
+     * @throws CorruptedInputException
+     * @throws UnsupportedOptionsException
+     * @throws MemoryLimitException
+     * @throws XZIOException               if the stream has been closed
+     * @throws java.io.IOException         may be thrown by <code>in</code>
      */
     public int read() throws IOException {
         byte[] buf = new byte[1];
@@ -399,62 +376,65 @@ public class SeekableXZInputStream extends SeekableInputStream {
 
     /**
      * Decompresses into an array of bytes.
-     * <p>
+     * <p/>
      * If <code>len</code> is zero, no bytes are read and <code>0</code>
      * is returned. Otherwise this will try to decompress <code>len</code>
      * bytes of uncompressed data. Less than <code>len</code> bytes may
      * be read only in the following situations:
      * <ul>
-     *   <li>The end of the compressed data was reached successfully.</li>
-     *   <li>An error is detected after at least one but less <code>len</code>
-     *       bytes have already been successfully decompressed.
-     *       The next call with non-zero <code>len</code> will immediately
-     *       throw the pending exception.</li>
-     *   <li>An exception is thrown.</li>
+     * <li>The end of the compressed data was reached successfully.</li>
+     * <li>An error is detected after at least one but less <code>len</code>
+     * bytes have already been successfully decompressed.
+     * The next call with non-zero <code>len</code> will immediately
+     * throw the pending exception.</li>
+     * <li>An exception is thrown.</li>
      * </ul>
      *
-     * @param       buf         target buffer for uncompressed data
-     * @param       off         start offset in <code>buf</code>
-     * @param       len         maximum number of uncompressed bytes to read
-     *
-     * @return      number of bytes read, or <code>-1</code> to indicate
-     *              the end of the compressed stream
-     *
-     * @throws      CorruptedInputException
-     * @throws      UnsupportedOptionsException
-     * @throws      MemoryLimitException
-     *
-     * @throws      XZIOException if the stream has been closed
-     *
-     * @throws      IOException may be thrown by <code>in</code>
+     * @param buf target buffer for uncompressed data
+     * @param off start offset in <code>buf</code>
+     * @param len maximum number of uncompressed bytes to read
+     * @return number of bytes read, or <code>-1</code> to indicate
+     * the end of the compressed stream
+     * @throws CorruptedInputException
+     * @throws UnsupportedOptionsException
+     * @throws MemoryLimitException
+     * @throws XZIOException               if the stream has been closed
+     * @throws java.io.IOException         may be thrown by <code>in</code>
      */
     public int read(byte[] buf, int off, int len) throws IOException {
-        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length)
+        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length) {
             throw new IndexOutOfBoundsException();
+        }
 
-        if (len == 0)
+        if (len == 0) {
             return 0;
+        }
 
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
         int size = 0;
 
         try {
-            if (seekNeeded)
+            if (seekNeeded) {
                 seek();
+            }
 
-            if (endReached)
+            if (endReached) {
                 return -1;
+            }
 
             while (len > 0) {
                 if (blockDecoder == null) {
                     seek();
-                    if (endReached)
+                    if (endReached) {
                         break;
+                    }
                 }
 
                 int ret = blockDecoder.read(buf, off, len);
@@ -472,12 +452,14 @@ public class SeekableXZInputStream extends SeekableInputStream {
             // We know that the file isn't simply truncated because we could
             // parse the Indexes in the constructor. So convert EOFException
             // to CorruptedInputException.
-            if (e instanceof EOFException)
+            if (e instanceof EOFException) {
                 e = new CorruptedInputException();
+            }
 
             exception = e;
-            if (size == 0)
+            if (size == 0) {
                 throw e;
+            }
         }
 
         return size;
@@ -491,18 +473,21 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * thrown before the number of bytes claimed to be available have
      * been read from this input stream.
      *
-     * @return      the number of uncompressed bytes that can be read
-     *              without blocking
+     * @return the number of uncompressed bytes that can be read
+     * without blocking
      */
     public int available() throws IOException {
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (endReached || seekNeeded || blockDecoder == null)
+        if (endReached || seekNeeded || blockDecoder == null) {
             return 0;
+        }
 
         return blockDecoder.available();
     }
@@ -511,7 +496,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * Closes the stream and calls <code>in.close()</code>.
      * If the stream was already closed, this does nothing.
      *
-     * @throws  IOException if thrown by <code>in.close()</code>
+     * @throws java.io.IOException if thrown by <code>in.close()</code>
      */
     public void close() throws IOException {
         if (in != null) {
@@ -534,11 +519,12 @@ public class SeekableXZInputStream extends SeekableInputStream {
     /**
      * Gets the uncompressed position in this input stream.
      *
-     * @throws      XZIOException if the stream has been closed
+     * @throws XZIOException if the stream has been closed
      */
     public long position() throws IOException {
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
         return seekNeeded ? seekPos : curPos;
     }
@@ -548,23 +534,23 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * This only stores the new position, so this function itself is always
      * very fast. The actual seek is done when <code>read</code> is called
      * to read at least one byte.
-     * <p>
+     * <p/>
      * Seeking past the end of the stream is possible. In that case
      * <code>read</code> will return <code>-1</code> to indicate
      * the end of the stream.
      *
-     * @param       pos         new uncompressed read position
-     *
-     * @throws      XZIOException
-     *                          if <code>pos</code> is negative, or
-     *                          if stream has been closed
+     * @param pos new uncompressed read position
+     * @throws XZIOException if <code>pos</code> is negative, or
+     *                       if stream has been closed
      */
     public void seek(long pos) throws IOException {
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
-        if (pos < 0)
+        if (pos < 0) {
             throw new XZIOException("Negative seek position: " + pos);
+        }
 
         seekPos = pos;
         seekNeeded = true;
@@ -608,9 +594,10 @@ public class SeekableXZInputStream extends SeekableInputStream {
         long compressedSum = 0;
 
         while (true) {
-            index = (IndexDecoder)streams.get(--i);
-            if (uncompressedSum + index.getUncompressedSize() > seekPos)
+            index = streams.get(--i);
+            if (uncompressedSum + index.getUncompressedSize() > seekPos) {
                 break;
+            }
 
             uncompressedSum += index.getUncompressedSize();
             compressedSum += index.getStreamAndPaddingSize();
@@ -658,8 +645,9 @@ public class SeekableXZInputStream extends SeekableInputStream {
             // blockDecoder.skip will always skip the requested amount
             // or throw an exception.
             long skipAmount = seekPos - curPos;
-            if (blockDecoder.skip(skipAmount) != skipAmount)
+            if (blockDecoder.skip(skipAmount) != skipAmount) {
                 throw new CorruptedInputException();
+            }
         }
 
         curPos = seekPos;
@@ -675,8 +663,8 @@ public class SeekableXZInputStream extends SeekableInputStream {
             // runs tight when initializing a new BlockInputStream.
             blockDecoder = null;
             blockDecoder = new BlockInputStream(in, check, memoryLimit,
-                                                info.unpaddedSize,
-                                                info.uncompressedSize);
+                    info.unpaddedSize,
+                    info.uncompressedSize);
         } catch (MemoryLimitException e) {
             // BlockInputStream doesn't know how much memory we had
             // already needed so we need to recreate the exception.

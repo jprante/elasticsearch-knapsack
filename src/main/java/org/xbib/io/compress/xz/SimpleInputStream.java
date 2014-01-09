@@ -1,17 +1,10 @@
-/*
- * SimpleInputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.InputStream;
-import java.io.IOException;
 import org.xbib.io.compress.xz.simple.SimpleFilter;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 class SimpleInputStream extends InputStream {
     private static final int TMPBUF_SIZE = 4096;
@@ -34,8 +27,9 @@ class SimpleInputStream extends InputStream {
     SimpleInputStream(InputStream in, SimpleFilter simpleFilter) {
         // Check for null because otherwise null isn't detect
         // in this constructor.
-        if (in == null)
+        if (in == null) {
             throw new NullPointerException();
+        }
 
         // The simpleFilter argument comes from this package
         // so it is known to be non-null already.
@@ -51,17 +45,21 @@ class SimpleInputStream extends InputStream {
     }
 
     public int read(byte[] buf, int off, int len) throws IOException {
-        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length)
+        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length) {
             throw new IndexOutOfBoundsException();
+        }
 
-        if (len == 0)
+        if (len == 0) {
             return 0;
+        }
 
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
         try {
             int size = 0;
@@ -81,12 +79,13 @@ class SimpleInputStream extends InputStream {
                 // copied into tmpbuf on the next loop iteration.
                 if (pos + filtered + unfiltered == TMPBUF_SIZE) {
                     System.arraycopy(tmpbuf, pos, tmpbuf, 0,
-                                     filtered + unfiltered);
+                            filtered + unfiltered);
                     pos = 0;
                 }
 
-                if (len == 0 || endReached)
+                if (len == 0 || endReached) {
                     return size > 0 ? size : -1;
+                }
 
                 assert filtered == 0;
 
@@ -115,11 +114,13 @@ class SimpleInputStream extends InputStream {
     }
 
     public int available() throws IOException {
-        if (in == null)
+        if (in == null) {
             throw new XZIOException("Stream closed");
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
         return filtered;
     }

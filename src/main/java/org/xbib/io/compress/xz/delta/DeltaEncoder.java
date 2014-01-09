@@ -1,11 +1,3 @@
-/*
- * DeltaEncoder
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.delta;
 
@@ -18,7 +10,7 @@ public class DeltaEncoder extends DeltaCoder {
         for (int i = 0; i < len; ++i) {
             byte tmp = history[(distance + pos) & DISTANCE_MASK];
             history[pos-- & DISTANCE_MASK] = in[in_off + i];
-            out[i] = (byte)(in[in_off + i] - tmp);
+            out[i] = (byte) (in[in_off + i] - tmp);
         }
     }
 }

@@ -1,19 +1,17 @@
+
 package org.xbib.io.compress.lzf;
+
+import org.xbib.io.compress.BufferRecycler;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.xbib.io.compress.BufferRecycler;
-import org.xbib.io.compress.lzf.util.ChunkDecoderFactory;
 
 /**
- * Decorator {@link InputStream} implementation used for reading compressed data
+ * Decorator {@link java.io.InputStream} implementation used for reading compressed data
  * and uncompressing it on the fly, such that reads return uncompressed data.
  * Its direct counterpart is {@link LZFOutputStream}; but there is also
  * {@link LZFCompressingInputStream} which does reverse of this class.
- *
- * @author Tatu Saloranta
- *
  */
 public class LZFInputStream extends InputStream {
 
@@ -42,12 +40,10 @@ public class LZFInputStream extends InputStream {
     protected boolean _cfgFullReads = false;
     /**
      * the current buffer of compressed bytes (from which to decode)
-     *
      */
     protected byte[] _inputBuffer;
     /**
      * the buffer of uncompressed bytes from which content is read
-     *
      */
     protected byte[] _decodedBytes;
     /**
@@ -72,10 +68,10 @@ public class LZFInputStream extends InputStream {
     }
 
     /**
-     * @param in Underlying input stream to use
+     * @param in        Underlying input stream to use
      * @param fullReads Whether {@link #read(byte[])} should try to read exactly
-     * as many bytes as requested (true); or just however many happen to be
-     * available (false)
+     *                  as many bytes as requested (true); or just however many happen to be
+     *                  available (false)
      */
     public LZFInputStream(final InputStream in, boolean fullReads) throws IOException {
         this(in, fullReads, ChunkDecoderFactory.optimalInstance());
@@ -107,6 +103,7 @@ public class LZFInputStream extends InputStream {
     /*
      * InputStream impl
      */
+
     /**
      * Method is overridden to report number of bytes that can now be read from
      * decoded data buffer, without reading bytes from the underlying stream.
@@ -216,18 +213,11 @@ public class LZFInputStream extends InputStream {
         return left;
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Extended public API
-     ///////////////////////////////////////////////////////////////////////
-     */
     /**
-     * Method that can be used to find underlying {@link InputStream} that we
+     * Method that can be used to find underlying {@link java.io.InputStream} that we
      * read from to get LZF encoded data to decode. Will never return null;
      * although underlying stream may be closed (if this stream has been
      * closed).
-     *
-     * @since 0.8
      */
     public InputStream getUnderlyingInputStream() {
         return _inputStream;
@@ -236,9 +226,7 @@ public class LZFInputStream extends InputStream {
     /**
      * Method that can be called to discard any already buffered input, read
      * from input source. Specialized method that only makes sense if the
-     * underlying {@link InputStream} can be repositioned reliably.
-     *
-     * @since 0.9
+     * underlying {@link java.io.InputStream} can be repositioned reliably.
      */
     public void discardBuffered() {
         _bufferPosition = _bufferLength = 0;
@@ -246,15 +234,12 @@ public class LZFInputStream extends InputStream {
 
     /**
      * Convenience method that will read and uncompress all data available, and
-     * write it using given {@link OutputStream}. This avoids having to make an
+     * write it using given {@link java.io.OutputStream}. This avoids having to make an
      * intermediate copy of uncompressed data which would be needed when doing
      * the same manually.
      *
      * @param out OutputStream to use for writing content
-     *
      * @return Number of bytes written (uncompressed)
-     *
-     * @since 0.9.3
      */
     public int readAndWrite(OutputStream out) throws IOException {
         int total = 0;
@@ -268,15 +253,10 @@ public class LZFInputStream extends InputStream {
         return total;
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Internal methods
-     ///////////////////////////////////////////////////////////////////////
-     */
     /**
      * Fill the uncompressed bytes buffer by reading the underlying inputStream.
      *
-     * @throws IOException
+     * @throws java.io.IOException
      */
     protected boolean readyBuffer() throws IOException {
         if (_bufferPosition < _bufferLength) {

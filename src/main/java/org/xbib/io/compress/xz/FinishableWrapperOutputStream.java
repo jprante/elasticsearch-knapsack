@@ -1,16 +1,8 @@
-/*
- * FinishableWrapperOutputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.OutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Wraps an output stream to a finishable output stream for use with
@@ -47,8 +39,8 @@ public class FinishableWrapperOutputStream extends FinishableOutputStream {
     }
 
     /**
-     * Calls {@link java.io.OutputStream#write(byte[],int,int)
-                    out.write(buf, off, len)}.
+     * Calls {@link java.io.OutputStream#write(byte[], int, int)
+     * out.write(buf, off, len)}.
      */
     public void write(byte[] buf, int off, int len) throws IOException {
         out.write(buf, off, len);

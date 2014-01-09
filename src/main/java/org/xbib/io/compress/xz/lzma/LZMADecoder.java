@@ -1,19 +1,11 @@
-/*
- * LZMADecoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.lzma;
 
-import java.io.IOException;
+import org.xbib.io.compress.xz.CorruptedInputException;
 import org.xbib.io.compress.xz.lz.LZDecoder;
 import org.xbib.io.compress.xz.rangecoder.RangeDecoder;
-import org.xbib.io.compress.xz.CorruptedInputException;
+
+import java.io.IOException;
 
 public final class LZMADecoder extends LZMACoder {
     private final LZDecoder lz;
@@ -47,16 +39,17 @@ public final class LZMADecoder extends LZMACoder {
                 literalDecoder.decode();
             } else {
                 int len = rc.decodeBit(isRep, state.get()) == 0
-                          ? decodeMatch(posState)
-                          : decodeRepMatch(posState);
+                        ? decodeMatch(posState)
+                        : decodeRepMatch(posState);
                 lz.repeat(reps[0], len);
             }
         }
 
         rc.normalize();
 
-        if (!rc.isInBufferOK())
+        if (!rc.isInBufferOK()) {
             throw new CorruptedInputException();
+        }
     }
 
     private int decodeMatch(int posState) throws IOException {
@@ -80,7 +73,7 @@ public final class LZMADecoder extends LZMACoder {
                         distSpecial[distSlot - DIST_MODEL_START]);
             } else {
                 reps[0] |= rc.decodeDirectBits(limit - ALIGN_BITS)
-                           << ALIGN_BITS;
+                        << ALIGN_BITS;
                 reps[0] |= rc.decodeReverseBitTree(distAlign);
             }
         }
@@ -127,13 +120,15 @@ public final class LZMADecoder extends LZMACoder {
             super(lc, lp);
 
             subdecoders = new LiteralSubdecoder[1 << (lc + lp)];
-            for (int i = 0; i < subdecoders.length; ++i)
+            for (int i = 0; i < subdecoders.length; ++i) {
                 subdecoders[i] = new LiteralSubdecoder();
+            }
         }
 
         void reset() {
-            for (int i = 0; i < subdecoders.length; ++i)
+            for (int i = 0; i < subdecoders.length; ++i) {
                 subdecoders[i].reset();
+            }
         }
 
         void decode() throws IOException {
@@ -166,7 +161,7 @@ public final class LZMADecoder extends LZMACoder {
                     } while (symbol < 0x100);
                 }
 
-                lz.putByte((byte)symbol);
+                lz.putByte((byte) symbol);
                 state.updateLiteral();
             }
         }
@@ -175,15 +170,17 @@ public final class LZMADecoder extends LZMACoder {
 
     private class LengthDecoder extends LengthCoder {
         int decode(int posState) throws IOException {
-            if (rc.decodeBit(choice, 0) == 0)
+            if (rc.decodeBit(choice, 0) == 0) {
                 return rc.decodeBitTree(low[posState]) + MATCH_LEN_MIN;
+            }
 
-            if (rc.decodeBit(choice, 1) == 0)
+            if (rc.decodeBit(choice, 1) == 0) {
                 return rc.decodeBitTree(mid[posState])
-                       + MATCH_LEN_MIN + LOW_SYMBOLS;
+                        + MATCH_LEN_MIN + LOW_SYMBOLS;
+            }
 
             return rc.decodeBitTree(high)
-                   + MATCH_LEN_MIN + LOW_SYMBOLS + MID_SYMBOLS;
+                    + MATCH_LEN_MIN + LOW_SYMBOLS + MID_SYMBOLS;
         }
     }
 }

@@ -1,16 +1,8 @@
-/*
- * IndexBase
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.index;
 
-import org.xbib.io.compress.xz.common.Util;
 import org.xbib.io.compress.xz.XZIOException;
+import org.xbib.io.compress.xz.common.Util;
 
 abstract class IndexBase {
     private final XZIOException invalidIndexException;
@@ -38,19 +30,20 @@ abstract class IndexBase {
     }
 
     int getIndexPaddingSize() {
-        return (int)((4 - getUnpaddedIndexSize()) & 3);
+        return (int) ((4 - getUnpaddedIndexSize()) & 3);
     }
 
     void add(long unpaddedSize, long uncompressedSize) throws XZIOException {
         blocksSum += (unpaddedSize + 3) & ~3;
         uncompressedSum += uncompressedSize;
         indexListSize += Util.getVLISize(unpaddedSize)
-                         + Util.getVLISize(uncompressedSize);
+                + Util.getVLISize(uncompressedSize);
         ++recordCount;
 
         if (blocksSum < 0 || uncompressedSum < 0
                 || getIndexSize() > Util.BACKWARD_SIZE_MAX
-                || getStreamSize() < 0)
+                || getStreamSize() < 0) {
             throw invalidIndexException;
+        }
     }
 }

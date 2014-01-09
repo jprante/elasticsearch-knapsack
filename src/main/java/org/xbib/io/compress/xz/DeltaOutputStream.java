@@ -1,16 +1,10 @@
-/*
- * DeltaOutputStream
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.IOException;
 import org.xbib.io.compress.xz.delta.DeltaEncoder;
+
+import java.io.IOException;
+
 
 class DeltaOutputStream extends FinishableOutputStream {
     private static final int TMPBUF_SIZE = 4096;
@@ -33,19 +27,22 @@ class DeltaOutputStream extends FinishableOutputStream {
 
     public void write(int b) throws IOException {
         byte[] buf = new byte[1];
-        buf[0] = (byte)b;
+        buf[0] = (byte) b;
         write(buf, 0, 1);
     }
 
     public void write(byte[] buf, int off, int len) throws IOException {
-        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length)
+        if (off < 0 || len < 0 || off + len < 0 || off + len > buf.length) {
             throw new IndexOutOfBoundsException();
+        }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished");
+        }
 
         try {
             while (len > TMPBUF_SIZE) {
@@ -64,11 +61,13 @@ class DeltaOutputStream extends FinishableOutputStream {
     }
 
     public void flush() throws IOException {
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
-        if (finished)
+        if (finished) {
             throw new XZIOException("Stream finished or closed");
+        }
 
         try {
             out.flush();
@@ -80,8 +79,9 @@ class DeltaOutputStream extends FinishableOutputStream {
 
     public void finish() throws IOException {
         if (!finished) {
-            if (exception != null)
+            if (exception != null) {
                 throw exception;
+            }
 
             try {
                 out.finish();
@@ -99,14 +99,16 @@ class DeltaOutputStream extends FinishableOutputStream {
             try {
                 out.close();
             } catch (IOException e) {
-                if (exception == null)
+                if (exception == null) {
                     exception = e;
+                }
             }
 
             out = null;
         }
 
-        if (exception != null)
+        if (exception != null) {
             throw exception;
+        }
     }
 }

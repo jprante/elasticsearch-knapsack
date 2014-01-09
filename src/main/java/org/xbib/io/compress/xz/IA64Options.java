@@ -1,16 +1,9 @@
-/*
- * IA64Options
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
-import java.io.InputStream;
 import org.xbib.io.compress.xz.simple.IA64;
+
+import java.io.InputStream;
 
 /**
  * BCJ filter for Itanium (IA-64) instructions.

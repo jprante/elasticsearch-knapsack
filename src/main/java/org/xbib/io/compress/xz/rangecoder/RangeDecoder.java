@@ -1,18 +1,10 @@
-/*
- * RangeDecoder
- *
- * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.rangecoder;
 
+import org.xbib.io.compress.xz.CorruptedInputException;
+
 import java.io.DataInputStream;
 import java.io.IOException;
-import org.xbib.io.compress.xz.CorruptedInputException;
 
 public final class RangeDecoder extends RangeCoder {
     private static final int INIT_SIZE = 5;
@@ -30,11 +22,13 @@ public final class RangeDecoder extends RangeCoder {
 
     public void prepareInputBuffer(DataInputStream in, int len)
             throws IOException {
-        if (len < INIT_SIZE)
+        if (len < INIT_SIZE) {
             throw new CorruptedInputException();
+        }
 
-        if (in.readUnsignedByte() != 0x00)
+        if (in.readUnsignedByte() != 0x00) {
             throw new CorruptedInputException();
+        }
 
         code = in.readInt();
         range = 0xFFFFFFFF;
@@ -75,13 +69,13 @@ public final class RangeDecoder extends RangeCoder {
         // Compare code and bound as if they were unsigned 32-bit integers.
         if ((code ^ 0x80000000) < (bound ^ 0x80000000)) {
             range = bound;
-            probs[index] = (short)(
+            probs[index] = (short) (
                     prob + ((BIT_MODEL_TOTAL - prob) >>> MOVE_BITS));
             bit = 0;
         } else {
             range -= bound;
             code -= bound;
-            probs[index] = (short)(prob - (prob >>> MOVE_BITS));
+            probs[index] = (short) (prob - (prob >>> MOVE_BITS));
             bit = 1;
         }
 

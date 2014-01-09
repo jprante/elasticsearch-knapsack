@@ -1,24 +1,18 @@
-/*
- * IndexEncoder
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.index;
 
-import java.io.OutputStream;
+import org.xbib.io.compress.xz.XZIOException;
+import org.xbib.io.compress.xz.common.EncoderUtil;
+
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.zip.CheckedOutputStream;
-import org.xbib.io.compress.xz.common.EncoderUtil;
-import org.xbib.io.compress.xz.XZIOException;
 
 public class IndexEncoder extends IndexBase {
-    private final ArrayList records = new ArrayList();
+
+    private final ArrayList<IndexRecord> records = new ArrayList<IndexRecord>();
 
     public IndexEncoder() {
         super(new XZIOException("XZ Stream or its Index has grown too big"));
@@ -42,18 +36,20 @@ public class IndexEncoder extends IndexBase {
 
         // List of Records
         for (Iterator i = records.iterator(); i.hasNext(); ) {
-            IndexRecord record = (IndexRecord)i.next();
+            IndexRecord record = (IndexRecord) i.next();
             EncoderUtil.encodeVLI(outChecked, record.unpadded);
             EncoderUtil.encodeVLI(outChecked, record.uncompressed);
         }
 
         // Index Padding
-        for (int i = getIndexPaddingSize(); i > 0; --i)
+        for (int i = getIndexPaddingSize(); i > 0; --i) {
             outChecked.write(0x00);
+        }
 
         // CRC32
         long value = crc32.getValue();
-        for (int i = 0; i < 4; ++i)
-            out.write((byte)(value >>> (i * 8)));
+        for (int i = 0; i < 4; ++i) {
+            out.write((byte) (value >>> (i * 8)));
+        }
     }
 }

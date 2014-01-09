@@ -1,22 +1,15 @@
-/*
- * Check
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz.check;
 
-import org.xbib.io.compress.xz.XZ;
 import org.xbib.io.compress.xz.UnsupportedOptionsException;
+import org.xbib.io.compress.xz.XZ;
 
 public abstract class Check {
     int size;
     String name;
 
     public abstract void update(byte[] buf, int off, int len);
+
     public abstract byte[] finish();
 
     public void update(byte[] buf) {
@@ -46,7 +39,8 @@ public abstract class Check {
             case XZ.CHECK_SHA256:
                 try {
                     return new SHA256();
-                } catch (java.security.NoSuchAlgorithmException e) {}
+                } catch (java.security.NoSuchAlgorithmException e) {
+                }
 
                 break;
         }

@@ -1,17 +1,7 @@
-/* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
- * file except in compliance with the License. You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
- * OF ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
+
 package org.xbib.io.compress.lzf;
 
 import java.io.IOException;
-import org.xbib.io.compress.lzf.util.ChunkDecoderFactory;
 
 /**
  * Decoder that handles decoding of sequence of encoded LZF chunks, combining
@@ -20,13 +10,8 @@ import org.xbib.io.compress.lzf.util.ChunkDecoderFactory;
  * methods are left here and may still be used for convenience. All static
  * methods use {@link ChunkDecoderFactory#optimalInstance} to find actual
  * {@link ChunkDecoder} instance to use.
- *
- * @author Tatu Saloranta (tatu.saloranta@iki.fi)
  */
 public class LZFDecoder {
-    /*
-     // Old API
-     */
 
     public static byte[] decode(final byte[] inputBuffer) throws IOException {
         return decode(inputBuffer, 0, inputBuffer.length);

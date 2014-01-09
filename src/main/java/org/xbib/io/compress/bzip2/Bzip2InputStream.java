@@ -1,27 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 
-/*
- * This package is based on the work done by Keiron Liddle, Aftex Software
- * <keiron@aftexsw.com> to whom the Ant project is very grateful for his
- * great code.
- */
 package org.xbib.io.compress.bzip2;
 
 import java.io.IOException;
@@ -47,6 +24,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
 
         this.nInUse = nInUseShadow;
     }
+
     /**
      * Index of the last char in the block, so the block size == last + 1.
      */
@@ -76,8 +54,8 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
     private static final int NO_RAND_PART_B_STATE = 6;
     private static final int NO_RAND_PART_C_STATE = 7;
     private int currentState = START_BLOCK_STATE;
-    private int storedBlockCRC,  storedCombinedCRC;
-    private int computedBlockCRC,  computedCombinedCRC;
+    private int storedBlockCRC, storedCombinedCRC;
+    private int computedBlockCRC, computedCombinedCRC;
 
     // Variables used by setup* methods exclusively
     private int setupcount;
@@ -98,21 +76,24 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
     /**
      * Constructs a new CBZip2InputStream which decompresses bytes read from
      * the specified stream.
-     *
+     * <p/>
      * <p>Although BZip2 headers are marked with the magic
      * <tt>"Bz"</tt> this constructor expects the next byte in the
      * stream to be the first one after the magic.  Thus callers have
      * to skip the first two bytes. Otherwise this constructor will
      * throw an exception. </p>
      *
-     * @throws IOException
-     *  if the stream content is malformed or an I/O error occurs.
-     * @throws NullPointerException
-     *  if <tt>in == null</tt>
+     * @throws java.io.IOException  if the stream content is malformed or an I/O error occurs.
+     * @throws NullPointerException if <tt>in == null</tt>
      */
     public Bzip2InputStream(final InputStream in) throws IOException {
         super();
+        this.in = in;
+        init();
+    }
 
+    public Bzip2InputStream(final InputStream in, int bufsize) throws IOException {
+        super();
         this.in = in;
         init();
     }
@@ -144,7 +125,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
 
         final int hi = offs + len;
         int destOffs = offs;
-        for (int b; (destOffs < hi) && ((b = read0()) >= 0);) {
+        for (int b; (destOffs < hi) && ((b = read0()) >= 0); ) {
             dest[destOffs++] = (byte) b;
         }
 
@@ -358,12 +339,12 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
      * Called by createHuffmanDecodingTables() exclusively.
      */
     private static void hbCreateDecodeTables(final int[] limit,
-            final int[] base,
-            final int[] perm,
-            final char[] length,
-            final int minLen,
-            final int maxLen,
-            final int alphaSize) {
+                                             final int[] base,
+                                             final int[] perm,
+                                             final char[] length,
+                                             final int minLen,
+                                             final int maxLen,
+                                             final int alphaSize) {
         for (int i = minLen, pp = 0; i <= maxLen; i++) {
             for (int j = 0; j < alphaSize; j++) {
                 if (length[j] == i) {
@@ -372,7 +353,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
             }
         }
 
-        for (int i = MAX_CODE_LEN; --i > 0;) {
+        for (int i = MAX_CODE_LEN; --i > 0; ) {
             base[i] = 0;
             limit[i] = 0;
         }
@@ -415,7 +396,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
             }
         }
 
-        for (int i = 256; --i >= 0;) {
+        for (int i = 256; --i >= 0; ) {
             inUse[i] = false;
         }
 
@@ -446,7 +427,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
         }
 
         /* Undo the MTF values for the selectors. */
-        for (int v = nGroups; --v >= 0;) {
+        for (int v = nGroups; --v >= 0; ) {
             pos[v] = (byte) v;
         }
 
@@ -484,7 +465,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
      * Called by recvDecodingTables() exclusively.
      */
     private void createHuffmanDecodingTables(final int alphaSize,
-            final int nGroups) {
+                                             final int nGroups) {
         final Data dataShadow = this.data;
         final char[][] len = dataShadow.temp_charArray2d;
         final int[] minLens = dataShadow.minLens;
@@ -496,7 +477,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
             int minLen = 32;
             int maxLen = 0;
             final char[] len_t = len[t];
-            for (int i = alphaSize; --i >= 0;) {
+            for (int i = alphaSize; --i >= 0; ) {
                 final char lent = len_t[i];
                 if (lent > maxLen) {
                     maxLen = lent;
@@ -534,7 +515,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
         in a separate pass, and so saves a block's worth of
         cache misses.
          */
-        for (int i = 256; --i >= 0;) {
+        for (int i = 256; --i >= 0; ) {
             yy[i] = (char) i;
             unzftab[i] = 0;
         }
@@ -636,7 +617,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
                 System.arraycopy for very small ranges to copy.
                  */
                 if (nextSym <= 16) {
-                    for (int j = nextSym - 1; j > 0;) {
+                    for (int j = nextSym - 1; j > 0; ) {
                         yy[j] = yy[--j];
                     }
                 } else {
@@ -917,7 +898,7 @@ public class Bzip2InputStream extends InputStream implements Bzip2Constants {
 
         /**
          * Initializes the {@link #tt} array.
-         *
+         * <p/>
          * This method is called when the required length of the array
          * is known.  I don't initialize it at construction time to
          * avoid unneccessary memory allocation when compressing small

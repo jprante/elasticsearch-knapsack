@@ -1,11 +1,3 @@
-/*
- * LZMA2Encoder
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
@@ -16,19 +8,20 @@ class LZMA2Encoder extends LZMA2Coder implements FilterEncoder {
     private final byte[] props = new byte[1];
 
     LZMA2Encoder(LZMA2Options options) {
-        if (options.getPresetDict() != null)
+        if (options.getPresetDict() != null) {
             throw new IllegalArgumentException(
                     "XZ doesn't support a preset dictionary for now");
+        }
 
         if (options.getMode() == LZMA2Options.MODE_UNCOMPRESSED) {
-            props[0] = (byte)0;
+            props[0] = (byte) 0;
         } else {
             int d = Math.max(options.getDictSize(), LZMA2Options.DICT_SIZE_MIN);
-            props[0] = (byte)(LZMAEncoder.getDistSlot(d - 1) - 23);
+            props[0] = (byte) (LZMAEncoder.getDistSlot(d - 1) - 23);
         }
 
         // Make a private copy so that the caller is free to change its copy.
-        this.options = (LZMA2Options)options.clone();
+        this.options = (LZMA2Options) options.clone();
     }
 
     @Override

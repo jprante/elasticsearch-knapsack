@@ -1,11 +1,3 @@
-/*
- * BCJOptions
- *
- * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
- */
 
 package org.xbib.io.compress.xz;
 
@@ -24,9 +16,10 @@ abstract class BCJOptions extends FilterOptions {
      */
     public void setStartOffset(int startOffset)
             throws UnsupportedOptionsException {
-        if ((startOffset & (alignment - 1)) != 0)
+        if ((startOffset & (alignment - 1)) != 0) {
             throw new UnsupportedOptionsException(
                     "Start offset must be a multiple of " + alignment);
+        }
 
         this.startOffset = startOffset;
     }
