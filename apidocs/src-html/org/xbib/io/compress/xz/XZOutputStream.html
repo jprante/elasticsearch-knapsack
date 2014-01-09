@@ -6,492 +6,450 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
-<span class="sourceLineNo">002</span> * XZOutputStream<a name="line.2"></a>
-<span class="sourceLineNo">003</span> *<a name="line.3"></a>
-<span class="sourceLineNo">004</span> * Author: Lasse Collin &lt;lasse.collin@tukaani.org&gt;<a name="line.4"></a>
-<span class="sourceLineNo">005</span> *<a name="line.5"></a>
-<span class="sourceLineNo">006</span> * This file has been put into the public domain.<a name="line.6"></a>
-<span class="sourceLineNo">007</span> * You can do whatever you want with this file.<a name="line.7"></a>
-<span class="sourceLineNo">008</span> */<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>package org.xbib.io.compress.xz;<a name="line.10"></a>
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.check.Check;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.common.EncoderUtil;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import org.xbib.io.compress.xz.index.IndexEncoder;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.IOException;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.io.OutputStream;<a name="line.10"></a>
 <span class="sourceLineNo">011</span><a name="line.11"></a>
-<span class="sourceLineNo">012</span>import java.io.IOException;<a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.io.OutputStream;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>import org.xbib.io.compress.xz.check.Check;<a name="line.14"></a>
-<span class="sourceLineNo">015</span>import org.xbib.io.compress.xz.common.EncoderUtil;<a name="line.15"></a>
-<span class="sourceLineNo">016</span>import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>import org.xbib.io.compress.xz.index.IndexEncoder;<a name="line.17"></a>
-<span class="sourceLineNo">018</span><a name="line.18"></a>
-<span class="sourceLineNo">019</span>/**<a name="line.19"></a>
-<span class="sourceLineNo">020</span> * Compresses into the .xz file format.<a name="line.20"></a>
-<span class="sourceLineNo">021</span> *<a name="line.21"></a>
-<span class="sourceLineNo">022</span> * &lt;h4&gt;Examples&lt;/h4&gt;<a name="line.22"></a>
-<span class="sourceLineNo">023</span> * &lt;p&gt;<a name="line.23"></a>
-<span class="sourceLineNo">024</span> * Getting an output stream to compress with LZMA2 using the default<a name="line.24"></a>
-<span class="sourceLineNo">025</span> * settings and the default integrity check type (CRC64):<a name="line.25"></a>
+<span class="sourceLineNo">012</span>/**<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * Compresses into the .xz file format.<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * &lt;p/&gt;<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * &lt;h4&gt;Examples&lt;/h4&gt;<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * &lt;p/&gt;<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * Getting an output stream to compress with LZMA2 using the default<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * settings and the default integrity check type (CRC64):<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * FileOutputStream outfile = new FileOutputStream("foo.xz");<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * XZOutputStream outxz = new XZOutputStream(outfile, new LZMA2Options());<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * &lt;p/&gt;<a name="line.23"></a>
+<span class="sourceLineNo">024</span> * Using the preset level &lt;code&gt;8&lt;/code&gt; for LZMA2 (the default<a name="line.24"></a>
+<span class="sourceLineNo">025</span> * is &lt;code&gt;6&lt;/code&gt;) and SHA-256 instead of CRC64 for integrity checking:<a name="line.25"></a>
 <span class="sourceLineNo">026</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.26"></a>
-<span class="sourceLineNo">027</span> * FileOutputStream outfile = new FileOutputStream("foo.xz");<a name="line.27"></a>
-<span class="sourceLineNo">028</span> * XZOutputStream outxz = new XZOutputStream(outfile, new LZMA2Options());<a name="line.28"></a>
+<span class="sourceLineNo">027</span> * XZOutputStream outxz = new XZOutputStream(outfile, new LZMA2Options(8),<a name="line.27"></a>
+<span class="sourceLineNo">028</span> *                                           XZ.CHECK_SHA256);<a name="line.28"></a>
 <span class="sourceLineNo">029</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.29"></a>
-<span class="sourceLineNo">030</span> * &lt;p&gt;<a name="line.30"></a>
-<span class="sourceLineNo">031</span> * Using the preset level &lt;code&gt;8&lt;/code&gt; for LZMA2 (the default<a name="line.31"></a>
-<span class="sourceLineNo">032</span> * is &lt;code&gt;6&lt;/code&gt;) and SHA-256 instead of CRC64 for integrity checking:<a name="line.32"></a>
-<span class="sourceLineNo">033</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.33"></a>
-<span class="sourceLineNo">034</span> * XZOutputStream outxz = new XZOutputStream(outfile, new LZMA2Options(8),<a name="line.34"></a>
-<span class="sourceLineNo">035</span> *                                           XZ.CHECK_SHA256);<a name="line.35"></a>
-<span class="sourceLineNo">036</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.36"></a>
-<span class="sourceLineNo">037</span> * &lt;p&gt;<a name="line.37"></a>
-<span class="sourceLineNo">038</span> * Using the x86 BCJ filter together with LZMA2 to compress x86 executables<a name="line.38"></a>
-<span class="sourceLineNo">039</span> * and printing the memory usage information before creating the<a name="line.39"></a>
-<span class="sourceLineNo">040</span> * XZOutputStream:<a name="line.40"></a>
-<span class="sourceLineNo">041</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.41"></a>
-<span class="sourceLineNo">042</span> * X86Options x86 = new X86Options();<a name="line.42"></a>
-<span class="sourceLineNo">043</span> * LZMA2Options lzma2 = new LZMA2Options();<a name="line.43"></a>
-<span class="sourceLineNo">044</span> * FilterOptions[] options = { x86, lzma2 };<a name="line.44"></a>
-<span class="sourceLineNo">045</span> * String msg = "Encoder memory usage: "<a name="line.45"></a>
-<span class="sourceLineNo">046</span> *                    + FilterOptions.getEncoderMemoryUsage(options)<a name="line.46"></a>
-<span class="sourceLineNo">047</span> *                    + " KiB";<a name="line.47"></a>
-<span class="sourceLineNo">048</span> * trign msg2 = "Decoder memory usage: "<a name="line.48"></a>
-<span class="sourceLineNo">049</span> *                    + FilterOptions.getDecoderMemoryUsage(options)<a name="line.49"></a>
-<span class="sourceLineNo">050</span> *                    + " KiB";<a name="line.50"></a>
-<span class="sourceLineNo">051</span> * XZOutputStream outxz = new XZOutputStream(outfile, options);<a name="line.51"></a>
-<span class="sourceLineNo">052</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.52"></a>
-<span class="sourceLineNo">053</span> */<a name="line.53"></a>
-<span class="sourceLineNo">054</span>public class XZOutputStream extends FinishableOutputStream {<a name="line.54"></a>
-<span class="sourceLineNo">055</span>    private OutputStream out;<a name="line.55"></a>
-<span class="sourceLineNo">056</span>    private final StreamFlags streamFlags = new StreamFlags();<a name="line.56"></a>
-<span class="sourceLineNo">057</span>    private final Check check;<a name="line.57"></a>
-<span class="sourceLineNo">058</span>    private final IndexEncoder index = new IndexEncoder();<a name="line.58"></a>
-<span class="sourceLineNo">059</span><a name="line.59"></a>
-<span class="sourceLineNo">060</span>    private BlockOutputStream blockEncoder = null;<a name="line.60"></a>
-<span class="sourceLineNo">061</span>    private FilterEncoder[] filters;<a name="line.61"></a>
+<span class="sourceLineNo">030</span> * &lt;p/&gt;<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * Using the x86 BCJ filter together with LZMA2 to compress x86 executables<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * and printing the memory usage information before creating the<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * XZOutputStream:<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * X86Options x86 = new X86Options();<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * LZMA2Options lzma2 = new LZMA2Options();<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * FilterOptions[] options = { x86, lzma2 };<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * String msg = "Encoder memory usage: "<a name="line.38"></a>
+<span class="sourceLineNo">039</span> *                    + FilterOptions.getEncoderMemoryUsage(options)<a name="line.39"></a>
+<span class="sourceLineNo">040</span> *                    + " KiB";<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * trign msg2 = "Decoder memory usage: "<a name="line.41"></a>
+<span class="sourceLineNo">042</span> *                    + FilterOptions.getDecoderMemoryUsage(options)<a name="line.42"></a>
+<span class="sourceLineNo">043</span> *                    + " KiB";<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * XZOutputStream outxz = new XZOutputStream(outfile, options);<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.45"></a>
+<span class="sourceLineNo">046</span> */<a name="line.46"></a>
+<span class="sourceLineNo">047</span>public class XZOutputStream extends FinishableOutputStream {<a name="line.47"></a>
+<span class="sourceLineNo">048</span>    private OutputStream out;<a name="line.48"></a>
+<span class="sourceLineNo">049</span>    private final StreamFlags streamFlags = new StreamFlags();<a name="line.49"></a>
+<span class="sourceLineNo">050</span>    private final Check check;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>    private final IndexEncoder index = new IndexEncoder();<a name="line.51"></a>
+<span class="sourceLineNo">052</span><a name="line.52"></a>
+<span class="sourceLineNo">053</span>    private BlockOutputStream blockEncoder = null;<a name="line.53"></a>
+<span class="sourceLineNo">054</span>    private FilterEncoder[] filters;<a name="line.54"></a>
+<span class="sourceLineNo">055</span><a name="line.55"></a>
+<span class="sourceLineNo">056</span>    /**<a name="line.56"></a>
+<span class="sourceLineNo">057</span>     * True if the current filter chain supports flushing.<a name="line.57"></a>
+<span class="sourceLineNo">058</span>     * If it doesn't support flushing, &lt;code&gt;flush()&lt;/code&gt;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>     * will use &lt;code&gt;endBlock()&lt;/code&gt; as a fallback.<a name="line.59"></a>
+<span class="sourceLineNo">060</span>     */<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    private boolean filtersSupportFlushing;<a name="line.61"></a>
 <span class="sourceLineNo">062</span><a name="line.62"></a>
-<span class="sourceLineNo">063</span>    /**<a name="line.63"></a>
-<span class="sourceLineNo">064</span>     * True if the current filter chain supports flushing.<a name="line.64"></a>
-<span class="sourceLineNo">065</span>     * If it doesn't support flushing, &lt;code&gt;flush()&lt;/code&gt;<a name="line.65"></a>
-<span class="sourceLineNo">066</span>     * will use &lt;code&gt;endBlock()&lt;/code&gt; as a fallback.<a name="line.66"></a>
-<span class="sourceLineNo">067</span>     */<a name="line.67"></a>
-<span class="sourceLineNo">068</span>    private boolean filtersSupportFlushing;<a name="line.68"></a>
-<span class="sourceLineNo">069</span><a name="line.69"></a>
-<span class="sourceLineNo">070</span>    private IOException exception = null;<a name="line.70"></a>
-<span class="sourceLineNo">071</span>    private boolean finished = false;<a name="line.71"></a>
-<span class="sourceLineNo">072</span><a name="line.72"></a>
-<span class="sourceLineNo">073</span>    /**<a name="line.73"></a>
-<span class="sourceLineNo">074</span>     * Creates a new XZ compressor using one filter and CRC64 as<a name="line.74"></a>
-<span class="sourceLineNo">075</span>     * the integrity check. This constructor is equivalent to passing<a name="line.75"></a>
-<span class="sourceLineNo">076</span>     * a single-member FilterOptions array to<a name="line.76"></a>
-<span class="sourceLineNo">077</span>     * &lt;code&gt;XZOutputStream(OutputStream, FilterOptions[])&lt;/code&gt;.<a name="line.77"></a>
-<span class="sourceLineNo">078</span>     *<a name="line.78"></a>
-<span class="sourceLineNo">079</span>     * @param       out         output stream to which the compressed data<a name="line.79"></a>
-<span class="sourceLineNo">080</span>     *                          will be written<a name="line.80"></a>
-<span class="sourceLineNo">081</span>     *<a name="line.81"></a>
-<span class="sourceLineNo">082</span>     * @param       filterOptions<a name="line.82"></a>
-<span class="sourceLineNo">083</span>     *                          filter options to use<a name="line.83"></a>
-<span class="sourceLineNo">084</span>     *<a name="line.84"></a>
-<span class="sourceLineNo">085</span>     * @throws      UnsupportedOptionsException<a name="line.85"></a>
-<span class="sourceLineNo">086</span>     *                          invalid filter chain<a name="line.86"></a>
-<span class="sourceLineNo">087</span>     *<a name="line.87"></a>
-<span class="sourceLineNo">088</span>     * @throws      IOException may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.88"></a>
-<span class="sourceLineNo">089</span>     */<a name="line.89"></a>
-<span class="sourceLineNo">090</span>    public XZOutputStream(OutputStream out, FilterOptions filterOptions)<a name="line.90"></a>
-<span class="sourceLineNo">091</span>            throws IOException {<a name="line.91"></a>
-<span class="sourceLineNo">092</span>        this(out, filterOptions, XZ.CHECK_CRC64);<a name="line.92"></a>
-<span class="sourceLineNo">093</span>    }<a name="line.93"></a>
-<span class="sourceLineNo">094</span><a name="line.94"></a>
-<span class="sourceLineNo">095</span>    /**<a name="line.95"></a>
-<span class="sourceLineNo">096</span>     * Creates a new XZ compressor using one filter and the specified<a name="line.96"></a>
-<span class="sourceLineNo">097</span>     * integrity check type. This constructor is equivalent to<a name="line.97"></a>
-<span class="sourceLineNo">098</span>     * passing a single-member FilterOptions array to<a name="line.98"></a>
-<span class="sourceLineNo">099</span>     * &lt;code&gt;XZOutputStream(OutputStream, FilterOptions[], int)&lt;/code&gt;.<a name="line.99"></a>
-<span class="sourceLineNo">100</span>     *<a name="line.100"></a>
-<span class="sourceLineNo">101</span>     * @param       out         output stream to which the compressed data<a name="line.101"></a>
-<span class="sourceLineNo">102</span>     *                          will be written<a name="line.102"></a>
-<span class="sourceLineNo">103</span>     *<a name="line.103"></a>
-<span class="sourceLineNo">104</span>     * @param       filterOptions<a name="line.104"></a>
-<span class="sourceLineNo">105</span>     *                          filter options to use<a name="line.105"></a>
+<span class="sourceLineNo">063</span>    private IOException exception = null;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    private boolean finished = false;<a name="line.64"></a>
+<span class="sourceLineNo">065</span><a name="line.65"></a>
+<span class="sourceLineNo">066</span>    /**<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     * Creates a new XZ compressor using one filter and CRC64 as<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * the integrity check. This constructor is equivalent to passing<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     * a single-member FilterOptions array to<a name="line.69"></a>
+<span class="sourceLineNo">070</span>     * &lt;code&gt;XZOutputStream(OutputStream, FilterOptions[])&lt;/code&gt;.<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     *<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     * @param out           output stream to which the compressed data<a name="line.72"></a>
+<span class="sourceLineNo">073</span>     *                      will be written<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * @param filterOptions filter options to use<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     * @throws UnsupportedOptionsException invalid filter chain<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     * @throws java.io.IOException         may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     */<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    public XZOutputStream(OutputStream out, FilterOptions filterOptions)<a name="line.78"></a>
+<span class="sourceLineNo">079</span>            throws IOException {<a name="line.79"></a>
+<span class="sourceLineNo">080</span>        this(out, filterOptions, XZ.CHECK_CRC64);<a name="line.80"></a>
+<span class="sourceLineNo">081</span>    }<a name="line.81"></a>
+<span class="sourceLineNo">082</span><a name="line.82"></a>
+<span class="sourceLineNo">083</span>    /**<a name="line.83"></a>
+<span class="sourceLineNo">084</span>     * Creates a new XZ compressor using one filter and the specified<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * integrity check type. This constructor is equivalent to<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     * passing a single-member FilterOptions array to<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     * &lt;code&gt;XZOutputStream(OutputStream, FilterOptions[], int)&lt;/code&gt;.<a name="line.87"></a>
+<span class="sourceLineNo">088</span>     *<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     * @param out           output stream to which the compressed data<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     *                      will be written<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     * @param filterOptions filter options to use<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     * @param checkType     type of the integrity check,<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     *                      for example XZ.CHECK_CRC32<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     * @throws UnsupportedOptionsException invalid filter chain<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     * @throws java.io.IOException         may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.95"></a>
+<span class="sourceLineNo">096</span>     */<a name="line.96"></a>
+<span class="sourceLineNo">097</span>    public XZOutputStream(OutputStream out, FilterOptions filterOptions,<a name="line.97"></a>
+<span class="sourceLineNo">098</span>                          int checkType) throws IOException {<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        this(out, new FilterOptions[]{filterOptions}, checkType);<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    }<a name="line.100"></a>
+<span class="sourceLineNo">101</span><a name="line.101"></a>
+<span class="sourceLineNo">102</span>    /**<a name="line.102"></a>
+<span class="sourceLineNo">103</span>     * Creates a new XZ compressor using 1-4 filters and CRC64 as<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     * the integrity check. This constructor is equivalent<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     * &lt;code&gt;XZOutputStream(out, filterOptions, XZ.CHECK_CRC64)&lt;/code&gt;.<a name="line.105"></a>
 <span class="sourceLineNo">106</span>     *<a name="line.106"></a>
-<span class="sourceLineNo">107</span>     * @param       checkType   type of the integrity check,<a name="line.107"></a>
-<span class="sourceLineNo">108</span>     *                          for example XZ.CHECK_CRC32<a name="line.108"></a>
-<span class="sourceLineNo">109</span>     *<a name="line.109"></a>
-<span class="sourceLineNo">110</span>     * @throws      UnsupportedOptionsException<a name="line.110"></a>
-<span class="sourceLineNo">111</span>     *                          invalid filter chain<a name="line.111"></a>
-<span class="sourceLineNo">112</span>     *<a name="line.112"></a>
-<span class="sourceLineNo">113</span>     * @throws      IOException may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.113"></a>
-<span class="sourceLineNo">114</span>     */<a name="line.114"></a>
-<span class="sourceLineNo">115</span>    public XZOutputStream(OutputStream out, FilterOptions filterOptions,<a name="line.115"></a>
-<span class="sourceLineNo">116</span>                          int checkType) throws IOException {<a name="line.116"></a>
-<span class="sourceLineNo">117</span>        this(out, new FilterOptions[] { filterOptions }, checkType);<a name="line.117"></a>
-<span class="sourceLineNo">118</span>    }<a name="line.118"></a>
-<span class="sourceLineNo">119</span><a name="line.119"></a>
-<span class="sourceLineNo">120</span>    /**<a name="line.120"></a>
-<span class="sourceLineNo">121</span>     * Creates a new XZ compressor using 1-4 filters and CRC64 as<a name="line.121"></a>
-<span class="sourceLineNo">122</span>     * the integrity check. This constructor is equivalent<a name="line.122"></a>
-<span class="sourceLineNo">123</span>     * &lt;code&gt;XZOutputStream(out, filterOptions, XZ.CHECK_CRC64)&lt;/code&gt;.<a name="line.123"></a>
-<span class="sourceLineNo">124</span>     *<a name="line.124"></a>
-<span class="sourceLineNo">125</span>     * @param       out         output stream to which the compressed data<a name="line.125"></a>
-<span class="sourceLineNo">126</span>     *                          will be written<a name="line.126"></a>
-<span class="sourceLineNo">127</span>     *<a name="line.127"></a>
-<span class="sourceLineNo">128</span>     * @param       filterOptions<a name="line.128"></a>
-<span class="sourceLineNo">129</span>     *                          array of filter options to use<a name="line.129"></a>
-<span class="sourceLineNo">130</span>     *<a name="line.130"></a>
-<span class="sourceLineNo">131</span>     * @throws      UnsupportedOptionsException<a name="line.131"></a>
-<span class="sourceLineNo">132</span>     *                          invalid filter chain<a name="line.132"></a>
-<span class="sourceLineNo">133</span>     *<a name="line.133"></a>
-<span class="sourceLineNo">134</span>     * @throws      IOException may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.134"></a>
-<span class="sourceLineNo">135</span>     */<a name="line.135"></a>
-<span class="sourceLineNo">136</span>    public XZOutputStream(OutputStream out, FilterOptions[] filterOptions)<a name="line.136"></a>
-<span class="sourceLineNo">137</span>            throws IOException {<a name="line.137"></a>
-<span class="sourceLineNo">138</span>        this(out, filterOptions, XZ.CHECK_CRC64);<a name="line.138"></a>
+<span class="sourceLineNo">107</span>     * @param out           output stream to which the compressed data<a name="line.107"></a>
+<span class="sourceLineNo">108</span>     *                      will be written<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * @param filterOptions array of filter options to use<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     * @throws UnsupportedOptionsException invalid filter chain<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     * @throws java.io.IOException         may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     */<a name="line.112"></a>
+<span class="sourceLineNo">113</span>    public XZOutputStream(OutputStream out, FilterOptions[] filterOptions)<a name="line.113"></a>
+<span class="sourceLineNo">114</span>            throws IOException {<a name="line.114"></a>
+<span class="sourceLineNo">115</span>        this(out, filterOptions, XZ.CHECK_CRC64);<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    }<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    /**<a name="line.118"></a>
+<span class="sourceLineNo">119</span>     * Creates a new XZ compressor using 1-4 filters and the specified<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     * integrity check type.<a name="line.120"></a>
+<span class="sourceLineNo">121</span>     *<a name="line.121"></a>
+<span class="sourceLineNo">122</span>     * @param out           output stream to which the compressed data<a name="line.122"></a>
+<span class="sourceLineNo">123</span>     *                      will be written<a name="line.123"></a>
+<span class="sourceLineNo">124</span>     * @param filterOptions array of filter options to use<a name="line.124"></a>
+<span class="sourceLineNo">125</span>     * @param checkType     type of the integrity check,<a name="line.125"></a>
+<span class="sourceLineNo">126</span>     *                      for example XZ.CHECK_CRC32<a name="line.126"></a>
+<span class="sourceLineNo">127</span>     * @throws UnsupportedOptionsException invalid filter chain<a name="line.127"></a>
+<span class="sourceLineNo">128</span>     * @throws java.io.IOException         may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     */<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    public XZOutputStream(OutputStream out, FilterOptions[] filterOptions,<a name="line.130"></a>
+<span class="sourceLineNo">131</span>                          int checkType) throws IOException {<a name="line.131"></a>
+<span class="sourceLineNo">132</span>        this.out = out;<a name="line.132"></a>
+<span class="sourceLineNo">133</span>        updateFilters(filterOptions);<a name="line.133"></a>
+<span class="sourceLineNo">134</span><a name="line.134"></a>
+<span class="sourceLineNo">135</span>        streamFlags.checkType = checkType;<a name="line.135"></a>
+<span class="sourceLineNo">136</span>        check = Check.getInstance(checkType);<a name="line.136"></a>
+<span class="sourceLineNo">137</span><a name="line.137"></a>
+<span class="sourceLineNo">138</span>        encodeStreamHeader();<a name="line.138"></a>
 <span class="sourceLineNo">139</span>    }<a name="line.139"></a>
 <span class="sourceLineNo">140</span><a name="line.140"></a>
 <span class="sourceLineNo">141</span>    /**<a name="line.141"></a>
-<span class="sourceLineNo">142</span>     * Creates a new XZ compressor using 1-4 filters and the specified<a name="line.142"></a>
-<span class="sourceLineNo">143</span>     * integrity check type.<a name="line.143"></a>
-<span class="sourceLineNo">144</span>     *<a name="line.144"></a>
-<span class="sourceLineNo">145</span>     * @param       out         output stream to which the compressed data<a name="line.145"></a>
-<span class="sourceLineNo">146</span>     *                          will be written<a name="line.146"></a>
-<span class="sourceLineNo">147</span>     *<a name="line.147"></a>
-<span class="sourceLineNo">148</span>     * @param       filterOptions<a name="line.148"></a>
-<span class="sourceLineNo">149</span>     *                          array of filter options to use<a name="line.149"></a>
-<span class="sourceLineNo">150</span>     *<a name="line.150"></a>
-<span class="sourceLineNo">151</span>     * @param       checkType   type of the integrity check,<a name="line.151"></a>
-<span class="sourceLineNo">152</span>     *                          for example XZ.CHECK_CRC32<a name="line.152"></a>
-<span class="sourceLineNo">153</span>     *<a name="line.153"></a>
-<span class="sourceLineNo">154</span>     * @throws      UnsupportedOptionsException<a name="line.154"></a>
-<span class="sourceLineNo">155</span>     *                          invalid filter chain<a name="line.155"></a>
-<span class="sourceLineNo">156</span>     *<a name="line.156"></a>
-<span class="sourceLineNo">157</span>     * @throws      IOException may be thrown from &lt;code&gt;out&lt;/code&gt;<a name="line.157"></a>
-<span class="sourceLineNo">158</span>     */<a name="line.158"></a>
-<span class="sourceLineNo">159</span>    public XZOutputStream(OutputStream out, FilterOptions[] filterOptions,<a name="line.159"></a>
-<span class="sourceLineNo">160</span>                          int checkType) throws IOException {<a name="line.160"></a>
-<span class="sourceLineNo">161</span>        this.out = out;<a name="line.161"></a>
-<span class="sourceLineNo">162</span>        updateFilters(filterOptions);<a name="line.162"></a>
-<span class="sourceLineNo">163</span><a name="line.163"></a>
-<span class="sourceLineNo">164</span>        streamFlags.checkType = checkType;<a name="line.164"></a>
-<span class="sourceLineNo">165</span>        check = Check.getInstance(checkType);<a name="line.165"></a>
-<span class="sourceLineNo">166</span><a name="line.166"></a>
-<span class="sourceLineNo">167</span>        encodeStreamHeader();<a name="line.167"></a>
-<span class="sourceLineNo">168</span>    }<a name="line.168"></a>
-<span class="sourceLineNo">169</span><a name="line.169"></a>
-<span class="sourceLineNo">170</span>    /**<a name="line.170"></a>
-<span class="sourceLineNo">171</span>     * Updates the filter chain with a single filter.<a name="line.171"></a>
-<span class="sourceLineNo">172</span>     * This is equivalent to passing a single-member FilterOptions array<a name="line.172"></a>
-<span class="sourceLineNo">173</span>     * to &lt;code&gt;updateFilters(FilterOptions[])&lt;/code&gt;.<a name="line.173"></a>
-<span class="sourceLineNo">174</span>     *<a name="line.174"></a>
-<span class="sourceLineNo">175</span>     * @param       filterOptions<a name="line.175"></a>
-<span class="sourceLineNo">176</span>     *                          new filter to use<a name="line.176"></a>
-<span class="sourceLineNo">177</span>     *<a name="line.177"></a>
-<span class="sourceLineNo">178</span>     * @throws      UnsupportedOptionsException<a name="line.178"></a>
-<span class="sourceLineNo">179</span>     *                          unsupported filter chain, or trying to change<a name="line.179"></a>
-<span class="sourceLineNo">180</span>     *                          the filter chain in the middle of a Block<a name="line.180"></a>
-<span class="sourceLineNo">181</span>     */<a name="line.181"></a>
-<span class="sourceLineNo">182</span>    public void updateFilters(FilterOptions filterOptions)<a name="line.182"></a>
-<span class="sourceLineNo">183</span>            throws XZIOException {<a name="line.183"></a>
-<span class="sourceLineNo">184</span>        FilterOptions[] opts = new FilterOptions[1];<a name="line.184"></a>
-<span class="sourceLineNo">185</span>        opts[0] = filterOptions;<a name="line.185"></a>
-<span class="sourceLineNo">186</span>        updateFilters(opts);<a name="line.186"></a>
-<span class="sourceLineNo">187</span>    }<a name="line.187"></a>
-<span class="sourceLineNo">188</span><a name="line.188"></a>
-<span class="sourceLineNo">189</span>    /**<a name="line.189"></a>
-<span class="sourceLineNo">190</span>     * Updates the filter chain with 1-4 filters.<a name="line.190"></a>
-<span class="sourceLineNo">191</span>     * &lt;p&gt;<a name="line.191"></a>
-<span class="sourceLineNo">192</span>     * Currently this cannot be used to update e.g. LZMA2 options in the<a name="line.192"></a>
-<span class="sourceLineNo">193</span>     * middle of a XZ Block. Use &lt;code&gt;endBlock()&lt;/code&gt; to finish the<a name="line.193"></a>
-<span class="sourceLineNo">194</span>     * current XZ Block before calling this function. The new filter chain<a name="line.194"></a>
-<span class="sourceLineNo">195</span>     * will then be used for the next XZ Block.<a name="line.195"></a>
-<span class="sourceLineNo">196</span>     *<a name="line.196"></a>
-<span class="sourceLineNo">197</span>     * @param       filterOptions<a name="line.197"></a>
-<span class="sourceLineNo">198</span>     *                          new filter chain to use<a name="line.198"></a>
-<span class="sourceLineNo">199</span>     *<a name="line.199"></a>
-<span class="sourceLineNo">200</span>     * @throws      UnsupportedOptionsException<a name="line.200"></a>
-<span class="sourceLineNo">201</span>     *                          unsupported filter chain, or trying to change<a name="line.201"></a>
-<span class="sourceLineNo">202</span>     *                          the filter chain in the middle of a Block<a name="line.202"></a>
-<span class="sourceLineNo">203</span>     */<a name="line.203"></a>
-<span class="sourceLineNo">204</span>    public void updateFilters(FilterOptions[] filterOptions)<a name="line.204"></a>
-<span class="sourceLineNo">205</span>            throws XZIOException {<a name="line.205"></a>
-<span class="sourceLineNo">206</span>        if (blockEncoder != null)<a name="line.206"></a>
-<span class="sourceLineNo">207</span>            throw new UnsupportedOptionsException("Changing filter options "<a name="line.207"></a>
-<span class="sourceLineNo">208</span>                    + "in the middle of a XZ Block not implemented");<a name="line.208"></a>
-<span class="sourceLineNo">209</span><a name="line.209"></a>
-<span class="sourceLineNo">210</span>        if (filterOptions.length &lt; 1 || filterOptions.length &gt; 4)<a name="line.210"></a>
-<span class="sourceLineNo">211</span>            throw new UnsupportedOptionsException(<a name="line.211"></a>
-<span class="sourceLineNo">212</span>                        "XZ filter chain must be 1-4 filters");<a name="line.212"></a>
-<span class="sourceLineNo">213</span><a name="line.213"></a>
-<span class="sourceLineNo">214</span>        filtersSupportFlushing = true;<a name="line.214"></a>
-<span class="sourceLineNo">215</span>        FilterEncoder[] newFilters = new FilterEncoder[filterOptions.length];<a name="line.215"></a>
-<span class="sourceLineNo">216</span>        for (int i = 0; i &lt; filterOptions.length; ++i) {<a name="line.216"></a>
-<span class="sourceLineNo">217</span>            newFilters[i] = filterOptions[i].getFilterEncoder();<a name="line.217"></a>
-<span class="sourceLineNo">218</span>            filtersSupportFlushing &amp;= newFilters[i].supportsFlushing();<a name="line.218"></a>
-<span class="sourceLineNo">219</span>        }<a name="line.219"></a>
-<span class="sourceLineNo">220</span><a name="line.220"></a>
-<span class="sourceLineNo">221</span>        RawCoder.validate(newFilters);<a name="line.221"></a>
-<span class="sourceLineNo">222</span>        filters = newFilters;<a name="line.222"></a>
-<span class="sourceLineNo">223</span>    }<a name="line.223"></a>
-<span class="sourceLineNo">224</span><a name="line.224"></a>
-<span class="sourceLineNo">225</span>    /**<a name="line.225"></a>
-<span class="sourceLineNo">226</span>     * Writes one byte to be compressed.<a name="line.226"></a>
-<span class="sourceLineNo">227</span>     *<a name="line.227"></a>
-<span class="sourceLineNo">228</span>     * @throws      XZIOException<a name="line.228"></a>
-<span class="sourceLineNo">229</span>     *                          XZ Stream has grown too big<a name="line.229"></a>
-<span class="sourceLineNo">230</span>     *<a name="line.230"></a>
-<span class="sourceLineNo">231</span>     * @throws      XZIOException<a name="line.231"></a>
-<span class="sourceLineNo">232</span>     *                          &lt;code&gt;finish()&lt;/code&gt; or &lt;code&gt;close()&lt;/code&gt;<a name="line.232"></a>
-<span class="sourceLineNo">233</span>     *                          was already called<a name="line.233"></a>
-<span class="sourceLineNo">234</span>     *<a name="line.234"></a>
-<span class="sourceLineNo">235</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.235"></a>
-<span class="sourceLineNo">236</span>     */<a name="line.236"></a>
-<span class="sourceLineNo">237</span>    public void write(int b) throws IOException {<a name="line.237"></a>
-<span class="sourceLineNo">238</span>        byte[] buf = new byte[] { (byte)b };<a name="line.238"></a>
-<span class="sourceLineNo">239</span>        write(buf, 0, 1);<a name="line.239"></a>
-<span class="sourceLineNo">240</span>    }<a name="line.240"></a>
+<span class="sourceLineNo">142</span>     * Updates the filter chain with a single filter.<a name="line.142"></a>
+<span class="sourceLineNo">143</span>     * This is equivalent to passing a single-member FilterOptions array<a name="line.143"></a>
+<span class="sourceLineNo">144</span>     * to &lt;code&gt;updateFilters(FilterOptions[])&lt;/code&gt;.<a name="line.144"></a>
+<span class="sourceLineNo">145</span>     *<a name="line.145"></a>
+<span class="sourceLineNo">146</span>     * @param filterOptions new filter to use<a name="line.146"></a>
+<span class="sourceLineNo">147</span>     * @throws UnsupportedOptionsException unsupported filter chain, or trying to change<a name="line.147"></a>
+<span class="sourceLineNo">148</span>     *                                     the filter chain in the middle of a Block<a name="line.148"></a>
+<span class="sourceLineNo">149</span>     */<a name="line.149"></a>
+<span class="sourceLineNo">150</span>    public void updateFilters(FilterOptions filterOptions)<a name="line.150"></a>
+<span class="sourceLineNo">151</span>            throws XZIOException {<a name="line.151"></a>
+<span class="sourceLineNo">152</span>        FilterOptions[] opts = new FilterOptions[1];<a name="line.152"></a>
+<span class="sourceLineNo">153</span>        opts[0] = filterOptions;<a name="line.153"></a>
+<span class="sourceLineNo">154</span>        updateFilters(opts);<a name="line.154"></a>
+<span class="sourceLineNo">155</span>    }<a name="line.155"></a>
+<span class="sourceLineNo">156</span><a name="line.156"></a>
+<span class="sourceLineNo">157</span>    /**<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     * Updates the filter chain with 1-4 filters.<a name="line.158"></a>
+<span class="sourceLineNo">159</span>     * &lt;p/&gt;<a name="line.159"></a>
+<span class="sourceLineNo">160</span>     * Currently this cannot be used to update e.g. LZMA2 options in the<a name="line.160"></a>
+<span class="sourceLineNo">161</span>     * middle of a XZ Block. Use &lt;code&gt;endBlock()&lt;/code&gt; to finish the<a name="line.161"></a>
+<span class="sourceLineNo">162</span>     * current XZ Block before calling this function. The new filter chain<a name="line.162"></a>
+<span class="sourceLineNo">163</span>     * will then be used for the next XZ Block.<a name="line.163"></a>
+<span class="sourceLineNo">164</span>     *<a name="line.164"></a>
+<span class="sourceLineNo">165</span>     * @param filterOptions new filter chain to use<a name="line.165"></a>
+<span class="sourceLineNo">166</span>     * @throws UnsupportedOptionsException unsupported filter chain, or trying to change<a name="line.166"></a>
+<span class="sourceLineNo">167</span>     *                                     the filter chain in the middle of a Block<a name="line.167"></a>
+<span class="sourceLineNo">168</span>     */<a name="line.168"></a>
+<span class="sourceLineNo">169</span>    public void updateFilters(FilterOptions[] filterOptions)<a name="line.169"></a>
+<span class="sourceLineNo">170</span>            throws XZIOException {<a name="line.170"></a>
+<span class="sourceLineNo">171</span>        if (blockEncoder != null) {<a name="line.171"></a>
+<span class="sourceLineNo">172</span>            throw new UnsupportedOptionsException("Changing filter options "<a name="line.172"></a>
+<span class="sourceLineNo">173</span>                    + "in the middle of a XZ Block not implemented");<a name="line.173"></a>
+<span class="sourceLineNo">174</span>        }<a name="line.174"></a>
+<span class="sourceLineNo">175</span><a name="line.175"></a>
+<span class="sourceLineNo">176</span>        if (filterOptions.length &lt; 1 || filterOptions.length &gt; 4) {<a name="line.176"></a>
+<span class="sourceLineNo">177</span>            throw new UnsupportedOptionsException(<a name="line.177"></a>
+<span class="sourceLineNo">178</span>                    "XZ filter chain must be 1-4 filters");<a name="line.178"></a>
+<span class="sourceLineNo">179</span>        }<a name="line.179"></a>
+<span class="sourceLineNo">180</span><a name="line.180"></a>
+<span class="sourceLineNo">181</span>        filtersSupportFlushing = true;<a name="line.181"></a>
+<span class="sourceLineNo">182</span>        FilterEncoder[] newFilters = new FilterEncoder[filterOptions.length];<a name="line.182"></a>
+<span class="sourceLineNo">183</span>        for (int i = 0; i &lt; filterOptions.length; ++i) {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>            newFilters[i] = filterOptions[i].getFilterEncoder();<a name="line.184"></a>
+<span class="sourceLineNo">185</span>            filtersSupportFlushing &amp;= newFilters[i].supportsFlushing();<a name="line.185"></a>
+<span class="sourceLineNo">186</span>        }<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>        RawCoder.validate(newFilters);<a name="line.188"></a>
+<span class="sourceLineNo">189</span>        filters = newFilters;<a name="line.189"></a>
+<span class="sourceLineNo">190</span>    }<a name="line.190"></a>
+<span class="sourceLineNo">191</span><a name="line.191"></a>
+<span class="sourceLineNo">192</span>    /**<a name="line.192"></a>
+<span class="sourceLineNo">193</span>     * Writes one byte to be compressed.<a name="line.193"></a>
+<span class="sourceLineNo">194</span>     *<a name="line.194"></a>
+<span class="sourceLineNo">195</span>     * @throws XZIOException       XZ Stream has grown too big<a name="line.195"></a>
+<span class="sourceLineNo">196</span>     * @throws XZIOException       &lt;code&gt;finish()&lt;/code&gt; or &lt;code&gt;close()&lt;/code&gt;<a name="line.196"></a>
+<span class="sourceLineNo">197</span>     *                             was already called<a name="line.197"></a>
+<span class="sourceLineNo">198</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.198"></a>
+<span class="sourceLineNo">199</span>     */<a name="line.199"></a>
+<span class="sourceLineNo">200</span>    public void write(int b) throws IOException {<a name="line.200"></a>
+<span class="sourceLineNo">201</span>        byte[] buf = new byte[]{(byte) b};<a name="line.201"></a>
+<span class="sourceLineNo">202</span>        write(buf, 0, 1);<a name="line.202"></a>
+<span class="sourceLineNo">203</span>    }<a name="line.203"></a>
+<span class="sourceLineNo">204</span><a name="line.204"></a>
+<span class="sourceLineNo">205</span>    /**<a name="line.205"></a>
+<span class="sourceLineNo">206</span>     * Writes an array of bytes to be compressed.<a name="line.206"></a>
+<span class="sourceLineNo">207</span>     * The compressors tend to do internal buffering and thus the written<a name="line.207"></a>
+<span class="sourceLineNo">208</span>     * data won't be readable from the compressed output immediately.<a name="line.208"></a>
+<span class="sourceLineNo">209</span>     * Use &lt;code&gt;flush()&lt;/code&gt; to force everything written so far to<a name="line.209"></a>
+<span class="sourceLineNo">210</span>     * be written to the underlaying output stream, but be aware that<a name="line.210"></a>
+<span class="sourceLineNo">211</span>     * flushing reduces compression ratio.<a name="line.211"></a>
+<span class="sourceLineNo">212</span>     *<a name="line.212"></a>
+<span class="sourceLineNo">213</span>     * @param buf buffer of bytes to be written<a name="line.213"></a>
+<span class="sourceLineNo">214</span>     * @param off start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.214"></a>
+<span class="sourceLineNo">215</span>     * @param len number of bytes to write<a name="line.215"></a>
+<span class="sourceLineNo">216</span>     * @throws XZIOException       XZ Stream has grown too big: total file size<a name="line.216"></a>
+<span class="sourceLineNo">217</span>     *                             about 8&amp;nbsp;EiB or the Index field exceeds<a name="line.217"></a>
+<span class="sourceLineNo">218</span>     *                             16&amp;nbsp;GiB; you shouldn't reach these sizes<a name="line.218"></a>
+<span class="sourceLineNo">219</span>     *                             in practice<a name="line.219"></a>
+<span class="sourceLineNo">220</span>     * @throws XZIOException       &lt;code&gt;finish()&lt;/code&gt; or &lt;code&gt;close()&lt;/code&gt;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>     *                             was already called and len &amp;gt; 0<a name="line.221"></a>
+<span class="sourceLineNo">222</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.222"></a>
+<span class="sourceLineNo">223</span>     */<a name="line.223"></a>
+<span class="sourceLineNo">224</span>    public void write(byte[] buf, int off, int len) throws IOException {<a name="line.224"></a>
+<span class="sourceLineNo">225</span>        if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length) {<a name="line.225"></a>
+<span class="sourceLineNo">226</span>            throw new IndexOutOfBoundsException();<a name="line.226"></a>
+<span class="sourceLineNo">227</span>        }<a name="line.227"></a>
+<span class="sourceLineNo">228</span><a name="line.228"></a>
+<span class="sourceLineNo">229</span>        if (exception != null) {<a name="line.229"></a>
+<span class="sourceLineNo">230</span>            throw exception;<a name="line.230"></a>
+<span class="sourceLineNo">231</span>        }<a name="line.231"></a>
+<span class="sourceLineNo">232</span><a name="line.232"></a>
+<span class="sourceLineNo">233</span>        if (finished) {<a name="line.233"></a>
+<span class="sourceLineNo">234</span>            throw new XZIOException("Stream finished or closed");<a name="line.234"></a>
+<span class="sourceLineNo">235</span>        }<a name="line.235"></a>
+<span class="sourceLineNo">236</span><a name="line.236"></a>
+<span class="sourceLineNo">237</span>        try {<a name="line.237"></a>
+<span class="sourceLineNo">238</span>            if (blockEncoder == null) {<a name="line.238"></a>
+<span class="sourceLineNo">239</span>                blockEncoder = new BlockOutputStream(out, filters, check);<a name="line.239"></a>
+<span class="sourceLineNo">240</span>            }<a name="line.240"></a>
 <span class="sourceLineNo">241</span><a name="line.241"></a>
-<span class="sourceLineNo">242</span>    /**<a name="line.242"></a>
-<span class="sourceLineNo">243</span>     * Writes an array of bytes to be compressed.<a name="line.243"></a>
-<span class="sourceLineNo">244</span>     * The compressors tend to do internal buffering and thus the written<a name="line.244"></a>
-<span class="sourceLineNo">245</span>     * data won't be readable from the compressed output immediately.<a name="line.245"></a>
-<span class="sourceLineNo">246</span>     * Use &lt;code&gt;flush()&lt;/code&gt; to force everything written so far to<a name="line.246"></a>
-<span class="sourceLineNo">247</span>     * be written to the underlaying output stream, but be aware that<a name="line.247"></a>
-<span class="sourceLineNo">248</span>     * flushing reduces compression ratio.<a name="line.248"></a>
-<span class="sourceLineNo">249</span>     *<a name="line.249"></a>
-<span class="sourceLineNo">250</span>     * @param       buf         buffer of bytes to be written<a name="line.250"></a>
-<span class="sourceLineNo">251</span>     * @param       off         start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.251"></a>
-<span class="sourceLineNo">252</span>     * @param       len         number of bytes to write<a name="line.252"></a>
-<span class="sourceLineNo">253</span>     *<a name="line.253"></a>
-<span class="sourceLineNo">254</span>     * @throws      XZIOException<a name="line.254"></a>
-<span class="sourceLineNo">255</span>     *                          XZ Stream has grown too big: total file size<a name="line.255"></a>
-<span class="sourceLineNo">256</span>     *                          about 8&amp;nbsp;EiB or the Index field exceeds<a name="line.256"></a>
-<span class="sourceLineNo">257</span>     *                          16&amp;nbsp;GiB; you shouldn't reach these sizes<a name="line.257"></a>
-<span class="sourceLineNo">258</span>     *                          in practice<a name="line.258"></a>
-<span class="sourceLineNo">259</span>     *<a name="line.259"></a>
-<span class="sourceLineNo">260</span>     * @throws      XZIOException<a name="line.260"></a>
-<span class="sourceLineNo">261</span>     *                          &lt;code&gt;finish()&lt;/code&gt; or &lt;code&gt;close()&lt;/code&gt;<a name="line.261"></a>
-<span class="sourceLineNo">262</span>     *                          was already called and len &amp;gt; 0<a name="line.262"></a>
-<span class="sourceLineNo">263</span>     *<a name="line.263"></a>
-<span class="sourceLineNo">264</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.264"></a>
-<span class="sourceLineNo">265</span>     */<a name="line.265"></a>
-<span class="sourceLineNo">266</span>    public void write(byte[] buf, int off, int len) throws IOException {<a name="line.266"></a>
-<span class="sourceLineNo">267</span>        if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length)<a name="line.267"></a>
-<span class="sourceLineNo">268</span>            throw new IndexOutOfBoundsException();<a name="line.268"></a>
-<span class="sourceLineNo">269</span><a name="line.269"></a>
-<span class="sourceLineNo">270</span>        if (exception != null)<a name="line.270"></a>
-<span class="sourceLineNo">271</span>            throw exception;<a name="line.271"></a>
-<span class="sourceLineNo">272</span><a name="line.272"></a>
-<span class="sourceLineNo">273</span>        if (finished)<a name="line.273"></a>
-<span class="sourceLineNo">274</span>            throw new XZIOException("Stream finished or closed");<a name="line.274"></a>
-<span class="sourceLineNo">275</span><a name="line.275"></a>
-<span class="sourceLineNo">276</span>        try {<a name="line.276"></a>
-<span class="sourceLineNo">277</span>            if (blockEncoder == null)<a name="line.277"></a>
-<span class="sourceLineNo">278</span>                blockEncoder = new BlockOutputStream(out, filters, check);<a name="line.278"></a>
-<span class="sourceLineNo">279</span><a name="line.279"></a>
-<span class="sourceLineNo">280</span>            blockEncoder.write(buf, off, len);<a name="line.280"></a>
-<span class="sourceLineNo">281</span>        } catch (IOException e) {<a name="line.281"></a>
-<span class="sourceLineNo">282</span>            exception = e;<a name="line.282"></a>
-<span class="sourceLineNo">283</span>            throw e;<a name="line.283"></a>
-<span class="sourceLineNo">284</span>        }<a name="line.284"></a>
-<span class="sourceLineNo">285</span>    }<a name="line.285"></a>
-<span class="sourceLineNo">286</span><a name="line.286"></a>
-<span class="sourceLineNo">287</span>    /**<a name="line.287"></a>
-<span class="sourceLineNo">288</span>     * Finishes the current XZ Block (but not the whole XZ Stream).<a name="line.288"></a>
-<span class="sourceLineNo">289</span>     * This doesn't flush the stream so it's possible that not all data will<a name="line.289"></a>
-<span class="sourceLineNo">290</span>     * be decompressible from the output stream when this function returns.<a name="line.290"></a>
-<span class="sourceLineNo">291</span>     * Call also &lt;code&gt;flush()&lt;/code&gt; if flushing is wanted in addition to<a name="line.291"></a>
-<span class="sourceLineNo">292</span>     * finishing the current XZ Block.<a name="line.292"></a>
-<span class="sourceLineNo">293</span>     * &lt;p&gt;<a name="line.293"></a>
-<span class="sourceLineNo">294</span>     * If there is no unfinished Block open, this function will do nothing.<a name="line.294"></a>
-<span class="sourceLineNo">295</span>     * (No empty XZ Block will be created.)<a name="line.295"></a>
-<span class="sourceLineNo">296</span>     * &lt;p&gt;<a name="line.296"></a>
-<span class="sourceLineNo">297</span>     * This function can be useful, for example, to create<a name="line.297"></a>
-<span class="sourceLineNo">298</span>     * random-accessible .xz files.<a name="line.298"></a>
-<span class="sourceLineNo">299</span>     * &lt;p&gt;<a name="line.299"></a>
-<span class="sourceLineNo">300</span>     * Starting a new XZ Block means that the encoder state is reset.<a name="line.300"></a>
-<span class="sourceLineNo">301</span>     * Doing this very often will increase the size of the compressed<a name="line.301"></a>
-<span class="sourceLineNo">302</span>     * file a lot (more than plain &lt;code&gt;flush()&lt;/code&gt; would do).<a name="line.302"></a>
-<span class="sourceLineNo">303</span>     *<a name="line.303"></a>
-<span class="sourceLineNo">304</span>     * @throws      XZIOException<a name="line.304"></a>
-<span class="sourceLineNo">305</span>     *                          XZ Stream has grown too big<a name="line.305"></a>
-<span class="sourceLineNo">306</span>     *<a name="line.306"></a>
-<span class="sourceLineNo">307</span>     * @throws      XZIOException<a name="line.307"></a>
-<span class="sourceLineNo">308</span>     *                          stream finished or closed<a name="line.308"></a>
-<span class="sourceLineNo">309</span>     *<a name="line.309"></a>
-<span class="sourceLineNo">310</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.310"></a>
-<span class="sourceLineNo">311</span>     */<a name="line.311"></a>
-<span class="sourceLineNo">312</span>    public void endBlock() throws IOException {<a name="line.312"></a>
-<span class="sourceLineNo">313</span>        if (exception != null)<a name="line.313"></a>
-<span class="sourceLineNo">314</span>            throw exception;<a name="line.314"></a>
-<span class="sourceLineNo">315</span><a name="line.315"></a>
-<span class="sourceLineNo">316</span>        if (finished)<a name="line.316"></a>
-<span class="sourceLineNo">317</span>            throw new XZIOException("Stream finished or closed");<a name="line.317"></a>
-<span class="sourceLineNo">318</span><a name="line.318"></a>
-<span class="sourceLineNo">319</span>        // NOTE: Once there is threading with multiple Blocks, it's possible<a name="line.319"></a>
-<span class="sourceLineNo">320</span>        // that this function will be more like a barrier that returns<a name="line.320"></a>
-<span class="sourceLineNo">321</span>        // before the last Block has been finished.<a name="line.321"></a>
-<span class="sourceLineNo">322</span>        if (blockEncoder != null) {<a name="line.322"></a>
-<span class="sourceLineNo">323</span>            try {<a name="line.323"></a>
-<span class="sourceLineNo">324</span>                blockEncoder.finish();<a name="line.324"></a>
-<span class="sourceLineNo">325</span>                index.add(blockEncoder.getUnpaddedSize(),<a name="line.325"></a>
-<span class="sourceLineNo">326</span>                          blockEncoder.getUncompressedSize());<a name="line.326"></a>
-<span class="sourceLineNo">327</span>                blockEncoder = null;<a name="line.327"></a>
-<span class="sourceLineNo">328</span>            } catch (IOException e) {<a name="line.328"></a>
-<span class="sourceLineNo">329</span>                exception = e;<a name="line.329"></a>
-<span class="sourceLineNo">330</span>                throw e;<a name="line.330"></a>
-<span class="sourceLineNo">331</span>            }<a name="line.331"></a>
-<span class="sourceLineNo">332</span>        }<a name="line.332"></a>
-<span class="sourceLineNo">333</span>    }<a name="line.333"></a>
-<span class="sourceLineNo">334</span><a name="line.334"></a>
-<span class="sourceLineNo">335</span>    /**<a name="line.335"></a>
-<span class="sourceLineNo">336</span>     * Flushes the encoder and calls &lt;code&gt;out.flush()&lt;/code&gt;.<a name="line.336"></a>
-<span class="sourceLineNo">337</span>     * All buffered pending data will then be decompressible from<a name="line.337"></a>
-<span class="sourceLineNo">338</span>     * the output stream.<a name="line.338"></a>
-<span class="sourceLineNo">339</span>     * &lt;p&gt;<a name="line.339"></a>
-<span class="sourceLineNo">340</span>     * Calling this function very often may increase the compressed<a name="line.340"></a>
-<span class="sourceLineNo">341</span>     * file size a lot. The filter chain options may affect the size<a name="line.341"></a>
-<span class="sourceLineNo">342</span>     * increase too. For example, with LZMA2 the HC4 match finder has<a name="line.342"></a>
-<span class="sourceLineNo">343</span>     * smaller penalty with flushing than BT4.<a name="line.343"></a>
-<span class="sourceLineNo">344</span>     * &lt;p&gt;<a name="line.344"></a>
-<span class="sourceLineNo">345</span>     * Some filters don't support flushing. If the filter chain has<a name="line.345"></a>
-<span class="sourceLineNo">346</span>     * such a filter, &lt;code&gt;flush()&lt;/code&gt; will call &lt;code&gt;endBlock()&lt;/code&gt;<a name="line.346"></a>
-<span class="sourceLineNo">347</span>     * before flushing.<a name="line.347"></a>
-<span class="sourceLineNo">348</span>     *<a name="line.348"></a>
-<span class="sourceLineNo">349</span>     * @throws      XZIOException<a name="line.349"></a>
-<span class="sourceLineNo">350</span>     *                          XZ Stream has grown too big<a name="line.350"></a>
-<span class="sourceLineNo">351</span>     *<a name="line.351"></a>
-<span class="sourceLineNo">352</span>     * @throws      XZIOException<a name="line.352"></a>
-<span class="sourceLineNo">353</span>     *                          stream finished or closed<a name="line.353"></a>
-<span class="sourceLineNo">354</span>     *<a name="line.354"></a>
-<span class="sourceLineNo">355</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.355"></a>
+<span class="sourceLineNo">242</span>            blockEncoder.write(buf, off, len);<a name="line.242"></a>
+<span class="sourceLineNo">243</span>        } catch (IOException e) {<a name="line.243"></a>
+<span class="sourceLineNo">244</span>            exception = e;<a name="line.244"></a>
+<span class="sourceLineNo">245</span>            throw e;<a name="line.245"></a>
+<span class="sourceLineNo">246</span>        }<a name="line.246"></a>
+<span class="sourceLineNo">247</span>    }<a name="line.247"></a>
+<span class="sourceLineNo">248</span><a name="line.248"></a>
+<span class="sourceLineNo">249</span>    /**<a name="line.249"></a>
+<span class="sourceLineNo">250</span>     * Finishes the current XZ Block (but not the whole XZ Stream).<a name="line.250"></a>
+<span class="sourceLineNo">251</span>     * This doesn't flush the stream so it's possible that not all data will<a name="line.251"></a>
+<span class="sourceLineNo">252</span>     * be decompressible from the output stream when this function returns.<a name="line.252"></a>
+<span class="sourceLineNo">253</span>     * Call also &lt;code&gt;flush()&lt;/code&gt; if flushing is wanted in addition to<a name="line.253"></a>
+<span class="sourceLineNo">254</span>     * finishing the current XZ Block.<a name="line.254"></a>
+<span class="sourceLineNo">255</span>     * &lt;p/&gt;<a name="line.255"></a>
+<span class="sourceLineNo">256</span>     * If there is no unfinished Block open, this function will do nothing.<a name="line.256"></a>
+<span class="sourceLineNo">257</span>     * (No empty XZ Block will be created.)<a name="line.257"></a>
+<span class="sourceLineNo">258</span>     * &lt;p/&gt;<a name="line.258"></a>
+<span class="sourceLineNo">259</span>     * This function can be useful, for example, to create<a name="line.259"></a>
+<span class="sourceLineNo">260</span>     * random-accessible .xz files.<a name="line.260"></a>
+<span class="sourceLineNo">261</span>     * &lt;p/&gt;<a name="line.261"></a>
+<span class="sourceLineNo">262</span>     * Starting a new XZ Block means that the encoder state is reset.<a name="line.262"></a>
+<span class="sourceLineNo">263</span>     * Doing this very often will increase the size of the compressed<a name="line.263"></a>
+<span class="sourceLineNo">264</span>     * file a lot (more than plain &lt;code&gt;flush()&lt;/code&gt; would do).<a name="line.264"></a>
+<span class="sourceLineNo">265</span>     *<a name="line.265"></a>
+<span class="sourceLineNo">266</span>     * @throws XZIOException       XZ Stream has grown too big<a name="line.266"></a>
+<span class="sourceLineNo">267</span>     * @throws XZIOException       stream finished or closed<a name="line.267"></a>
+<span class="sourceLineNo">268</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.268"></a>
+<span class="sourceLineNo">269</span>     */<a name="line.269"></a>
+<span class="sourceLineNo">270</span>    public void endBlock() throws IOException {<a name="line.270"></a>
+<span class="sourceLineNo">271</span>        if (exception != null) {<a name="line.271"></a>
+<span class="sourceLineNo">272</span>            throw exception;<a name="line.272"></a>
+<span class="sourceLineNo">273</span>        }<a name="line.273"></a>
+<span class="sourceLineNo">274</span><a name="line.274"></a>
+<span class="sourceLineNo">275</span>        if (finished) {<a name="line.275"></a>
+<span class="sourceLineNo">276</span>            throw new XZIOException("Stream finished or closed");<a name="line.276"></a>
+<span class="sourceLineNo">277</span>        }<a name="line.277"></a>
+<span class="sourceLineNo">278</span><a name="line.278"></a>
+<span class="sourceLineNo">279</span>        // NOTE: Once there is threading with multiple Blocks, it's possible<a name="line.279"></a>
+<span class="sourceLineNo">280</span>        // that this function will be more like a barrier that returns<a name="line.280"></a>
+<span class="sourceLineNo">281</span>        // before the last Block has been finished.<a name="line.281"></a>
+<span class="sourceLineNo">282</span>        if (blockEncoder != null) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>            try {<a name="line.283"></a>
+<span class="sourceLineNo">284</span>                blockEncoder.finish();<a name="line.284"></a>
+<span class="sourceLineNo">285</span>                index.add(blockEncoder.getUnpaddedSize(),<a name="line.285"></a>
+<span class="sourceLineNo">286</span>                        blockEncoder.getUncompressedSize());<a name="line.286"></a>
+<span class="sourceLineNo">287</span>                blockEncoder = null;<a name="line.287"></a>
+<span class="sourceLineNo">288</span>            } catch (IOException e) {<a name="line.288"></a>
+<span class="sourceLineNo">289</span>                exception = e;<a name="line.289"></a>
+<span class="sourceLineNo">290</span>                throw e;<a name="line.290"></a>
+<span class="sourceLineNo">291</span>            }<a name="line.291"></a>
+<span class="sourceLineNo">292</span>        }<a name="line.292"></a>
+<span class="sourceLineNo">293</span>    }<a name="line.293"></a>
+<span class="sourceLineNo">294</span><a name="line.294"></a>
+<span class="sourceLineNo">295</span>    /**<a name="line.295"></a>
+<span class="sourceLineNo">296</span>     * Flushes the encoder and calls &lt;code&gt;out.flush()&lt;/code&gt;.<a name="line.296"></a>
+<span class="sourceLineNo">297</span>     * All buffered pending data will then be decompressible from<a name="line.297"></a>
+<span class="sourceLineNo">298</span>     * the output stream.<a name="line.298"></a>
+<span class="sourceLineNo">299</span>     * &lt;p/&gt;<a name="line.299"></a>
+<span class="sourceLineNo">300</span>     * Calling this function very often may increase the compressed<a name="line.300"></a>
+<span class="sourceLineNo">301</span>     * file size a lot. The filter chain options may affect the size<a name="line.301"></a>
+<span class="sourceLineNo">302</span>     * increase too. For example, with LZMA2 the HC4 match finder has<a name="line.302"></a>
+<span class="sourceLineNo">303</span>     * smaller penalty with flushing than BT4.<a name="line.303"></a>
+<span class="sourceLineNo">304</span>     * &lt;p/&gt;<a name="line.304"></a>
+<span class="sourceLineNo">305</span>     * Some filters don't support flushing. If the filter chain has<a name="line.305"></a>
+<span class="sourceLineNo">306</span>     * such a filter, &lt;code&gt;flush()&lt;/code&gt; will call &lt;code&gt;endBlock()&lt;/code&gt;<a name="line.306"></a>
+<span class="sourceLineNo">307</span>     * before flushing.<a name="line.307"></a>
+<span class="sourceLineNo">308</span>     *<a name="line.308"></a>
+<span class="sourceLineNo">309</span>     * @throws XZIOException       XZ Stream has grown too big<a name="line.309"></a>
+<span class="sourceLineNo">310</span>     * @throws XZIOException       stream finished or closed<a name="line.310"></a>
+<span class="sourceLineNo">311</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.311"></a>
+<span class="sourceLineNo">312</span>     */<a name="line.312"></a>
+<span class="sourceLineNo">313</span>    public void flush() throws IOException {<a name="line.313"></a>
+<span class="sourceLineNo">314</span>        if (exception != null) {<a name="line.314"></a>
+<span class="sourceLineNo">315</span>            throw exception;<a name="line.315"></a>
+<span class="sourceLineNo">316</span>        }<a name="line.316"></a>
+<span class="sourceLineNo">317</span><a name="line.317"></a>
+<span class="sourceLineNo">318</span>        if (finished) {<a name="line.318"></a>
+<span class="sourceLineNo">319</span>            throw new XZIOException("Stream finished or closed");<a name="line.319"></a>
+<span class="sourceLineNo">320</span>        }<a name="line.320"></a>
+<span class="sourceLineNo">321</span><a name="line.321"></a>
+<span class="sourceLineNo">322</span>        try {<a name="line.322"></a>
+<span class="sourceLineNo">323</span>            if (blockEncoder != null) {<a name="line.323"></a>
+<span class="sourceLineNo">324</span>                if (filtersSupportFlushing) {<a name="line.324"></a>
+<span class="sourceLineNo">325</span>                    // This will eventually call out.flush() so<a name="line.325"></a>
+<span class="sourceLineNo">326</span>                    // no need to do it here again.<a name="line.326"></a>
+<span class="sourceLineNo">327</span>                    blockEncoder.flush();<a name="line.327"></a>
+<span class="sourceLineNo">328</span>                } else {<a name="line.328"></a>
+<span class="sourceLineNo">329</span>                    endBlock();<a name="line.329"></a>
+<span class="sourceLineNo">330</span>                    out.flush();<a name="line.330"></a>
+<span class="sourceLineNo">331</span>                }<a name="line.331"></a>
+<span class="sourceLineNo">332</span>            } else {<a name="line.332"></a>
+<span class="sourceLineNo">333</span>                out.flush();<a name="line.333"></a>
+<span class="sourceLineNo">334</span>            }<a name="line.334"></a>
+<span class="sourceLineNo">335</span>        } catch (IOException e) {<a name="line.335"></a>
+<span class="sourceLineNo">336</span>            exception = e;<a name="line.336"></a>
+<span class="sourceLineNo">337</span>            throw e;<a name="line.337"></a>
+<span class="sourceLineNo">338</span>        }<a name="line.338"></a>
+<span class="sourceLineNo">339</span>    }<a name="line.339"></a>
+<span class="sourceLineNo">340</span><a name="line.340"></a>
+<span class="sourceLineNo">341</span>    /**<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     * Finishes compression without closing the underlying stream.<a name="line.342"></a>
+<span class="sourceLineNo">343</span>     * No more data can be written to this stream after finishing<a name="line.343"></a>
+<span class="sourceLineNo">344</span>     * (calling &lt;code&gt;write&lt;/code&gt; with an empty buffer is OK).<a name="line.344"></a>
+<span class="sourceLineNo">345</span>     * &lt;p/&gt;<a name="line.345"></a>
+<span class="sourceLineNo">346</span>     * Repeated calls to &lt;code&gt;finish()&lt;/code&gt; do nothing unless<a name="line.346"></a>
+<span class="sourceLineNo">347</span>     * an exception was thrown by this stream earlier. In that case<a name="line.347"></a>
+<span class="sourceLineNo">348</span>     * the same exception is thrown again.<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     * &lt;p/&gt;<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     * After finishing, the stream may be closed normally with<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     * &lt;code&gt;close()&lt;/code&gt;. If the stream will be closed anyway, there<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     * usually is no need to call &lt;code&gt;finish()&lt;/code&gt; separately.<a name="line.352"></a>
+<span class="sourceLineNo">353</span>     *<a name="line.353"></a>
+<span class="sourceLineNo">354</span>     * @throws XZIOException       XZ Stream has grown too big<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.355"></a>
 <span class="sourceLineNo">356</span>     */<a name="line.356"></a>
-<span class="sourceLineNo">357</span>    public void flush() throws IOException {<a name="line.357"></a>
-<span class="sourceLineNo">358</span>        if (exception != null)<a name="line.358"></a>
-<span class="sourceLineNo">359</span>            throw exception;<a name="line.359"></a>
-<span class="sourceLineNo">360</span><a name="line.360"></a>
-<span class="sourceLineNo">361</span>        if (finished)<a name="line.361"></a>
-<span class="sourceLineNo">362</span>            throw new XZIOException("Stream finished or closed");<a name="line.362"></a>
-<span class="sourceLineNo">363</span><a name="line.363"></a>
-<span class="sourceLineNo">364</span>        try {<a name="line.364"></a>
-<span class="sourceLineNo">365</span>            if (blockEncoder != null) {<a name="line.365"></a>
-<span class="sourceLineNo">366</span>                if (filtersSupportFlushing) {<a name="line.366"></a>
-<span class="sourceLineNo">367</span>                    // This will eventually call out.flush() so<a name="line.367"></a>
-<span class="sourceLineNo">368</span>                    // no need to do it here again.<a name="line.368"></a>
-<span class="sourceLineNo">369</span>                    blockEncoder.flush();<a name="line.369"></a>
-<span class="sourceLineNo">370</span>                } else {<a name="line.370"></a>
-<span class="sourceLineNo">371</span>                    endBlock();<a name="line.371"></a>
-<span class="sourceLineNo">372</span>                    out.flush();<a name="line.372"></a>
-<span class="sourceLineNo">373</span>                }<a name="line.373"></a>
-<span class="sourceLineNo">374</span>            } else {<a name="line.374"></a>
-<span class="sourceLineNo">375</span>                out.flush();<a name="line.375"></a>
-<span class="sourceLineNo">376</span>            }<a name="line.376"></a>
-<span class="sourceLineNo">377</span>        } catch (IOException e) {<a name="line.377"></a>
-<span class="sourceLineNo">378</span>            exception = e;<a name="line.378"></a>
-<span class="sourceLineNo">379</span>            throw e;<a name="line.379"></a>
-<span class="sourceLineNo">380</span>        }<a name="line.380"></a>
-<span class="sourceLineNo">381</span>    }<a name="line.381"></a>
-<span class="sourceLineNo">382</span><a name="line.382"></a>
-<span class="sourceLineNo">383</span>    /**<a name="line.383"></a>
-<span class="sourceLineNo">384</span>     * Finishes compression without closing the underlying stream.<a name="line.384"></a>
-<span class="sourceLineNo">385</span>     * No more data can be written to this stream after finishing<a name="line.385"></a>
-<span class="sourceLineNo">386</span>     * (calling &lt;code&gt;write&lt;/code&gt; with an empty buffer is OK).<a name="line.386"></a>
-<span class="sourceLineNo">387</span>     * &lt;p&gt;<a name="line.387"></a>
-<span class="sourceLineNo">388</span>     * Repeated calls to &lt;code&gt;finish()&lt;/code&gt; do nothing unless<a name="line.388"></a>
-<span class="sourceLineNo">389</span>     * an exception was thrown by this stream earlier. In that case<a name="line.389"></a>
-<span class="sourceLineNo">390</span>     * the same exception is thrown again.<a name="line.390"></a>
-<span class="sourceLineNo">391</span>     * &lt;p&gt;<a name="line.391"></a>
-<span class="sourceLineNo">392</span>     * After finishing, the stream may be closed normally with<a name="line.392"></a>
-<span class="sourceLineNo">393</span>     * &lt;code&gt;close()&lt;/code&gt;. If the stream will be closed anyway, there<a name="line.393"></a>
-<span class="sourceLineNo">394</span>     * usually is no need to call &lt;code&gt;finish()&lt;/code&gt; separately.<a name="line.394"></a>
-<span class="sourceLineNo">395</span>     *<a name="line.395"></a>
-<span class="sourceLineNo">396</span>     * @throws      XZIOException<a name="line.396"></a>
-<span class="sourceLineNo">397</span>     *                          XZ Stream has grown too big<a name="line.397"></a>
-<span class="sourceLineNo">398</span>     *<a name="line.398"></a>
-<span class="sourceLineNo">399</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.399"></a>
-<span class="sourceLineNo">400</span>     */<a name="line.400"></a>
-<span class="sourceLineNo">401</span>    public void finish() throws IOException {<a name="line.401"></a>
-<span class="sourceLineNo">402</span>        if (!finished) {<a name="line.402"></a>
-<span class="sourceLineNo">403</span>            // This checks for pending exceptions so we don't need to<a name="line.403"></a>
-<span class="sourceLineNo">404</span>            // worry about it here.<a name="line.404"></a>
-<span class="sourceLineNo">405</span>            endBlock();<a name="line.405"></a>
-<span class="sourceLineNo">406</span><a name="line.406"></a>
-<span class="sourceLineNo">407</span>            try {<a name="line.407"></a>
-<span class="sourceLineNo">408</span>                index.encode(out);<a name="line.408"></a>
-<span class="sourceLineNo">409</span>                encodeStreamFooter();<a name="line.409"></a>
-<span class="sourceLineNo">410</span>            } catch (IOException e) {<a name="line.410"></a>
-<span class="sourceLineNo">411</span>                exception = e;<a name="line.411"></a>
-<span class="sourceLineNo">412</span>                throw e;<a name="line.412"></a>
-<span class="sourceLineNo">413</span>            }<a name="line.413"></a>
-<span class="sourceLineNo">414</span><a name="line.414"></a>
-<span class="sourceLineNo">415</span>            // Set it to true only if everything goes fine. Setting it earlier<a name="line.415"></a>
-<span class="sourceLineNo">416</span>            // would cause repeated calls to finish() do nothing instead of<a name="line.416"></a>
-<span class="sourceLineNo">417</span>            // throwing an exception to indicate an earlier error.<a name="line.417"></a>
-<span class="sourceLineNo">418</span>            finished = true;<a name="line.418"></a>
-<span class="sourceLineNo">419</span>        }<a name="line.419"></a>
-<span class="sourceLineNo">420</span>    }<a name="line.420"></a>
-<span class="sourceLineNo">421</span><a name="line.421"></a>
-<span class="sourceLineNo">422</span>    /**<a name="line.422"></a>
-<span class="sourceLineNo">423</span>     * Finishes compression and closes the underlying stream.<a name="line.423"></a>
-<span class="sourceLineNo">424</span>     * The underlying stream &lt;code&gt;out&lt;/code&gt; is closed even if finishing<a name="line.424"></a>
-<span class="sourceLineNo">425</span>     * fails. If both finishing and closing fail, the exception thrown<a name="line.425"></a>
-<span class="sourceLineNo">426</span>     * by &lt;code&gt;finish()&lt;/code&gt; is thrown and the exception from the failed<a name="line.426"></a>
-<span class="sourceLineNo">427</span>     * &lt;code&gt;out.close()&lt;/code&gt; is lost.<a name="line.427"></a>
-<span class="sourceLineNo">428</span>     *<a name="line.428"></a>
-<span class="sourceLineNo">429</span>     * @throws      XZIOException<a name="line.429"></a>
-<span class="sourceLineNo">430</span>     *                          XZ Stream has grown too big<a name="line.430"></a>
-<span class="sourceLineNo">431</span>     *<a name="line.431"></a>
-<span class="sourceLineNo">432</span>     * @throws      IOException may be thrown by the underlying output stream<a name="line.432"></a>
-<span class="sourceLineNo">433</span>     */<a name="line.433"></a>
-<span class="sourceLineNo">434</span>    public void close() throws IOException {<a name="line.434"></a>
-<span class="sourceLineNo">435</span>        if (out != null) {<a name="line.435"></a>
-<span class="sourceLineNo">436</span>            // If finish() throws an exception, it stores the exception to<a name="line.436"></a>
-<span class="sourceLineNo">437</span>            // the variable "exception". So we can ignore the possible<a name="line.437"></a>
-<span class="sourceLineNo">438</span>            // exception here.<a name="line.438"></a>
-<span class="sourceLineNo">439</span>            try {<a name="line.439"></a>
-<span class="sourceLineNo">440</span>                finish();<a name="line.440"></a>
-<span class="sourceLineNo">441</span>            } catch (IOException e) {}<a name="line.441"></a>
-<span class="sourceLineNo">442</span><a name="line.442"></a>
-<span class="sourceLineNo">443</span>            try {<a name="line.443"></a>
-<span class="sourceLineNo">444</span>                out.close();<a name="line.444"></a>
-<span class="sourceLineNo">445</span>            } catch (IOException e) {<a name="line.445"></a>
-<span class="sourceLineNo">446</span>                // Remember the exception but only if there is no previous<a name="line.446"></a>
-<span class="sourceLineNo">447</span>                // pending exception.<a name="line.447"></a>
-<span class="sourceLineNo">448</span>                if (exception == null)<a name="line.448"></a>
-<span class="sourceLineNo">449</span>                    exception = e;<a name="line.449"></a>
-<span class="sourceLineNo">450</span>            }<a name="line.450"></a>
-<span class="sourceLineNo">451</span><a name="line.451"></a>
-<span class="sourceLineNo">452</span>            out = null;<a name="line.452"></a>
-<span class="sourceLineNo">453</span>        }<a name="line.453"></a>
-<span class="sourceLineNo">454</span><a name="line.454"></a>
-<span class="sourceLineNo">455</span>        if (exception != null)<a name="line.455"></a>
-<span class="sourceLineNo">456</span>            throw exception;<a name="line.456"></a>
-<span class="sourceLineNo">457</span>    }<a name="line.457"></a>
-<span class="sourceLineNo">458</span><a name="line.458"></a>
-<span class="sourceLineNo">459</span>    private void encodeStreamFlags(byte[] buf, int off) {<a name="line.459"></a>
-<span class="sourceLineNo">460</span>        buf[off] = 0x00;<a name="line.460"></a>
-<span class="sourceLineNo">461</span>        buf[off + 1] = (byte)streamFlags.checkType;<a name="line.461"></a>
-<span class="sourceLineNo">462</span>    }<a name="line.462"></a>
-<span class="sourceLineNo">463</span><a name="line.463"></a>
-<span class="sourceLineNo">464</span>    private void encodeStreamHeader() throws IOException {<a name="line.464"></a>
-<span class="sourceLineNo">465</span>        out.write(XZ.HEADER_MAGIC);<a name="line.465"></a>
-<span class="sourceLineNo">466</span><a name="line.466"></a>
-<span class="sourceLineNo">467</span>        byte[] buf = new byte[2];<a name="line.467"></a>
-<span class="sourceLineNo">468</span>        encodeStreamFlags(buf, 0);<a name="line.468"></a>
-<span class="sourceLineNo">469</span>        out.write(buf);<a name="line.469"></a>
-<span class="sourceLineNo">470</span><a name="line.470"></a>
-<span class="sourceLineNo">471</span>        EncoderUtil.writeCRC32(out, buf);<a name="line.471"></a>
-<span class="sourceLineNo">472</span>    }<a name="line.472"></a>
-<span class="sourceLineNo">473</span><a name="line.473"></a>
-<span class="sourceLineNo">474</span>    private void encodeStreamFooter() throws IOException {<a name="line.474"></a>
-<span class="sourceLineNo">475</span>        byte[] buf = new byte[6];<a name="line.475"></a>
-<span class="sourceLineNo">476</span>        long backwardSize = index.getIndexSize() / 4 - 1;<a name="line.476"></a>
-<span class="sourceLineNo">477</span>        for (int i = 0; i &lt; 4; ++i)<a name="line.477"></a>
-<span class="sourceLineNo">478</span>            buf[i] = (byte)(backwardSize &gt;&gt;&gt; (i * 8));<a name="line.478"></a>
-<span class="sourceLineNo">479</span><a name="line.479"></a>
-<span class="sourceLineNo">480</span>        encodeStreamFlags(buf, 4);<a name="line.480"></a>
-<span class="sourceLineNo">481</span><a name="line.481"></a>
-<span class="sourceLineNo">482</span>        EncoderUtil.writeCRC32(out, buf);<a name="line.482"></a>
-<span class="sourceLineNo">483</span>        out.write(buf);<a name="line.483"></a>
-<span class="sourceLineNo">484</span>        out.write(XZ.FOOTER_MAGIC);<a name="line.484"></a>
-<span class="sourceLineNo">485</span>    }<a name="line.485"></a>
-<span class="sourceLineNo">486</span>}<a name="line.486"></a>
+<span class="sourceLineNo">357</span>    public void finish() throws IOException {<a name="line.357"></a>
+<span class="sourceLineNo">358</span>        if (!finished) {<a name="line.358"></a>
+<span class="sourceLineNo">359</span>            // This checks for pending exceptions so we don't need to<a name="line.359"></a>
+<span class="sourceLineNo">360</span>            // worry about it here.<a name="line.360"></a>
+<span class="sourceLineNo">361</span>            endBlock();<a name="line.361"></a>
+<span class="sourceLineNo">362</span><a name="line.362"></a>
+<span class="sourceLineNo">363</span>            try {<a name="line.363"></a>
+<span class="sourceLineNo">364</span>                index.encode(out);<a name="line.364"></a>
+<span class="sourceLineNo">365</span>                encodeStreamFooter();<a name="line.365"></a>
+<span class="sourceLineNo">366</span>            } catch (IOException e) {<a name="line.366"></a>
+<span class="sourceLineNo">367</span>                exception = e;<a name="line.367"></a>
+<span class="sourceLineNo">368</span>                throw e;<a name="line.368"></a>
+<span class="sourceLineNo">369</span>            }<a name="line.369"></a>
+<span class="sourceLineNo">370</span><a name="line.370"></a>
+<span class="sourceLineNo">371</span>            // Set it to true only if everything goes fine. Setting it earlier<a name="line.371"></a>
+<span class="sourceLineNo">372</span>            // would cause repeated calls to finish() do nothing instead of<a name="line.372"></a>
+<span class="sourceLineNo">373</span>            // throwing an exception to indicate an earlier error.<a name="line.373"></a>
+<span class="sourceLineNo">374</span>            finished = true;<a name="line.374"></a>
+<span class="sourceLineNo">375</span>        }<a name="line.375"></a>
+<span class="sourceLineNo">376</span>    }<a name="line.376"></a>
+<span class="sourceLineNo">377</span><a name="line.377"></a>
+<span class="sourceLineNo">378</span>    /**<a name="line.378"></a>
+<span class="sourceLineNo">379</span>     * Finishes compression and closes the underlying stream.<a name="line.379"></a>
+<span class="sourceLineNo">380</span>     * The underlying stream &lt;code&gt;out&lt;/code&gt; is closed even if finishing<a name="line.380"></a>
+<span class="sourceLineNo">381</span>     * fails. If both finishing and closing fail, the exception thrown<a name="line.381"></a>
+<span class="sourceLineNo">382</span>     * by &lt;code&gt;finish()&lt;/code&gt; is thrown and the exception from the failed<a name="line.382"></a>
+<span class="sourceLineNo">383</span>     * &lt;code&gt;out.close()&lt;/code&gt; is lost.<a name="line.383"></a>
+<span class="sourceLineNo">384</span>     *<a name="line.384"></a>
+<span class="sourceLineNo">385</span>     * @throws XZIOException       XZ Stream has grown too big<a name="line.385"></a>
+<span class="sourceLineNo">386</span>     * @throws java.io.IOException may be thrown by the underlying output stream<a name="line.386"></a>
+<span class="sourceLineNo">387</span>     */<a name="line.387"></a>
+<span class="sourceLineNo">388</span>    public void close() throws IOException {<a name="line.388"></a>
+<span class="sourceLineNo">389</span>        if (out != null) {<a name="line.389"></a>
+<span class="sourceLineNo">390</span>            // If finish() throws an exception, it stores the exception to<a name="line.390"></a>
+<span class="sourceLineNo">391</span>            // the variable "exception". So we can ignore the possible<a name="line.391"></a>
+<span class="sourceLineNo">392</span>            // exception here.<a name="line.392"></a>
+<span class="sourceLineNo">393</span>            try {<a name="line.393"></a>
+<span class="sourceLineNo">394</span>                finish();<a name="line.394"></a>
+<span class="sourceLineNo">395</span>            } catch (IOException e) {<a name="line.395"></a>
+<span class="sourceLineNo">396</span>            }<a name="line.396"></a>
+<span class="sourceLineNo">397</span><a name="line.397"></a>
+<span class="sourceLineNo">398</span>            try {<a name="line.398"></a>
+<span class="sourceLineNo">399</span>                out.close();<a name="line.399"></a>
+<span class="sourceLineNo">400</span>            } catch (IOException e) {<a name="line.400"></a>
+<span class="sourceLineNo">401</span>                // Remember the exception but only if there is no previous<a name="line.401"></a>
+<span class="sourceLineNo">402</span>                // pending exception.<a name="line.402"></a>
+<span class="sourceLineNo">403</span>                if (exception == null) {<a name="line.403"></a>
+<span class="sourceLineNo">404</span>                    exception = e;<a name="line.404"></a>
+<span class="sourceLineNo">405</span>                }<a name="line.405"></a>
+<span class="sourceLineNo">406</span>            }<a name="line.406"></a>
+<span class="sourceLineNo">407</span><a name="line.407"></a>
+<span class="sourceLineNo">408</span>            out = null;<a name="line.408"></a>
+<span class="sourceLineNo">409</span>        }<a name="line.409"></a>
+<span class="sourceLineNo">410</span><a name="line.410"></a>
+<span class="sourceLineNo">411</span>        if (exception != null) {<a name="line.411"></a>
+<span class="sourceLineNo">412</span>            throw exception;<a name="line.412"></a>
+<span class="sourceLineNo">413</span>        }<a name="line.413"></a>
+<span class="sourceLineNo">414</span>    }<a name="line.414"></a>
+<span class="sourceLineNo">415</span><a name="line.415"></a>
+<span class="sourceLineNo">416</span>    private void encodeStreamFlags(byte[] buf, int off) {<a name="line.416"></a>
+<span class="sourceLineNo">417</span>        buf[off] = 0x00;<a name="line.417"></a>
+<span class="sourceLineNo">418</span>        buf[off + 1] = (byte) streamFlags.checkType;<a name="line.418"></a>
+<span class="sourceLineNo">419</span>    }<a name="line.419"></a>
+<span class="sourceLineNo">420</span><a name="line.420"></a>
+<span class="sourceLineNo">421</span>    private void encodeStreamHeader() throws IOException {<a name="line.421"></a>
+<span class="sourceLineNo">422</span>        out.write(XZ.HEADER_MAGIC);<a name="line.422"></a>
+<span class="sourceLineNo">423</span><a name="line.423"></a>
+<span class="sourceLineNo">424</span>        byte[] buf = new byte[2];<a name="line.424"></a>
+<span class="sourceLineNo">425</span>        encodeStreamFlags(buf, 0);<a name="line.425"></a>
+<span class="sourceLineNo">426</span>        out.write(buf);<a name="line.426"></a>
+<span class="sourceLineNo">427</span><a name="line.427"></a>
+<span class="sourceLineNo">428</span>        EncoderUtil.writeCRC32(out, buf);<a name="line.428"></a>
+<span class="sourceLineNo">429</span>    }<a name="line.429"></a>
+<span class="sourceLineNo">430</span><a name="line.430"></a>
+<span class="sourceLineNo">431</span>    private void encodeStreamFooter() throws IOException {<a name="line.431"></a>
+<span class="sourceLineNo">432</span>        byte[] buf = new byte[6];<a name="line.432"></a>
+<span class="sourceLineNo">433</span>        long backwardSize = index.getIndexSize() / 4 - 1;<a name="line.433"></a>
+<span class="sourceLineNo">434</span>        for (int i = 0; i &lt; 4; ++i) {<a name="line.434"></a>
+<span class="sourceLineNo">435</span>            buf[i] = (byte) (backwardSize &gt;&gt;&gt; (i * 8));<a name="line.435"></a>
+<span class="sourceLineNo">436</span>        }<a name="line.436"></a>
+<span class="sourceLineNo">437</span><a name="line.437"></a>
+<span class="sourceLineNo">438</span>        encodeStreamFlags(buf, 4);<a name="line.438"></a>
+<span class="sourceLineNo">439</span><a name="line.439"></a>
+<span class="sourceLineNo">440</span>        EncoderUtil.writeCRC32(out, buf);<a name="line.440"></a>
+<span class="sourceLineNo">441</span>        out.write(buf);<a name="line.441"></a>
+<span class="sourceLineNo">442</span>        out.write(XZ.FOOTER_MAGIC);<a name="line.442"></a>
+<span class="sourceLineNo">443</span>    }<a name="line.443"></a>
+<span class="sourceLineNo">444</span>}<a name="line.444"></a>
 
 
 

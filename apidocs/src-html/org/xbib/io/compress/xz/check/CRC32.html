@@ -6,39 +6,31 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
-<span class="sourceLineNo">002</span> * CRC32<a name="line.2"></a>
-<span class="sourceLineNo">003</span> *<a name="line.3"></a>
-<span class="sourceLineNo">004</span> * Author: Lasse Collin &lt;lasse.collin@tukaani.org&gt;<a name="line.4"></a>
-<span class="sourceLineNo">005</span> *<a name="line.5"></a>
-<span class="sourceLineNo">006</span> * This file has been put into the public domain.<a name="line.6"></a>
-<span class="sourceLineNo">007</span> * You can do whatever you want with this file.<a name="line.7"></a>
-<span class="sourceLineNo">008</span> */<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>package org.xbib.io.compress.xz.check;<a name="line.10"></a>
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.check;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>public class CRC32 extends Check {<a name="line.4"></a>
+<span class="sourceLineNo">005</span>    private final java.util.zip.CRC32 state = new java.util.zip.CRC32();<a name="line.5"></a>
+<span class="sourceLineNo">006</span><a name="line.6"></a>
+<span class="sourceLineNo">007</span>    public CRC32() {<a name="line.7"></a>
+<span class="sourceLineNo">008</span>        size = 4;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>        name = "CRC32";<a name="line.9"></a>
+<span class="sourceLineNo">010</span>    }<a name="line.10"></a>
 <span class="sourceLineNo">011</span><a name="line.11"></a>
-<span class="sourceLineNo">012</span>public class CRC32 extends Check {<a name="line.12"></a>
-<span class="sourceLineNo">013</span>    private final java.util.zip.CRC32 state = new java.util.zip.CRC32();<a name="line.13"></a>
-<span class="sourceLineNo">014</span><a name="line.14"></a>
-<span class="sourceLineNo">015</span>    public CRC32() {<a name="line.15"></a>
-<span class="sourceLineNo">016</span>        size = 4;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>        name = "CRC32";<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    }<a name="line.18"></a>
-<span class="sourceLineNo">019</span><a name="line.19"></a>
-<span class="sourceLineNo">020</span>    public void update(byte[] buf, int off, int len) {<a name="line.20"></a>
-<span class="sourceLineNo">021</span>        state.update(buf, off, len);<a name="line.21"></a>
-<span class="sourceLineNo">022</span>    }<a name="line.22"></a>
-<span class="sourceLineNo">023</span><a name="line.23"></a>
-<span class="sourceLineNo">024</span>    public byte[] finish() {<a name="line.24"></a>
-<span class="sourceLineNo">025</span>        long value = state.getValue();<a name="line.25"></a>
-<span class="sourceLineNo">026</span>        byte[] buf = new byte[] { (byte)(value),<a name="line.26"></a>
-<span class="sourceLineNo">027</span>                                  (byte)(value &gt;&gt;&gt; 8),<a name="line.27"></a>
-<span class="sourceLineNo">028</span>                                  (byte)(value &gt;&gt;&gt; 16),<a name="line.28"></a>
-<span class="sourceLineNo">029</span>                                  (byte)(value &gt;&gt;&gt; 24) };<a name="line.29"></a>
-<span class="sourceLineNo">030</span>        state.reset();<a name="line.30"></a>
-<span class="sourceLineNo">031</span>        return buf;<a name="line.31"></a>
-<span class="sourceLineNo">032</span>    }<a name="line.32"></a>
-<span class="sourceLineNo">033</span>}<a name="line.33"></a>
+<span class="sourceLineNo">012</span>    public void update(byte[] buf, int off, int len) {<a name="line.12"></a>
+<span class="sourceLineNo">013</span>        state.update(buf, off, len);<a name="line.13"></a>
+<span class="sourceLineNo">014</span>    }<a name="line.14"></a>
+<span class="sourceLineNo">015</span><a name="line.15"></a>
+<span class="sourceLineNo">016</span>    public byte[] finish() {<a name="line.16"></a>
+<span class="sourceLineNo">017</span>        long value = state.getValue();<a name="line.17"></a>
+<span class="sourceLineNo">018</span>        byte[] buf = new byte[]{(byte) (value),<a name="line.18"></a>
+<span class="sourceLineNo">019</span>                (byte) (value &gt;&gt;&gt; 8),<a name="line.19"></a>
+<span class="sourceLineNo">020</span>                (byte) (value &gt;&gt;&gt; 16),<a name="line.20"></a>
+<span class="sourceLineNo">021</span>                (byte) (value &gt;&gt;&gt; 24)};<a name="line.21"></a>
+<span class="sourceLineNo">022</span>        state.reset();<a name="line.22"></a>
+<span class="sourceLineNo">023</span>        return buf;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>    }<a name="line.24"></a>
+<span class="sourceLineNo">025</span>}<a name="line.25"></a>
 
 
 

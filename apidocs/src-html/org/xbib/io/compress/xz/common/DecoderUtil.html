@@ -6,80 +6,80 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
-<span class="sourceLineNo">002</span> * DecoderUtil<a name="line.2"></a>
-<span class="sourceLineNo">003</span> *<a name="line.3"></a>
-<span class="sourceLineNo">004</span> * Author: Lasse Collin &lt;lasse.collin@tukaani.org&gt;<a name="line.4"></a>
-<span class="sourceLineNo">005</span> *<a name="line.5"></a>
-<span class="sourceLineNo">006</span> * This file has been put into the public domain.<a name="line.6"></a>
-<span class="sourceLineNo">007</span> * You can do whatever you want with this file.<a name="line.7"></a>
-<span class="sourceLineNo">008</span> */<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>package org.xbib.io.compress.xz.common;<a name="line.10"></a>
-<span class="sourceLineNo">011</span><a name="line.11"></a>
-<span class="sourceLineNo">012</span>import java.io.InputStream;<a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.io.IOException;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>import java.io.EOFException;<a name="line.14"></a>
-<span class="sourceLineNo">015</span>import java.util.zip.CRC32;<a name="line.15"></a>
-<span class="sourceLineNo">016</span>import org.xbib.io.compress.xz.XZ;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>import org.xbib.io.compress.xz.XZFormatException;<a name="line.17"></a>
-<span class="sourceLineNo">018</span>import org.xbib.io.compress.xz.CorruptedInputException;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>import org.xbib.io.compress.xz.UnsupportedOptionsException;<a name="line.19"></a>
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.common;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.CorruptedInputException;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.UnsupportedOptionsException;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.xbib.io.compress.xz.XZ;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import org.xbib.io.compress.xz.XZFormatException;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.EOFException;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.io.IOException;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.io.InputStream;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import java.util.zip.CRC32;<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>public class DecoderUtil extends Util {<a name="line.14"></a>
+<span class="sourceLineNo">015</span>    public static boolean isCRC32Valid(byte[] buf, int off, int len,<a name="line.15"></a>
+<span class="sourceLineNo">016</span>                                       int ref_off) {<a name="line.16"></a>
+<span class="sourceLineNo">017</span>        CRC32 crc32 = new CRC32();<a name="line.17"></a>
+<span class="sourceLineNo">018</span>        crc32.update(buf, off, len);<a name="line.18"></a>
+<span class="sourceLineNo">019</span>        long value = crc32.getValue();<a name="line.19"></a>
 <span class="sourceLineNo">020</span><a name="line.20"></a>
-<span class="sourceLineNo">021</span>public class DecoderUtil extends Util {<a name="line.21"></a>
-<span class="sourceLineNo">022</span>    public static boolean isCRC32Valid(byte[] buf, int off, int len,<a name="line.22"></a>
-<span class="sourceLineNo">023</span>                                       int ref_off) {<a name="line.23"></a>
-<span class="sourceLineNo">024</span>        CRC32 crc32 = new CRC32();<a name="line.24"></a>
-<span class="sourceLineNo">025</span>        crc32.update(buf, off, len);<a name="line.25"></a>
-<span class="sourceLineNo">026</span>        long value = crc32.getValue();<a name="line.26"></a>
-<span class="sourceLineNo">027</span><a name="line.27"></a>
-<span class="sourceLineNo">028</span>        for (int i = 0; i &lt; 4; ++i)<a name="line.28"></a>
-<span class="sourceLineNo">029</span>            if ((byte)(value &gt;&gt;&gt; (i * 8)) != buf[ref_off + i])<a name="line.29"></a>
-<span class="sourceLineNo">030</span>                return false;<a name="line.30"></a>
-<span class="sourceLineNo">031</span><a name="line.31"></a>
-<span class="sourceLineNo">032</span>        return true;<a name="line.32"></a>
-<span class="sourceLineNo">033</span>    }<a name="line.33"></a>
-<span class="sourceLineNo">034</span><a name="line.34"></a>
-<span class="sourceLineNo">035</span>    public static StreamFlags decodeStreamHeader(byte[] buf)<a name="line.35"></a>
-<span class="sourceLineNo">036</span>            throws IOException {<a name="line.36"></a>
-<span class="sourceLineNo">037</span>        for (int i = 0; i &lt; XZ.HEADER_MAGIC.length; ++i)<a name="line.37"></a>
-<span class="sourceLineNo">038</span>            if (buf[i] != XZ.HEADER_MAGIC[i])<a name="line.38"></a>
-<span class="sourceLineNo">039</span>                throw new XZFormatException();<a name="line.39"></a>
-<span class="sourceLineNo">040</span><a name="line.40"></a>
-<span class="sourceLineNo">041</span>        if (!isCRC32Valid(buf, XZ.HEADER_MAGIC.length, 2,<a name="line.41"></a>
-<span class="sourceLineNo">042</span>                          XZ.HEADER_MAGIC.length + 2))<a name="line.42"></a>
-<span class="sourceLineNo">043</span>            throw new CorruptedInputException("XZ Stream Header is corrupt");<a name="line.43"></a>
-<span class="sourceLineNo">044</span><a name="line.44"></a>
-<span class="sourceLineNo">045</span>        try {<a name="line.45"></a>
-<span class="sourceLineNo">046</span>            return decodeStreamFlags(buf, XZ.HEADER_MAGIC.length);<a name="line.46"></a>
-<span class="sourceLineNo">047</span>        } catch (UnsupportedOptionsException e) {<a name="line.47"></a>
-<span class="sourceLineNo">048</span>            throw new UnsupportedOptionsException(<a name="line.48"></a>
-<span class="sourceLineNo">049</span>                    "Unsupported options in XZ Stream Header");<a name="line.49"></a>
-<span class="sourceLineNo">050</span>        }<a name="line.50"></a>
-<span class="sourceLineNo">051</span>    }<a name="line.51"></a>
-<span class="sourceLineNo">052</span><a name="line.52"></a>
-<span class="sourceLineNo">053</span>    public static StreamFlags decodeStreamFooter(byte[] buf)<a name="line.53"></a>
-<span class="sourceLineNo">054</span>            throws IOException {<a name="line.54"></a>
-<span class="sourceLineNo">055</span>        if (buf[10] != XZ.FOOTER_MAGIC[0] || buf[11] != XZ.FOOTER_MAGIC[1]) {<a name="line.55"></a>
-<span class="sourceLineNo">056</span>            // NOTE: The exception could be XZFormatException too.<a name="line.56"></a>
-<span class="sourceLineNo">057</span>            // It depends on the situation which one is better.<a name="line.57"></a>
-<span class="sourceLineNo">058</span>            throw new CorruptedInputException("XZ Stream Footer is corrupt");<a name="line.58"></a>
-<span class="sourceLineNo">059</span>        }<a name="line.59"></a>
-<span class="sourceLineNo">060</span><a name="line.60"></a>
-<span class="sourceLineNo">061</span>        if (!isCRC32Valid(buf, 4, 6, 0))<a name="line.61"></a>
-<span class="sourceLineNo">062</span>            throw new CorruptedInputException("XZ Stream Footer is corrupt");<a name="line.62"></a>
-<span class="sourceLineNo">063</span><a name="line.63"></a>
-<span class="sourceLineNo">064</span>        StreamFlags streamFlags;<a name="line.64"></a>
-<span class="sourceLineNo">065</span>        try {<a name="line.65"></a>
-<span class="sourceLineNo">066</span>            streamFlags = decodeStreamFlags(buf, 8);<a name="line.66"></a>
-<span class="sourceLineNo">067</span>        } catch (UnsupportedOptionsException e) {<a name="line.67"></a>
-<span class="sourceLineNo">068</span>            throw new UnsupportedOptionsException(<a name="line.68"></a>
-<span class="sourceLineNo">069</span>                    "Unsupported options in XZ Stream Footer");<a name="line.69"></a>
-<span class="sourceLineNo">070</span>        }<a name="line.70"></a>
-<span class="sourceLineNo">071</span><a name="line.71"></a>
-<span class="sourceLineNo">072</span>        streamFlags.backwardSize = 0;<a name="line.72"></a>
-<span class="sourceLineNo">073</span>        for (int i = 0; i &lt; 4; ++i)<a name="line.73"></a>
-<span class="sourceLineNo">074</span>            streamFlags.backwardSize |= (buf[i + 4] &amp; 0xFF) &lt;&lt; (i * 8);<a name="line.74"></a>
+<span class="sourceLineNo">021</span>        for (int i = 0; i &lt; 4; ++i) {<a name="line.21"></a>
+<span class="sourceLineNo">022</span>            if ((byte) (value &gt;&gt;&gt; (i * 8)) != buf[ref_off + i]) {<a name="line.22"></a>
+<span class="sourceLineNo">023</span>                return false;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>            }<a name="line.24"></a>
+<span class="sourceLineNo">025</span>        }<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>        return true;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>    }<a name="line.28"></a>
+<span class="sourceLineNo">029</span><a name="line.29"></a>
+<span class="sourceLineNo">030</span>    public static StreamFlags decodeStreamHeader(byte[] buf)<a name="line.30"></a>
+<span class="sourceLineNo">031</span>            throws IOException {<a name="line.31"></a>
+<span class="sourceLineNo">032</span>        for (int i = 0; i &lt; XZ.HEADER_MAGIC.length; ++i) {<a name="line.32"></a>
+<span class="sourceLineNo">033</span>            if (buf[i] != XZ.HEADER_MAGIC[i]) {<a name="line.33"></a>
+<span class="sourceLineNo">034</span>                throw new XZFormatException();<a name="line.34"></a>
+<span class="sourceLineNo">035</span>            }<a name="line.35"></a>
+<span class="sourceLineNo">036</span>        }<a name="line.36"></a>
+<span class="sourceLineNo">037</span><a name="line.37"></a>
+<span class="sourceLineNo">038</span>        if (!isCRC32Valid(buf, XZ.HEADER_MAGIC.length, 2,<a name="line.38"></a>
+<span class="sourceLineNo">039</span>                XZ.HEADER_MAGIC.length + 2)) {<a name="line.39"></a>
+<span class="sourceLineNo">040</span>            throw new CorruptedInputException("XZ Stream Header is corrupt");<a name="line.40"></a>
+<span class="sourceLineNo">041</span>        }<a name="line.41"></a>
+<span class="sourceLineNo">042</span><a name="line.42"></a>
+<span class="sourceLineNo">043</span>        try {<a name="line.43"></a>
+<span class="sourceLineNo">044</span>            return decodeStreamFlags(buf, XZ.HEADER_MAGIC.length);<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        } catch (UnsupportedOptionsException e) {<a name="line.45"></a>
+<span class="sourceLineNo">046</span>            throw new UnsupportedOptionsException(<a name="line.46"></a>
+<span class="sourceLineNo">047</span>                    "Unsupported options in XZ Stream Header");<a name="line.47"></a>
+<span class="sourceLineNo">048</span>        }<a name="line.48"></a>
+<span class="sourceLineNo">049</span>    }<a name="line.49"></a>
+<span class="sourceLineNo">050</span><a name="line.50"></a>
+<span class="sourceLineNo">051</span>    public static StreamFlags decodeStreamFooter(byte[] buf)<a name="line.51"></a>
+<span class="sourceLineNo">052</span>            throws IOException {<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        if (buf[10] != XZ.FOOTER_MAGIC[0] || buf[11] != XZ.FOOTER_MAGIC[1]) {<a name="line.53"></a>
+<span class="sourceLineNo">054</span>            // NOTE: The exception could be XZFormatException too.<a name="line.54"></a>
+<span class="sourceLineNo">055</span>            // It depends on the situation which one is better.<a name="line.55"></a>
+<span class="sourceLineNo">056</span>            throw new CorruptedInputException("XZ Stream Footer is corrupt");<a name="line.56"></a>
+<span class="sourceLineNo">057</span>        }<a name="line.57"></a>
+<span class="sourceLineNo">058</span><a name="line.58"></a>
+<span class="sourceLineNo">059</span>        if (!isCRC32Valid(buf, 4, 6, 0)) {<a name="line.59"></a>
+<span class="sourceLineNo">060</span>            throw new CorruptedInputException("XZ Stream Footer is corrupt");<a name="line.60"></a>
+<span class="sourceLineNo">061</span>        }<a name="line.61"></a>
+<span class="sourceLineNo">062</span><a name="line.62"></a>
+<span class="sourceLineNo">063</span>        StreamFlags streamFlags;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>        try {<a name="line.64"></a>
+<span class="sourceLineNo">065</span>            streamFlags = decodeStreamFlags(buf, 8);<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        } catch (UnsupportedOptionsException e) {<a name="line.66"></a>
+<span class="sourceLineNo">067</span>            throw new UnsupportedOptionsException(<a name="line.67"></a>
+<span class="sourceLineNo">068</span>                    "Unsupported options in XZ Stream Footer");<a name="line.68"></a>
+<span class="sourceLineNo">069</span>        }<a name="line.69"></a>
+<span class="sourceLineNo">070</span><a name="line.70"></a>
+<span class="sourceLineNo">071</span>        streamFlags.backwardSize = 0;<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        for (int i = 0; i &lt; 4; ++i) {<a name="line.72"></a>
+<span class="sourceLineNo">073</span>            streamFlags.backwardSize |= (buf[i + 4] &amp; 0xFF) &lt;&lt; (i * 8);<a name="line.73"></a>
+<span class="sourceLineNo">074</span>        }<a name="line.74"></a>
 <span class="sourceLineNo">075</span><a name="line.75"></a>
 <span class="sourceLineNo">076</span>        streamFlags.backwardSize = (streamFlags.backwardSize + 1) * 4;<a name="line.76"></a>
 <span class="sourceLineNo">077</span><a name="line.77"></a>
@@ -88,45 +88,50 @@
 <span class="sourceLineNo">080</span><a name="line.80"></a>
 <span class="sourceLineNo">081</span>    private static StreamFlags decodeStreamFlags(byte[] buf, int off)<a name="line.81"></a>
 <span class="sourceLineNo">082</span>            throws UnsupportedOptionsException {<a name="line.82"></a>
-<span class="sourceLineNo">083</span>        if (buf[off] != 0x00 || (buf[off + 1] &amp; 0xFF) &gt;= 0x10)<a name="line.83"></a>
+<span class="sourceLineNo">083</span>        if (buf[off] != 0x00 || (buf[off + 1] &amp; 0xFF) &gt;= 0x10) {<a name="line.83"></a>
 <span class="sourceLineNo">084</span>            throw new UnsupportedOptionsException();<a name="line.84"></a>
-<span class="sourceLineNo">085</span><a name="line.85"></a>
-<span class="sourceLineNo">086</span>        StreamFlags streamFlags = new StreamFlags();<a name="line.86"></a>
-<span class="sourceLineNo">087</span>        streamFlags.checkType = buf[off + 1];<a name="line.87"></a>
-<span class="sourceLineNo">088</span><a name="line.88"></a>
-<span class="sourceLineNo">089</span>        return streamFlags;<a name="line.89"></a>
-<span class="sourceLineNo">090</span>    }<a name="line.90"></a>
-<span class="sourceLineNo">091</span><a name="line.91"></a>
-<span class="sourceLineNo">092</span>    public static boolean areStreamFlagsEqual(StreamFlags a, StreamFlags b) {<a name="line.92"></a>
-<span class="sourceLineNo">093</span>        // backwardSize is intentionally not compared.<a name="line.93"></a>
-<span class="sourceLineNo">094</span>        return a.checkType == b.checkType;<a name="line.94"></a>
-<span class="sourceLineNo">095</span>    }<a name="line.95"></a>
-<span class="sourceLineNo">096</span><a name="line.96"></a>
-<span class="sourceLineNo">097</span>    public static long decodeVLI(InputStream in) throws IOException {<a name="line.97"></a>
-<span class="sourceLineNo">098</span>        int b = in.read();<a name="line.98"></a>
-<span class="sourceLineNo">099</span>        if (b == -1)<a name="line.99"></a>
-<span class="sourceLineNo">100</span>            throw new EOFException();<a name="line.100"></a>
-<span class="sourceLineNo">101</span><a name="line.101"></a>
-<span class="sourceLineNo">102</span>        long num = b &amp; 0x7F;<a name="line.102"></a>
-<span class="sourceLineNo">103</span>        int i = 0;<a name="line.103"></a>
-<span class="sourceLineNo">104</span><a name="line.104"></a>
-<span class="sourceLineNo">105</span>        while ((b &amp; 0x80) != 0x00) {<a name="line.105"></a>
-<span class="sourceLineNo">106</span>            if (++i &gt;= VLI_SIZE_MAX)<a name="line.106"></a>
-<span class="sourceLineNo">107</span>                throw new CorruptedInputException();<a name="line.107"></a>
-<span class="sourceLineNo">108</span><a name="line.108"></a>
-<span class="sourceLineNo">109</span>            b = in.read();<a name="line.109"></a>
-<span class="sourceLineNo">110</span>            if (b == -1)<a name="line.110"></a>
-<span class="sourceLineNo">111</span>                throw new EOFException();<a name="line.111"></a>
-<span class="sourceLineNo">112</span><a name="line.112"></a>
-<span class="sourceLineNo">113</span>            if (b == 0x00)<a name="line.113"></a>
-<span class="sourceLineNo">114</span>                throw new CorruptedInputException();<a name="line.114"></a>
-<span class="sourceLineNo">115</span><a name="line.115"></a>
-<span class="sourceLineNo">116</span>            num |= (long)(b &amp; 0x7F) &lt;&lt; (i * 7);<a name="line.116"></a>
-<span class="sourceLineNo">117</span>        }<a name="line.117"></a>
-<span class="sourceLineNo">118</span><a name="line.118"></a>
-<span class="sourceLineNo">119</span>        return num;<a name="line.119"></a>
-<span class="sourceLineNo">120</span>    }<a name="line.120"></a>
-<span class="sourceLineNo">121</span>}<a name="line.121"></a>
+<span class="sourceLineNo">085</span>        }<a name="line.85"></a>
+<span class="sourceLineNo">086</span><a name="line.86"></a>
+<span class="sourceLineNo">087</span>        StreamFlags streamFlags = new StreamFlags();<a name="line.87"></a>
+<span class="sourceLineNo">088</span>        streamFlags.checkType = buf[off + 1];<a name="line.88"></a>
+<span class="sourceLineNo">089</span><a name="line.89"></a>
+<span class="sourceLineNo">090</span>        return streamFlags;<a name="line.90"></a>
+<span class="sourceLineNo">091</span>    }<a name="line.91"></a>
+<span class="sourceLineNo">092</span><a name="line.92"></a>
+<span class="sourceLineNo">093</span>    public static boolean areStreamFlagsEqual(StreamFlags a, StreamFlags b) {<a name="line.93"></a>
+<span class="sourceLineNo">094</span>        // backwardSize is intentionally not compared.<a name="line.94"></a>
+<span class="sourceLineNo">095</span>        return a.checkType == b.checkType;<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    }<a name="line.96"></a>
+<span class="sourceLineNo">097</span><a name="line.97"></a>
+<span class="sourceLineNo">098</span>    public static long decodeVLI(InputStream in) throws IOException {<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        int b = in.read();<a name="line.99"></a>
+<span class="sourceLineNo">100</span>        if (b == -1) {<a name="line.100"></a>
+<span class="sourceLineNo">101</span>            throw new EOFException();<a name="line.101"></a>
+<span class="sourceLineNo">102</span>        }<a name="line.102"></a>
+<span class="sourceLineNo">103</span><a name="line.103"></a>
+<span class="sourceLineNo">104</span>        long num = b &amp; 0x7F;<a name="line.104"></a>
+<span class="sourceLineNo">105</span>        int i = 0;<a name="line.105"></a>
+<span class="sourceLineNo">106</span><a name="line.106"></a>
+<span class="sourceLineNo">107</span>        while ((b &amp; 0x80) != 0x00) {<a name="line.107"></a>
+<span class="sourceLineNo">108</span>            if (++i &gt;= VLI_SIZE_MAX) {<a name="line.108"></a>
+<span class="sourceLineNo">109</span>                throw new CorruptedInputException();<a name="line.109"></a>
+<span class="sourceLineNo">110</span>            }<a name="line.110"></a>
+<span class="sourceLineNo">111</span><a name="line.111"></a>
+<span class="sourceLineNo">112</span>            b = in.read();<a name="line.112"></a>
+<span class="sourceLineNo">113</span>            if (b == -1) {<a name="line.113"></a>
+<span class="sourceLineNo">114</span>                throw new EOFException();<a name="line.114"></a>
+<span class="sourceLineNo">115</span>            }<a name="line.115"></a>
+<span class="sourceLineNo">116</span><a name="line.116"></a>
+<span class="sourceLineNo">117</span>            if (b == 0x00) {<a name="line.117"></a>
+<span class="sourceLineNo">118</span>                throw new CorruptedInputException();<a name="line.118"></a>
+<span class="sourceLineNo">119</span>            }<a name="line.119"></a>
+<span class="sourceLineNo">120</span><a name="line.120"></a>
+<span class="sourceLineNo">121</span>            num |= (long) (b &amp; 0x7F) &lt;&lt; (i * 7);<a name="line.121"></a>
+<span class="sourceLineNo">122</span>        }<a name="line.122"></a>
+<span class="sourceLineNo">123</span><a name="line.123"></a>
+<span class="sourceLineNo">124</span>        return num;<a name="line.124"></a>
+<span class="sourceLineNo">125</span>    }<a name="line.125"></a>
+<span class="sourceLineNo">126</span>}<a name="line.126"></a>
 
 
 

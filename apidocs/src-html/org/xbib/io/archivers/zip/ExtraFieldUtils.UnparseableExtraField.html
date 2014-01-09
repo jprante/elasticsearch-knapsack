@@ -1,0 +1,365 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers.zip;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.util.ArrayList;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.util.HashMap;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.util.List;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.util.Map;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.util.zip.ZipException;<a name="line.8"></a>
+<span class="sourceLineNo">009</span><a name="line.9"></a>
+<span class="sourceLineNo">010</span>/**<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * ZipExtraField related methods<a name="line.11"></a>
+<span class="sourceLineNo">012</span> */<a name="line.12"></a>
+<span class="sourceLineNo">013</span>public class ExtraFieldUtils {<a name="line.13"></a>
+<span class="sourceLineNo">014</span><a name="line.14"></a>
+<span class="sourceLineNo">015</span>    private static final int WORD = 4;<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>    /**<a name="line.17"></a>
+<span class="sourceLineNo">018</span>     * Static registry of known extra fields.<a name="line.18"></a>
+<span class="sourceLineNo">019</span>     */<a name="line.19"></a>
+<span class="sourceLineNo">020</span>    private static final Map&lt;ZipShort, Class&lt;?&gt;&gt; implementations;<a name="line.20"></a>
+<span class="sourceLineNo">021</span><a name="line.21"></a>
+<span class="sourceLineNo">022</span>    static {<a name="line.22"></a>
+<span class="sourceLineNo">023</span>        implementations = new HashMap&lt;ZipShort, Class&lt;?&gt;&gt;();<a name="line.23"></a>
+<span class="sourceLineNo">024</span>        register(AsiExtraField.class);<a name="line.24"></a>
+<span class="sourceLineNo">025</span>        register(JarMarker.class);<a name="line.25"></a>
+<span class="sourceLineNo">026</span>        register(UnicodePathExtraField.class);<a name="line.26"></a>
+<span class="sourceLineNo">027</span>        register(UnicodeCommentExtraField.class);<a name="line.27"></a>
+<span class="sourceLineNo">028</span>        register(Zip64ExtendedInformationExtraField.class);<a name="line.28"></a>
+<span class="sourceLineNo">029</span>    }<a name="line.29"></a>
+<span class="sourceLineNo">030</span><a name="line.30"></a>
+<span class="sourceLineNo">031</span>    /**<a name="line.31"></a>
+<span class="sourceLineNo">032</span>     * Register a ZipExtraField implementation.<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     * &lt;p/&gt;<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     * &lt;p&gt;The given class must have a no-arg constructor and implement<a name="line.34"></a>
+<span class="sourceLineNo">035</span>     * the {@link ZipExtraField ZipExtraField interface}.&lt;/p&gt;<a name="line.35"></a>
+<span class="sourceLineNo">036</span>     *<a name="line.36"></a>
+<span class="sourceLineNo">037</span>     * @param c the class to register<a name="line.37"></a>
+<span class="sourceLineNo">038</span>     */<a name="line.38"></a>
+<span class="sourceLineNo">039</span>    public static void register(Class&lt;?&gt; c) {<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        try {<a name="line.40"></a>
+<span class="sourceLineNo">041</span>            ZipExtraField ze = (ZipExtraField) c.newInstance();<a name="line.41"></a>
+<span class="sourceLineNo">042</span>            implementations.put(ze.getHeaderId(), c);<a name="line.42"></a>
+<span class="sourceLineNo">043</span>        } catch (ClassCastException cc) {<a name="line.43"></a>
+<span class="sourceLineNo">044</span>            throw new RuntimeException(c + " doesn\'t implement ZipExtraField");<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        } catch (InstantiationException ie) {<a name="line.45"></a>
+<span class="sourceLineNo">046</span>            throw new RuntimeException(c + " is not a concrete class");<a name="line.46"></a>
+<span class="sourceLineNo">047</span>        } catch (IllegalAccessException ie) {<a name="line.47"></a>
+<span class="sourceLineNo">048</span>            throw new RuntimeException(c + "\'s no-arg constructor is not public");<a name="line.48"></a>
+<span class="sourceLineNo">049</span>        }<a name="line.49"></a>
+<span class="sourceLineNo">050</span>    }<a name="line.50"></a>
+<span class="sourceLineNo">051</span><a name="line.51"></a>
+<span class="sourceLineNo">052</span>    /**<a name="line.52"></a>
+<span class="sourceLineNo">053</span>     * Create an instance of the approriate ExtraField, falls back to<a name="line.53"></a>
+<span class="sourceLineNo">054</span>     * {@link UnrecognizedExtraField UnrecognizedExtraField}.<a name="line.54"></a>
+<span class="sourceLineNo">055</span>     *<a name="line.55"></a>
+<span class="sourceLineNo">056</span>     * @param headerId the header identifier<a name="line.56"></a>
+<span class="sourceLineNo">057</span>     * @return an instance of the appropiate ExtraField<a name="line.57"></a>
+<span class="sourceLineNo">058</span>     * @throws InstantiationException if unable to instantiate the class<a name="line.58"></a>
+<span class="sourceLineNo">059</span>     * @throws IllegalAccessException if not allowed to instatiate the class<a name="line.59"></a>
+<span class="sourceLineNo">060</span>     */<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    public static ZipExtraField createExtraField(ZipShort headerId)<a name="line.61"></a>
+<span class="sourceLineNo">062</span>            throws InstantiationException, IllegalAccessException {<a name="line.62"></a>
+<span class="sourceLineNo">063</span>        Class&lt;?&gt; c = implementations.get(headerId);<a name="line.63"></a>
+<span class="sourceLineNo">064</span>        if (c != null) {<a name="line.64"></a>
+<span class="sourceLineNo">065</span>            return (ZipExtraField) c.newInstance();<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        }<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        UnrecognizedExtraField u = new UnrecognizedExtraField();<a name="line.67"></a>
+<span class="sourceLineNo">068</span>        u.setHeaderId(headerId);<a name="line.68"></a>
+<span class="sourceLineNo">069</span>        return u;<a name="line.69"></a>
+<span class="sourceLineNo">070</span>    }<a name="line.70"></a>
+<span class="sourceLineNo">071</span><a name="line.71"></a>
+<span class="sourceLineNo">072</span>    /**<a name="line.72"></a>
+<span class="sourceLineNo">073</span>     * Split the array into ExtraFields and populate them with the<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * given data as local file data, throwing an exception if the<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     * data cannot be parsed.<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     *<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     * @param data an array of bytes as it appears in local file data<a name="line.77"></a>
+<span class="sourceLineNo">078</span>     * @return an array of ExtraFields<a name="line.78"></a>
+<span class="sourceLineNo">079</span>     * @throws java.util.zip.ZipException on error<a name="line.79"></a>
+<span class="sourceLineNo">080</span>     */<a name="line.80"></a>
+<span class="sourceLineNo">081</span>    public static ZipExtraField[] parse(byte[] data) throws ZipException {<a name="line.81"></a>
+<span class="sourceLineNo">082</span>        return parse(data, true, UnparseableExtraField.THROW);<a name="line.82"></a>
+<span class="sourceLineNo">083</span>    }<a name="line.83"></a>
+<span class="sourceLineNo">084</span><a name="line.84"></a>
+<span class="sourceLineNo">085</span>    /**<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     * Split the array into ExtraFields and populate them with the<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     * given data, throwing an exception if the data cannot be parsed.<a name="line.87"></a>
+<span class="sourceLineNo">088</span>     *<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     * @param data  an array of bytes<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     * @param local whether data originates from the local file data<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     *              or the central directory<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     * @return an array of ExtraFields<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     * @throws java.util.zip.ZipException on error<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     */<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    public static ZipExtraField[] parse(byte[] data, boolean local)<a name="line.95"></a>
+<span class="sourceLineNo">096</span>            throws ZipException {<a name="line.96"></a>
+<span class="sourceLineNo">097</span>        return parse(data, local, UnparseableExtraField.THROW);<a name="line.97"></a>
+<span class="sourceLineNo">098</span>    }<a name="line.98"></a>
+<span class="sourceLineNo">099</span><a name="line.99"></a>
+<span class="sourceLineNo">100</span>    /**<a name="line.100"></a>
+<span class="sourceLineNo">101</span>     * Split the array into ExtraFields and populate them with the<a name="line.101"></a>
+<span class="sourceLineNo">102</span>     * given data.<a name="line.102"></a>
+<span class="sourceLineNo">103</span>     *<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     * @param data              an array of bytes<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     * @param local             whether data originates from the local file data<a name="line.105"></a>
+<span class="sourceLineNo">106</span>     *                          or the central directory<a name="line.106"></a>
+<span class="sourceLineNo">107</span>     * @param onUnparseableData what to do if the extra field data<a name="line.107"></a>
+<span class="sourceLineNo">108</span>     *                          cannot be parsed.<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * @return an array of ExtraFields<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     * @throws java.util.zip.ZipException on error<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     */<a name="line.111"></a>
+<span class="sourceLineNo">112</span>    public static ZipExtraField[] parse(byte[] data, boolean local,<a name="line.112"></a>
+<span class="sourceLineNo">113</span>                                        UnparseableExtraField onUnparseableData)<a name="line.113"></a>
+<span class="sourceLineNo">114</span>            throws ZipException {<a name="line.114"></a>
+<span class="sourceLineNo">115</span>        List&lt;ZipExtraField&gt; v = new ArrayList&lt;ZipExtraField&gt;();<a name="line.115"></a>
+<span class="sourceLineNo">116</span>        int start = 0;<a name="line.116"></a>
+<span class="sourceLineNo">117</span>        LOOP:<a name="line.117"></a>
+<span class="sourceLineNo">118</span>        while (start &lt;= data.length - WORD) {<a name="line.118"></a>
+<span class="sourceLineNo">119</span>            ZipShort headerId = new ZipShort(data, start);<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            int length = (new ZipShort(data, start + 2)).getValue();<a name="line.120"></a>
+<span class="sourceLineNo">121</span>            if (start + WORD + length &gt; data.length) {<a name="line.121"></a>
+<span class="sourceLineNo">122</span>                switch (onUnparseableData.getKey()) {<a name="line.122"></a>
+<span class="sourceLineNo">123</span>                    case UnparseableExtraField.THROW_KEY:<a name="line.123"></a>
+<span class="sourceLineNo">124</span>                        throw new ZipException("bad extra field starting at "<a name="line.124"></a>
+<span class="sourceLineNo">125</span>                                + start + ".  Block length of "<a name="line.125"></a>
+<span class="sourceLineNo">126</span>                                + length + " bytes exceeds remaining"<a name="line.126"></a>
+<span class="sourceLineNo">127</span>                                + " data of "<a name="line.127"></a>
+<span class="sourceLineNo">128</span>                                + (data.length - start - WORD)<a name="line.128"></a>
+<span class="sourceLineNo">129</span>                                + " bytes.");<a name="line.129"></a>
+<span class="sourceLineNo">130</span>                    case UnparseableExtraField.READ_KEY:<a name="line.130"></a>
+<span class="sourceLineNo">131</span>                        UnparseableExtraFieldData field =<a name="line.131"></a>
+<span class="sourceLineNo">132</span>                                new UnparseableExtraFieldData();<a name="line.132"></a>
+<span class="sourceLineNo">133</span>                        if (local) {<a name="line.133"></a>
+<span class="sourceLineNo">134</span>                            field.parseFromLocalFileData(data, start,<a name="line.134"></a>
+<span class="sourceLineNo">135</span>                                    data.length - start);<a name="line.135"></a>
+<span class="sourceLineNo">136</span>                        } else {<a name="line.136"></a>
+<span class="sourceLineNo">137</span>                            field.parseFromCentralDirectoryData(data, start,<a name="line.137"></a>
+<span class="sourceLineNo">138</span>                                    data.length - start);<a name="line.138"></a>
+<span class="sourceLineNo">139</span>                        }<a name="line.139"></a>
+<span class="sourceLineNo">140</span>                        v.add(field);<a name="line.140"></a>
+<span class="sourceLineNo">141</span>                        //$FALL-THROUGH$<a name="line.141"></a>
+<span class="sourceLineNo">142</span>                    case UnparseableExtraField.SKIP_KEY:<a name="line.142"></a>
+<span class="sourceLineNo">143</span>                        // since we cannot parse the data we must assume<a name="line.143"></a>
+<span class="sourceLineNo">144</span>                        // the extra field consumes the whole rest of the<a name="line.144"></a>
+<span class="sourceLineNo">145</span>                        // available data<a name="line.145"></a>
+<span class="sourceLineNo">146</span>                        break LOOP;<a name="line.146"></a>
+<span class="sourceLineNo">147</span>                    default:<a name="line.147"></a>
+<span class="sourceLineNo">148</span>                        throw new ZipException("unknown UnparseableExtraField key: "<a name="line.148"></a>
+<span class="sourceLineNo">149</span>                                + onUnparseableData.getKey());<a name="line.149"></a>
+<span class="sourceLineNo">150</span>                }<a name="line.150"></a>
+<span class="sourceLineNo">151</span>            }<a name="line.151"></a>
+<span class="sourceLineNo">152</span>            try {<a name="line.152"></a>
+<span class="sourceLineNo">153</span>                ZipExtraField ze = createExtraField(headerId);<a name="line.153"></a>
+<span class="sourceLineNo">154</span>                if (local) {<a name="line.154"></a>
+<span class="sourceLineNo">155</span>                    ze.parseFromLocalFileData(data, start + WORD, length);<a name="line.155"></a>
+<span class="sourceLineNo">156</span>                } else {<a name="line.156"></a>
+<span class="sourceLineNo">157</span>                    ze.parseFromCentralDirectoryData(data, start + WORD,<a name="line.157"></a>
+<span class="sourceLineNo">158</span>                            length);<a name="line.158"></a>
+<span class="sourceLineNo">159</span>                }<a name="line.159"></a>
+<span class="sourceLineNo">160</span>                v.add(ze);<a name="line.160"></a>
+<span class="sourceLineNo">161</span>            } catch (InstantiationException ie) {<a name="line.161"></a>
+<span class="sourceLineNo">162</span>                throw new ZipException(ie.getMessage());<a name="line.162"></a>
+<span class="sourceLineNo">163</span>            } catch (IllegalAccessException iae) {<a name="line.163"></a>
+<span class="sourceLineNo">164</span>                throw new ZipException(iae.getMessage());<a name="line.164"></a>
+<span class="sourceLineNo">165</span>            }<a name="line.165"></a>
+<span class="sourceLineNo">166</span>            start += (length + WORD);<a name="line.166"></a>
+<span class="sourceLineNo">167</span>        }<a name="line.167"></a>
+<span class="sourceLineNo">168</span><a name="line.168"></a>
+<span class="sourceLineNo">169</span>        ZipExtraField[] result = new ZipExtraField[v.size()];<a name="line.169"></a>
+<span class="sourceLineNo">170</span>        return v.toArray(result);<a name="line.170"></a>
+<span class="sourceLineNo">171</span>    }<a name="line.171"></a>
+<span class="sourceLineNo">172</span><a name="line.172"></a>
+<span class="sourceLineNo">173</span>    /**<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     * Merges the local file data fields of the given ZipExtraFields.<a name="line.174"></a>
+<span class="sourceLineNo">175</span>     *<a name="line.175"></a>
+<span class="sourceLineNo">176</span>     * @param data an array of ExtraFiles<a name="line.176"></a>
+<span class="sourceLineNo">177</span>     * @return an array of bytes<a name="line.177"></a>
+<span class="sourceLineNo">178</span>     */<a name="line.178"></a>
+<span class="sourceLineNo">179</span>    public static byte[] mergeLocalFileDataData(ZipExtraField[] data) {<a name="line.179"></a>
+<span class="sourceLineNo">180</span>        final boolean lastIsUnparseableHolder = data.length &gt; 0<a name="line.180"></a>
+<span class="sourceLineNo">181</span>                &amp;&amp; data[data.length - 1] instanceof UnparseableExtraFieldData;<a name="line.181"></a>
+<span class="sourceLineNo">182</span>        int regularExtraFieldCount =<a name="line.182"></a>
+<span class="sourceLineNo">183</span>                lastIsUnparseableHolder ? data.length - 1 : data.length;<a name="line.183"></a>
+<span class="sourceLineNo">184</span><a name="line.184"></a>
+<span class="sourceLineNo">185</span>        int sum = WORD * regularExtraFieldCount;<a name="line.185"></a>
+<span class="sourceLineNo">186</span>        for (ZipExtraField element : data) {<a name="line.186"></a>
+<span class="sourceLineNo">187</span>            sum += element.getLocalFileDataLength().getValue();<a name="line.187"></a>
+<span class="sourceLineNo">188</span>        }<a name="line.188"></a>
+<span class="sourceLineNo">189</span><a name="line.189"></a>
+<span class="sourceLineNo">190</span>        byte[] result = new byte[sum];<a name="line.190"></a>
+<span class="sourceLineNo">191</span>        int start = 0;<a name="line.191"></a>
+<span class="sourceLineNo">192</span>        for (int i = 0; i &lt; regularExtraFieldCount; i++) {<a name="line.192"></a>
+<span class="sourceLineNo">193</span>            System.arraycopy(data[i].getHeaderId().getBytes(),<a name="line.193"></a>
+<span class="sourceLineNo">194</span>                    0, result, start, 2);<a name="line.194"></a>
+<span class="sourceLineNo">195</span>            System.arraycopy(data[i].getLocalFileDataLength().getBytes(),<a name="line.195"></a>
+<span class="sourceLineNo">196</span>                    0, result, start + 2, 2);<a name="line.196"></a>
+<span class="sourceLineNo">197</span>            byte[] local = data[i].getLocalFileDataData();<a name="line.197"></a>
+<span class="sourceLineNo">198</span>            System.arraycopy(local, 0, result, start + WORD, local.length);<a name="line.198"></a>
+<span class="sourceLineNo">199</span>            start += (local.length + WORD);<a name="line.199"></a>
+<span class="sourceLineNo">200</span>        }<a name="line.200"></a>
+<span class="sourceLineNo">201</span>        if (lastIsUnparseableHolder) {<a name="line.201"></a>
+<span class="sourceLineNo">202</span>            byte[] local = data[data.length - 1].getLocalFileDataData();<a name="line.202"></a>
+<span class="sourceLineNo">203</span>            System.arraycopy(local, 0, result, start, local.length);<a name="line.203"></a>
+<span class="sourceLineNo">204</span>        }<a name="line.204"></a>
+<span class="sourceLineNo">205</span>        return result;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    }<a name="line.206"></a>
+<span class="sourceLineNo">207</span><a name="line.207"></a>
+<span class="sourceLineNo">208</span>    /**<a name="line.208"></a>
+<span class="sourceLineNo">209</span>     * Merges the central directory fields of the given ZipExtraFields.<a name="line.209"></a>
+<span class="sourceLineNo">210</span>     *<a name="line.210"></a>
+<span class="sourceLineNo">211</span>     * @param data an array of ExtraFields<a name="line.211"></a>
+<span class="sourceLineNo">212</span>     * @return an array of bytes<a name="line.212"></a>
+<span class="sourceLineNo">213</span>     */<a name="line.213"></a>
+<span class="sourceLineNo">214</span>    public static byte[] mergeCentralDirectoryData(ZipExtraField[] data) {<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        final boolean lastIsUnparseableHolder = data.length &gt; 0<a name="line.215"></a>
+<span class="sourceLineNo">216</span>                &amp;&amp; data[data.length - 1] instanceof UnparseableExtraFieldData;<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        int regularExtraFieldCount =<a name="line.217"></a>
+<span class="sourceLineNo">218</span>                lastIsUnparseableHolder ? data.length - 1 : data.length;<a name="line.218"></a>
+<span class="sourceLineNo">219</span><a name="line.219"></a>
+<span class="sourceLineNo">220</span>        int sum = WORD * regularExtraFieldCount;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>        for (ZipExtraField element : data) {<a name="line.221"></a>
+<span class="sourceLineNo">222</span>            sum += element.getCentralDirectoryLength().getValue();<a name="line.222"></a>
+<span class="sourceLineNo">223</span>        }<a name="line.223"></a>
+<span class="sourceLineNo">224</span>        byte[] result = new byte[sum];<a name="line.224"></a>
+<span class="sourceLineNo">225</span>        int start = 0;<a name="line.225"></a>
+<span class="sourceLineNo">226</span>        for (int i = 0; i &lt; regularExtraFieldCount; i++) {<a name="line.226"></a>
+<span class="sourceLineNo">227</span>            System.arraycopy(data[i].getHeaderId().getBytes(),<a name="line.227"></a>
+<span class="sourceLineNo">228</span>                    0, result, start, 2);<a name="line.228"></a>
+<span class="sourceLineNo">229</span>            System.arraycopy(data[i].getCentralDirectoryLength().getBytes(),<a name="line.229"></a>
+<span class="sourceLineNo">230</span>                    0, result, start + 2, 2);<a name="line.230"></a>
+<span class="sourceLineNo">231</span>            byte[] local = data[i].getCentralDirectoryData();<a name="line.231"></a>
+<span class="sourceLineNo">232</span>            System.arraycopy(local, 0, result, start + WORD, local.length);<a name="line.232"></a>
+<span class="sourceLineNo">233</span>            start += (local.length + WORD);<a name="line.233"></a>
+<span class="sourceLineNo">234</span>        }<a name="line.234"></a>
+<span class="sourceLineNo">235</span>        if (lastIsUnparseableHolder) {<a name="line.235"></a>
+<span class="sourceLineNo">236</span>            byte[] local = data[data.length - 1].getCentralDirectoryData();<a name="line.236"></a>
+<span class="sourceLineNo">237</span>            System.arraycopy(local, 0, result, start, local.length);<a name="line.237"></a>
+<span class="sourceLineNo">238</span>        }<a name="line.238"></a>
+<span class="sourceLineNo">239</span>        return result;<a name="line.239"></a>
+<span class="sourceLineNo">240</span>    }<a name="line.240"></a>
+<span class="sourceLineNo">241</span><a name="line.241"></a>
+<span class="sourceLineNo">242</span>    /**<a name="line.242"></a>
+<span class="sourceLineNo">243</span>     * "enum" for the possible actions to take if the extra field<a name="line.243"></a>
+<span class="sourceLineNo">244</span>     * cannot be parsed.<a name="line.244"></a>
+<span class="sourceLineNo">245</span>     */<a name="line.245"></a>
+<span class="sourceLineNo">246</span>    public static final class UnparseableExtraField {<a name="line.246"></a>
+<span class="sourceLineNo">247</span>        /**<a name="line.247"></a>
+<span class="sourceLineNo">248</span>         * Key for "throw an exception" action.<a name="line.248"></a>
+<span class="sourceLineNo">249</span>         */<a name="line.249"></a>
+<span class="sourceLineNo">250</span>        public static final int THROW_KEY = 0;<a name="line.250"></a>
+<span class="sourceLineNo">251</span>        /**<a name="line.251"></a>
+<span class="sourceLineNo">252</span>         * Key for "skip" action.<a name="line.252"></a>
+<span class="sourceLineNo">253</span>         */<a name="line.253"></a>
+<span class="sourceLineNo">254</span>        public static final int SKIP_KEY = 1;<a name="line.254"></a>
+<span class="sourceLineNo">255</span>        /**<a name="line.255"></a>
+<span class="sourceLineNo">256</span>         * Key for "read" action.<a name="line.256"></a>
+<span class="sourceLineNo">257</span>         */<a name="line.257"></a>
+<span class="sourceLineNo">258</span>        public static final int READ_KEY = 2;<a name="line.258"></a>
+<span class="sourceLineNo">259</span><a name="line.259"></a>
+<span class="sourceLineNo">260</span>        /**<a name="line.260"></a>
+<span class="sourceLineNo">261</span>         * Throw an exception if field cannot be parsed.<a name="line.261"></a>
+<span class="sourceLineNo">262</span>         */<a name="line.262"></a>
+<span class="sourceLineNo">263</span>        public static final UnparseableExtraField THROW<a name="line.263"></a>
+<span class="sourceLineNo">264</span>                = new UnparseableExtraField(THROW_KEY);<a name="line.264"></a>
+<span class="sourceLineNo">265</span><a name="line.265"></a>
+<span class="sourceLineNo">266</span>        /**<a name="line.266"></a>
+<span class="sourceLineNo">267</span>         * Skip the extra field entirely and don't make its data<a name="line.267"></a>
+<span class="sourceLineNo">268</span>         * available - effectively removing the extra field data.<a name="line.268"></a>
+<span class="sourceLineNo">269</span>         */<a name="line.269"></a>
+<span class="sourceLineNo">270</span>        public static final UnparseableExtraField SKIP<a name="line.270"></a>
+<span class="sourceLineNo">271</span>                = new UnparseableExtraField(SKIP_KEY);<a name="line.271"></a>
+<span class="sourceLineNo">272</span><a name="line.272"></a>
+<span class="sourceLineNo">273</span>        /**<a name="line.273"></a>
+<span class="sourceLineNo">274</span>         * Read the extra field data into an instance of {@link<a name="line.274"></a>
+<span class="sourceLineNo">275</span>         * UnparseableExtraFieldData UnparseableExtraFieldData}.<a name="line.275"></a>
+<span class="sourceLineNo">276</span>         */<a name="line.276"></a>
+<span class="sourceLineNo">277</span>        public static final UnparseableExtraField READ<a name="line.277"></a>
+<span class="sourceLineNo">278</span>                = new UnparseableExtraField(READ_KEY);<a name="line.278"></a>
+<span class="sourceLineNo">279</span><a name="line.279"></a>
+<span class="sourceLineNo">280</span>        private final int key;<a name="line.280"></a>
+<span class="sourceLineNo">281</span><a name="line.281"></a>
+<span class="sourceLineNo">282</span>        private UnparseableExtraField(int k) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>            key = k;<a name="line.283"></a>
+<span class="sourceLineNo">284</span>        }<a name="line.284"></a>
+<span class="sourceLineNo">285</span><a name="line.285"></a>
+<span class="sourceLineNo">286</span>        /**<a name="line.286"></a>
+<span class="sourceLineNo">287</span>         * Key of the action to take.<a name="line.287"></a>
+<span class="sourceLineNo">288</span>         */<a name="line.288"></a>
+<span class="sourceLineNo">289</span>        public int getKey() {<a name="line.289"></a>
+<span class="sourceLineNo">290</span>            return key;<a name="line.290"></a>
+<span class="sourceLineNo">291</span>        }<a name="line.291"></a>
+<span class="sourceLineNo">292</span>    }<a name="line.292"></a>
+<span class="sourceLineNo">293</span>}<a name="line.293"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

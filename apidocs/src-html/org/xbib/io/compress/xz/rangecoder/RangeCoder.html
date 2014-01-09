@@ -6,32 +6,23 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
-<span class="sourceLineNo">002</span> * RangeCoder<a name="line.2"></a>
-<span class="sourceLineNo">003</span> *<a name="line.3"></a>
-<span class="sourceLineNo">004</span> * Authors: Lasse Collin &lt;lasse.collin@tukaani.org&gt;<a name="line.4"></a>
-<span class="sourceLineNo">005</span> *          Igor Pavlov &lt;http://7-zip.org/&gt;<a name="line.5"></a>
-<span class="sourceLineNo">006</span> *<a name="line.6"></a>
-<span class="sourceLineNo">007</span> * This file has been put into the public domain.<a name="line.7"></a>
-<span class="sourceLineNo">008</span> * You can do whatever you want with this file.<a name="line.8"></a>
-<span class="sourceLineNo">009</span> */<a name="line.9"></a>
-<span class="sourceLineNo">010</span><a name="line.10"></a>
-<span class="sourceLineNo">011</span>package org.xbib.io.compress.xz.rangecoder;<a name="line.11"></a>
-<span class="sourceLineNo">012</span><a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.util.Arrays;<a name="line.13"></a>
-<span class="sourceLineNo">014</span><a name="line.14"></a>
-<span class="sourceLineNo">015</span>public abstract class RangeCoder {<a name="line.15"></a>
-<span class="sourceLineNo">016</span>    static final int SHIFT_BITS = 8;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>    static final int TOP_MASK = 0xFF000000;<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    static final int BIT_MODEL_TOTAL_BITS = 11;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    static final int BIT_MODEL_TOTAL = 1 &lt;&lt; BIT_MODEL_TOTAL_BITS;<a name="line.19"></a>
-<span class="sourceLineNo">020</span>    static final short PROB_INIT = (short)(BIT_MODEL_TOTAL / 2);<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    static final int MOVE_BITS = 5;<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>    public static final void initProbs(short[] probs) {<a name="line.23"></a>
-<span class="sourceLineNo">024</span>        Arrays.fill(probs, PROB_INIT);<a name="line.24"></a>
-<span class="sourceLineNo">025</span>    }<a name="line.25"></a>
-<span class="sourceLineNo">026</span>}<a name="line.26"></a>
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.rangecoder;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.util.Arrays;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>public abstract class RangeCoder {<a name="line.6"></a>
+<span class="sourceLineNo">007</span>    static final int SHIFT_BITS = 8;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>    static final int TOP_MASK = 0xFF000000;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>    static final int BIT_MODEL_TOTAL_BITS = 11;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>    static final int BIT_MODEL_TOTAL = 1 &lt;&lt; BIT_MODEL_TOTAL_BITS;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>    static final short PROB_INIT = (short) (BIT_MODEL_TOTAL / 2);<a name="line.11"></a>
+<span class="sourceLineNo">012</span>    static final int MOVE_BITS = 5;<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>    public static final void initProbs(short[] probs) {<a name="line.14"></a>
+<span class="sourceLineNo">015</span>        Arrays.fill(probs, PROB_INIT);<a name="line.15"></a>
+<span class="sourceLineNo">016</span>    }<a name="line.16"></a>
+<span class="sourceLineNo">017</span>}<a name="line.17"></a>
 
 
 

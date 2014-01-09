@@ -1,0 +1,1513 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers.zip;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.archivers.ArchiveOutputStream;<a name="line.5"></a>
+<span class="sourceLineNo">006</span><a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.File;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.FileOutputStream;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.IOException;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.io.OutputStream;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.io.RandomAccessFile;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import java.nio.ByteBuffer;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import java.util.HashMap;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>import java.util.LinkedList;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>import java.util.List;<a name="line.15"></a>
+<span class="sourceLineNo">016</span>import java.util.Map;<a name="line.16"></a>
+<span class="sourceLineNo">017</span>import java.util.zip.CRC32;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>import java.util.zip.Deflater;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import java.util.zip.ZipException;<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>import static org.xbib.io.archivers.zip.ZipConstants.DATA_DESCRIPTOR_MIN_VERSION;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>import static org.xbib.io.archivers.zip.ZipConstants.DWORD;<a name="line.22"></a>
+<span class="sourceLineNo">023</span>import static org.xbib.io.archivers.zip.ZipConstants.INITIAL_VERSION;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>import static org.xbib.io.archivers.zip.ZipConstants.SHORT;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>import static org.xbib.io.archivers.zip.ZipConstants.WORD;<a name="line.25"></a>
+<span class="sourceLineNo">026</span>import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC;<a name="line.26"></a>
+<span class="sourceLineNo">027</span>import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC_SHORT;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MIN_VERSION;<a name="line.28"></a>
+<span class="sourceLineNo">029</span><a name="line.29"></a>
+<span class="sourceLineNo">030</span>/**<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * Reimplementation of {@link java.util.zip.ZipOutputStream<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * java.util.zip.ZipOutputStream} that does handle the extended<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * functionality of this package, especially internal/external file<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * attributes and extra fields with different layouts for local file<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * data and central directory entries.<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * &lt;p/&gt;<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * &lt;p&gt;This class will try to use {@link java.io.RandomAccessFile<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * RandomAccessFile} when you know that the output is going to go to a<a name="line.38"></a>
+<span class="sourceLineNo">039</span> * file.&lt;/p&gt;<a name="line.39"></a>
+<span class="sourceLineNo">040</span> * &lt;p/&gt;<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * &lt;p&gt;If RandomAccessFile cannot be used, this implementation will use<a name="line.41"></a>
+<span class="sourceLineNo">042</span> * a Data Descriptor to store size and CRC information for {@link<a name="line.42"></a>
+<span class="sourceLineNo">043</span> * #DEFLATED DEFLATED} entries, this means, you don't need to<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * calculate them yourself.  Unfortunately this is not possible for<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * the {@link #STORED STORED} method, here setting the CRC and<a name="line.45"></a>
+<span class="sourceLineNo">046</span> * uncompressed size information is required before {@link<a name="line.46"></a>
+<span class="sourceLineNo">047</span> * #putArchiveEntry(ArchiveEntry)} can be called.&lt;/p&gt;<a name="line.47"></a>
+<span class="sourceLineNo">048</span> * &lt;p/&gt;<a name="line.48"></a>
+<span class="sourceLineNo">049</span> * &lt;p&gt;It transparently supports Zip64<a name="line.49"></a>
+<span class="sourceLineNo">050</span> * extensions and thus individual entries and archives larger than 4<a name="line.50"></a>
+<span class="sourceLineNo">051</span> * GB or with more than 65536 entries in most cases but explicit<a name="line.51"></a>
+<span class="sourceLineNo">052</span> * control is provided via {@link #setUseZip64}.  If the stream can not<a name="line.52"></a>
+<span class="sourceLineNo">053</span> * user RandomAccessFile and you try to write a ZipArchiveEntry of<a name="line.53"></a>
+<span class="sourceLineNo">054</span> * unknown size then Zip64 extensions will be disabled by default.&lt;/p&gt;<a name="line.54"></a>
+<span class="sourceLineNo">055</span> */<a name="line.55"></a>
+<span class="sourceLineNo">056</span>public class ZipArchiveOutputStream extends ArchiveOutputStream {<a name="line.56"></a>
+<span class="sourceLineNo">057</span><a name="line.57"></a>
+<span class="sourceLineNo">058</span>    static final int BUFFER_SIZE = 512;<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span>    /**<a name="line.60"></a>
+<span class="sourceLineNo">061</span>     * indicates if this archive is finished. protected for use in Jar implementation<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     */<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    protected boolean finished = false;<a name="line.63"></a>
+<span class="sourceLineNo">064</span><a name="line.64"></a>
+<span class="sourceLineNo">065</span>    /* <a name="line.65"></a>
+<span class="sourceLineNo">066</span>     * Apparently Deflater.setInput gets slowed down a lot on Sun JVMs<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     * when it gets handed a really big buffer.  See<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * https://issues.apache.org/bugzilla/show_bug.cgi?id=45396<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     *<a name="line.69"></a>
+<span class="sourceLineNo">070</span>     * Using a buffer size of 8 kB proved to be a good compromise<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     */<a name="line.71"></a>
+<span class="sourceLineNo">072</span>    private static final int DEFLATER_BLOCK_SIZE = 8192;<a name="line.72"></a>
+<span class="sourceLineNo">073</span><a name="line.73"></a>
+<span class="sourceLineNo">074</span>    /**<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     * Compression method for deflated entries.<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     */<a name="line.76"></a>
+<span class="sourceLineNo">077</span>    public static final int DEFLATED = java.util.zip.ZipEntry.DEFLATED;<a name="line.77"></a>
+<span class="sourceLineNo">078</span><a name="line.78"></a>
+<span class="sourceLineNo">079</span>    /**<a name="line.79"></a>
+<span class="sourceLineNo">080</span>     * Default compression level for deflated entries.<a name="line.80"></a>
+<span class="sourceLineNo">081</span>     */<a name="line.81"></a>
+<span class="sourceLineNo">082</span>    public static final int DEFAULT_COMPRESSION = Deflater.DEFAULT_COMPRESSION;<a name="line.82"></a>
+<span class="sourceLineNo">083</span><a name="line.83"></a>
+<span class="sourceLineNo">084</span>    /**<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * Compression method for stored entries.<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     */<a name="line.86"></a>
+<span class="sourceLineNo">087</span>    public static final int STORED = java.util.zip.ZipEntry.STORED;<a name="line.87"></a>
+<span class="sourceLineNo">088</span><a name="line.88"></a>
+<span class="sourceLineNo">089</span>    /**<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     * default encoding for file names and comment.<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     */<a name="line.91"></a>
+<span class="sourceLineNo">092</span>    static final String DEFAULT_ENCODING = ZipEncodingHelper.UTF8;<a name="line.92"></a>
+<span class="sourceLineNo">093</span><a name="line.93"></a>
+<span class="sourceLineNo">094</span>    /**<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     * Current entry.<a name="line.95"></a>
+<span class="sourceLineNo">096</span>     */<a name="line.96"></a>
+<span class="sourceLineNo">097</span>    private CurrentEntry entry;<a name="line.97"></a>
+<span class="sourceLineNo">098</span><a name="line.98"></a>
+<span class="sourceLineNo">099</span>    /**<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     * The file comment.<a name="line.100"></a>
+<span class="sourceLineNo">101</span>     */<a name="line.101"></a>
+<span class="sourceLineNo">102</span>    private String comment = "";<a name="line.102"></a>
+<span class="sourceLineNo">103</span><a name="line.103"></a>
+<span class="sourceLineNo">104</span>    /**<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     * Compression level for next entry.<a name="line.105"></a>
+<span class="sourceLineNo">106</span>     */<a name="line.106"></a>
+<span class="sourceLineNo">107</span>    private int level = DEFAULT_COMPRESSION;<a name="line.107"></a>
+<span class="sourceLineNo">108</span><a name="line.108"></a>
+<span class="sourceLineNo">109</span>    /**<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     * Has the compression level changed when compared to the last<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     * entry?<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     */<a name="line.112"></a>
+<span class="sourceLineNo">113</span>    private boolean hasCompressionLevelChanged = false;<a name="line.113"></a>
+<span class="sourceLineNo">114</span><a name="line.114"></a>
+<span class="sourceLineNo">115</span>    /**<a name="line.115"></a>
+<span class="sourceLineNo">116</span>     * Default compression method for next entry.<a name="line.116"></a>
+<span class="sourceLineNo">117</span>     */<a name="line.117"></a>
+<span class="sourceLineNo">118</span>    private int method = java.util.zip.ZipEntry.DEFLATED;<a name="line.118"></a>
+<span class="sourceLineNo">119</span><a name="line.119"></a>
+<span class="sourceLineNo">120</span>    /**<a name="line.120"></a>
+<span class="sourceLineNo">121</span>     * List of ZipArchiveEntries written so far.<a name="line.121"></a>
+<span class="sourceLineNo">122</span>     */<a name="line.122"></a>
+<span class="sourceLineNo">123</span>    private final List&lt;ZipArchiveEntry&gt; entries =<a name="line.123"></a>
+<span class="sourceLineNo">124</span>            new LinkedList&lt;ZipArchiveEntry&gt;();<a name="line.124"></a>
+<span class="sourceLineNo">125</span><a name="line.125"></a>
+<span class="sourceLineNo">126</span>    /**<a name="line.126"></a>
+<span class="sourceLineNo">127</span>     * CRC instance to avoid parsing DEFLATED data twice.<a name="line.127"></a>
+<span class="sourceLineNo">128</span>     */<a name="line.128"></a>
+<span class="sourceLineNo">129</span>    private final CRC32 crc = new CRC32();<a name="line.129"></a>
+<span class="sourceLineNo">130</span><a name="line.130"></a>
+<span class="sourceLineNo">131</span>    /**<a name="line.131"></a>
+<span class="sourceLineNo">132</span>     * Count the bytes written to out.<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     */<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    private long written = 0;<a name="line.134"></a>
+<span class="sourceLineNo">135</span><a name="line.135"></a>
+<span class="sourceLineNo">136</span>    /**<a name="line.136"></a>
+<span class="sourceLineNo">137</span>     * Start of central directory.<a name="line.137"></a>
+<span class="sourceLineNo">138</span>     */<a name="line.138"></a>
+<span class="sourceLineNo">139</span>    private long cdOffset = 0;<a name="line.139"></a>
+<span class="sourceLineNo">140</span><a name="line.140"></a>
+<span class="sourceLineNo">141</span>    /**<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     * Length of central directory.<a name="line.142"></a>
+<span class="sourceLineNo">143</span>     */<a name="line.143"></a>
+<span class="sourceLineNo">144</span>    private long cdLength = 0;<a name="line.144"></a>
+<span class="sourceLineNo">145</span><a name="line.145"></a>
+<span class="sourceLineNo">146</span>    /**<a name="line.146"></a>
+<span class="sourceLineNo">147</span>     * Helper, a 0 as ZipShort.<a name="line.147"></a>
+<span class="sourceLineNo">148</span>     */<a name="line.148"></a>
+<span class="sourceLineNo">149</span>    private static final byte[] ZERO = {0, 0};<a name="line.149"></a>
+<span class="sourceLineNo">150</span><a name="line.150"></a>
+<span class="sourceLineNo">151</span>    /**<a name="line.151"></a>
+<span class="sourceLineNo">152</span>     * Helper, a 0 as ZipLong.<a name="line.152"></a>
+<span class="sourceLineNo">153</span>     */<a name="line.153"></a>
+<span class="sourceLineNo">154</span>    private static final byte[] LZERO = {0, 0, 0, 0};<a name="line.154"></a>
+<span class="sourceLineNo">155</span><a name="line.155"></a>
+<span class="sourceLineNo">156</span>    /**<a name="line.156"></a>
+<span class="sourceLineNo">157</span>     * Holds the offsets of the LFH starts for each entry.<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     */<a name="line.158"></a>
+<span class="sourceLineNo">159</span>    private final Map&lt;ZipArchiveEntry, Long&gt; offsets =<a name="line.159"></a>
+<span class="sourceLineNo">160</span>            new HashMap&lt;ZipArchiveEntry, Long&gt;();<a name="line.160"></a>
+<span class="sourceLineNo">161</span><a name="line.161"></a>
+<span class="sourceLineNo">162</span>    /**<a name="line.162"></a>
+<span class="sourceLineNo">163</span>     * The encoding to use for filenames and the file comment.<a name="line.163"></a>
+<span class="sourceLineNo">164</span>     * &lt;p/&gt;<a name="line.164"></a>
+<span class="sourceLineNo">165</span>     * &lt;p&gt;For a list of possible values see &lt;a<a name="line.165"></a>
+<span class="sourceLineNo">166</span>     * href="http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html"&gt;http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html&lt;/a&gt;.<a name="line.166"></a>
+<span class="sourceLineNo">167</span>     * Defaults to UTF-8.&lt;/p&gt;<a name="line.167"></a>
+<span class="sourceLineNo">168</span>     */<a name="line.168"></a>
+<span class="sourceLineNo">169</span>    private String encoding = DEFAULT_ENCODING;<a name="line.169"></a>
+<span class="sourceLineNo">170</span><a name="line.170"></a>
+<span class="sourceLineNo">171</span>    /**<a name="line.171"></a>
+<span class="sourceLineNo">172</span>     * The zip encoding to use for filenames and the file comment.<a name="line.172"></a>
+<span class="sourceLineNo">173</span>     * &lt;p/&gt;<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     * This field is of internal use and will be set in {@link<a name="line.174"></a>
+<span class="sourceLineNo">175</span>     * #setEncoding(String)}.<a name="line.175"></a>
+<span class="sourceLineNo">176</span>     */<a name="line.176"></a>
+<span class="sourceLineNo">177</span>    private ZipEncoding zipEncoding =<a name="line.177"></a>
+<span class="sourceLineNo">178</span>            ZipEncodingHelper.getZipEncoding(DEFAULT_ENCODING);<a name="line.178"></a>
+<span class="sourceLineNo">179</span><a name="line.179"></a>
+<span class="sourceLineNo">180</span>    /**<a name="line.180"></a>
+<span class="sourceLineNo">181</span>     * This Deflater object is used for output.<a name="line.181"></a>
+<span class="sourceLineNo">182</span>     */<a name="line.182"></a>
+<span class="sourceLineNo">183</span>    protected final Deflater def = new Deflater(level, true);<a name="line.183"></a>
+<span class="sourceLineNo">184</span><a name="line.184"></a>
+<span class="sourceLineNo">185</span>    /**<a name="line.185"></a>
+<span class="sourceLineNo">186</span>     * This buffer servers as a Deflater.<a name="line.186"></a>
+<span class="sourceLineNo">187</span>     */<a name="line.187"></a>
+<span class="sourceLineNo">188</span>    private final byte[] buf = new byte[BUFFER_SIZE];<a name="line.188"></a>
+<span class="sourceLineNo">189</span><a name="line.189"></a>
+<span class="sourceLineNo">190</span>    /**<a name="line.190"></a>
+<span class="sourceLineNo">191</span>     * Optional random access output.<a name="line.191"></a>
+<span class="sourceLineNo">192</span>     */<a name="line.192"></a>
+<span class="sourceLineNo">193</span>    private final RandomAccessFile raf;<a name="line.193"></a>
+<span class="sourceLineNo">194</span><a name="line.194"></a>
+<span class="sourceLineNo">195</span>    private final OutputStream out;<a name="line.195"></a>
+<span class="sourceLineNo">196</span><a name="line.196"></a>
+<span class="sourceLineNo">197</span>    /**<a name="line.197"></a>
+<span class="sourceLineNo">198</span>     * whether to use the general purpose bit flag when writing UTF-8<a name="line.198"></a>
+<span class="sourceLineNo">199</span>     * filenames or not.<a name="line.199"></a>
+<span class="sourceLineNo">200</span>     */<a name="line.200"></a>
+<span class="sourceLineNo">201</span>    private boolean useUTF8Flag = true;<a name="line.201"></a>
+<span class="sourceLineNo">202</span><a name="line.202"></a>
+<span class="sourceLineNo">203</span>    /**<a name="line.203"></a>
+<span class="sourceLineNo">204</span>     * Whether to encode non-encodable file names as UTF-8.<a name="line.204"></a>
+<span class="sourceLineNo">205</span>     */<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    private boolean fallbackToUTF8 = false;<a name="line.206"></a>
+<span class="sourceLineNo">207</span><a name="line.207"></a>
+<span class="sourceLineNo">208</span>    /**<a name="line.208"></a>
+<span class="sourceLineNo">209</span>     * whether to create UnicodePathExtraField-s for each entry.<a name="line.209"></a>
+<span class="sourceLineNo">210</span>     */<a name="line.210"></a>
+<span class="sourceLineNo">211</span>    private UnicodeExtraFieldPolicy createUnicodeExtraFields = UnicodeExtraFieldPolicy.NEVER;<a name="line.211"></a>
+<span class="sourceLineNo">212</span><a name="line.212"></a>
+<span class="sourceLineNo">213</span>    /**<a name="line.213"></a>
+<span class="sourceLineNo">214</span>     * Whether anything inside this archive has used a ZIP64 feature.<a name="line.214"></a>
+<span class="sourceLineNo">215</span>     */<a name="line.215"></a>
+<span class="sourceLineNo">216</span>    private boolean hasUsedZip64 = false;<a name="line.216"></a>
+<span class="sourceLineNo">217</span><a name="line.217"></a>
+<span class="sourceLineNo">218</span>    private Zip64Mode zip64Mode = Zip64Mode.AsNeeded;<a name="line.218"></a>
+<span class="sourceLineNo">219</span><a name="line.219"></a>
+<span class="sourceLineNo">220</span>    /**<a name="line.220"></a>
+<span class="sourceLineNo">221</span>     * Creates a new ZIP OutputStream filtering the underlying stream.<a name="line.221"></a>
+<span class="sourceLineNo">222</span>     *<a name="line.222"></a>
+<span class="sourceLineNo">223</span>     * @param out the outputstream to zip<a name="line.223"></a>
+<span class="sourceLineNo">224</span>     */<a name="line.224"></a>
+<span class="sourceLineNo">225</span>    public ZipArchiveOutputStream(OutputStream out) {<a name="line.225"></a>
+<span class="sourceLineNo">226</span>        this.out = out;<a name="line.226"></a>
+<span class="sourceLineNo">227</span>        this.raf = null;<a name="line.227"></a>
+<span class="sourceLineNo">228</span>    }<a name="line.228"></a>
+<span class="sourceLineNo">229</span><a name="line.229"></a>
+<span class="sourceLineNo">230</span>    /**<a name="line.230"></a>
+<span class="sourceLineNo">231</span>     * Creates a new ZIP OutputStream writing to a File.  Will use<a name="line.231"></a>
+<span class="sourceLineNo">232</span>     * random access if possible.<a name="line.232"></a>
+<span class="sourceLineNo">233</span>     *<a name="line.233"></a>
+<span class="sourceLineNo">234</span>     * @param file the file to zip to<a name="line.234"></a>
+<span class="sourceLineNo">235</span>     * @throws java.io.IOException on error<a name="line.235"></a>
+<span class="sourceLineNo">236</span>     */<a name="line.236"></a>
+<span class="sourceLineNo">237</span>    public ZipArchiveOutputStream(File file) throws IOException {<a name="line.237"></a>
+<span class="sourceLineNo">238</span>        OutputStream o = null;<a name="line.238"></a>
+<span class="sourceLineNo">239</span>        RandomAccessFile _raf = null;<a name="line.239"></a>
+<span class="sourceLineNo">240</span>        try {<a name="line.240"></a>
+<span class="sourceLineNo">241</span>            _raf = new RandomAccessFile(file, "rw");<a name="line.241"></a>
+<span class="sourceLineNo">242</span>            _raf.setLength(0);<a name="line.242"></a>
+<span class="sourceLineNo">243</span>        } catch (IOException e) {<a name="line.243"></a>
+<span class="sourceLineNo">244</span>            if (_raf != null) {<a name="line.244"></a>
+<span class="sourceLineNo">245</span>                try {<a name="line.245"></a>
+<span class="sourceLineNo">246</span>                    _raf.close();<a name="line.246"></a>
+<span class="sourceLineNo">247</span>                } catch (IOException inner) { // NOPMD<a name="line.247"></a>
+<span class="sourceLineNo">248</span>                    // ignore<a name="line.248"></a>
+<span class="sourceLineNo">249</span>                }<a name="line.249"></a>
+<span class="sourceLineNo">250</span>                _raf = null;<a name="line.250"></a>
+<span class="sourceLineNo">251</span>            }<a name="line.251"></a>
+<span class="sourceLineNo">252</span>            o = new FileOutputStream(file);<a name="line.252"></a>
+<span class="sourceLineNo">253</span>        }<a name="line.253"></a>
+<span class="sourceLineNo">254</span>        out = o;<a name="line.254"></a>
+<span class="sourceLineNo">255</span>        raf = _raf;<a name="line.255"></a>
+<span class="sourceLineNo">256</span>    }<a name="line.256"></a>
+<span class="sourceLineNo">257</span><a name="line.257"></a>
+<span class="sourceLineNo">258</span>    /**<a name="line.258"></a>
+<span class="sourceLineNo">259</span>     * This method indicates whether this archive is writing to a<a name="line.259"></a>
+<span class="sourceLineNo">260</span>     * seekable stream (i.e., to a random access file).<a name="line.260"></a>
+<span class="sourceLineNo">261</span>     * &lt;p/&gt;<a name="line.261"></a>
+<span class="sourceLineNo">262</span>     * &lt;p&gt;For seekable streams, you don't need to calculate the CRC or<a name="line.262"></a>
+<span class="sourceLineNo">263</span>     * uncompressed size for {@link #STORED} entries before<a name="line.263"></a>
+<span class="sourceLineNo">264</span>     * invoking {@link #putArchiveEntry(ArchiveEntry)}.<a name="line.264"></a>
+<span class="sourceLineNo">265</span>     *<a name="line.265"></a>
+<span class="sourceLineNo">266</span>     * @return true if seekable<a name="line.266"></a>
+<span class="sourceLineNo">267</span>     */<a name="line.267"></a>
+<span class="sourceLineNo">268</span>    public boolean isSeekable() {<a name="line.268"></a>
+<span class="sourceLineNo">269</span>        return raf != null;<a name="line.269"></a>
+<span class="sourceLineNo">270</span>    }<a name="line.270"></a>
+<span class="sourceLineNo">271</span><a name="line.271"></a>
+<span class="sourceLineNo">272</span>    /**<a name="line.272"></a>
+<span class="sourceLineNo">273</span>     * The encoding to use for filenames and the file comment.<a name="line.273"></a>
+<span class="sourceLineNo">274</span>     * &lt;p/&gt;<a name="line.274"></a>
+<span class="sourceLineNo">275</span>     * &lt;p&gt;For a list of possible values see &lt;a<a name="line.275"></a>
+<span class="sourceLineNo">276</span>     * href="http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html"&gt;http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html&lt;/a&gt;.<a name="line.276"></a>
+<span class="sourceLineNo">277</span>     * Defaults to UTF-8.&lt;/p&gt;<a name="line.277"></a>
+<span class="sourceLineNo">278</span>     *<a name="line.278"></a>
+<span class="sourceLineNo">279</span>     * @param encoding the encoding to use for file names, use null<a name="line.279"></a>
+<span class="sourceLineNo">280</span>     *                 for the platform's default encoding<a name="line.280"></a>
+<span class="sourceLineNo">281</span>     */<a name="line.281"></a>
+<span class="sourceLineNo">282</span>    public void setEncoding(final String encoding) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>        this.encoding = encoding;<a name="line.283"></a>
+<span class="sourceLineNo">284</span>        this.zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);<a name="line.284"></a>
+<span class="sourceLineNo">285</span>        if (useUTF8Flag &amp;&amp; !ZipEncodingHelper.isUTF8(encoding)) {<a name="line.285"></a>
+<span class="sourceLineNo">286</span>            useUTF8Flag = false;<a name="line.286"></a>
+<span class="sourceLineNo">287</span>        }<a name="line.287"></a>
+<span class="sourceLineNo">288</span>    }<a name="line.288"></a>
+<span class="sourceLineNo">289</span><a name="line.289"></a>
+<span class="sourceLineNo">290</span>    /**<a name="line.290"></a>
+<span class="sourceLineNo">291</span>     * The encoding to use for filenames and the file comment.<a name="line.291"></a>
+<span class="sourceLineNo">292</span>     *<a name="line.292"></a>
+<span class="sourceLineNo">293</span>     * @return null if using the platform's default character encoding.<a name="line.293"></a>
+<span class="sourceLineNo">294</span>     */<a name="line.294"></a>
+<span class="sourceLineNo">295</span>    public String getEncoding() {<a name="line.295"></a>
+<span class="sourceLineNo">296</span>        return encoding;<a name="line.296"></a>
+<span class="sourceLineNo">297</span>    }<a name="line.297"></a>
+<span class="sourceLineNo">298</span><a name="line.298"></a>
+<span class="sourceLineNo">299</span>    /**<a name="line.299"></a>
+<span class="sourceLineNo">300</span>     * Whether to set the language encoding flag if the file name<a name="line.300"></a>
+<span class="sourceLineNo">301</span>     * encoding is UTF-8.<a name="line.301"></a>
+<span class="sourceLineNo">302</span>     * &lt;p/&gt;<a name="line.302"></a>
+<span class="sourceLineNo">303</span>     * &lt;p&gt;Defaults to true.&lt;/p&gt;<a name="line.303"></a>
+<span class="sourceLineNo">304</span>     */<a name="line.304"></a>
+<span class="sourceLineNo">305</span>    public void setUseLanguageEncodingFlag(boolean b) {<a name="line.305"></a>
+<span class="sourceLineNo">306</span>        useUTF8Flag = b &amp;&amp; ZipEncodingHelper.isUTF8(encoding);<a name="line.306"></a>
+<span class="sourceLineNo">307</span>    }<a name="line.307"></a>
+<span class="sourceLineNo">308</span><a name="line.308"></a>
+<span class="sourceLineNo">309</span>    /**<a name="line.309"></a>
+<span class="sourceLineNo">310</span>     * Whether to create Unicode Extra Fields.<a name="line.310"></a>
+<span class="sourceLineNo">311</span>     * &lt;p/&gt;<a name="line.311"></a>
+<span class="sourceLineNo">312</span>     * &lt;p&gt;Defaults to NEVER.&lt;/p&gt;<a name="line.312"></a>
+<span class="sourceLineNo">313</span>     */<a name="line.313"></a>
+<span class="sourceLineNo">314</span>    public void setCreateUnicodeExtraFields(UnicodeExtraFieldPolicy b) {<a name="line.314"></a>
+<span class="sourceLineNo">315</span>        createUnicodeExtraFields = b;<a name="line.315"></a>
+<span class="sourceLineNo">316</span>    }<a name="line.316"></a>
+<span class="sourceLineNo">317</span><a name="line.317"></a>
+<span class="sourceLineNo">318</span>    /**<a name="line.318"></a>
+<span class="sourceLineNo">319</span>     * Whether to fall back to UTF and the language encoding flag if<a name="line.319"></a>
+<span class="sourceLineNo">320</span>     * the file name cannot be encoded using the specified encoding.<a name="line.320"></a>
+<span class="sourceLineNo">321</span>     * &lt;p/&gt;<a name="line.321"></a>
+<span class="sourceLineNo">322</span>     * &lt;p&gt;Defaults to false.&lt;/p&gt;<a name="line.322"></a>
+<span class="sourceLineNo">323</span>     */<a name="line.323"></a>
+<span class="sourceLineNo">324</span>    public void setFallbackToUTF8(boolean b) {<a name="line.324"></a>
+<span class="sourceLineNo">325</span>        fallbackToUTF8 = b;<a name="line.325"></a>
+<span class="sourceLineNo">326</span>    }<a name="line.326"></a>
+<span class="sourceLineNo">327</span><a name="line.327"></a>
+<span class="sourceLineNo">328</span>    /**<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     * Whether Zip64 extensions will be used.<a name="line.329"></a>
+<span class="sourceLineNo">330</span>     * &lt;p/&gt;<a name="line.330"></a>
+<span class="sourceLineNo">331</span>     * &lt;p&gt;When setting the mode to {@link Zip64Mode#Never Never},<a name="line.331"></a>
+<span class="sourceLineNo">332</span>     * {@link #putArchiveEntry}, {@link #closeArchiveEntry}, {@link<a name="line.332"></a>
+<span class="sourceLineNo">333</span>     * #finish} or {@link #close} may throw a {@link<a name="line.333"></a>
+<span class="sourceLineNo">334</span>     * Zip64RequiredException} if the entry's size or the total size<a name="line.334"></a>
+<span class="sourceLineNo">335</span>     * of the archive exceeds 4GB or there are more than 65536 entries<a name="line.335"></a>
+<span class="sourceLineNo">336</span>     * inside the archive.  Any archive created in this mode will be<a name="line.336"></a>
+<span class="sourceLineNo">337</span>     * readable by implementations that don't support Zip64.&lt;/p&gt;<a name="line.337"></a>
+<span class="sourceLineNo">338</span>     * &lt;p/&gt;<a name="line.338"></a>
+<span class="sourceLineNo">339</span>     * &lt;p&gt;When setting the mode to {@link Zip64Mode#Always Always},<a name="line.339"></a>
+<span class="sourceLineNo">340</span>     * Zip64 extensions will be used for all entries.  Any archive<a name="line.340"></a>
+<span class="sourceLineNo">341</span>     * created in this mode may be unreadable by implementations that<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     * don't support Zip64 even if all its contents would be.&lt;/p&gt;<a name="line.342"></a>
+<span class="sourceLineNo">343</span>     * &lt;p/&gt;<a name="line.343"></a>
+<span class="sourceLineNo">344</span>     * &lt;p&gt;When setting the mode to {@link Zip64Mode#AsNeeded<a name="line.344"></a>
+<span class="sourceLineNo">345</span>     * AsNeeded}, Zip64 extensions will transparently be used for<a name="line.345"></a>
+<span class="sourceLineNo">346</span>     * those entries that require them.  This mode can only be used if<a name="line.346"></a>
+<span class="sourceLineNo">347</span>     * the uncompressed size of the {@link ZipArchiveEntry} is known<a name="line.347"></a>
+<span class="sourceLineNo">348</span>     * when calling {@link #putArchiveEntry} or the archive is written<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     * to a seekable output (i.e. you have used the {@link<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     * #ZipArchiveOutputStream(java.io.File) File-arg constructor}) -<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     * this mode is not valid when the output stream is not seekable<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     * and the uncompressed size is unknown when {@link<a name="line.352"></a>
+<span class="sourceLineNo">353</span>     * #putArchiveEntry} is called.&lt;/p&gt;<a name="line.353"></a>
+<span class="sourceLineNo">354</span>     * &lt;p/&gt;<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     * &lt;p&gt;If no entry inside the resulting archive requires Zip64<a name="line.355"></a>
+<span class="sourceLineNo">356</span>     * extensions then {@link Zip64Mode#Never Never} will create the<a name="line.356"></a>
+<span class="sourceLineNo">357</span>     * smallest archive.  {@link Zip64Mode#AsNeeded AsNeeded} will<a name="line.357"></a>
+<span class="sourceLineNo">358</span>     * create a slightly bigger archive if the uncompressed size of<a name="line.358"></a>
+<span class="sourceLineNo">359</span>     * any entry has initially been unknown and create an archive<a name="line.359"></a>
+<span class="sourceLineNo">360</span>     * identical to {@link Zip64Mode#Never Never} otherwise.  {@link<a name="line.360"></a>
+<span class="sourceLineNo">361</span>     * Zip64Mode#Always Always} will create an archive that is at<a name="line.361"></a>
+<span class="sourceLineNo">362</span>     * least 24 bytes per entry bigger than the one {@link<a name="line.362"></a>
+<span class="sourceLineNo">363</span>     * Zip64Mode#Never Never} would create.&lt;/p&gt;<a name="line.363"></a>
+<span class="sourceLineNo">364</span>     * &lt;p/&gt;<a name="line.364"></a>
+<span class="sourceLineNo">365</span>     * &lt;p&gt;Defaults to {@link Zip64Mode#AsNeeded AsNeeded} unless<a name="line.365"></a>
+<span class="sourceLineNo">366</span>     * {@link #putArchiveEntry} is called with an entry of unknown<a name="line.366"></a>
+<span class="sourceLineNo">367</span>     * size and data is written to a non-seekable stream - in this<a name="line.367"></a>
+<span class="sourceLineNo">368</span>     * case the default is {@link Zip64Mode#Never Never}.&lt;/p&gt;<a name="line.368"></a>
+<span class="sourceLineNo">369</span>     */<a name="line.369"></a>
+<span class="sourceLineNo">370</span>    public void setUseZip64(Zip64Mode mode) {<a name="line.370"></a>
+<span class="sourceLineNo">371</span>        zip64Mode = mode;<a name="line.371"></a>
+<span class="sourceLineNo">372</span>    }<a name="line.372"></a>
+<span class="sourceLineNo">373</span><a name="line.373"></a>
+<span class="sourceLineNo">374</span>    /**<a name="line.374"></a>
+<span class="sourceLineNo">375</span>     * @throws Zip64RequiredException if the archive's size exceeds 4<a name="line.375"></a>
+<span class="sourceLineNo">376</span>     *                                GByte or there are more than 65535 entries inside the archive<a name="line.376"></a>
+<span class="sourceLineNo">377</span>     *                                and {@link #setUseZip64} is {@link Zip64Mode#Never}.<a name="line.377"></a>
+<span class="sourceLineNo">378</span>     */<a name="line.378"></a>
+<span class="sourceLineNo">379</span>    @Override<a name="line.379"></a>
+<span class="sourceLineNo">380</span>    public void finish() throws IOException {<a name="line.380"></a>
+<span class="sourceLineNo">381</span>        if (finished) {<a name="line.381"></a>
+<span class="sourceLineNo">382</span>            throw new IOException("This archive has already been finished");<a name="line.382"></a>
+<span class="sourceLineNo">383</span>        }<a name="line.383"></a>
+<span class="sourceLineNo">384</span><a name="line.384"></a>
+<span class="sourceLineNo">385</span>        if (entry != null) {<a name="line.385"></a>
+<span class="sourceLineNo">386</span>            throw new IOException("This archives contains unclosed entries.");<a name="line.386"></a>
+<span class="sourceLineNo">387</span>        }<a name="line.387"></a>
+<span class="sourceLineNo">388</span><a name="line.388"></a>
+<span class="sourceLineNo">389</span>        cdOffset = written;<a name="line.389"></a>
+<span class="sourceLineNo">390</span>        for (ZipArchiveEntry ze : entries) {<a name="line.390"></a>
+<span class="sourceLineNo">391</span>            writeCentralFileHeader(ze);<a name="line.391"></a>
+<span class="sourceLineNo">392</span>        }<a name="line.392"></a>
+<span class="sourceLineNo">393</span>        cdLength = written - cdOffset;<a name="line.393"></a>
+<span class="sourceLineNo">394</span>        writeZip64CentralDirectory();<a name="line.394"></a>
+<span class="sourceLineNo">395</span>        writeCentralDirectoryEnd();<a name="line.395"></a>
+<span class="sourceLineNo">396</span>        offsets.clear();<a name="line.396"></a>
+<span class="sourceLineNo">397</span>        entries.clear();<a name="line.397"></a>
+<span class="sourceLineNo">398</span>        def.end();<a name="line.398"></a>
+<span class="sourceLineNo">399</span>        finished = true;<a name="line.399"></a>
+<span class="sourceLineNo">400</span>    }<a name="line.400"></a>
+<span class="sourceLineNo">401</span><a name="line.401"></a>
+<span class="sourceLineNo">402</span>    /**<a name="line.402"></a>
+<span class="sourceLineNo">403</span>     * Writes all necessary data for this entry.<a name="line.403"></a>
+<span class="sourceLineNo">404</span>     *<a name="line.404"></a>
+<span class="sourceLineNo">405</span>     * @throws java.io.IOException    on error<a name="line.405"></a>
+<span class="sourceLineNo">406</span>     * @throws Zip64RequiredException if the entry's uncompressed or<a name="line.406"></a>
+<span class="sourceLineNo">407</span>     *                                compressed size exceeds 4 GByte and {@link #setUseZip64}<a name="line.407"></a>
+<span class="sourceLineNo">408</span>     *                                is {@link Zip64Mode#Never}.<a name="line.408"></a>
+<span class="sourceLineNo">409</span>     */<a name="line.409"></a>
+<span class="sourceLineNo">410</span>    @Override<a name="line.410"></a>
+<span class="sourceLineNo">411</span>    public void closeArchiveEntry() throws IOException {<a name="line.411"></a>
+<span class="sourceLineNo">412</span>        if (finished) {<a name="line.412"></a>
+<span class="sourceLineNo">413</span>            throw new IOException("Stream has already been finished");<a name="line.413"></a>
+<span class="sourceLineNo">414</span>        }<a name="line.414"></a>
+<span class="sourceLineNo">415</span><a name="line.415"></a>
+<span class="sourceLineNo">416</span>        if (entry == null) {<a name="line.416"></a>
+<span class="sourceLineNo">417</span>            throw new IOException("No current entry to close");<a name="line.417"></a>
+<span class="sourceLineNo">418</span>        }<a name="line.418"></a>
+<span class="sourceLineNo">419</span><a name="line.419"></a>
+<span class="sourceLineNo">420</span>        if (!entry.hasWritten) {<a name="line.420"></a>
+<span class="sourceLineNo">421</span>            write(new byte[0], 0, 0);<a name="line.421"></a>
+<span class="sourceLineNo">422</span>        }<a name="line.422"></a>
+<span class="sourceLineNo">423</span><a name="line.423"></a>
+<span class="sourceLineNo">424</span>        flushDeflater();<a name="line.424"></a>
+<span class="sourceLineNo">425</span><a name="line.425"></a>
+<span class="sourceLineNo">426</span>        final Zip64Mode effectiveMode = getEffectiveZip64Mode(entry.entry);<a name="line.426"></a>
+<span class="sourceLineNo">427</span>        long bytesWritten = written - entry.dataStart;<a name="line.427"></a>
+<span class="sourceLineNo">428</span>        long realCrc = crc.getValue();<a name="line.428"></a>
+<span class="sourceLineNo">429</span>        crc.reset();<a name="line.429"></a>
+<span class="sourceLineNo">430</span><a name="line.430"></a>
+<span class="sourceLineNo">431</span>        final boolean actuallyNeedsZip64 =<a name="line.431"></a>
+<span class="sourceLineNo">432</span>                handleSizesAndCrc(bytesWritten, realCrc, effectiveMode);<a name="line.432"></a>
+<span class="sourceLineNo">433</span><a name="line.433"></a>
+<span class="sourceLineNo">434</span>        if (raf != null) {<a name="line.434"></a>
+<span class="sourceLineNo">435</span>            rewriteSizesAndCrc(actuallyNeedsZip64);<a name="line.435"></a>
+<span class="sourceLineNo">436</span>        }<a name="line.436"></a>
+<span class="sourceLineNo">437</span><a name="line.437"></a>
+<span class="sourceLineNo">438</span>        writeDataDescriptor(entry.entry);<a name="line.438"></a>
+<span class="sourceLineNo">439</span>        entry = null;<a name="line.439"></a>
+<span class="sourceLineNo">440</span>    }<a name="line.440"></a>
+<span class="sourceLineNo">441</span><a name="line.441"></a>
+<span class="sourceLineNo">442</span>    /**<a name="line.442"></a>
+<span class="sourceLineNo">443</span>     * Ensures all bytes sent to the deflater are written to the stream.<a name="line.443"></a>
+<span class="sourceLineNo">444</span>     */<a name="line.444"></a>
+<span class="sourceLineNo">445</span>    private void flushDeflater() throws IOException {<a name="line.445"></a>
+<span class="sourceLineNo">446</span>        if (entry.entry.getMethod() == DEFLATED) {<a name="line.446"></a>
+<span class="sourceLineNo">447</span>            def.finish();<a name="line.447"></a>
+<span class="sourceLineNo">448</span>            while (!def.finished()) {<a name="line.448"></a>
+<span class="sourceLineNo">449</span>                deflate();<a name="line.449"></a>
+<span class="sourceLineNo">450</span>            }<a name="line.450"></a>
+<span class="sourceLineNo">451</span>        }<a name="line.451"></a>
+<span class="sourceLineNo">452</span>    }<a name="line.452"></a>
+<span class="sourceLineNo">453</span><a name="line.453"></a>
+<span class="sourceLineNo">454</span>    /**<a name="line.454"></a>
+<span class="sourceLineNo">455</span>     * Ensures the current entry's size and CRC information is set to<a name="line.455"></a>
+<span class="sourceLineNo">456</span>     * the values just written, verifies it isn't too big in the<a name="line.456"></a>
+<span class="sourceLineNo">457</span>     * Zip64Mode.Never case and returns whether the entry would<a name="line.457"></a>
+<span class="sourceLineNo">458</span>     * require a Zip64 extra field.<a name="line.458"></a>
+<span class="sourceLineNo">459</span>     */<a name="line.459"></a>
+<span class="sourceLineNo">460</span>    private boolean handleSizesAndCrc(long bytesWritten, long crc,<a name="line.460"></a>
+<span class="sourceLineNo">461</span>                                      Zip64Mode effectiveMode)<a name="line.461"></a>
+<span class="sourceLineNo">462</span>            throws ZipException {<a name="line.462"></a>
+<span class="sourceLineNo">463</span>        if (entry.entry.getMethod() == DEFLATED) {<a name="line.463"></a>
+<span class="sourceLineNo">464</span>            /* It turns out def.getBytesRead() returns wrong values if<a name="line.464"></a>
+<span class="sourceLineNo">465</span>             * the size exceeds 4 GB on Java &lt; Java7<a name="line.465"></a>
+<span class="sourceLineNo">466</span>            entry.entry.setSize(def.getBytesRead());<a name="line.466"></a>
+<span class="sourceLineNo">467</span>            */<a name="line.467"></a>
+<span class="sourceLineNo">468</span>            entry.entry.setSize(entry.bytesRead);<a name="line.468"></a>
+<span class="sourceLineNo">469</span>            entry.entry.setCompressedSize(bytesWritten);<a name="line.469"></a>
+<span class="sourceLineNo">470</span>            entry.entry.setCrc(crc);<a name="line.470"></a>
+<span class="sourceLineNo">471</span><a name="line.471"></a>
+<span class="sourceLineNo">472</span>            def.reset();<a name="line.472"></a>
+<span class="sourceLineNo">473</span>        } else if (raf == null) {<a name="line.473"></a>
+<span class="sourceLineNo">474</span>            if (entry.entry.getCrc() != crc) {<a name="line.474"></a>
+<span class="sourceLineNo">475</span>                throw new ZipException("bad CRC checksum for entry "<a name="line.475"></a>
+<span class="sourceLineNo">476</span>                        + entry.entry.getName() + ": "<a name="line.476"></a>
+<span class="sourceLineNo">477</span>                        + Long.toHexString(entry.entry.getCrc())<a name="line.477"></a>
+<span class="sourceLineNo">478</span>                        + " instead of "<a name="line.478"></a>
+<span class="sourceLineNo">479</span>                        + Long.toHexString(crc));<a name="line.479"></a>
+<span class="sourceLineNo">480</span>            }<a name="line.480"></a>
+<span class="sourceLineNo">481</span><a name="line.481"></a>
+<span class="sourceLineNo">482</span>            if (entry.entry.getSize() != bytesWritten) {<a name="line.482"></a>
+<span class="sourceLineNo">483</span>                throw new ZipException("bad size for entry "<a name="line.483"></a>
+<span class="sourceLineNo">484</span>                        + entry.entry.getName() + ": "<a name="line.484"></a>
+<span class="sourceLineNo">485</span>                        + entry.entry.getSize()<a name="line.485"></a>
+<span class="sourceLineNo">486</span>                        + " instead of "<a name="line.486"></a>
+<span class="sourceLineNo">487</span>                        + bytesWritten);<a name="line.487"></a>
+<span class="sourceLineNo">488</span>            }<a name="line.488"></a>
+<span class="sourceLineNo">489</span>        } else { /* method is STORED and we used RandomAccessFile */<a name="line.489"></a>
+<span class="sourceLineNo">490</span>            entry.entry.setSize(bytesWritten);<a name="line.490"></a>
+<span class="sourceLineNo">491</span>            entry.entry.setCompressedSize(bytesWritten);<a name="line.491"></a>
+<span class="sourceLineNo">492</span>            entry.entry.setCrc(crc);<a name="line.492"></a>
+<span class="sourceLineNo">493</span>        }<a name="line.493"></a>
+<span class="sourceLineNo">494</span><a name="line.494"></a>
+<span class="sourceLineNo">495</span>        final boolean actuallyNeedsZip64 = effectiveMode == Zip64Mode.Always<a name="line.495"></a>
+<span class="sourceLineNo">496</span>                || entry.entry.getSize() &gt;= ZIP64_MAGIC<a name="line.496"></a>
+<span class="sourceLineNo">497</span>                || entry.entry.getCompressedSize() &gt;= ZIP64_MAGIC;<a name="line.497"></a>
+<span class="sourceLineNo">498</span>        if (actuallyNeedsZip64 &amp;&amp; effectiveMode == Zip64Mode.Never) {<a name="line.498"></a>
+<span class="sourceLineNo">499</span>            throw new Zip64RequiredException(Zip64RequiredException<a name="line.499"></a>
+<span class="sourceLineNo">500</span>                    .getEntryTooBigMessage(entry.entry));<a name="line.500"></a>
+<span class="sourceLineNo">501</span>        }<a name="line.501"></a>
+<span class="sourceLineNo">502</span>        return actuallyNeedsZip64;<a name="line.502"></a>
+<span class="sourceLineNo">503</span>    }<a name="line.503"></a>
+<span class="sourceLineNo">504</span><a name="line.504"></a>
+<span class="sourceLineNo">505</span>    /**<a name="line.505"></a>
+<span class="sourceLineNo">506</span>     * When using random access output, write the local file header<a name="line.506"></a>
+<span class="sourceLineNo">507</span>     * and potentiall the ZIP64 extra containing the correct CRC and<a name="line.507"></a>
+<span class="sourceLineNo">508</span>     * compressed/uncompressed sizes.<a name="line.508"></a>
+<span class="sourceLineNo">509</span>     */<a name="line.509"></a>
+<span class="sourceLineNo">510</span>    private void rewriteSizesAndCrc(boolean actuallyNeedsZip64)<a name="line.510"></a>
+<span class="sourceLineNo">511</span>            throws IOException {<a name="line.511"></a>
+<span class="sourceLineNo">512</span>        long save = raf.getFilePointer();<a name="line.512"></a>
+<span class="sourceLineNo">513</span><a name="line.513"></a>
+<span class="sourceLineNo">514</span>        raf.seek(entry.localDataStart);<a name="line.514"></a>
+<span class="sourceLineNo">515</span>        writeOut(ZipLong.getBytes(entry.entry.getCrc()));<a name="line.515"></a>
+<span class="sourceLineNo">516</span>        if (!hasZip64Extra(entry.entry) || !actuallyNeedsZip64) {<a name="line.516"></a>
+<span class="sourceLineNo">517</span>            writeOut(ZipLong.getBytes(entry.entry.getCompressedSize()));<a name="line.517"></a>
+<span class="sourceLineNo">518</span>            writeOut(ZipLong.getBytes(entry.entry.getSize()));<a name="line.518"></a>
+<span class="sourceLineNo">519</span>        } else {<a name="line.519"></a>
+<span class="sourceLineNo">520</span>            writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.520"></a>
+<span class="sourceLineNo">521</span>            writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.521"></a>
+<span class="sourceLineNo">522</span>        }<a name="line.522"></a>
+<span class="sourceLineNo">523</span><a name="line.523"></a>
+<span class="sourceLineNo">524</span>        if (hasZip64Extra(entry.entry)) {<a name="line.524"></a>
+<span class="sourceLineNo">525</span>            // seek to ZIP64 extra, skip header and size information<a name="line.525"></a>
+<span class="sourceLineNo">526</span>            raf.seek(entry.localDataStart + 3 * WORD + 2 * SHORT<a name="line.526"></a>
+<span class="sourceLineNo">527</span>                    + getName(entry.entry).limit() + 2 * SHORT);<a name="line.527"></a>
+<span class="sourceLineNo">528</span>            // inside the ZIP64 extra uncompressed size comes<a name="line.528"></a>
+<span class="sourceLineNo">529</span>            // first, unlike the LFH, CD or data descriptor<a name="line.529"></a>
+<span class="sourceLineNo">530</span>            writeOut(ZipEightByteInteger.getBytes(entry.entry.getSize()));<a name="line.530"></a>
+<span class="sourceLineNo">531</span>            writeOut(ZipEightByteInteger.getBytes(entry.entry.getCompressedSize()));<a name="line.531"></a>
+<span class="sourceLineNo">532</span><a name="line.532"></a>
+<span class="sourceLineNo">533</span>            if (!actuallyNeedsZip64) {<a name="line.533"></a>
+<span class="sourceLineNo">534</span>                // do some cleanup:<a name="line.534"></a>
+<span class="sourceLineNo">535</span>                // * rewrite version needed to extract<a name="line.535"></a>
+<span class="sourceLineNo">536</span>                raf.seek(entry.localDataStart - 5 * SHORT);<a name="line.536"></a>
+<span class="sourceLineNo">537</span>                writeOut(ZipShort.getBytes(INITIAL_VERSION));<a name="line.537"></a>
+<span class="sourceLineNo">538</span><a name="line.538"></a>
+<span class="sourceLineNo">539</span>                // * remove ZIP64 extra so it doesn't get written<a name="line.539"></a>
+<span class="sourceLineNo">540</span>                //   to the central directory<a name="line.540"></a>
+<span class="sourceLineNo">541</span>                entry.entry.removeExtraField(Zip64ExtendedInformationExtraField<a name="line.541"></a>
+<span class="sourceLineNo">542</span>                        .HEADER_ID);<a name="line.542"></a>
+<span class="sourceLineNo">543</span>                entry.entry.setExtra();<a name="line.543"></a>
+<span class="sourceLineNo">544</span><a name="line.544"></a>
+<span class="sourceLineNo">545</span>                // * reset hasUsedZip64 if it has been set because<a name="line.545"></a>
+<span class="sourceLineNo">546</span>                //   of this entry<a name="line.546"></a>
+<span class="sourceLineNo">547</span>                if (entry.causedUseOfZip64) {<a name="line.547"></a>
+<span class="sourceLineNo">548</span>                    hasUsedZip64 = false;<a name="line.548"></a>
+<span class="sourceLineNo">549</span>                }<a name="line.549"></a>
+<span class="sourceLineNo">550</span>            }<a name="line.550"></a>
+<span class="sourceLineNo">551</span>        }<a name="line.551"></a>
+<span class="sourceLineNo">552</span>        raf.seek(save);<a name="line.552"></a>
+<span class="sourceLineNo">553</span>    }<a name="line.553"></a>
+<span class="sourceLineNo">554</span><a name="line.554"></a>
+<span class="sourceLineNo">555</span>    /**<a name="line.555"></a>
+<span class="sourceLineNo">556</span>     * {@inheritDoc}<a name="line.556"></a>
+<span class="sourceLineNo">557</span>     *<a name="line.557"></a>
+<span class="sourceLineNo">558</span>     * @throws ClassCastException     if entry is not an instance of ZipArchiveEntry<a name="line.558"></a>
+<span class="sourceLineNo">559</span>     * @throws Zip64RequiredException if the entry's uncompressed or<a name="line.559"></a>
+<span class="sourceLineNo">560</span>     *                                compressed size is known to exceed 4 GByte and {@link #setUseZip64}<a name="line.560"></a>
+<span class="sourceLineNo">561</span>     *                                is {@link Zip64Mode#Never}.<a name="line.561"></a>
+<span class="sourceLineNo">562</span>     */<a name="line.562"></a>
+<span class="sourceLineNo">563</span>    @Override<a name="line.563"></a>
+<span class="sourceLineNo">564</span>    public void putArchiveEntry(ArchiveEntry archiveEntry) throws IOException {<a name="line.564"></a>
+<span class="sourceLineNo">565</span>        if (finished) {<a name="line.565"></a>
+<span class="sourceLineNo">566</span>            throw new IOException("Stream has already been finished");<a name="line.566"></a>
+<span class="sourceLineNo">567</span>        }<a name="line.567"></a>
+<span class="sourceLineNo">568</span><a name="line.568"></a>
+<span class="sourceLineNo">569</span>        if (entry != null) {<a name="line.569"></a>
+<span class="sourceLineNo">570</span>            closeArchiveEntry();<a name="line.570"></a>
+<span class="sourceLineNo">571</span>        }<a name="line.571"></a>
+<span class="sourceLineNo">572</span><a name="line.572"></a>
+<span class="sourceLineNo">573</span>        entry = new CurrentEntry((ZipArchiveEntry) archiveEntry);<a name="line.573"></a>
+<span class="sourceLineNo">574</span>        entries.add(entry.entry);<a name="line.574"></a>
+<span class="sourceLineNo">575</span><a name="line.575"></a>
+<span class="sourceLineNo">576</span>        setDefaults(entry.entry);<a name="line.576"></a>
+<span class="sourceLineNo">577</span><a name="line.577"></a>
+<span class="sourceLineNo">578</span>        final Zip64Mode effectiveMode = getEffectiveZip64Mode(entry.entry);<a name="line.578"></a>
+<span class="sourceLineNo">579</span>        validateSizeInformation(effectiveMode);<a name="line.579"></a>
+<span class="sourceLineNo">580</span><a name="line.580"></a>
+<span class="sourceLineNo">581</span>        if (shouldAddZip64Extra(entry.entry, effectiveMode)) {<a name="line.581"></a>
+<span class="sourceLineNo">582</span><a name="line.582"></a>
+<span class="sourceLineNo">583</span>            Zip64ExtendedInformationExtraField z64 = getZip64Extra(entry.entry);<a name="line.583"></a>
+<span class="sourceLineNo">584</span><a name="line.584"></a>
+<span class="sourceLineNo">585</span>            // just a placeholder, real data will be in data<a name="line.585"></a>
+<span class="sourceLineNo">586</span>            // descriptor or inserted later via RandomAccessFile<a name="line.586"></a>
+<span class="sourceLineNo">587</span>            ZipEightByteInteger size = ZipEightByteInteger.ZERO;<a name="line.587"></a>
+<span class="sourceLineNo">588</span>            if (entry.entry.getMethod() == STORED<a name="line.588"></a>
+<span class="sourceLineNo">589</span>                    &amp;&amp; entry.entry.getSize() != ArchiveEntry.SIZE_UNKNOWN) {<a name="line.589"></a>
+<span class="sourceLineNo">590</span>                // actually, we already know the sizes<a name="line.590"></a>
+<span class="sourceLineNo">591</span>                size = new ZipEightByteInteger(entry.entry.getSize());<a name="line.591"></a>
+<span class="sourceLineNo">592</span>            }<a name="line.592"></a>
+<span class="sourceLineNo">593</span>            z64.setSize(size);<a name="line.593"></a>
+<span class="sourceLineNo">594</span>            z64.setCompressedSize(size);<a name="line.594"></a>
+<span class="sourceLineNo">595</span>            entry.entry.setExtra();<a name="line.595"></a>
+<span class="sourceLineNo">596</span>        }<a name="line.596"></a>
+<span class="sourceLineNo">597</span><a name="line.597"></a>
+<span class="sourceLineNo">598</span>        if (entry.entry.getMethod() == DEFLATED &amp;&amp; hasCompressionLevelChanged) {<a name="line.598"></a>
+<span class="sourceLineNo">599</span>            def.setLevel(level);<a name="line.599"></a>
+<span class="sourceLineNo">600</span>            hasCompressionLevelChanged = false;<a name="line.600"></a>
+<span class="sourceLineNo">601</span>        }<a name="line.601"></a>
+<span class="sourceLineNo">602</span>        writeLocalFileHeader(entry.entry);<a name="line.602"></a>
+<span class="sourceLineNo">603</span>    }<a name="line.603"></a>
+<span class="sourceLineNo">604</span><a name="line.604"></a>
+<span class="sourceLineNo">605</span>    /**<a name="line.605"></a>
+<span class="sourceLineNo">606</span>     * Provides default values for compression method and last<a name="line.606"></a>
+<span class="sourceLineNo">607</span>     * modification time.<a name="line.607"></a>
+<span class="sourceLineNo">608</span>     */<a name="line.608"></a>
+<span class="sourceLineNo">609</span>    private void setDefaults(ZipArchiveEntry entry) {<a name="line.609"></a>
+<span class="sourceLineNo">610</span>        if (entry.getMethod() == -1) { // not specified<a name="line.610"></a>
+<span class="sourceLineNo">611</span>            entry.setMethod(method);<a name="line.611"></a>
+<span class="sourceLineNo">612</span>        }<a name="line.612"></a>
+<span class="sourceLineNo">613</span><a name="line.613"></a>
+<span class="sourceLineNo">614</span>        if (entry.getTime() == -1) { // not specified<a name="line.614"></a>
+<span class="sourceLineNo">615</span>            entry.setTime(System.currentTimeMillis());<a name="line.615"></a>
+<span class="sourceLineNo">616</span>        }<a name="line.616"></a>
+<span class="sourceLineNo">617</span>    }<a name="line.617"></a>
+<span class="sourceLineNo">618</span><a name="line.618"></a>
+<span class="sourceLineNo">619</span>    /**<a name="line.619"></a>
+<span class="sourceLineNo">620</span>     * Throws an exception if the size is unknown for a stored entry<a name="line.620"></a>
+<span class="sourceLineNo">621</span>     * that is written to a non-seekable output or the entry is too<a name="line.621"></a>
+<span class="sourceLineNo">622</span>     * big to be written without Zip64 extra but the mode has been set<a name="line.622"></a>
+<span class="sourceLineNo">623</span>     * to Never.<a name="line.623"></a>
+<span class="sourceLineNo">624</span>     */<a name="line.624"></a>
+<span class="sourceLineNo">625</span>    private void validateSizeInformation(Zip64Mode effectiveMode)<a name="line.625"></a>
+<span class="sourceLineNo">626</span>            throws ZipException {<a name="line.626"></a>
+<span class="sourceLineNo">627</span>        // Size/CRC not required if RandomAccessFile is used<a name="line.627"></a>
+<span class="sourceLineNo">628</span>        if (entry.entry.getMethod() == STORED &amp;&amp; raf == null) {<a name="line.628"></a>
+<span class="sourceLineNo">629</span>            if (entry.entry.getSize() == ArchiveEntry.SIZE_UNKNOWN) {<a name="line.629"></a>
+<span class="sourceLineNo">630</span>                throw new ZipException("uncompressed size is required for"<a name="line.630"></a>
+<span class="sourceLineNo">631</span>                        + " STORED method when not writing to a"<a name="line.631"></a>
+<span class="sourceLineNo">632</span>                        + " file");<a name="line.632"></a>
+<span class="sourceLineNo">633</span>            }<a name="line.633"></a>
+<span class="sourceLineNo">634</span>            if (entry.entry.getCrc() == -1) {<a name="line.634"></a>
+<span class="sourceLineNo">635</span>                throw new ZipException("crc checksum is required for STORED"<a name="line.635"></a>
+<span class="sourceLineNo">636</span>                        + " method when not writing to a file");<a name="line.636"></a>
+<span class="sourceLineNo">637</span>            }<a name="line.637"></a>
+<span class="sourceLineNo">638</span>            entry.entry.setCompressedSize(entry.entry.getSize());<a name="line.638"></a>
+<span class="sourceLineNo">639</span>        }<a name="line.639"></a>
+<span class="sourceLineNo">640</span><a name="line.640"></a>
+<span class="sourceLineNo">641</span>        if ((entry.entry.getSize() &gt;= ZIP64_MAGIC<a name="line.641"></a>
+<span class="sourceLineNo">642</span>                || entry.entry.getCompressedSize() &gt;= ZIP64_MAGIC)<a name="line.642"></a>
+<span class="sourceLineNo">643</span>                &amp;&amp; effectiveMode == Zip64Mode.Never) {<a name="line.643"></a>
+<span class="sourceLineNo">644</span>            throw new Zip64RequiredException(Zip64RequiredException<a name="line.644"></a>
+<span class="sourceLineNo">645</span>                    .getEntryTooBigMessage(entry.entry));<a name="line.645"></a>
+<span class="sourceLineNo">646</span>        }<a name="line.646"></a>
+<span class="sourceLineNo">647</span>    }<a name="line.647"></a>
+<span class="sourceLineNo">648</span><a name="line.648"></a>
+<span class="sourceLineNo">649</span>    /**<a name="line.649"></a>
+<span class="sourceLineNo">650</span>     * Whether to addd a Zip64 extended information extra field to the<a name="line.650"></a>
+<span class="sourceLineNo">651</span>     * local file header.<a name="line.651"></a>
+<span class="sourceLineNo">652</span>     * &lt;p/&gt;<a name="line.652"></a>
+<span class="sourceLineNo">653</span>     * &lt;p&gt;Returns true if&lt;/p&gt;<a name="line.653"></a>
+<span class="sourceLineNo">654</span>     * &lt;p/&gt;<a name="line.654"></a>
+<span class="sourceLineNo">655</span>     * &lt;ul&gt;<a name="line.655"></a>
+<span class="sourceLineNo">656</span>     * &lt;li&gt;mode is Always&lt;/li&gt;<a name="line.656"></a>
+<span class="sourceLineNo">657</span>     * &lt;li&gt;or we already know it is going to be needed&lt;/li&gt;<a name="line.657"></a>
+<span class="sourceLineNo">658</span>     * &lt;li&gt;or the size is unknown and we can ensure it won't hurt<a name="line.658"></a>
+<span class="sourceLineNo">659</span>     * other implementations if we add it (i.e. we can erase its<a name="line.659"></a>
+<span class="sourceLineNo">660</span>     * usage&lt;/li&gt;<a name="line.660"></a>
+<span class="sourceLineNo">661</span>     * &lt;/ul&gt;<a name="line.661"></a>
+<span class="sourceLineNo">662</span>     */<a name="line.662"></a>
+<span class="sourceLineNo">663</span>    private boolean shouldAddZip64Extra(ZipArchiveEntry entry, Zip64Mode mode) {<a name="line.663"></a>
+<span class="sourceLineNo">664</span>        return mode == Zip64Mode.Always<a name="line.664"></a>
+<span class="sourceLineNo">665</span>                || entry.getSize() &gt;= ZIP64_MAGIC<a name="line.665"></a>
+<span class="sourceLineNo">666</span>                || entry.getCompressedSize() &gt;= ZIP64_MAGIC<a name="line.666"></a>
+<span class="sourceLineNo">667</span>                || (entry.getSize() == ArchiveEntry.SIZE_UNKNOWN<a name="line.667"></a>
+<span class="sourceLineNo">668</span>                &amp;&amp; raf != null &amp;&amp; mode != Zip64Mode.Never);<a name="line.668"></a>
+<span class="sourceLineNo">669</span>    }<a name="line.669"></a>
+<span class="sourceLineNo">670</span><a name="line.670"></a>
+<span class="sourceLineNo">671</span>    /**<a name="line.671"></a>
+<span class="sourceLineNo">672</span>     * Set the file comment.<a name="line.672"></a>
+<span class="sourceLineNo">673</span>     *<a name="line.673"></a>
+<span class="sourceLineNo">674</span>     * @param comment the comment<a name="line.674"></a>
+<span class="sourceLineNo">675</span>     */<a name="line.675"></a>
+<span class="sourceLineNo">676</span>    public void setComment(String comment) {<a name="line.676"></a>
+<span class="sourceLineNo">677</span>        this.comment = comment;<a name="line.677"></a>
+<span class="sourceLineNo">678</span>    }<a name="line.678"></a>
+<span class="sourceLineNo">679</span><a name="line.679"></a>
+<span class="sourceLineNo">680</span>    /**<a name="line.680"></a>
+<span class="sourceLineNo">681</span>     * Sets the compression level for subsequent entries.<a name="line.681"></a>
+<span class="sourceLineNo">682</span>     * &lt;p/&gt;<a name="line.682"></a>
+<span class="sourceLineNo">683</span>     * &lt;p&gt;Default is Deflater.DEFAULT_COMPRESSION.&lt;/p&gt;<a name="line.683"></a>
+<span class="sourceLineNo">684</span>     *<a name="line.684"></a>
+<span class="sourceLineNo">685</span>     * @param level the compression level.<a name="line.685"></a>
+<span class="sourceLineNo">686</span>     * @throws IllegalArgumentException if an invalid compression<a name="line.686"></a>
+<span class="sourceLineNo">687</span>     *                                  level is specified.<a name="line.687"></a>
+<span class="sourceLineNo">688</span>     */<a name="line.688"></a>
+<span class="sourceLineNo">689</span>    public void setLevel(int level) {<a name="line.689"></a>
+<span class="sourceLineNo">690</span>        if (level &lt; Deflater.DEFAULT_COMPRESSION<a name="line.690"></a>
+<span class="sourceLineNo">691</span>                || level &gt; Deflater.BEST_COMPRESSION) {<a name="line.691"></a>
+<span class="sourceLineNo">692</span>            throw new IllegalArgumentException("Invalid compression level: "<a name="line.692"></a>
+<span class="sourceLineNo">693</span>                    + level);<a name="line.693"></a>
+<span class="sourceLineNo">694</span>        }<a name="line.694"></a>
+<span class="sourceLineNo">695</span>        hasCompressionLevelChanged = (this.level != level);<a name="line.695"></a>
+<span class="sourceLineNo">696</span>        this.level = level;<a name="line.696"></a>
+<span class="sourceLineNo">697</span>    }<a name="line.697"></a>
+<span class="sourceLineNo">698</span><a name="line.698"></a>
+<span class="sourceLineNo">699</span>    /**<a name="line.699"></a>
+<span class="sourceLineNo">700</span>     * Sets the default compression method for subsequent entries.<a name="line.700"></a>
+<span class="sourceLineNo">701</span>     * &lt;p/&gt;<a name="line.701"></a>
+<span class="sourceLineNo">702</span>     * &lt;p&gt;Default is DEFLATED.&lt;/p&gt;<a name="line.702"></a>
+<span class="sourceLineNo">703</span>     *<a name="line.703"></a>
+<span class="sourceLineNo">704</span>     * @param method an &lt;code&gt;int&lt;/code&gt; from java.util.zip.ZipEntry<a name="line.704"></a>
+<span class="sourceLineNo">705</span>     */<a name="line.705"></a>
+<span class="sourceLineNo">706</span>    public void setMethod(int method) {<a name="line.706"></a>
+<span class="sourceLineNo">707</span>        this.method = method;<a name="line.707"></a>
+<span class="sourceLineNo">708</span>    }<a name="line.708"></a>
+<span class="sourceLineNo">709</span><a name="line.709"></a>
+<span class="sourceLineNo">710</span>    /**<a name="line.710"></a>
+<span class="sourceLineNo">711</span>     * Writes bytes to ZIP entry.<a name="line.711"></a>
+<span class="sourceLineNo">712</span>     *<a name="line.712"></a>
+<span class="sourceLineNo">713</span>     * @param b      the byte array to write<a name="line.713"></a>
+<span class="sourceLineNo">714</span>     * @param offset the start position to write from<a name="line.714"></a>
+<span class="sourceLineNo">715</span>     * @param length the number of bytes to write<a name="line.715"></a>
+<span class="sourceLineNo">716</span>     * @throws java.io.IOException on error<a name="line.716"></a>
+<span class="sourceLineNo">717</span>     */<a name="line.717"></a>
+<span class="sourceLineNo">718</span>    @Override<a name="line.718"></a>
+<span class="sourceLineNo">719</span>    public void write(byte[] b, int offset, int length) throws IOException {<a name="line.719"></a>
+<span class="sourceLineNo">720</span>        ZipUtil.checkRequestedFeatures(entry.entry);<a name="line.720"></a>
+<span class="sourceLineNo">721</span>        entry.hasWritten = true;<a name="line.721"></a>
+<span class="sourceLineNo">722</span>        if (entry.entry.getMethod() == DEFLATED) {<a name="line.722"></a>
+<span class="sourceLineNo">723</span>            writeDeflated(b, offset, length);<a name="line.723"></a>
+<span class="sourceLineNo">724</span>        } else {<a name="line.724"></a>
+<span class="sourceLineNo">725</span>            writeOut(b, offset, length);<a name="line.725"></a>
+<span class="sourceLineNo">726</span>            written += length;<a name="line.726"></a>
+<span class="sourceLineNo">727</span>        }<a name="line.727"></a>
+<span class="sourceLineNo">728</span>        crc.update(b, offset, length);<a name="line.728"></a>
+<span class="sourceLineNo">729</span>        count(length);<a name="line.729"></a>
+<span class="sourceLineNo">730</span>    }<a name="line.730"></a>
+<span class="sourceLineNo">731</span><a name="line.731"></a>
+<span class="sourceLineNo">732</span>    /**<a name="line.732"></a>
+<span class="sourceLineNo">733</span>     * write implementation for DEFLATED entries.<a name="line.733"></a>
+<span class="sourceLineNo">734</span>     */<a name="line.734"></a>
+<span class="sourceLineNo">735</span>    private void writeDeflated(byte[] b, int offset, int length)<a name="line.735"></a>
+<span class="sourceLineNo">736</span>            throws IOException {<a name="line.736"></a>
+<span class="sourceLineNo">737</span>        if (length &gt; 0 &amp;&amp; !def.finished()) {<a name="line.737"></a>
+<span class="sourceLineNo">738</span>            entry.bytesRead += length;<a name="line.738"></a>
+<span class="sourceLineNo">739</span>            if (length &lt;= DEFLATER_BLOCK_SIZE) {<a name="line.739"></a>
+<span class="sourceLineNo">740</span>                def.setInput(b, offset, length);<a name="line.740"></a>
+<span class="sourceLineNo">741</span>                deflateUntilInputIsNeeded();<a name="line.741"></a>
+<span class="sourceLineNo">742</span>            } else {<a name="line.742"></a>
+<span class="sourceLineNo">743</span>                final int fullblocks = length / DEFLATER_BLOCK_SIZE;<a name="line.743"></a>
+<span class="sourceLineNo">744</span>                for (int i = 0; i &lt; fullblocks; i++) {<a name="line.744"></a>
+<span class="sourceLineNo">745</span>                    def.setInput(b, offset + i * DEFLATER_BLOCK_SIZE,<a name="line.745"></a>
+<span class="sourceLineNo">746</span>                            DEFLATER_BLOCK_SIZE);<a name="line.746"></a>
+<span class="sourceLineNo">747</span>                    deflateUntilInputIsNeeded();<a name="line.747"></a>
+<span class="sourceLineNo">748</span>                }<a name="line.748"></a>
+<span class="sourceLineNo">749</span>                final int done = fullblocks * DEFLATER_BLOCK_SIZE;<a name="line.749"></a>
+<span class="sourceLineNo">750</span>                if (done &lt; length) {<a name="line.750"></a>
+<span class="sourceLineNo">751</span>                    def.setInput(b, offset + done, length - done);<a name="line.751"></a>
+<span class="sourceLineNo">752</span>                    deflateUntilInputIsNeeded();<a name="line.752"></a>
+<span class="sourceLineNo">753</span>                }<a name="line.753"></a>
+<span class="sourceLineNo">754</span>            }<a name="line.754"></a>
+<span class="sourceLineNo">755</span>        }<a name="line.755"></a>
+<span class="sourceLineNo">756</span>    }<a name="line.756"></a>
+<span class="sourceLineNo">757</span><a name="line.757"></a>
+<span class="sourceLineNo">758</span>    /**<a name="line.758"></a>
+<span class="sourceLineNo">759</span>     * Closes this output stream and releases any system resources<a name="line.759"></a>
+<span class="sourceLineNo">760</span>     * associated with the stream.<a name="line.760"></a>
+<span class="sourceLineNo">761</span>     *<a name="line.761"></a>
+<span class="sourceLineNo">762</span>     * @throws java.io.IOException    if an I/O error occurs.<a name="line.762"></a>
+<span class="sourceLineNo">763</span>     * @throws Zip64RequiredException if the archive's size exceeds 4<a name="line.763"></a>
+<span class="sourceLineNo">764</span>     *                                GByte or there are more than 65535 entries inside the archive<a name="line.764"></a>
+<span class="sourceLineNo">765</span>     *                                and {@link #setUseZip64} is {@link Zip64Mode#Never}.<a name="line.765"></a>
+<span class="sourceLineNo">766</span>     */<a name="line.766"></a>
+<span class="sourceLineNo">767</span>    @Override<a name="line.767"></a>
+<span class="sourceLineNo">768</span>    public void close() throws IOException {<a name="line.768"></a>
+<span class="sourceLineNo">769</span>        if (!finished) {<a name="line.769"></a>
+<span class="sourceLineNo">770</span>            finish();<a name="line.770"></a>
+<span class="sourceLineNo">771</span>        }<a name="line.771"></a>
+<span class="sourceLineNo">772</span>        destroy();<a name="line.772"></a>
+<span class="sourceLineNo">773</span>    }<a name="line.773"></a>
+<span class="sourceLineNo">774</span><a name="line.774"></a>
+<span class="sourceLineNo">775</span>    /**<a name="line.775"></a>
+<span class="sourceLineNo">776</span>     * Flushes this output stream and forces any buffered output bytes<a name="line.776"></a>
+<span class="sourceLineNo">777</span>     * to be written out to the stream.<a name="line.777"></a>
+<span class="sourceLineNo">778</span>     *<a name="line.778"></a>
+<span class="sourceLineNo">779</span>     * @throws java.io.IOException if an I/O error occurs.<a name="line.779"></a>
+<span class="sourceLineNo">780</span>     */<a name="line.780"></a>
+<span class="sourceLineNo">781</span>    @Override<a name="line.781"></a>
+<span class="sourceLineNo">782</span>    public void flush() throws IOException {<a name="line.782"></a>
+<span class="sourceLineNo">783</span>        if (out != null) {<a name="line.783"></a>
+<span class="sourceLineNo">784</span>            out.flush();<a name="line.784"></a>
+<span class="sourceLineNo">785</span>        }<a name="line.785"></a>
+<span class="sourceLineNo">786</span>    }<a name="line.786"></a>
+<span class="sourceLineNo">787</span><a name="line.787"></a>
+<span class="sourceLineNo">788</span>    /*<a name="line.788"></a>
+<span class="sourceLineNo">789</span>     * Various ZIP constants<a name="line.789"></a>
+<span class="sourceLineNo">790</span>     */<a name="line.790"></a>
+<span class="sourceLineNo">791</span>    /**<a name="line.791"></a>
+<span class="sourceLineNo">792</span>     * local file header signature<a name="line.792"></a>
+<span class="sourceLineNo">793</span>     */<a name="line.793"></a>
+<span class="sourceLineNo">794</span>    static final byte[] LFH_SIG = ZipLong.LFH_SIG.getBytes();<a name="line.794"></a>
+<span class="sourceLineNo">795</span>    /**<a name="line.795"></a>
+<span class="sourceLineNo">796</span>     * data descriptor signature<a name="line.796"></a>
+<span class="sourceLineNo">797</span>     */<a name="line.797"></a>
+<span class="sourceLineNo">798</span>    static final byte[] DD_SIG = ZipLong.DD_SIG.getBytes();<a name="line.798"></a>
+<span class="sourceLineNo">799</span>    /**<a name="line.799"></a>
+<span class="sourceLineNo">800</span>     * central file header signature<a name="line.800"></a>
+<span class="sourceLineNo">801</span>     */<a name="line.801"></a>
+<span class="sourceLineNo">802</span>    static final byte[] CFH_SIG = ZipLong.CFH_SIG.getBytes();<a name="line.802"></a>
+<span class="sourceLineNo">803</span>    /**<a name="line.803"></a>
+<span class="sourceLineNo">804</span>     * end of central dir signature<a name="line.804"></a>
+<span class="sourceLineNo">805</span>     */<a name="line.805"></a>
+<span class="sourceLineNo">806</span>    static final byte[] EOCD_SIG = ZipLong.getBytes(0X06054B50L);<a name="line.806"></a>
+<span class="sourceLineNo">807</span>    /**<a name="line.807"></a>
+<span class="sourceLineNo">808</span>     * ZIP64 end of central dir signature<a name="line.808"></a>
+<span class="sourceLineNo">809</span>     */<a name="line.809"></a>
+<span class="sourceLineNo">810</span>    static final byte[] ZIP64_EOCD_SIG = ZipLong.getBytes(0X06064B50L);<a name="line.810"></a>
+<span class="sourceLineNo">811</span>    /**<a name="line.811"></a>
+<span class="sourceLineNo">812</span>     * ZIP64 end of central dir locator signature<a name="line.812"></a>
+<span class="sourceLineNo">813</span>     */<a name="line.813"></a>
+<span class="sourceLineNo">814</span>    static final byte[] ZIP64_EOCD_LOC_SIG = ZipLong.getBytes(0X07064B50L);<a name="line.814"></a>
+<span class="sourceLineNo">815</span><a name="line.815"></a>
+<span class="sourceLineNo">816</span>    /**<a name="line.816"></a>
+<span class="sourceLineNo">817</span>     * Writes next block of compressed data to the output stream.<a name="line.817"></a>
+<span class="sourceLineNo">818</span>     *<a name="line.818"></a>
+<span class="sourceLineNo">819</span>     * @throws java.io.IOException on error<a name="line.819"></a>
+<span class="sourceLineNo">820</span>     */<a name="line.820"></a>
+<span class="sourceLineNo">821</span>    protected final void deflate() throws IOException {<a name="line.821"></a>
+<span class="sourceLineNo">822</span>        int len = def.deflate(buf, 0, buf.length);<a name="line.822"></a>
+<span class="sourceLineNo">823</span>        if (len &gt; 0) {<a name="line.823"></a>
+<span class="sourceLineNo">824</span>            writeOut(buf, 0, len);<a name="line.824"></a>
+<span class="sourceLineNo">825</span>            written += len;<a name="line.825"></a>
+<span class="sourceLineNo">826</span>        }<a name="line.826"></a>
+<span class="sourceLineNo">827</span>    }<a name="line.827"></a>
+<span class="sourceLineNo">828</span><a name="line.828"></a>
+<span class="sourceLineNo">829</span>    /**<a name="line.829"></a>
+<span class="sourceLineNo">830</span>     * Writes the local file header entry<a name="line.830"></a>
+<span class="sourceLineNo">831</span>     *<a name="line.831"></a>
+<span class="sourceLineNo">832</span>     * @param ze the entry to write<a name="line.832"></a>
+<span class="sourceLineNo">833</span>     * @throws java.io.IOException on error<a name="line.833"></a>
+<span class="sourceLineNo">834</span>     */<a name="line.834"></a>
+<span class="sourceLineNo">835</span>    protected void writeLocalFileHeader(ZipArchiveEntry ze) throws IOException {<a name="line.835"></a>
+<span class="sourceLineNo">836</span><a name="line.836"></a>
+<span class="sourceLineNo">837</span>        boolean encodable = zipEncoding.canEncode(ze.getName());<a name="line.837"></a>
+<span class="sourceLineNo">838</span>        ByteBuffer name = getName(ze);<a name="line.838"></a>
+<span class="sourceLineNo">839</span><a name="line.839"></a>
+<span class="sourceLineNo">840</span>        if (createUnicodeExtraFields != UnicodeExtraFieldPolicy.NEVER) {<a name="line.840"></a>
+<span class="sourceLineNo">841</span>            addUnicodeExtraFields(ze, encodable, name);<a name="line.841"></a>
+<span class="sourceLineNo">842</span>        }<a name="line.842"></a>
+<span class="sourceLineNo">843</span><a name="line.843"></a>
+<span class="sourceLineNo">844</span>        offsets.put(ze, Long.valueOf(written));<a name="line.844"></a>
+<span class="sourceLineNo">845</span><a name="line.845"></a>
+<span class="sourceLineNo">846</span>        writeOut(LFH_SIG);<a name="line.846"></a>
+<span class="sourceLineNo">847</span>        written += WORD;<a name="line.847"></a>
+<span class="sourceLineNo">848</span><a name="line.848"></a>
+<span class="sourceLineNo">849</span>        //store method in local variable to prevent multiple method calls<a name="line.849"></a>
+<span class="sourceLineNo">850</span>        final int zipMethod = ze.getMethod();<a name="line.850"></a>
+<span class="sourceLineNo">851</span><a name="line.851"></a>
+<span class="sourceLineNo">852</span>        writeVersionNeededToExtractAndGeneralPurposeBits(zipMethod,<a name="line.852"></a>
+<span class="sourceLineNo">853</span>                !encodable<a name="line.853"></a>
+<span class="sourceLineNo">854</span>                        &amp;&amp; fallbackToUTF8,<a name="line.854"></a>
+<span class="sourceLineNo">855</span>                hasZip64Extra(ze));<a name="line.855"></a>
+<span class="sourceLineNo">856</span>        written += WORD;<a name="line.856"></a>
+<span class="sourceLineNo">857</span><a name="line.857"></a>
+<span class="sourceLineNo">858</span>        // compression method<a name="line.858"></a>
+<span class="sourceLineNo">859</span>        writeOut(ZipShort.getBytes(zipMethod));<a name="line.859"></a>
+<span class="sourceLineNo">860</span>        written += SHORT;<a name="line.860"></a>
+<span class="sourceLineNo">861</span><a name="line.861"></a>
+<span class="sourceLineNo">862</span>        // last mod. time and date<a name="line.862"></a>
+<span class="sourceLineNo">863</span>        writeOut(ZipUtil.toDosTime(ze.getTime()));<a name="line.863"></a>
+<span class="sourceLineNo">864</span>        written += WORD;<a name="line.864"></a>
+<span class="sourceLineNo">865</span><a name="line.865"></a>
+<span class="sourceLineNo">866</span>        // CRC<a name="line.866"></a>
+<span class="sourceLineNo">867</span>        // compressed length<a name="line.867"></a>
+<span class="sourceLineNo">868</span>        // uncompressed length<a name="line.868"></a>
+<span class="sourceLineNo">869</span>        entry.localDataStart = written;<a name="line.869"></a>
+<span class="sourceLineNo">870</span>        if (zipMethod == DEFLATED || raf != null) {<a name="line.870"></a>
+<span class="sourceLineNo">871</span>            writeOut(LZERO);<a name="line.871"></a>
+<span class="sourceLineNo">872</span>            if (hasZip64Extra(entry.entry)) {<a name="line.872"></a>
+<span class="sourceLineNo">873</span>                // point to ZIP64 extended information extra field for<a name="line.873"></a>
+<span class="sourceLineNo">874</span>                // sizes, may get rewritten once sizes are known if<a name="line.874"></a>
+<span class="sourceLineNo">875</span>                // stream is seekable<a name="line.875"></a>
+<span class="sourceLineNo">876</span>                writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.876"></a>
+<span class="sourceLineNo">877</span>                writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.877"></a>
+<span class="sourceLineNo">878</span>            } else {<a name="line.878"></a>
+<span class="sourceLineNo">879</span>                writeOut(LZERO);<a name="line.879"></a>
+<span class="sourceLineNo">880</span>                writeOut(LZERO);<a name="line.880"></a>
+<span class="sourceLineNo">881</span>            }<a name="line.881"></a>
+<span class="sourceLineNo">882</span>        } else {<a name="line.882"></a>
+<span class="sourceLineNo">883</span>            writeOut(ZipLong.getBytes(ze.getCrc()));<a name="line.883"></a>
+<span class="sourceLineNo">884</span>            byte[] size = ZipLong.ZIP64_MAGIC.getBytes();<a name="line.884"></a>
+<span class="sourceLineNo">885</span>            if (!hasZip64Extra(ze)) {<a name="line.885"></a>
+<span class="sourceLineNo">886</span>                size = ZipLong.getBytes(ze.getSize());<a name="line.886"></a>
+<span class="sourceLineNo">887</span>            }<a name="line.887"></a>
+<span class="sourceLineNo">888</span>            writeOut(size);<a name="line.888"></a>
+<span class="sourceLineNo">889</span>            writeOut(size);<a name="line.889"></a>
+<span class="sourceLineNo">890</span>        }<a name="line.890"></a>
+<span class="sourceLineNo">891</span>        // CheckStyle:MagicNumber OFF<a name="line.891"></a>
+<span class="sourceLineNo">892</span>        written += 12;<a name="line.892"></a>
+<span class="sourceLineNo">893</span>        // CheckStyle:MagicNumber ON<a name="line.893"></a>
+<span class="sourceLineNo">894</span><a name="line.894"></a>
+<span class="sourceLineNo">895</span>        // file name length<a name="line.895"></a>
+<span class="sourceLineNo">896</span>        writeOut(ZipShort.getBytes(name.limit()));<a name="line.896"></a>
+<span class="sourceLineNo">897</span>        written += SHORT;<a name="line.897"></a>
+<span class="sourceLineNo">898</span><a name="line.898"></a>
+<span class="sourceLineNo">899</span>        // extra field length<a name="line.899"></a>
+<span class="sourceLineNo">900</span>        byte[] extra = ze.getLocalFileDataExtra();<a name="line.900"></a>
+<span class="sourceLineNo">901</span>        writeOut(ZipShort.getBytes(extra.length));<a name="line.901"></a>
+<span class="sourceLineNo">902</span>        written += SHORT;<a name="line.902"></a>
+<span class="sourceLineNo">903</span><a name="line.903"></a>
+<span class="sourceLineNo">904</span>        // file name<a name="line.904"></a>
+<span class="sourceLineNo">905</span>        writeOut(name.array(), name.arrayOffset(), name.limit());<a name="line.905"></a>
+<span class="sourceLineNo">906</span>        written += name.limit();<a name="line.906"></a>
+<span class="sourceLineNo">907</span><a name="line.907"></a>
+<span class="sourceLineNo">908</span>        // extra field<a name="line.908"></a>
+<span class="sourceLineNo">909</span>        writeOut(extra);<a name="line.909"></a>
+<span class="sourceLineNo">910</span>        written += extra.length;<a name="line.910"></a>
+<span class="sourceLineNo">911</span><a name="line.911"></a>
+<span class="sourceLineNo">912</span>        entry.dataStart = written;<a name="line.912"></a>
+<span class="sourceLineNo">913</span>    }<a name="line.913"></a>
+<span class="sourceLineNo">914</span><a name="line.914"></a>
+<span class="sourceLineNo">915</span>    /**<a name="line.915"></a>
+<span class="sourceLineNo">916</span>     * Adds UnicodeExtra fields for name and file comment if mode is<a name="line.916"></a>
+<span class="sourceLineNo">917</span>     * ALWAYS or the data cannot be encoded using the configured<a name="line.917"></a>
+<span class="sourceLineNo">918</span>     * encoding.<a name="line.918"></a>
+<span class="sourceLineNo">919</span>     */<a name="line.919"></a>
+<span class="sourceLineNo">920</span>    private void addUnicodeExtraFields(ZipArchiveEntry ze, boolean encodable,<a name="line.920"></a>
+<span class="sourceLineNo">921</span>                                       ByteBuffer name)<a name="line.921"></a>
+<span class="sourceLineNo">922</span>            throws IOException {<a name="line.922"></a>
+<span class="sourceLineNo">923</span>        if (createUnicodeExtraFields == UnicodeExtraFieldPolicy.ALWAYS<a name="line.923"></a>
+<span class="sourceLineNo">924</span>                || !encodable) {<a name="line.924"></a>
+<span class="sourceLineNo">925</span>            ze.addExtraField(new UnicodePathExtraField(ze.getName(),<a name="line.925"></a>
+<span class="sourceLineNo">926</span>                    name.array(),<a name="line.926"></a>
+<span class="sourceLineNo">927</span>                    name.arrayOffset(),<a name="line.927"></a>
+<span class="sourceLineNo">928</span>                    name.limit()));<a name="line.928"></a>
+<span class="sourceLineNo">929</span>        }<a name="line.929"></a>
+<span class="sourceLineNo">930</span><a name="line.930"></a>
+<span class="sourceLineNo">931</span>        String comm = ze.getComment();<a name="line.931"></a>
+<span class="sourceLineNo">932</span>        if (comm != null &amp;&amp; !"".equals(comm)) {<a name="line.932"></a>
+<span class="sourceLineNo">933</span><a name="line.933"></a>
+<span class="sourceLineNo">934</span>            boolean commentEncodable = zipEncoding.canEncode(comm);<a name="line.934"></a>
+<span class="sourceLineNo">935</span><a name="line.935"></a>
+<span class="sourceLineNo">936</span>            if (createUnicodeExtraFields == UnicodeExtraFieldPolicy.ALWAYS<a name="line.936"></a>
+<span class="sourceLineNo">937</span>                    || !commentEncodable) {<a name="line.937"></a>
+<span class="sourceLineNo">938</span>                ByteBuffer commentB = getEntryEncoding(ze).encode(comm);<a name="line.938"></a>
+<span class="sourceLineNo">939</span>                ze.addExtraField(new UnicodeCommentExtraField(comm,<a name="line.939"></a>
+<span class="sourceLineNo">940</span>                        commentB.array(),<a name="line.940"></a>
+<span class="sourceLineNo">941</span>                        commentB.arrayOffset(),<a name="line.941"></a>
+<span class="sourceLineNo">942</span>                        commentB.limit())<a name="line.942"></a>
+<span class="sourceLineNo">943</span>                );<a name="line.943"></a>
+<span class="sourceLineNo">944</span>            }<a name="line.944"></a>
+<span class="sourceLineNo">945</span>        }<a name="line.945"></a>
+<span class="sourceLineNo">946</span>    }<a name="line.946"></a>
+<span class="sourceLineNo">947</span><a name="line.947"></a>
+<span class="sourceLineNo">948</span>    /**<a name="line.948"></a>
+<span class="sourceLineNo">949</span>     * Writes the data descriptor entry.<a name="line.949"></a>
+<span class="sourceLineNo">950</span>     *<a name="line.950"></a>
+<span class="sourceLineNo">951</span>     * @param ze the entry to write<a name="line.951"></a>
+<span class="sourceLineNo">952</span>     * @throws java.io.IOException on error<a name="line.952"></a>
+<span class="sourceLineNo">953</span>     */<a name="line.953"></a>
+<span class="sourceLineNo">954</span>    protected void writeDataDescriptor(ZipArchiveEntry ze) throws IOException {<a name="line.954"></a>
+<span class="sourceLineNo">955</span>        if (ze.getMethod() != DEFLATED || raf != null) {<a name="line.955"></a>
+<span class="sourceLineNo">956</span>            return;<a name="line.956"></a>
+<span class="sourceLineNo">957</span>        }<a name="line.957"></a>
+<span class="sourceLineNo">958</span>        writeOut(DD_SIG);<a name="line.958"></a>
+<span class="sourceLineNo">959</span>        writeOut(ZipLong.getBytes(ze.getCrc()));<a name="line.959"></a>
+<span class="sourceLineNo">960</span>        int sizeFieldSize = WORD;<a name="line.960"></a>
+<span class="sourceLineNo">961</span>        if (!hasZip64Extra(ze)) {<a name="line.961"></a>
+<span class="sourceLineNo">962</span>            writeOut(ZipLong.getBytes(ze.getCompressedSize()));<a name="line.962"></a>
+<span class="sourceLineNo">963</span>            writeOut(ZipLong.getBytes(ze.getSize()));<a name="line.963"></a>
+<span class="sourceLineNo">964</span>        } else {<a name="line.964"></a>
+<span class="sourceLineNo">965</span>            sizeFieldSize = DWORD;<a name="line.965"></a>
+<span class="sourceLineNo">966</span>            writeOut(ZipEightByteInteger.getBytes(ze.getCompressedSize()));<a name="line.966"></a>
+<span class="sourceLineNo">967</span>            writeOut(ZipEightByteInteger.getBytes(ze.getSize()));<a name="line.967"></a>
+<span class="sourceLineNo">968</span>        }<a name="line.968"></a>
+<span class="sourceLineNo">969</span>        written += 2 * WORD + 2 * sizeFieldSize;<a name="line.969"></a>
+<span class="sourceLineNo">970</span>    }<a name="line.970"></a>
+<span class="sourceLineNo">971</span><a name="line.971"></a>
+<span class="sourceLineNo">972</span>    /**<a name="line.972"></a>
+<span class="sourceLineNo">973</span>     * Writes the central file header entry.<a name="line.973"></a>
+<span class="sourceLineNo">974</span>     *<a name="line.974"></a>
+<span class="sourceLineNo">975</span>     * @param ze the entry to write<a name="line.975"></a>
+<span class="sourceLineNo">976</span>     * @throws java.io.IOException    on error<a name="line.976"></a>
+<span class="sourceLineNo">977</span>     * @throws Zip64RequiredException if the archive's size exceeds 4<a name="line.977"></a>
+<span class="sourceLineNo">978</span>     *                                GByte and {@link Zip64Mode #setUseZip64} is {@link<a name="line.978"></a>
+<span class="sourceLineNo">979</span>     *                                Zip64Mode#Never}.<a name="line.979"></a>
+<span class="sourceLineNo">980</span>     */<a name="line.980"></a>
+<span class="sourceLineNo">981</span>    protected void writeCentralFileHeader(ZipArchiveEntry ze) throws IOException {<a name="line.981"></a>
+<span class="sourceLineNo">982</span>        writeOut(CFH_SIG);<a name="line.982"></a>
+<span class="sourceLineNo">983</span>        written += WORD;<a name="line.983"></a>
+<span class="sourceLineNo">984</span><a name="line.984"></a>
+<span class="sourceLineNo">985</span>        final long lfhOffset = offsets.get(ze).longValue();<a name="line.985"></a>
+<span class="sourceLineNo">986</span>        final boolean needsZip64Extra = hasZip64Extra(ze)<a name="line.986"></a>
+<span class="sourceLineNo">987</span>                || ze.getCompressedSize() &gt;= ZIP64_MAGIC<a name="line.987"></a>
+<span class="sourceLineNo">988</span>                || ze.getSize() &gt;= ZIP64_MAGIC<a name="line.988"></a>
+<span class="sourceLineNo">989</span>                || lfhOffset &gt;= ZIP64_MAGIC;<a name="line.989"></a>
+<span class="sourceLineNo">990</span><a name="line.990"></a>
+<span class="sourceLineNo">991</span>        if (needsZip64Extra &amp;&amp; zip64Mode == Zip64Mode.Never) {<a name="line.991"></a>
+<span class="sourceLineNo">992</span>            // must be the offset that is too big, otherwise an<a name="line.992"></a>
+<span class="sourceLineNo">993</span>            // exception would have been throw in putArchiveEntry or<a name="line.993"></a>
+<span class="sourceLineNo">994</span>            // closeArchiveEntry<a name="line.994"></a>
+<span class="sourceLineNo">995</span>            throw new Zip64RequiredException(Zip64RequiredException<a name="line.995"></a>
+<span class="sourceLineNo">996</span>                    .ARCHIVE_TOO_BIG_MESSAGE);<a name="line.996"></a>
+<span class="sourceLineNo">997</span>        }<a name="line.997"></a>
+<span class="sourceLineNo">998</span><a name="line.998"></a>
+<span class="sourceLineNo">999</span>        handleZip64Extra(ze, lfhOffset, needsZip64Extra);<a name="line.999"></a>
+<span class="sourceLineNo">1000</span><a name="line.1000"></a>
+<span class="sourceLineNo">1001</span>        // version made by<a name="line.1001"></a>
+<span class="sourceLineNo">1002</span>        // CheckStyle:MagicNumber OFF<a name="line.1002"></a>
+<span class="sourceLineNo">1003</span>        writeOut(ZipShort.getBytes((ze.getPlatform() &lt;&lt; 8) |<a name="line.1003"></a>
+<span class="sourceLineNo">1004</span>                (!hasUsedZip64 ? DATA_DESCRIPTOR_MIN_VERSION<a name="line.1004"></a>
+<span class="sourceLineNo">1005</span>                        : ZIP64_MIN_VERSION)));<a name="line.1005"></a>
+<span class="sourceLineNo">1006</span>        written += SHORT;<a name="line.1006"></a>
+<span class="sourceLineNo">1007</span><a name="line.1007"></a>
+<span class="sourceLineNo">1008</span>        final int zipMethod = ze.getMethod();<a name="line.1008"></a>
+<span class="sourceLineNo">1009</span>        final boolean encodable = zipEncoding.canEncode(ze.getName());<a name="line.1009"></a>
+<span class="sourceLineNo">1010</span>        writeVersionNeededToExtractAndGeneralPurposeBits(zipMethod,<a name="line.1010"></a>
+<span class="sourceLineNo">1011</span>                !encodable<a name="line.1011"></a>
+<span class="sourceLineNo">1012</span>                        &amp;&amp; fallbackToUTF8,<a name="line.1012"></a>
+<span class="sourceLineNo">1013</span>                needsZip64Extra);<a name="line.1013"></a>
+<span class="sourceLineNo">1014</span>        written += WORD;<a name="line.1014"></a>
+<span class="sourceLineNo">1015</span><a name="line.1015"></a>
+<span class="sourceLineNo">1016</span>        // compression method<a name="line.1016"></a>
+<span class="sourceLineNo">1017</span>        writeOut(ZipShort.getBytes(zipMethod));<a name="line.1017"></a>
+<span class="sourceLineNo">1018</span>        written += SHORT;<a name="line.1018"></a>
+<span class="sourceLineNo">1019</span><a name="line.1019"></a>
+<span class="sourceLineNo">1020</span>        // last mod. time and date<a name="line.1020"></a>
+<span class="sourceLineNo">1021</span>        writeOut(ZipUtil.toDosTime(ze.getTime()));<a name="line.1021"></a>
+<span class="sourceLineNo">1022</span>        written += WORD;<a name="line.1022"></a>
+<span class="sourceLineNo">1023</span><a name="line.1023"></a>
+<span class="sourceLineNo">1024</span>        // CRC<a name="line.1024"></a>
+<span class="sourceLineNo">1025</span>        // compressed length<a name="line.1025"></a>
+<span class="sourceLineNo">1026</span>        // uncompressed length<a name="line.1026"></a>
+<span class="sourceLineNo">1027</span>        writeOut(ZipLong.getBytes(ze.getCrc()));<a name="line.1027"></a>
+<span class="sourceLineNo">1028</span>        if (ze.getCompressedSize() &gt;= ZIP64_MAGIC<a name="line.1028"></a>
+<span class="sourceLineNo">1029</span>                || ze.getSize() &gt;= ZIP64_MAGIC) {<a name="line.1029"></a>
+<span class="sourceLineNo">1030</span>            writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.1030"></a>
+<span class="sourceLineNo">1031</span>            writeOut(ZipLong.ZIP64_MAGIC.getBytes());<a name="line.1031"></a>
+<span class="sourceLineNo">1032</span>        } else {<a name="line.1032"></a>
+<span class="sourceLineNo">1033</span>            writeOut(ZipLong.getBytes(ze.getCompressedSize()));<a name="line.1033"></a>
+<span class="sourceLineNo">1034</span>            writeOut(ZipLong.getBytes(ze.getSize()));<a name="line.1034"></a>
+<span class="sourceLineNo">1035</span>        }<a name="line.1035"></a>
+<span class="sourceLineNo">1036</span>        // CheckStyle:MagicNumber OFF<a name="line.1036"></a>
+<span class="sourceLineNo">1037</span>        written += 12;<a name="line.1037"></a>
+<span class="sourceLineNo">1038</span>        // CheckStyle:MagicNumber ON<a name="line.1038"></a>
+<span class="sourceLineNo">1039</span><a name="line.1039"></a>
+<span class="sourceLineNo">1040</span>        ByteBuffer name = getName(ze);<a name="line.1040"></a>
+<span class="sourceLineNo">1041</span><a name="line.1041"></a>
+<span class="sourceLineNo">1042</span>        writeOut(ZipShort.getBytes(name.limit()));<a name="line.1042"></a>
+<span class="sourceLineNo">1043</span>        written += SHORT;<a name="line.1043"></a>
+<span class="sourceLineNo">1044</span><a name="line.1044"></a>
+<span class="sourceLineNo">1045</span>        // extra field length<a name="line.1045"></a>
+<span class="sourceLineNo">1046</span>        byte[] extra = ze.getCentralDirectoryExtra();<a name="line.1046"></a>
+<span class="sourceLineNo">1047</span>        writeOut(ZipShort.getBytes(extra.length));<a name="line.1047"></a>
+<span class="sourceLineNo">1048</span>        written += SHORT;<a name="line.1048"></a>
+<span class="sourceLineNo">1049</span><a name="line.1049"></a>
+<span class="sourceLineNo">1050</span>        // file comment length<a name="line.1050"></a>
+<span class="sourceLineNo">1051</span>        String comm = ze.getComment();<a name="line.1051"></a>
+<span class="sourceLineNo">1052</span>        if (comm == null) {<a name="line.1052"></a>
+<span class="sourceLineNo">1053</span>            comm = "";<a name="line.1053"></a>
+<span class="sourceLineNo">1054</span>        }<a name="line.1054"></a>
+<span class="sourceLineNo">1055</span><a name="line.1055"></a>
+<span class="sourceLineNo">1056</span>        ByteBuffer commentB = getEntryEncoding(ze).encode(comm);<a name="line.1056"></a>
+<span class="sourceLineNo">1057</span><a name="line.1057"></a>
+<span class="sourceLineNo">1058</span>        writeOut(ZipShort.getBytes(commentB.limit()));<a name="line.1058"></a>
+<span class="sourceLineNo">1059</span>        written += SHORT;<a name="line.1059"></a>
+<span class="sourceLineNo">1060</span><a name="line.1060"></a>
+<span class="sourceLineNo">1061</span>        // disk number start<a name="line.1061"></a>
+<span class="sourceLineNo">1062</span>        writeOut(ZERO);<a name="line.1062"></a>
+<span class="sourceLineNo">1063</span>        written += SHORT;<a name="line.1063"></a>
+<span class="sourceLineNo">1064</span><a name="line.1064"></a>
+<span class="sourceLineNo">1065</span>        // internal file attributes<a name="line.1065"></a>
+<span class="sourceLineNo">1066</span>        writeOut(ZipShort.getBytes(ze.getInternalAttributes()));<a name="line.1066"></a>
+<span class="sourceLineNo">1067</span>        written += SHORT;<a name="line.1067"></a>
+<span class="sourceLineNo">1068</span><a name="line.1068"></a>
+<span class="sourceLineNo">1069</span>        // external file attributes<a name="line.1069"></a>
+<span class="sourceLineNo">1070</span>        writeOut(ZipLong.getBytes(ze.getExternalAttributes()));<a name="line.1070"></a>
+<span class="sourceLineNo">1071</span>        written += WORD;<a name="line.1071"></a>
+<span class="sourceLineNo">1072</span><a name="line.1072"></a>
+<span class="sourceLineNo">1073</span>        // relative offset of LFH<a name="line.1073"></a>
+<span class="sourceLineNo">1074</span>        writeOut(ZipLong.getBytes(Math.min(lfhOffset, ZIP64_MAGIC)));<a name="line.1074"></a>
+<span class="sourceLineNo">1075</span>        written += WORD;<a name="line.1075"></a>
+<span class="sourceLineNo">1076</span><a name="line.1076"></a>
+<span class="sourceLineNo">1077</span>        // file name<a name="line.1077"></a>
+<span class="sourceLineNo">1078</span>        writeOut(name.array(), name.arrayOffset(), name.limit());<a name="line.1078"></a>
+<span class="sourceLineNo">1079</span>        written += name.limit();<a name="line.1079"></a>
+<span class="sourceLineNo">1080</span><a name="line.1080"></a>
+<span class="sourceLineNo">1081</span>        // extra field<a name="line.1081"></a>
+<span class="sourceLineNo">1082</span>        writeOut(extra);<a name="line.1082"></a>
+<span class="sourceLineNo">1083</span>        written += extra.length;<a name="line.1083"></a>
+<span class="sourceLineNo">1084</span><a name="line.1084"></a>
+<span class="sourceLineNo">1085</span>        // file comment<a name="line.1085"></a>
+<span class="sourceLineNo">1086</span>        writeOut(commentB.array(), commentB.arrayOffset(), commentB.limit());<a name="line.1086"></a>
+<span class="sourceLineNo">1087</span>        written += commentB.limit();<a name="line.1087"></a>
+<span class="sourceLineNo">1088</span>    }<a name="line.1088"></a>
+<span class="sourceLineNo">1089</span><a name="line.1089"></a>
+<span class="sourceLineNo">1090</span>    /**<a name="line.1090"></a>
+<span class="sourceLineNo">1091</span>     * If the entry needs Zip64 extra information inside the central<a name="line.1091"></a>
+<span class="sourceLineNo">1092</span>     * directory then configure its data.<a name="line.1092"></a>
+<span class="sourceLineNo">1093</span>     */<a name="line.1093"></a>
+<span class="sourceLineNo">1094</span>    private void handleZip64Extra(ZipArchiveEntry ze, long lfhOffset,<a name="line.1094"></a>
+<span class="sourceLineNo">1095</span>                                  boolean needsZip64Extra) {<a name="line.1095"></a>
+<span class="sourceLineNo">1096</span>        if (needsZip64Extra) {<a name="line.1096"></a>
+<span class="sourceLineNo">1097</span>            Zip64ExtendedInformationExtraField z64 = getZip64Extra(ze);<a name="line.1097"></a>
+<span class="sourceLineNo">1098</span>            if (ze.getCompressedSize() &gt;= ZIP64_MAGIC<a name="line.1098"></a>
+<span class="sourceLineNo">1099</span>                    || ze.getSize() &gt;= ZIP64_MAGIC) {<a name="line.1099"></a>
+<span class="sourceLineNo">1100</span>                z64.setCompressedSize(new ZipEightByteInteger(ze.getCompressedSize()));<a name="line.1100"></a>
+<span class="sourceLineNo">1101</span>                z64.setSize(new ZipEightByteInteger(ze.getSize()));<a name="line.1101"></a>
+<span class="sourceLineNo">1102</span>            } else {<a name="line.1102"></a>
+<span class="sourceLineNo">1103</span>                // reset value that may have been set for LFH<a name="line.1103"></a>
+<span class="sourceLineNo">1104</span>                z64.setCompressedSize(null);<a name="line.1104"></a>
+<span class="sourceLineNo">1105</span>                z64.setSize(null);<a name="line.1105"></a>
+<span class="sourceLineNo">1106</span>            }<a name="line.1106"></a>
+<span class="sourceLineNo">1107</span>            if (lfhOffset &gt;= ZIP64_MAGIC) {<a name="line.1107"></a>
+<span class="sourceLineNo">1108</span>                z64.setRelativeHeaderOffset(new ZipEightByteInteger(lfhOffset));<a name="line.1108"></a>
+<span class="sourceLineNo">1109</span>            }<a name="line.1109"></a>
+<span class="sourceLineNo">1110</span>            ze.setExtra();<a name="line.1110"></a>
+<span class="sourceLineNo">1111</span>        }<a name="line.1111"></a>
+<span class="sourceLineNo">1112</span>    }<a name="line.1112"></a>
+<span class="sourceLineNo">1113</span><a name="line.1113"></a>
+<span class="sourceLineNo">1114</span>    /**<a name="line.1114"></a>
+<span class="sourceLineNo">1115</span>     * Writes the &amp;quot;End of central dir record&amp;quot;.<a name="line.1115"></a>
+<span class="sourceLineNo">1116</span>     *<a name="line.1116"></a>
+<span class="sourceLineNo">1117</span>     * @throws java.io.IOException    on error<a name="line.1117"></a>
+<span class="sourceLineNo">1118</span>     * @throws Zip64RequiredException if the archive's size exceeds 4<a name="line.1118"></a>
+<span class="sourceLineNo">1119</span>     *                                GByte or there are more than 65535 entries inside the archive<a name="line.1119"></a>
+<span class="sourceLineNo">1120</span>     *                                and {@link Zip64Mode #setUseZip64} is {@link Zip64Mode#Never}.<a name="line.1120"></a>
+<span class="sourceLineNo">1121</span>     */<a name="line.1121"></a>
+<span class="sourceLineNo">1122</span>    protected void writeCentralDirectoryEnd() throws IOException {<a name="line.1122"></a>
+<span class="sourceLineNo">1123</span>        writeOut(EOCD_SIG);<a name="line.1123"></a>
+<span class="sourceLineNo">1124</span><a name="line.1124"></a>
+<span class="sourceLineNo">1125</span>        // disk numbers<a name="line.1125"></a>
+<span class="sourceLineNo">1126</span>        writeOut(ZERO);<a name="line.1126"></a>
+<span class="sourceLineNo">1127</span>        writeOut(ZERO);<a name="line.1127"></a>
+<span class="sourceLineNo">1128</span><a name="line.1128"></a>
+<span class="sourceLineNo">1129</span>        // number of entries<a name="line.1129"></a>
+<span class="sourceLineNo">1130</span>        int numberOfEntries = entries.size();<a name="line.1130"></a>
+<span class="sourceLineNo">1131</span>        if (numberOfEntries &gt; ZIP64_MAGIC_SHORT<a name="line.1131"></a>
+<span class="sourceLineNo">1132</span>                &amp;&amp; zip64Mode == Zip64Mode.Never) {<a name="line.1132"></a>
+<span class="sourceLineNo">1133</span>            throw new Zip64RequiredException(Zip64RequiredException<a name="line.1133"></a>
+<span class="sourceLineNo">1134</span>                    .TOO_MANY_ENTRIES_MESSAGE);<a name="line.1134"></a>
+<span class="sourceLineNo">1135</span>        }<a name="line.1135"></a>
+<span class="sourceLineNo">1136</span>        if (cdOffset &gt; ZIP64_MAGIC &amp;&amp; zip64Mode == Zip64Mode.Never) {<a name="line.1136"></a>
+<span class="sourceLineNo">1137</span>            throw new Zip64RequiredException(Zip64RequiredException<a name="line.1137"></a>
+<span class="sourceLineNo">1138</span>                    .ARCHIVE_TOO_BIG_MESSAGE);<a name="line.1138"></a>
+<span class="sourceLineNo">1139</span>        }<a name="line.1139"></a>
+<span class="sourceLineNo">1140</span><a name="line.1140"></a>
+<span class="sourceLineNo">1141</span>        byte[] num = ZipShort.getBytes(Math.min(numberOfEntries,<a name="line.1141"></a>
+<span class="sourceLineNo">1142</span>                ZIP64_MAGIC_SHORT));<a name="line.1142"></a>
+<span class="sourceLineNo">1143</span>        writeOut(num);<a name="line.1143"></a>
+<span class="sourceLineNo">1144</span>        writeOut(num);<a name="line.1144"></a>
+<span class="sourceLineNo">1145</span><a name="line.1145"></a>
+<span class="sourceLineNo">1146</span>        // length and location of CD<a name="line.1146"></a>
+<span class="sourceLineNo">1147</span>        writeOut(ZipLong.getBytes(Math.min(cdLength, ZIP64_MAGIC)));<a name="line.1147"></a>
+<span class="sourceLineNo">1148</span>        writeOut(ZipLong.getBytes(Math.min(cdOffset, ZIP64_MAGIC)));<a name="line.1148"></a>
+<span class="sourceLineNo">1149</span><a name="line.1149"></a>
+<span class="sourceLineNo">1150</span>        // ZIP file comment<a name="line.1150"></a>
+<span class="sourceLineNo">1151</span>        ByteBuffer data = this.zipEncoding.encode(comment);<a name="line.1151"></a>
+<span class="sourceLineNo">1152</span>        writeOut(ZipShort.getBytes(data.limit()));<a name="line.1152"></a>
+<span class="sourceLineNo">1153</span>        writeOut(data.array(), data.arrayOffset(), data.limit());<a name="line.1153"></a>
+<span class="sourceLineNo">1154</span>    }<a name="line.1154"></a>
+<span class="sourceLineNo">1155</span><a name="line.1155"></a>
+<span class="sourceLineNo">1156</span>    private static final byte[] ONE = ZipLong.getBytes(1L);<a name="line.1156"></a>
+<span class="sourceLineNo">1157</span><a name="line.1157"></a>
+<span class="sourceLineNo">1158</span>    /**<a name="line.1158"></a>
+<span class="sourceLineNo">1159</span>     * Writes the &amp;quot;ZIP64 End of central dir record&amp;quot; and<a name="line.1159"></a>
+<span class="sourceLineNo">1160</span>     * &amp;quot;ZIP64 End of central dir locator&amp;quot;.<a name="line.1160"></a>
+<span class="sourceLineNo">1161</span>     *<a name="line.1161"></a>
+<span class="sourceLineNo">1162</span>     * @throws java.io.IOException on error<a name="line.1162"></a>
+<span class="sourceLineNo">1163</span>     */<a name="line.1163"></a>
+<span class="sourceLineNo">1164</span>    protected void writeZip64CentralDirectory() throws IOException {<a name="line.1164"></a>
+<span class="sourceLineNo">1165</span>        if (zip64Mode == Zip64Mode.Never) {<a name="line.1165"></a>
+<span class="sourceLineNo">1166</span>            return;<a name="line.1166"></a>
+<span class="sourceLineNo">1167</span>        }<a name="line.1167"></a>
+<span class="sourceLineNo">1168</span><a name="line.1168"></a>
+<span class="sourceLineNo">1169</span>        if (!hasUsedZip64<a name="line.1169"></a>
+<span class="sourceLineNo">1170</span>                &amp;&amp; (cdOffset &gt;= ZIP64_MAGIC || cdLength &gt;= ZIP64_MAGIC<a name="line.1170"></a>
+<span class="sourceLineNo">1171</span>                || entries.size() &gt;= ZIP64_MAGIC_SHORT)) {<a name="line.1171"></a>
+<span class="sourceLineNo">1172</span>            // actually "will use"<a name="line.1172"></a>
+<span class="sourceLineNo">1173</span>            hasUsedZip64 = true;<a name="line.1173"></a>
+<span class="sourceLineNo">1174</span>        }<a name="line.1174"></a>
+<span class="sourceLineNo">1175</span><a name="line.1175"></a>
+<span class="sourceLineNo">1176</span>        if (!hasUsedZip64) {<a name="line.1176"></a>
+<span class="sourceLineNo">1177</span>            return;<a name="line.1177"></a>
+<span class="sourceLineNo">1178</span>        }<a name="line.1178"></a>
+<span class="sourceLineNo">1179</span><a name="line.1179"></a>
+<span class="sourceLineNo">1180</span>        long offset = written;<a name="line.1180"></a>
+<span class="sourceLineNo">1181</span><a name="line.1181"></a>
+<span class="sourceLineNo">1182</span>        writeOut(ZIP64_EOCD_SIG);<a name="line.1182"></a>
+<span class="sourceLineNo">1183</span>        // size, we don't have any variable length as we don't support<a name="line.1183"></a>
+<span class="sourceLineNo">1184</span>        // the extensible data sector, yet<a name="line.1184"></a>
+<span class="sourceLineNo">1185</span>        writeOut(ZipEightByteInteger<a name="line.1185"></a>
+<span class="sourceLineNo">1186</span>                .getBytes(SHORT   /* version made by */<a name="line.1186"></a>
+<span class="sourceLineNo">1187</span>                        + SHORT /* version needed to extract */<a name="line.1187"></a>
+<span class="sourceLineNo">1188</span>                        + WORD  /* disk number */<a name="line.1188"></a>
+<span class="sourceLineNo">1189</span>                        + WORD  /* disk with central directory */<a name="line.1189"></a>
+<span class="sourceLineNo">1190</span>                        + DWORD /* number of entries in CD on this disk */<a name="line.1190"></a>
+<span class="sourceLineNo">1191</span>                        + DWORD /* total number of entries */<a name="line.1191"></a>
+<span class="sourceLineNo">1192</span>                        + DWORD /* size of CD */<a name="line.1192"></a>
+<span class="sourceLineNo">1193</span>                        + DWORD /* offset of CD */<a name="line.1193"></a>
+<span class="sourceLineNo">1194</span>                ));<a name="line.1194"></a>
+<span class="sourceLineNo">1195</span><a name="line.1195"></a>
+<span class="sourceLineNo">1196</span>        // version made by and version needed to extract<a name="line.1196"></a>
+<span class="sourceLineNo">1197</span>        writeOut(ZipShort.getBytes(ZIP64_MIN_VERSION));<a name="line.1197"></a>
+<span class="sourceLineNo">1198</span>        writeOut(ZipShort.getBytes(ZIP64_MIN_VERSION));<a name="line.1198"></a>
+<span class="sourceLineNo">1199</span><a name="line.1199"></a>
+<span class="sourceLineNo">1200</span>        // disk numbers - four bytes this time<a name="line.1200"></a>
+<span class="sourceLineNo">1201</span>        writeOut(LZERO);<a name="line.1201"></a>
+<span class="sourceLineNo">1202</span>        writeOut(LZERO);<a name="line.1202"></a>
+<span class="sourceLineNo">1203</span><a name="line.1203"></a>
+<span class="sourceLineNo">1204</span>        // number of entries<a name="line.1204"></a>
+<span class="sourceLineNo">1205</span>        byte[] num = ZipEightByteInteger.getBytes(entries.size());<a name="line.1205"></a>
+<span class="sourceLineNo">1206</span>        writeOut(num);<a name="line.1206"></a>
+<span class="sourceLineNo">1207</span>        writeOut(num);<a name="line.1207"></a>
+<span class="sourceLineNo">1208</span><a name="line.1208"></a>
+<span class="sourceLineNo">1209</span>        // length and location of CD<a name="line.1209"></a>
+<span class="sourceLineNo">1210</span>        writeOut(ZipEightByteInteger.getBytes(cdLength));<a name="line.1210"></a>
+<span class="sourceLineNo">1211</span>        writeOut(ZipEightByteInteger.getBytes(cdOffset));<a name="line.1211"></a>
+<span class="sourceLineNo">1212</span><a name="line.1212"></a>
+<span class="sourceLineNo">1213</span>        // no "zip64 extensible data sector" for now<a name="line.1213"></a>
+<span class="sourceLineNo">1214</span><a name="line.1214"></a>
+<span class="sourceLineNo">1215</span>        // and now the "ZIP64 end of central directory locator"<a name="line.1215"></a>
+<span class="sourceLineNo">1216</span>        writeOut(ZIP64_EOCD_LOC_SIG);<a name="line.1216"></a>
+<span class="sourceLineNo">1217</span><a name="line.1217"></a>
+<span class="sourceLineNo">1218</span>        // disk number holding the ZIP64 EOCD record<a name="line.1218"></a>
+<span class="sourceLineNo">1219</span>        writeOut(LZERO);<a name="line.1219"></a>
+<span class="sourceLineNo">1220</span>        // relative offset of ZIP64 EOCD record<a name="line.1220"></a>
+<span class="sourceLineNo">1221</span>        writeOut(ZipEightByteInteger.getBytes(offset));<a name="line.1221"></a>
+<span class="sourceLineNo">1222</span>        // total number of disks<a name="line.1222"></a>
+<span class="sourceLineNo">1223</span>        writeOut(ONE);<a name="line.1223"></a>
+<span class="sourceLineNo">1224</span>    }<a name="line.1224"></a>
+<span class="sourceLineNo">1225</span><a name="line.1225"></a>
+<span class="sourceLineNo">1226</span>    /**<a name="line.1226"></a>
+<span class="sourceLineNo">1227</span>     * Write bytes to output or random access file.<a name="line.1227"></a>
+<span class="sourceLineNo">1228</span>     *<a name="line.1228"></a>
+<span class="sourceLineNo">1229</span>     * @param data the byte array to write<a name="line.1229"></a>
+<span class="sourceLineNo">1230</span>     * @throws java.io.IOException on error<a name="line.1230"></a>
+<span class="sourceLineNo">1231</span>     */<a name="line.1231"></a>
+<span class="sourceLineNo">1232</span>    protected final void writeOut(byte[] data) throws IOException {<a name="line.1232"></a>
+<span class="sourceLineNo">1233</span>        writeOut(data, 0, data.length);<a name="line.1233"></a>
+<span class="sourceLineNo">1234</span>    }<a name="line.1234"></a>
+<span class="sourceLineNo">1235</span><a name="line.1235"></a>
+<span class="sourceLineNo">1236</span>    /**<a name="line.1236"></a>
+<span class="sourceLineNo">1237</span>     * Write bytes to output or random access file.<a name="line.1237"></a>
+<span class="sourceLineNo">1238</span>     *<a name="line.1238"></a>
+<span class="sourceLineNo">1239</span>     * @param data   the byte array to write<a name="line.1239"></a>
+<span class="sourceLineNo">1240</span>     * @param offset the start position to write from<a name="line.1240"></a>
+<span class="sourceLineNo">1241</span>     * @param length the number of bytes to write<a name="line.1241"></a>
+<span class="sourceLineNo">1242</span>     * @throws java.io.IOException on error<a name="line.1242"></a>
+<span class="sourceLineNo">1243</span>     */<a name="line.1243"></a>
+<span class="sourceLineNo">1244</span>    protected final void writeOut(byte[] data, int offset, int length)<a name="line.1244"></a>
+<span class="sourceLineNo">1245</span>            throws IOException {<a name="line.1245"></a>
+<span class="sourceLineNo">1246</span>        if (raf != null) {<a name="line.1246"></a>
+<span class="sourceLineNo">1247</span>            raf.write(data, offset, length);<a name="line.1247"></a>
+<span class="sourceLineNo">1248</span>        } else {<a name="line.1248"></a>
+<span class="sourceLineNo">1249</span>            out.write(data, offset, length);<a name="line.1249"></a>
+<span class="sourceLineNo">1250</span>        }<a name="line.1250"></a>
+<span class="sourceLineNo">1251</span>    }<a name="line.1251"></a>
+<span class="sourceLineNo">1252</span><a name="line.1252"></a>
+<span class="sourceLineNo">1253</span>    private void deflateUntilInputIsNeeded() throws IOException {<a name="line.1253"></a>
+<span class="sourceLineNo">1254</span>        while (!def.needsInput()) {<a name="line.1254"></a>
+<span class="sourceLineNo">1255</span>            deflate();<a name="line.1255"></a>
+<span class="sourceLineNo">1256</span>        }<a name="line.1256"></a>
+<span class="sourceLineNo">1257</span>    }<a name="line.1257"></a>
+<span class="sourceLineNo">1258</span><a name="line.1258"></a>
+<span class="sourceLineNo">1259</span>    private void writeVersionNeededToExtractAndGeneralPurposeBits(final int<a name="line.1259"></a>
+<span class="sourceLineNo">1260</span>                                                                          zipMethod,<a name="line.1260"></a>
+<span class="sourceLineNo">1261</span>                                                                  final boolean<a name="line.1261"></a>
+<span class="sourceLineNo">1262</span>                                                                          utfFallback,<a name="line.1262"></a>
+<span class="sourceLineNo">1263</span>                                                                  final boolean<a name="line.1263"></a>
+<span class="sourceLineNo">1264</span>                                                                          zip64)<a name="line.1264"></a>
+<span class="sourceLineNo">1265</span>            throws IOException {<a name="line.1265"></a>
+<span class="sourceLineNo">1266</span><a name="line.1266"></a>
+<span class="sourceLineNo">1267</span>        // CheckStyle:MagicNumber OFF<a name="line.1267"></a>
+<span class="sourceLineNo">1268</span>        int versionNeededToExtract = INITIAL_VERSION;<a name="line.1268"></a>
+<span class="sourceLineNo">1269</span>        GeneralPurposeBit b = new GeneralPurposeBit();<a name="line.1269"></a>
+<span class="sourceLineNo">1270</span>        b.useUTF8ForNames(useUTF8Flag || utfFallback);<a name="line.1270"></a>
+<span class="sourceLineNo">1271</span>        if (zipMethod == DEFLATED &amp;&amp; raf == null) {<a name="line.1271"></a>
+<span class="sourceLineNo">1272</span>            // requires version 2 as we are going to store length info<a name="line.1272"></a>
+<span class="sourceLineNo">1273</span>            // in the data descriptor<a name="line.1273"></a>
+<span class="sourceLineNo">1274</span>            versionNeededToExtract = DATA_DESCRIPTOR_MIN_VERSION;<a name="line.1274"></a>
+<span class="sourceLineNo">1275</span>            b.useDataDescriptor(true);<a name="line.1275"></a>
+<span class="sourceLineNo">1276</span>        }<a name="line.1276"></a>
+<span class="sourceLineNo">1277</span>        if (zip64) {<a name="line.1277"></a>
+<span class="sourceLineNo">1278</span>            versionNeededToExtract = ZIP64_MIN_VERSION;<a name="line.1278"></a>
+<span class="sourceLineNo">1279</span>        }<a name="line.1279"></a>
+<span class="sourceLineNo">1280</span>        // CheckStyle:MagicNumber ON<a name="line.1280"></a>
+<span class="sourceLineNo">1281</span><a name="line.1281"></a>
+<span class="sourceLineNo">1282</span>        // version needed to extract<a name="line.1282"></a>
+<span class="sourceLineNo">1283</span>        writeOut(ZipShort.getBytes(versionNeededToExtract));<a name="line.1283"></a>
+<span class="sourceLineNo">1284</span>        // general purpose bit flag<a name="line.1284"></a>
+<span class="sourceLineNo">1285</span>        writeOut(b.encode());<a name="line.1285"></a>
+<span class="sourceLineNo">1286</span>    }<a name="line.1286"></a>
+<span class="sourceLineNo">1287</span><a name="line.1287"></a>
+<span class="sourceLineNo">1288</span>    /**<a name="line.1288"></a>
+<span class="sourceLineNo">1289</span>     * Get the existing ZIP64 extended information extra field or<a name="line.1289"></a>
+<span class="sourceLineNo">1290</span>     * create a new one and add it to the entry.<a name="line.1290"></a>
+<span class="sourceLineNo">1291</span>     */<a name="line.1291"></a>
+<span class="sourceLineNo">1292</span>    private Zip64ExtendedInformationExtraField<a name="line.1292"></a>
+<span class="sourceLineNo">1293</span>    getZip64Extra(ZipArchiveEntry ze) {<a name="line.1293"></a>
+<span class="sourceLineNo">1294</span>        if (entry != null) {<a name="line.1294"></a>
+<span class="sourceLineNo">1295</span>            entry.causedUseOfZip64 = !hasUsedZip64;<a name="line.1295"></a>
+<span class="sourceLineNo">1296</span>        }<a name="line.1296"></a>
+<span class="sourceLineNo">1297</span>        hasUsedZip64 = true;<a name="line.1297"></a>
+<span class="sourceLineNo">1298</span>        Zip64ExtendedInformationExtraField z64 =<a name="line.1298"></a>
+<span class="sourceLineNo">1299</span>                (Zip64ExtendedInformationExtraField)<a name="line.1299"></a>
+<span class="sourceLineNo">1300</span>                        ze.getExtraField(Zip64ExtendedInformationExtraField<a name="line.1300"></a>
+<span class="sourceLineNo">1301</span>                                .HEADER_ID);<a name="line.1301"></a>
+<span class="sourceLineNo">1302</span>        if (z64 == null) {<a name="line.1302"></a>
+<span class="sourceLineNo">1303</span>            /*<a name="line.1303"></a>
+<span class="sourceLineNo">1304</span>              System.err.println("Adding z64 for " + ze.getName()<a name="line.1304"></a>
+<span class="sourceLineNo">1305</span>              + ", method: " + ze.getMethod()<a name="line.1305"></a>
+<span class="sourceLineNo">1306</span>              + " (" + (ze.getMethod() == STORED) + ")"<a name="line.1306"></a>
+<span class="sourceLineNo">1307</span>              + ", raf: " + (raf != null));<a name="line.1307"></a>
+<span class="sourceLineNo">1308</span>            */<a name="line.1308"></a>
+<span class="sourceLineNo">1309</span>            z64 = new Zip64ExtendedInformationExtraField();<a name="line.1309"></a>
+<span class="sourceLineNo">1310</span>        }<a name="line.1310"></a>
+<span class="sourceLineNo">1311</span><a name="line.1311"></a>
+<span class="sourceLineNo">1312</span>        // even if the field is there already, make sure it is the first one<a name="line.1312"></a>
+<span class="sourceLineNo">1313</span>        ze.addAsFirstExtraField(z64);<a name="line.1313"></a>
+<span class="sourceLineNo">1314</span><a name="line.1314"></a>
+<span class="sourceLineNo">1315</span>        return z64;<a name="line.1315"></a>
+<span class="sourceLineNo">1316</span>    }<a name="line.1316"></a>
+<span class="sourceLineNo">1317</span><a name="line.1317"></a>
+<span class="sourceLineNo">1318</span>    /**<a name="line.1318"></a>
+<span class="sourceLineNo">1319</span>     * Is there a ZIP64 extended information extra field for the<a name="line.1319"></a>
+<span class="sourceLineNo">1320</span>     * entry?<a name="line.1320"></a>
+<span class="sourceLineNo">1321</span>     */<a name="line.1321"></a>
+<span class="sourceLineNo">1322</span>    private boolean hasZip64Extra(ZipArchiveEntry ze) {<a name="line.1322"></a>
+<span class="sourceLineNo">1323</span>        return ze.getExtraField(Zip64ExtendedInformationExtraField.HEADER_ID) != null;<a name="line.1323"></a>
+<span class="sourceLineNo">1324</span>    }<a name="line.1324"></a>
+<span class="sourceLineNo">1325</span><a name="line.1325"></a>
+<span class="sourceLineNo">1326</span>    /**<a name="line.1326"></a>
+<span class="sourceLineNo">1327</span>     * If the mode is AsNeeded and the entry is a compressed entry of<a name="line.1327"></a>
+<span class="sourceLineNo">1328</span>     * unknown size that gets written to a non-seekable stream the<a name="line.1328"></a>
+<span class="sourceLineNo">1329</span>     * change the default to Never.<a name="line.1329"></a>
+<span class="sourceLineNo">1330</span>     */<a name="line.1330"></a>
+<span class="sourceLineNo">1331</span>    private Zip64Mode getEffectiveZip64Mode(ZipArchiveEntry ze) {<a name="line.1331"></a>
+<span class="sourceLineNo">1332</span>        if (zip64Mode != Zip64Mode.AsNeeded<a name="line.1332"></a>
+<span class="sourceLineNo">1333</span>                || raf != null<a name="line.1333"></a>
+<span class="sourceLineNo">1334</span>                || ze.getMethod() != DEFLATED<a name="line.1334"></a>
+<span class="sourceLineNo">1335</span>                || ze.getSize() != ArchiveEntry.SIZE_UNKNOWN) {<a name="line.1335"></a>
+<span class="sourceLineNo">1336</span>            return zip64Mode;<a name="line.1336"></a>
+<span class="sourceLineNo">1337</span>        }<a name="line.1337"></a>
+<span class="sourceLineNo">1338</span>        return Zip64Mode.Never;<a name="line.1338"></a>
+<span class="sourceLineNo">1339</span>    }<a name="line.1339"></a>
+<span class="sourceLineNo">1340</span><a name="line.1340"></a>
+<span class="sourceLineNo">1341</span>    private ZipEncoding getEntryEncoding(ZipArchiveEntry ze) {<a name="line.1341"></a>
+<span class="sourceLineNo">1342</span>        boolean encodable = zipEncoding.canEncode(ze.getName());<a name="line.1342"></a>
+<span class="sourceLineNo">1343</span>        return !encodable &amp;&amp; fallbackToUTF8<a name="line.1343"></a>
+<span class="sourceLineNo">1344</span>                ? ZipEncodingHelper.UTF8_ZIP_ENCODING : zipEncoding;<a name="line.1344"></a>
+<span class="sourceLineNo">1345</span>    }<a name="line.1345"></a>
+<span class="sourceLineNo">1346</span><a name="line.1346"></a>
+<span class="sourceLineNo">1347</span>    private ByteBuffer getName(ZipArchiveEntry ze) throws IOException {<a name="line.1347"></a>
+<span class="sourceLineNo">1348</span>        return getEntryEncoding(ze).encode(ze.getName());<a name="line.1348"></a>
+<span class="sourceLineNo">1349</span>    }<a name="line.1349"></a>
+<span class="sourceLineNo">1350</span><a name="line.1350"></a>
+<span class="sourceLineNo">1351</span>    /**<a name="line.1351"></a>
+<span class="sourceLineNo">1352</span>     * Closes the underlying stream/file without finishing the<a name="line.1352"></a>
+<span class="sourceLineNo">1353</span>     * archive, the result will likely be a corrupt archive.<a name="line.1353"></a>
+<span class="sourceLineNo">1354</span>     * &lt;p/&gt;<a name="line.1354"></a>
+<span class="sourceLineNo">1355</span>     * &lt;p&gt;This method only exists to support tests that generate<a name="line.1355"></a>
+<span class="sourceLineNo">1356</span>     * corrupt archives so they can clean up any temporary files.&lt;/p&gt;<a name="line.1356"></a>
+<span class="sourceLineNo">1357</span>     */<a name="line.1357"></a>
+<span class="sourceLineNo">1358</span>    void destroy() throws IOException {<a name="line.1358"></a>
+<span class="sourceLineNo">1359</span>        if (raf != null) {<a name="line.1359"></a>
+<span class="sourceLineNo">1360</span>            raf.close();<a name="line.1360"></a>
+<span class="sourceLineNo">1361</span>        }<a name="line.1361"></a>
+<span class="sourceLineNo">1362</span>        if (out != null) {<a name="line.1362"></a>
+<span class="sourceLineNo">1363</span>            out.close();<a name="line.1363"></a>
+<span class="sourceLineNo">1364</span>        }<a name="line.1364"></a>
+<span class="sourceLineNo">1365</span>    }<a name="line.1365"></a>
+<span class="sourceLineNo">1366</span><a name="line.1366"></a>
+<span class="sourceLineNo">1367</span>    /**<a name="line.1367"></a>
+<span class="sourceLineNo">1368</span>     * enum that represents the possible policies for creating Unicode<a name="line.1368"></a>
+<span class="sourceLineNo">1369</span>     * extra fields.<a name="line.1369"></a>
+<span class="sourceLineNo">1370</span>     */<a name="line.1370"></a>
+<span class="sourceLineNo">1371</span>    public static final class UnicodeExtraFieldPolicy {<a name="line.1371"></a>
+<span class="sourceLineNo">1372</span>        /**<a name="line.1372"></a>
+<span class="sourceLineNo">1373</span>         * Always create Unicode extra fields.<a name="line.1373"></a>
+<span class="sourceLineNo">1374</span>         */<a name="line.1374"></a>
+<span class="sourceLineNo">1375</span>        public static final UnicodeExtraFieldPolicy ALWAYS = new UnicodeExtraFieldPolicy("always");<a name="line.1375"></a>
+<span class="sourceLineNo">1376</span>        /**<a name="line.1376"></a>
+<span class="sourceLineNo">1377</span>         * Never create Unicode extra fields.<a name="line.1377"></a>
+<span class="sourceLineNo">1378</span>         */<a name="line.1378"></a>
+<span class="sourceLineNo">1379</span>        public static final UnicodeExtraFieldPolicy NEVER = new UnicodeExtraFieldPolicy("never");<a name="line.1379"></a>
+<span class="sourceLineNo">1380</span>        /**<a name="line.1380"></a>
+<span class="sourceLineNo">1381</span>         * Create Unicode extra fields for filenames that cannot be<a name="line.1381"></a>
+<span class="sourceLineNo">1382</span>         * encoded using the specified encoding.<a name="line.1382"></a>
+<span class="sourceLineNo">1383</span>         */<a name="line.1383"></a>
+<span class="sourceLineNo">1384</span>        public static final UnicodeExtraFieldPolicy NOT_ENCODEABLE =<a name="line.1384"></a>
+<span class="sourceLineNo">1385</span>                new UnicodeExtraFieldPolicy("not encodeable");<a name="line.1385"></a>
+<span class="sourceLineNo">1386</span><a name="line.1386"></a>
+<span class="sourceLineNo">1387</span>        private final String name;<a name="line.1387"></a>
+<span class="sourceLineNo">1388</span><a name="line.1388"></a>
+<span class="sourceLineNo">1389</span>        private UnicodeExtraFieldPolicy(String n) {<a name="line.1389"></a>
+<span class="sourceLineNo">1390</span>            name = n;<a name="line.1390"></a>
+<span class="sourceLineNo">1391</span>        }<a name="line.1391"></a>
+<span class="sourceLineNo">1392</span><a name="line.1392"></a>
+<span class="sourceLineNo">1393</span>        @Override<a name="line.1393"></a>
+<span class="sourceLineNo">1394</span>        public String toString() {<a name="line.1394"></a>
+<span class="sourceLineNo">1395</span>            return name;<a name="line.1395"></a>
+<span class="sourceLineNo">1396</span>        }<a name="line.1396"></a>
+<span class="sourceLineNo">1397</span>    }<a name="line.1397"></a>
+<span class="sourceLineNo">1398</span><a name="line.1398"></a>
+<span class="sourceLineNo">1399</span>    /**<a name="line.1399"></a>
+<span class="sourceLineNo">1400</span>     * Structure collecting information for the entry that is<a name="line.1400"></a>
+<span class="sourceLineNo">1401</span>     * currently being written.<a name="line.1401"></a>
+<span class="sourceLineNo">1402</span>     */<a name="line.1402"></a>
+<span class="sourceLineNo">1403</span>    private static final class CurrentEntry {<a name="line.1403"></a>
+<span class="sourceLineNo">1404</span>        private CurrentEntry(ZipArchiveEntry entry) {<a name="line.1404"></a>
+<span class="sourceLineNo">1405</span>            this.entry = entry;<a name="line.1405"></a>
+<span class="sourceLineNo">1406</span>        }<a name="line.1406"></a>
+<span class="sourceLineNo">1407</span><a name="line.1407"></a>
+<span class="sourceLineNo">1408</span>        /**<a name="line.1408"></a>
+<span class="sourceLineNo">1409</span>         * Current ZIP entry.<a name="line.1409"></a>
+<span class="sourceLineNo">1410</span>         */<a name="line.1410"></a>
+<span class="sourceLineNo">1411</span>        private final ZipArchiveEntry entry;<a name="line.1411"></a>
+<span class="sourceLineNo">1412</span>        /**<a name="line.1412"></a>
+<span class="sourceLineNo">1413</span>         * Offset for CRC entry in the local file header data for the<a name="line.1413"></a>
+<span class="sourceLineNo">1414</span>         * current entry starts here.<a name="line.1414"></a>
+<span class="sourceLineNo">1415</span>         */<a name="line.1415"></a>
+<span class="sourceLineNo">1416</span>        private long localDataStart = 0;<a name="line.1416"></a>
+<span class="sourceLineNo">1417</span>        /**<a name="line.1417"></a>
+<span class="sourceLineNo">1418</span>         * Data for local header data<a name="line.1418"></a>
+<span class="sourceLineNo">1419</span>         */<a name="line.1419"></a>
+<span class="sourceLineNo">1420</span>        private long dataStart = 0;<a name="line.1420"></a>
+<span class="sourceLineNo">1421</span>        /**<a name="line.1421"></a>
+<span class="sourceLineNo">1422</span>         * Number of bytes read for the current entry (can't rely on<a name="line.1422"></a>
+<span class="sourceLineNo">1423</span>         * Deflater#getBytesRead) when using DEFLATED.<a name="line.1423"></a>
+<span class="sourceLineNo">1424</span>         */<a name="line.1424"></a>
+<span class="sourceLineNo">1425</span>        private long bytesRead = 0;<a name="line.1425"></a>
+<span class="sourceLineNo">1426</span>        /**<a name="line.1426"></a>
+<span class="sourceLineNo">1427</span>         * Whether current entry was the first one using ZIP64 features.<a name="line.1427"></a>
+<span class="sourceLineNo">1428</span>         */<a name="line.1428"></a>
+<span class="sourceLineNo">1429</span>        private boolean causedUseOfZip64 = false;<a name="line.1429"></a>
+<span class="sourceLineNo">1430</span>        /**<a name="line.1430"></a>
+<span class="sourceLineNo">1431</span>         * Whether write() has been called at all.<a name="line.1431"></a>
+<span class="sourceLineNo">1432</span>         * &lt;p/&gt;<a name="line.1432"></a>
+<span class="sourceLineNo">1433</span>         * &lt;p&gt;In order to create a valid archive {@link<a name="line.1433"></a>
+<span class="sourceLineNo">1434</span>         * #closeArchiveEntry closeArchiveEntry} will write an empty<a name="line.1434"></a>
+<span class="sourceLineNo">1435</span>         * array to get the CRC right if nothing has been written to<a name="line.1435"></a>
+<span class="sourceLineNo">1436</span>         * the stream at all.&lt;/p&gt;<a name="line.1436"></a>
+<span class="sourceLineNo">1437</span>         */<a name="line.1437"></a>
+<span class="sourceLineNo">1438</span>        private boolean hasWritten;<a name="line.1438"></a>
+<span class="sourceLineNo">1439</span>    }<a name="line.1439"></a>
+<span class="sourceLineNo">1440</span><a name="line.1440"></a>
+<span class="sourceLineNo">1441</span>}<a name="line.1441"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

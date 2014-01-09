@@ -9,12 +9,19 @@
 <pre><span class="sourceLineNo">001</span><a name="line.1"></a>
 <span class="sourceLineNo">002</span>package org.xbib.io;<a name="line.2"></a>
 <span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public interface Packet&lt;P&gt; {<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>    String getName();<a name="line.6"></a>
-<span class="sourceLineNo">007</span><a name="line.7"></a>
-<span class="sourceLineNo">008</span>    P getPacket();<a name="line.8"></a>
-<span class="sourceLineNo">009</span>}<a name="line.9"></a>
+<span class="sourceLineNo">004</span>/**<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * A packet for transporting data chunks in sessions<a name="line.5"></a>
+<span class="sourceLineNo">006</span> */<a name="line.6"></a>
+<span class="sourceLineNo">007</span>public interface Packet&lt;P&gt; {<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>    String name();<a name="line.9"></a>
+<span class="sourceLineNo">010</span><a name="line.10"></a>
+<span class="sourceLineNo">011</span>    Packet&lt;P&gt; name(String name);<a name="line.11"></a>
+<span class="sourceLineNo">012</span><a name="line.12"></a>
+<span class="sourceLineNo">013</span>    P packet();<a name="line.13"></a>
+<span class="sourceLineNo">014</span><a name="line.14"></a>
+<span class="sourceLineNo">015</span>    Packet&lt;P&gt; packet(P packet);<a name="line.15"></a>
+<span class="sourceLineNo">016</span>}<a name="line.16"></a>
 
 
 
