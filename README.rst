@@ -27,6 +27,8 @@ ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
 0.90.9         0.90.9.1           Jan 9, 2013        ./bin/plugin --install knapsack --url http://bit.ly/1e81hwh
 0.90.9         0.90.9.1 (S3)      Jan 9, 2013        ./bin/plugin --install knapsack --url http://bit.ly/K8QwOJ
+0.90.10        0.90.10.1          Jan 14, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1j5rOy2
+0.90.10        0.90.10.1 (S3)     Jan 14, 2013       ./bin/plugin --install knapsack --url http://bit.ly/1d3kYkp
 =============  =================  =================  ===========================================================
 
 The S3 version includes Amazon AWS API support, it can optionally transfer archives to S3.
