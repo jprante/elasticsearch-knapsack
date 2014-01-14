@@ -1,206 +1,201 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.index;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.CorruptedInputException;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.MemoryLimitException;<a name="line.5"></a>
-<span class="sourceLineNo">006</span>import org.xbib.io.compress.xz.SeekableInputStream;<a name="line.6"></a>
-<span class="sourceLineNo">007</span>import org.xbib.io.compress.xz.UnsupportedOptionsException;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.8"></a>
-<span class="sourceLineNo">009</span>import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.9"></a>
-<span class="sourceLineNo">010</span><a name="line.10"></a>
-<span class="sourceLineNo">011</span>import java.io.EOFException;<a name="line.11"></a>
-<span class="sourceLineNo">012</span>import java.io.IOException;<a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.util.zip.CheckedInputStream;<a name="line.13"></a>
-<span class="sourceLineNo">014</span><a name="line.14"></a>
-<span class="sourceLineNo">015</span>public class IndexDecoder extends IndexBase {<a name="line.15"></a>
-<span class="sourceLineNo">016</span>    private final BlockInfo info = new BlockInfo();<a name="line.16"></a>
-<span class="sourceLineNo">017</span>    private final long streamPadding;<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    private final int memoryUsage;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    private final long[] unpadded;<a name="line.19"></a>
-<span class="sourceLineNo">020</span>    private final long[] uncompressed;<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    private long largestBlockSize = 0;<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>    /**<a name="line.23"></a>
-<span class="sourceLineNo">024</span>     * Current position in the arrays. This is initialized to &lt;code&gt;-1&lt;/code&gt;<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     * because then it is possible to use &lt;code&gt;hasNext()&lt;/code&gt; and<a name="line.25"></a>
-<span class="sourceLineNo">026</span>     * &lt;code&gt;getNext()&lt;/code&gt; to get BlockInfo of the first Block.<a name="line.26"></a>
-<span class="sourceLineNo">027</span>     */<a name="line.27"></a>
-<span class="sourceLineNo">028</span>    private int pos = -1;<a name="line.28"></a>
-<span class="sourceLineNo">029</span><a name="line.29"></a>
-<span class="sourceLineNo">030</span>    public IndexDecoder(SeekableInputStream in, StreamFlags streamFooterFlags,<a name="line.30"></a>
-<span class="sourceLineNo">031</span>                        long streamPadding, int memoryLimit)<a name="line.31"></a>
-<span class="sourceLineNo">032</span>            throws IOException {<a name="line.32"></a>
-<span class="sourceLineNo">033</span>        super(new CorruptedInputException("XZ Index is corrupt"));<a name="line.33"></a>
-<span class="sourceLineNo">034</span>        info.streamFlags = streamFooterFlags;<a name="line.34"></a>
-<span class="sourceLineNo">035</span>        this.streamPadding = streamPadding;<a name="line.35"></a>
-<span class="sourceLineNo">036</span><a name="line.36"></a>
-<span class="sourceLineNo">037</span>        // If endPos is exceeded before the CRC32 field has been decoded,<a name="line.37"></a>
-<span class="sourceLineNo">038</span>        // the Index is corrupt.<a name="line.38"></a>
-<span class="sourceLineNo">039</span>        long endPos = in.position() + streamFooterFlags.backwardSize - 4;<a name="line.39"></a>
-<span class="sourceLineNo">040</span><a name="line.40"></a>
-<span class="sourceLineNo">041</span>        java.util.zip.CRC32 crc32 = new java.util.zip.CRC32();<a name="line.41"></a>
-<span class="sourceLineNo">042</span>        CheckedInputStream inChecked = new CheckedInputStream(in, crc32);<a name="line.42"></a>
-<span class="sourceLineNo">043</span><a name="line.43"></a>
-<span class="sourceLineNo">044</span>        // Index Indicator<a name="line.44"></a>
-<span class="sourceLineNo">045</span>        if (inChecked.read() != 0x00) {<a name="line.45"></a>
-<span class="sourceLineNo">046</span>            throw new CorruptedInputException("XZ Index is corrupt");<a name="line.46"></a>
-<span class="sourceLineNo">047</span>        }<a name="line.47"></a>
-<span class="sourceLineNo">048</span><a name="line.48"></a>
-<span class="sourceLineNo">049</span>        try {<a name="line.49"></a>
-<span class="sourceLineNo">050</span>            // Number of Records<a name="line.50"></a>
-<span class="sourceLineNo">051</span>            long count = DecoderUtil.decodeVLI(inChecked);<a name="line.51"></a>
-<span class="sourceLineNo">052</span><a name="line.52"></a>
-<span class="sourceLineNo">053</span>            // Catch Record counts that obviously too high to be valid.<a name="line.53"></a>
-<span class="sourceLineNo">054</span>            // This test isn't exact because it ignores Index Indicator,<a name="line.54"></a>
-<span class="sourceLineNo">055</span>            // Number of Records, and CRC32 fields, but this is good enough<a name="line.55"></a>
-<span class="sourceLineNo">056</span>            // to catch the most obvious problems.<a name="line.56"></a>
-<span class="sourceLineNo">057</span>            if (count &gt;= streamFooterFlags.backwardSize / 2) {<a name="line.57"></a>
-<span class="sourceLineNo">058</span>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.58"></a>
-<span class="sourceLineNo">059</span>            }<a name="line.59"></a>
-<span class="sourceLineNo">060</span><a name="line.60"></a>
-<span class="sourceLineNo">061</span>            // If the Record count doesn't fit into an int, we cannot<a name="line.61"></a>
-<span class="sourceLineNo">062</span>            // allocate the arrays to hold the Records.<a name="line.62"></a>
-<span class="sourceLineNo">063</span>            if (count &gt; Integer.MAX_VALUE) {<a name="line.63"></a>
-<span class="sourceLineNo">064</span>                throw new UnsupportedOptionsException("XZ Index has over "<a name="line.64"></a>
-<span class="sourceLineNo">065</span>                        + Integer.MAX_VALUE + " Records");<a name="line.65"></a>
-<span class="sourceLineNo">066</span>            }<a name="line.66"></a>
-<span class="sourceLineNo">067</span><a name="line.67"></a>
-<span class="sourceLineNo">068</span>            // Calculate approximate memory requirements and check the<a name="line.68"></a>
-<span class="sourceLineNo">069</span>            // memory usage limit.<a name="line.69"></a>
-<span class="sourceLineNo">070</span>            memoryUsage = 1 + (int) ((16L * count + 1023) / 1024);<a name="line.70"></a>
-<span class="sourceLineNo">071</span>            if (memoryLimit &gt;= 0 &amp;&amp; memoryUsage &gt; memoryLimit) {<a name="line.71"></a>
-<span class="sourceLineNo">072</span>                throw new MemoryLimitException(memoryUsage, memoryLimit);<a name="line.72"></a>
-<span class="sourceLineNo">073</span>            }<a name="line.73"></a>
-<span class="sourceLineNo">074</span><a name="line.74"></a>
-<span class="sourceLineNo">075</span>            // Allocate the arrays for the Records.<a name="line.75"></a>
-<span class="sourceLineNo">076</span>            unpadded = new long[(int) count];<a name="line.76"></a>
-<span class="sourceLineNo">077</span>            uncompressed = new long[(int) count];<a name="line.77"></a>
-<span class="sourceLineNo">078</span>            int record = 0;<a name="line.78"></a>
-<span class="sourceLineNo">079</span><a name="line.79"></a>
-<span class="sourceLineNo">080</span>            // Decode the Records.<a name="line.80"></a>
-<span class="sourceLineNo">081</span>            for (int i = (int) count; i &gt; 0; --i) {<a name="line.81"></a>
-<span class="sourceLineNo">082</span>                // Get the next Record.<a name="line.82"></a>
-<span class="sourceLineNo">083</span>                long unpaddedSize = DecoderUtil.decodeVLI(inChecked);<a name="line.83"></a>
-<span class="sourceLineNo">084</span>                long uncompressedSize = DecoderUtil.decodeVLI(inChecked);<a name="line.84"></a>
-<span class="sourceLineNo">085</span><a name="line.85"></a>
-<span class="sourceLineNo">086</span>                // Check that the input position stays sane. Since this is<a name="line.86"></a>
-<span class="sourceLineNo">087</span>                // checked only once per loop iteration instead of for<a name="line.87"></a>
-<span class="sourceLineNo">088</span>                // every input byte read, it's still possible that<a name="line.88"></a>
-<span class="sourceLineNo">089</span>                // EOFException gets thrown with corrupt input.<a name="line.89"></a>
-<span class="sourceLineNo">090</span>                if (in.position() &gt; endPos) {<a name="line.90"></a>
-<span class="sourceLineNo">091</span>                    throw new CorruptedInputException("XZ Index is corrupt");<a name="line.91"></a>
-<span class="sourceLineNo">092</span>                }<a name="line.92"></a>
-<span class="sourceLineNo">093</span><a name="line.93"></a>
-<span class="sourceLineNo">094</span>                // Add the new Record.<a name="line.94"></a>
-<span class="sourceLineNo">095</span>                unpadded[record] = blocksSum + unpaddedSize;<a name="line.95"></a>
-<span class="sourceLineNo">096</span>                uncompressed[record] = uncompressedSum + uncompressedSize;<a name="line.96"></a>
-<span class="sourceLineNo">097</span>                ++record;<a name="line.97"></a>
-<span class="sourceLineNo">098</span>                super.add(unpaddedSize, uncompressedSize);<a name="line.98"></a>
-<span class="sourceLineNo">099</span>                assert record == recordCount;<a name="line.99"></a>
-<span class="sourceLineNo">100</span><a name="line.100"></a>
-<span class="sourceLineNo">101</span>                // Remember the uncompressed size of the largest Block.<a name="line.101"></a>
-<span class="sourceLineNo">102</span>                if (largestBlockSize &lt; uncompressedSize) {<a name="line.102"></a>
-<span class="sourceLineNo">103</span>                    largestBlockSize = uncompressedSize;<a name="line.103"></a>
-<span class="sourceLineNo">104</span>                }<a name="line.104"></a>
-<span class="sourceLineNo">105</span>            }<a name="line.105"></a>
-<span class="sourceLineNo">106</span>        } catch (EOFException e) {<a name="line.106"></a>
-<span class="sourceLineNo">107</span>            // EOFException is caught just in case a corrupt input causes<a name="line.107"></a>
-<span class="sourceLineNo">108</span>            // DecoderUtil.decodeVLI to read too much at once.<a name="line.108"></a>
-<span class="sourceLineNo">109</span>            throw new CorruptedInputException("XZ Index is corrupt");<a name="line.109"></a>
-<span class="sourceLineNo">110</span>        }<a name="line.110"></a>
-<span class="sourceLineNo">111</span><a name="line.111"></a>
-<span class="sourceLineNo">112</span>        // Validate that the size of the Index field matches<a name="line.112"></a>
-<span class="sourceLineNo">113</span>        // Backward Size.<a name="line.113"></a>
-<span class="sourceLineNo">114</span>        int indexPaddingSize = getIndexPaddingSize();<a name="line.114"></a>
-<span class="sourceLineNo">115</span>        if (in.position() + indexPaddingSize != endPos) {<a name="line.115"></a>
-<span class="sourceLineNo">116</span>            throw new CorruptedInputException("XZ Index is corrupt");<a name="line.116"></a>
-<span class="sourceLineNo">117</span>        }<a name="line.117"></a>
-<span class="sourceLineNo">118</span><a name="line.118"></a>
-<span class="sourceLineNo">119</span>        // Index Padding<a name="line.119"></a>
-<span class="sourceLineNo">120</span>        while (indexPaddingSize-- &gt; 0) {<a name="line.120"></a>
-<span class="sourceLineNo">121</span>            if (inChecked.read() != 0x00) {<a name="line.121"></a>
-<span class="sourceLineNo">122</span>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.122"></a>
-<span class="sourceLineNo">123</span>            }<a name="line.123"></a>
-<span class="sourceLineNo">124</span>        }<a name="line.124"></a>
-<span class="sourceLineNo">125</span><a name="line.125"></a>
-<span class="sourceLineNo">126</span>        // CRC32<a name="line.126"></a>
-<span class="sourceLineNo">127</span>        long value = crc32.getValue();<a name="line.127"></a>
-<span class="sourceLineNo">128</span>        for (int i = 0; i &lt; 4; ++i) {<a name="line.128"></a>
-<span class="sourceLineNo">129</span>            if (((value &gt;&gt;&gt; (i * 8)) &amp; 0xFF) != in.read()) {<a name="line.129"></a>
-<span class="sourceLineNo">130</span>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.130"></a>
-<span class="sourceLineNo">131</span>            }<a name="line.131"></a>
-<span class="sourceLineNo">132</span>        }<a name="line.132"></a>
-<span class="sourceLineNo">133</span>    }<a name="line.133"></a>
-<span class="sourceLineNo">134</span><a name="line.134"></a>
-<span class="sourceLineNo">135</span>    public BlockInfo locate(long target) {<a name="line.135"></a>
-<span class="sourceLineNo">136</span>        assert target &lt; uncompressedSum;<a name="line.136"></a>
-<span class="sourceLineNo">137</span><a name="line.137"></a>
-<span class="sourceLineNo">138</span>        int left = 0;<a name="line.138"></a>
-<span class="sourceLineNo">139</span>        int right = unpadded.length - 1;<a name="line.139"></a>
-<span class="sourceLineNo">140</span><a name="line.140"></a>
-<span class="sourceLineNo">141</span>        while (left &lt; right) {<a name="line.141"></a>
-<span class="sourceLineNo">142</span>            int i = left + (right - left) / 2;<a name="line.142"></a>
-<span class="sourceLineNo">143</span><a name="line.143"></a>
-<span class="sourceLineNo">144</span>            if (uncompressed[i] &lt;= target) {<a name="line.144"></a>
-<span class="sourceLineNo">145</span>                left = i + 1;<a name="line.145"></a>
-<span class="sourceLineNo">146</span>            } else {<a name="line.146"></a>
-<span class="sourceLineNo">147</span>                right = i;<a name="line.147"></a>
-<span class="sourceLineNo">148</span>            }<a name="line.148"></a>
-<span class="sourceLineNo">149</span>        }<a name="line.149"></a>
-<span class="sourceLineNo">150</span><a name="line.150"></a>
-<span class="sourceLineNo">151</span>        pos = left;<a name="line.151"></a>
-<span class="sourceLineNo">152</span>        return getInfo();<a name="line.152"></a>
-<span class="sourceLineNo">153</span>    }<a name="line.153"></a>
-<span class="sourceLineNo">154</span><a name="line.154"></a>
-<span class="sourceLineNo">155</span>    public int getMemoryUsage() {<a name="line.155"></a>
-<span class="sourceLineNo">156</span>        return memoryUsage;<a name="line.156"></a>
-<span class="sourceLineNo">157</span>    }<a name="line.157"></a>
-<span class="sourceLineNo">158</span><a name="line.158"></a>
-<span class="sourceLineNo">159</span>    public long getStreamAndPaddingSize() {<a name="line.159"></a>
-<span class="sourceLineNo">160</span>        return getStreamSize() + streamPadding;<a name="line.160"></a>
-<span class="sourceLineNo">161</span>    }<a name="line.161"></a>
-<span class="sourceLineNo">162</span><a name="line.162"></a>
-<span class="sourceLineNo">163</span>    public long getUncompressedSize() {<a name="line.163"></a>
-<span class="sourceLineNo">164</span>        return uncompressedSum;<a name="line.164"></a>
-<span class="sourceLineNo">165</span>    }<a name="line.165"></a>
-<span class="sourceLineNo">166</span><a name="line.166"></a>
-<span class="sourceLineNo">167</span>    public long getLargestBlockSize() {<a name="line.167"></a>
-<span class="sourceLineNo">168</span>        return largestBlockSize;<a name="line.168"></a>
-<span class="sourceLineNo">169</span>    }<a name="line.169"></a>
-<span class="sourceLineNo">170</span><a name="line.170"></a>
-<span class="sourceLineNo">171</span>    public boolean hasNext() {<a name="line.171"></a>
-<span class="sourceLineNo">172</span>        return pos + 1 &lt; recordCount;<a name="line.172"></a>
-<span class="sourceLineNo">173</span>    }<a name="line.173"></a>
-<span class="sourceLineNo">174</span><a name="line.174"></a>
-<span class="sourceLineNo">175</span>    public BlockInfo getNext() {<a name="line.175"></a>
-<span class="sourceLineNo">176</span>        ++pos;<a name="line.176"></a>
-<span class="sourceLineNo">177</span>        return getInfo();<a name="line.177"></a>
-<span class="sourceLineNo">178</span>    }<a name="line.178"></a>
-<span class="sourceLineNo">179</span><a name="line.179"></a>
-<span class="sourceLineNo">180</span>    private BlockInfo getInfo() {<a name="line.180"></a>
-<span class="sourceLineNo">181</span>        if (pos == 0) {<a name="line.181"></a>
-<span class="sourceLineNo">182</span>            info.compressedOffset = 0;<a name="line.182"></a>
-<span class="sourceLineNo">183</span>            info.uncompressedOffset = 0;<a name="line.183"></a>
-<span class="sourceLineNo">184</span>        } else {<a name="line.184"></a>
-<span class="sourceLineNo">185</span>            info.compressedOffset = (unpadded[pos - 1] + 3) &amp; ~3;<a name="line.185"></a>
-<span class="sourceLineNo">186</span>            info.uncompressedOffset = uncompressed[pos - 1];<a name="line.186"></a>
-<span class="sourceLineNo">187</span>        }<a name="line.187"></a>
-<span class="sourceLineNo">188</span><a name="line.188"></a>
-<span class="sourceLineNo">189</span>        info.unpaddedSize = unpadded[pos] - info.compressedOffset;<a name="line.189"></a>
-<span class="sourceLineNo">190</span>        info.uncompressedSize = uncompressed[pos] - info.uncompressedOffset;<a name="line.190"></a>
-<span class="sourceLineNo">191</span><a name="line.191"></a>
-<span class="sourceLineNo">192</span>        info.compressedOffset += DecoderUtil.STREAM_HEADER_SIZE;<a name="line.192"></a>
-<span class="sourceLineNo">193</span>        return info;<a name="line.193"></a>
-<span class="sourceLineNo">194</span>    }<a name="line.194"></a>
-<span class="sourceLineNo">195</span>}<a name="line.195"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.xz.index;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import org.xbib.io.compress.xz.CorruptedInputException;<a name="line.4"></a>
+<FONT color="green">005</FONT>    import org.xbib.io.compress.xz.MemoryLimitException;<a name="line.5"></a>
+<FONT color="green">006</FONT>    import org.xbib.io.compress.xz.SeekableInputStream;<a name="line.6"></a>
+<FONT color="green">007</FONT>    import org.xbib.io.compress.xz.UnsupportedOptionsException;<a name="line.7"></a>
+<FONT color="green">008</FONT>    import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.8"></a>
+<FONT color="green">009</FONT>    import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.9"></a>
+<FONT color="green">010</FONT>    <a name="line.10"></a>
+<FONT color="green">011</FONT>    import java.io.EOFException;<a name="line.11"></a>
+<FONT color="green">012</FONT>    import java.io.IOException;<a name="line.12"></a>
+<FONT color="green">013</FONT>    import java.util.zip.CheckedInputStream;<a name="line.13"></a>
+<FONT color="green">014</FONT>    <a name="line.14"></a>
+<FONT color="green">015</FONT>    public class IndexDecoder extends IndexBase {<a name="line.15"></a>
+<FONT color="green">016</FONT>        private final BlockInfo info = new BlockInfo();<a name="line.16"></a>
+<FONT color="green">017</FONT>        private final long streamPadding;<a name="line.17"></a>
+<FONT color="green">018</FONT>        private final int memoryUsage;<a name="line.18"></a>
+<FONT color="green">019</FONT>        private final long[] unpadded;<a name="line.19"></a>
+<FONT color="green">020</FONT>        private final long[] uncompressed;<a name="line.20"></a>
+<FONT color="green">021</FONT>        private long largestBlockSize = 0;<a name="line.21"></a>
+<FONT color="green">022</FONT>    <a name="line.22"></a>
+<FONT color="green">023</FONT>        /**<a name="line.23"></a>
+<FONT color="green">024</FONT>         * Current position in the arrays. This is initialized to &lt;code&gt;-1&lt;/code&gt;<a name="line.24"></a>
+<FONT color="green">025</FONT>         * because then it is possible to use &lt;code&gt;hasNext()&lt;/code&gt; and<a name="line.25"></a>
+<FONT color="green">026</FONT>         * &lt;code&gt;getNext()&lt;/code&gt; to get BlockInfo of the first Block.<a name="line.26"></a>
+<FONT color="green">027</FONT>         */<a name="line.27"></a>
+<FONT color="green">028</FONT>        private int pos = -1;<a name="line.28"></a>
+<FONT color="green">029</FONT>    <a name="line.29"></a>
+<FONT color="green">030</FONT>        public IndexDecoder(SeekableInputStream in, StreamFlags streamFooterFlags,<a name="line.30"></a>
+<FONT color="green">031</FONT>                            long streamPadding, int memoryLimit)<a name="line.31"></a>
+<FONT color="green">032</FONT>                throws IOException {<a name="line.32"></a>
+<FONT color="green">033</FONT>            super(new CorruptedInputException("XZ Index is corrupt"));<a name="line.33"></a>
+<FONT color="green">034</FONT>            info.streamFlags = streamFooterFlags;<a name="line.34"></a>
+<FONT color="green">035</FONT>            this.streamPadding = streamPadding;<a name="line.35"></a>
+<FONT color="green">036</FONT>    <a name="line.36"></a>
+<FONT color="green">037</FONT>            // If endPos is exceeded before the CRC32 field has been decoded,<a name="line.37"></a>
+<FONT color="green">038</FONT>            // the Index is corrupt.<a name="line.38"></a>
+<FONT color="green">039</FONT>            long endPos = in.position() + streamFooterFlags.backwardSize - 4;<a name="line.39"></a>
+<FONT color="green">040</FONT>    <a name="line.40"></a>
+<FONT color="green">041</FONT>            java.util.zip.CRC32 crc32 = new java.util.zip.CRC32();<a name="line.41"></a>
+<FONT color="green">042</FONT>            CheckedInputStream inChecked = new CheckedInputStream(in, crc32);<a name="line.42"></a>
+<FONT color="green">043</FONT>    <a name="line.43"></a>
+<FONT color="green">044</FONT>            // Index Indicator<a name="line.44"></a>
+<FONT color="green">045</FONT>            if (inChecked.read() != 0x00) {<a name="line.45"></a>
+<FONT color="green">046</FONT>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.46"></a>
+<FONT color="green">047</FONT>            }<a name="line.47"></a>
+<FONT color="green">048</FONT>    <a name="line.48"></a>
+<FONT color="green">049</FONT>            try {<a name="line.49"></a>
+<FONT color="green">050</FONT>                // Number of Records<a name="line.50"></a>
+<FONT color="green">051</FONT>                long count = DecoderUtil.decodeVLI(inChecked);<a name="line.51"></a>
+<FONT color="green">052</FONT>    <a name="line.52"></a>
+<FONT color="green">053</FONT>                // Catch Record counts that obviously too high to be valid.<a name="line.53"></a>
+<FONT color="green">054</FONT>                // This test isn't exact because it ignores Index Indicator,<a name="line.54"></a>
+<FONT color="green">055</FONT>                // Number of Records, and CRC32 fields, but this is good enough<a name="line.55"></a>
+<FONT color="green">056</FONT>                // to catch the most obvious problems.<a name="line.56"></a>
+<FONT color="green">057</FONT>                if (count &gt;= streamFooterFlags.backwardSize / 2) {<a name="line.57"></a>
+<FONT color="green">058</FONT>                    throw new CorruptedInputException("XZ Index is corrupt");<a name="line.58"></a>
+<FONT color="green">059</FONT>                }<a name="line.59"></a>
+<FONT color="green">060</FONT>    <a name="line.60"></a>
+<FONT color="green">061</FONT>                // If the Record count doesn't fit into an int, we cannot<a name="line.61"></a>
+<FONT color="green">062</FONT>                // allocate the arrays to hold the Records.<a name="line.62"></a>
+<FONT color="green">063</FONT>                if (count &gt; Integer.MAX_VALUE) {<a name="line.63"></a>
+<FONT color="green">064</FONT>                    throw new UnsupportedOptionsException("XZ Index has over "<a name="line.64"></a>
+<FONT color="green">065</FONT>                            + Integer.MAX_VALUE + " Records");<a name="line.65"></a>
+<FONT color="green">066</FONT>                }<a name="line.66"></a>
+<FONT color="green">067</FONT>    <a name="line.67"></a>
+<FONT color="green">068</FONT>                // Calculate approximate memory requirements and check the<a name="line.68"></a>
+<FONT color="green">069</FONT>                // memory usage limit.<a name="line.69"></a>
+<FONT color="green">070</FONT>                memoryUsage = 1 + (int) ((16L * count + 1023) / 1024);<a name="line.70"></a>
+<FONT color="green">071</FONT>                if (memoryLimit &gt;= 0 &amp;&amp; memoryUsage &gt; memoryLimit) {<a name="line.71"></a>
+<FONT color="green">072</FONT>                    throw new MemoryLimitException(memoryUsage, memoryLimit);<a name="line.72"></a>
+<FONT color="green">073</FONT>                }<a name="line.73"></a>
+<FONT color="green">074</FONT>    <a name="line.74"></a>
+<FONT color="green">075</FONT>                // Allocate the arrays for the Records.<a name="line.75"></a>
+<FONT color="green">076</FONT>                unpadded = new long[(int) count];<a name="line.76"></a>
+<FONT color="green">077</FONT>                uncompressed = new long[(int) count];<a name="line.77"></a>
+<FONT color="green">078</FONT>                int record = 0;<a name="line.78"></a>
+<FONT color="green">079</FONT>    <a name="line.79"></a>
+<FONT color="green">080</FONT>                // Decode the Records.<a name="line.80"></a>
+<FONT color="green">081</FONT>                for (int i = (int) count; i &gt; 0; --i) {<a name="line.81"></a>
+<FONT color="green">082</FONT>                    // Get the next Record.<a name="line.82"></a>
+<FONT color="green">083</FONT>                    long unpaddedSize = DecoderUtil.decodeVLI(inChecked);<a name="line.83"></a>
+<FONT color="green">084</FONT>                    long uncompressedSize = DecoderUtil.decodeVLI(inChecked);<a name="line.84"></a>
+<FONT color="green">085</FONT>    <a name="line.85"></a>
+<FONT color="green">086</FONT>                    // Check that the input position stays sane. Since this is<a name="line.86"></a>
+<FONT color="green">087</FONT>                    // checked only once per loop iteration instead of for<a name="line.87"></a>
+<FONT color="green">088</FONT>                    // every input byte read, it's still possible that<a name="line.88"></a>
+<FONT color="green">089</FONT>                    // EOFException gets thrown with corrupt input.<a name="line.89"></a>
+<FONT color="green">090</FONT>                    if (in.position() &gt; endPos) {<a name="line.90"></a>
+<FONT color="green">091</FONT>                        throw new CorruptedInputException("XZ Index is corrupt");<a name="line.91"></a>
+<FONT color="green">092</FONT>                    }<a name="line.92"></a>
+<FONT color="green">093</FONT>    <a name="line.93"></a>
+<FONT color="green">094</FONT>                    // Add the new Record.<a name="line.94"></a>
+<FONT color="green">095</FONT>                    unpadded[record] = blocksSum + unpaddedSize;<a name="line.95"></a>
+<FONT color="green">096</FONT>                    uncompressed[record] = uncompressedSum + uncompressedSize;<a name="line.96"></a>
+<FONT color="green">097</FONT>                    ++record;<a name="line.97"></a>
+<FONT color="green">098</FONT>                    super.add(unpaddedSize, uncompressedSize);<a name="line.98"></a>
+<FONT color="green">099</FONT>                    assert record == recordCount;<a name="line.99"></a>
+<FONT color="green">100</FONT>    <a name="line.100"></a>
+<FONT color="green">101</FONT>                    // Remember the uncompressed size of the largest Block.<a name="line.101"></a>
+<FONT color="green">102</FONT>                    if (largestBlockSize &lt; uncompressedSize) {<a name="line.102"></a>
+<FONT color="green">103</FONT>                        largestBlockSize = uncompressedSize;<a name="line.103"></a>
+<FONT color="green">104</FONT>                    }<a name="line.104"></a>
+<FONT color="green">105</FONT>                }<a name="line.105"></a>
+<FONT color="green">106</FONT>            } catch (EOFException e) {<a name="line.106"></a>
+<FONT color="green">107</FONT>                // EOFException is caught just in case a corrupt input causes<a name="line.107"></a>
+<FONT color="green">108</FONT>                // DecoderUtil.decodeVLI to read too much at once.<a name="line.108"></a>
+<FONT color="green">109</FONT>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.109"></a>
+<FONT color="green">110</FONT>            }<a name="line.110"></a>
+<FONT color="green">111</FONT>    <a name="line.111"></a>
+<FONT color="green">112</FONT>            // Validate that the size of the Index field matches<a name="line.112"></a>
+<FONT color="green">113</FONT>            // Backward Size.<a name="line.113"></a>
+<FONT color="green">114</FONT>            int indexPaddingSize = getIndexPaddingSize();<a name="line.114"></a>
+<FONT color="green">115</FONT>            if (in.position() + indexPaddingSize != endPos) {<a name="line.115"></a>
+<FONT color="green">116</FONT>                throw new CorruptedInputException("XZ Index is corrupt");<a name="line.116"></a>
+<FONT color="green">117</FONT>            }<a name="line.117"></a>
+<FONT color="green">118</FONT>    <a name="line.118"></a>
+<FONT color="green">119</FONT>            // Index Padding<a name="line.119"></a>
+<FONT color="green">120</FONT>            while (indexPaddingSize-- &gt; 0) {<a name="line.120"></a>
+<FONT color="green">121</FONT>                if (inChecked.read() != 0x00) {<a name="line.121"></a>
+<FONT color="green">122</FONT>                    throw new CorruptedInputException("XZ Index is corrupt");<a name="line.122"></a>
+<FONT color="green">123</FONT>                }<a name="line.123"></a>
+<FONT color="green">124</FONT>            }<a name="line.124"></a>
+<FONT color="green">125</FONT>    <a name="line.125"></a>
+<FONT color="green">126</FONT>            // CRC32<a name="line.126"></a>
+<FONT color="green">127</FONT>            long value = crc32.getValue();<a name="line.127"></a>
+<FONT color="green">128</FONT>            for (int i = 0; i &lt; 4; ++i) {<a name="line.128"></a>
+<FONT color="green">129</FONT>                if (((value &gt;&gt;&gt; (i * 8)) &amp; 0xFF) != in.read()) {<a name="line.129"></a>
+<FONT color="green">130</FONT>                    throw new CorruptedInputException("XZ Index is corrupt");<a name="line.130"></a>
+<FONT color="green">131</FONT>                }<a name="line.131"></a>
+<FONT color="green">132</FONT>            }<a name="line.132"></a>
+<FONT color="green">133</FONT>        }<a name="line.133"></a>
+<FONT color="green">134</FONT>    <a name="line.134"></a>
+<FONT color="green">135</FONT>        public BlockInfo locate(long target) {<a name="line.135"></a>
+<FONT color="green">136</FONT>            assert target &lt; uncompressedSum;<a name="line.136"></a>
+<FONT color="green">137</FONT>    <a name="line.137"></a>
+<FONT color="green">138</FONT>            int left = 0;<a name="line.138"></a>
+<FONT color="green">139</FONT>            int right = unpadded.length - 1;<a name="line.139"></a>
+<FONT color="green">140</FONT>    <a name="line.140"></a>
+<FONT color="green">141</FONT>            while (left &lt; right) {<a name="line.141"></a>
+<FONT color="green">142</FONT>                int i = left + (right - left) / 2;<a name="line.142"></a>
+<FONT color="green">143</FONT>    <a name="line.143"></a>
+<FONT color="green">144</FONT>                if (uncompressed[i] &lt;= target) {<a name="line.144"></a>
+<FONT color="green">145</FONT>                    left = i + 1;<a name="line.145"></a>
+<FONT color="green">146</FONT>                } else {<a name="line.146"></a>
+<FONT color="green">147</FONT>                    right = i;<a name="line.147"></a>
+<FONT color="green">148</FONT>                }<a name="line.148"></a>
+<FONT color="green">149</FONT>            }<a name="line.149"></a>
+<FONT color="green">150</FONT>    <a name="line.150"></a>
+<FONT color="green">151</FONT>            pos = left;<a name="line.151"></a>
+<FONT color="green">152</FONT>            return getInfo();<a name="line.152"></a>
+<FONT color="green">153</FONT>        }<a name="line.153"></a>
+<FONT color="green">154</FONT>    <a name="line.154"></a>
+<FONT color="green">155</FONT>        public int getMemoryUsage() {<a name="line.155"></a>
+<FONT color="green">156</FONT>            return memoryUsage;<a name="line.156"></a>
+<FONT color="green">157</FONT>        }<a name="line.157"></a>
+<FONT color="green">158</FONT>    <a name="line.158"></a>
+<FONT color="green">159</FONT>        public long getStreamAndPaddingSize() {<a name="line.159"></a>
+<FONT color="green">160</FONT>            return getStreamSize() + streamPadding;<a name="line.160"></a>
+<FONT color="green">161</FONT>        }<a name="line.161"></a>
+<FONT color="green">162</FONT>    <a name="line.162"></a>
+<FONT color="green">163</FONT>        public long getUncompressedSize() {<a name="line.163"></a>
+<FONT color="green">164</FONT>            return uncompressedSum;<a name="line.164"></a>
+<FONT color="green">165</FONT>        }<a name="line.165"></a>
+<FONT color="green">166</FONT>    <a name="line.166"></a>
+<FONT color="green">167</FONT>        public long getLargestBlockSize() {<a name="line.167"></a>
+<FONT color="green">168</FONT>            return largestBlockSize;<a name="line.168"></a>
+<FONT color="green">169</FONT>        }<a name="line.169"></a>
+<FONT color="green">170</FONT>    <a name="line.170"></a>
+<FONT color="green">171</FONT>        public boolean hasNext() {<a name="line.171"></a>
+<FONT color="green">172</FONT>            return pos + 1 &lt; recordCount;<a name="line.172"></a>
+<FONT color="green">173</FONT>        }<a name="line.173"></a>
+<FONT color="green">174</FONT>    <a name="line.174"></a>
+<FONT color="green">175</FONT>        public BlockInfo getNext() {<a name="line.175"></a>
+<FONT color="green">176</FONT>            ++pos;<a name="line.176"></a>
+<FONT color="green">177</FONT>            return getInfo();<a name="line.177"></a>
+<FONT color="green">178</FONT>        }<a name="line.178"></a>
+<FONT color="green">179</FONT>    <a name="line.179"></a>
+<FONT color="green">180</FONT>        private BlockInfo getInfo() {<a name="line.180"></a>
+<FONT color="green">181</FONT>            if (pos == 0) {<a name="line.181"></a>
+<FONT color="green">182</FONT>                info.compressedOffset = 0;<a name="line.182"></a>
+<FONT color="green">183</FONT>                info.uncompressedOffset = 0;<a name="line.183"></a>
+<FONT color="green">184</FONT>            } else {<a name="line.184"></a>
+<FONT color="green">185</FONT>                info.compressedOffset = (unpadded[pos - 1] + 3) &amp; ~3;<a name="line.185"></a>
+<FONT color="green">186</FONT>                info.uncompressedOffset = uncompressed[pos - 1];<a name="line.186"></a>
+<FONT color="green">187</FONT>            }<a name="line.187"></a>
+<FONT color="green">188</FONT>    <a name="line.188"></a>
+<FONT color="green">189</FONT>            info.unpaddedSize = unpadded[pos] - info.compressedOffset;<a name="line.189"></a>
+<FONT color="green">190</FONT>            info.uncompressedSize = uncompressed[pos] - info.uncompressedOffset;<a name="line.190"></a>
+<FONT color="green">191</FONT>    <a name="line.191"></a>
+<FONT color="green">192</FONT>            info.compressedOffset += DecoderUtil.STREAM_HEADER_SIZE;<a name="line.192"></a>
+<FONT color="green">193</FONT>            return info;<a name="line.193"></a>
+<FONT color="green">194</FONT>        }<a name="line.194"></a>
+<FONT color="green">195</FONT>    }<a name="line.195"></a>
 
 
 
@@ -261,7 +256,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

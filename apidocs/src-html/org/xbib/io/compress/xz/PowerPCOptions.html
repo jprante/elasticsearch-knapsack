@@ -1,40 +1,35 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.simple.PowerPC;<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>import java.io.InputStream;<a name="line.6"></a>
-<span class="sourceLineNo">007</span><a name="line.7"></a>
-<span class="sourceLineNo">008</span>/**<a name="line.8"></a>
-<span class="sourceLineNo">009</span> * BCJ filter for big endian PowerPC instructions.<a name="line.9"></a>
-<span class="sourceLineNo">010</span> */<a name="line.10"></a>
-<span class="sourceLineNo">011</span>public class PowerPCOptions extends BCJOptions {<a name="line.11"></a>
-<span class="sourceLineNo">012</span>    private static final int ALIGNMENT = 4;<a name="line.12"></a>
-<span class="sourceLineNo">013</span><a name="line.13"></a>
-<span class="sourceLineNo">014</span>    public PowerPCOptions() {<a name="line.14"></a>
-<span class="sourceLineNo">015</span>        super(ALIGNMENT);<a name="line.15"></a>
-<span class="sourceLineNo">016</span>    }<a name="line.16"></a>
-<span class="sourceLineNo">017</span><a name="line.17"></a>
-<span class="sourceLineNo">018</span>    public FinishableOutputStream getOutputStream(FinishableOutputStream out) {<a name="line.18"></a>
-<span class="sourceLineNo">019</span>        return new SimpleOutputStream(out, new PowerPC(true, startOffset));<a name="line.19"></a>
-<span class="sourceLineNo">020</span>    }<a name="line.20"></a>
-<span class="sourceLineNo">021</span><a name="line.21"></a>
-<span class="sourceLineNo">022</span>    public InputStream getInputStream(InputStream in) {<a name="line.22"></a>
-<span class="sourceLineNo">023</span>        return new SimpleInputStream(in, new PowerPC(false, startOffset));<a name="line.23"></a>
-<span class="sourceLineNo">024</span>    }<a name="line.24"></a>
-<span class="sourceLineNo">025</span><a name="line.25"></a>
-<span class="sourceLineNo">026</span>    FilterEncoder getFilterEncoder() {<a name="line.26"></a>
-<span class="sourceLineNo">027</span>        return new BCJEncoder(this, BCJCoder.POWERPC_FILTER_ID);<a name="line.27"></a>
-<span class="sourceLineNo">028</span>    }<a name="line.28"></a>
-<span class="sourceLineNo">029</span>}<a name="line.29"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.xz;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import org.xbib.io.compress.xz.simple.PowerPC;<a name="line.4"></a>
+<FONT color="green">005</FONT>    <a name="line.5"></a>
+<FONT color="green">006</FONT>    import java.io.InputStream;<a name="line.6"></a>
+<FONT color="green">007</FONT>    <a name="line.7"></a>
+<FONT color="green">008</FONT>    /**<a name="line.8"></a>
+<FONT color="green">009</FONT>     * BCJ filter for big endian PowerPC instructions.<a name="line.9"></a>
+<FONT color="green">010</FONT>     */<a name="line.10"></a>
+<FONT color="green">011</FONT>    public class PowerPCOptions extends BCJOptions {<a name="line.11"></a>
+<FONT color="green">012</FONT>        private static final int ALIGNMENT = 4;<a name="line.12"></a>
+<FONT color="green">013</FONT>    <a name="line.13"></a>
+<FONT color="green">014</FONT>        public PowerPCOptions() {<a name="line.14"></a>
+<FONT color="green">015</FONT>            super(ALIGNMENT);<a name="line.15"></a>
+<FONT color="green">016</FONT>        }<a name="line.16"></a>
+<FONT color="green">017</FONT>    <a name="line.17"></a>
+<FONT color="green">018</FONT>        public FinishableOutputStream getOutputStream(FinishableOutputStream out) {<a name="line.18"></a>
+<FONT color="green">019</FONT>            return new SimpleOutputStream(out, new PowerPC(true, startOffset));<a name="line.19"></a>
+<FONT color="green">020</FONT>        }<a name="line.20"></a>
+<FONT color="green">021</FONT>    <a name="line.21"></a>
+<FONT color="green">022</FONT>        public InputStream getInputStream(InputStream in) {<a name="line.22"></a>
+<FONT color="green">023</FONT>            return new SimpleInputStream(in, new PowerPC(false, startOffset));<a name="line.23"></a>
+<FONT color="green">024</FONT>        }<a name="line.24"></a>
+<FONT color="green">025</FONT>    <a name="line.25"></a>
+<FONT color="green">026</FONT>        FilterEncoder getFilterEncoder() {<a name="line.26"></a>
+<FONT color="green">027</FONT>            return new BCJEncoder(this, BCJCoder.POWERPC_FILTER_ID);<a name="line.27"></a>
+<FONT color="green">028</FONT>        }<a name="line.28"></a>
+<FONT color="green">029</FONT>    }<a name="line.29"></a>
 
 
 
@@ -95,7 +90,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

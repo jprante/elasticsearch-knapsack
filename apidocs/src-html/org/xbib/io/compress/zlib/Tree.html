@@ -1,327 +1,322 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public class Tree {<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>    private static final int MAX_BITS = 15;<a name="line.6"></a>
-<span class="sourceLineNo">007</span>    private static final int LITERALS = 256;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>    private static final int LENGTH_CODES = 29;<a name="line.8"></a>
-<span class="sourceLineNo">009</span>    private static final int L_CODES = (LITERALS + 1 + LENGTH_CODES);<a name="line.9"></a>
-<span class="sourceLineNo">010</span>    private static final int HEAP_SIZE = (2 * L_CODES + 1);<a name="line.10"></a>
-<span class="sourceLineNo">011</span>    // extra bits for each length code<a name="line.11"></a>
-<span class="sourceLineNo">012</span>    protected static final int[] EXTRA_LBITS = {<a name="line.12"></a>
-<span class="sourceLineNo">013</span>            0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0<a name="line.13"></a>
-<span class="sourceLineNo">014</span>    };<a name="line.14"></a>
-<span class="sourceLineNo">015</span>    // extra bits for each distance code<a name="line.15"></a>
-<span class="sourceLineNo">016</span>    protected static final int[] EXTRA_DBITS = {<a name="line.16"></a>
-<span class="sourceLineNo">017</span>            0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    };<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    // extra bits for each bit length code<a name="line.19"></a>
-<span class="sourceLineNo">020</span>    protected static final int[] EXTRA_BLBITS = {<a name="line.20"></a>
-<span class="sourceLineNo">021</span>            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7<a name="line.21"></a>
-<span class="sourceLineNo">022</span>    };<a name="line.22"></a>
-<span class="sourceLineNo">023</span>    protected static final byte[] BL_ORDER = {<a name="line.23"></a>
-<span class="sourceLineNo">024</span>            16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};<a name="line.24"></a>
-<span class="sourceLineNo">025</span>    private static final byte[] DIST_CODE = {<a name="line.25"></a>
-<span class="sourceLineNo">026</span>            0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,<a name="line.26"></a>
-<span class="sourceLineNo">027</span>            8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10,<a name="line.27"></a>
-<span class="sourceLineNo">028</span>            10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,<a name="line.28"></a>
-<span class="sourceLineNo">029</span>            11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,<a name="line.29"></a>
-<span class="sourceLineNo">030</span>            12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13,<a name="line.30"></a>
-<span class="sourceLineNo">031</span>            13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,<a name="line.31"></a>
-<span class="sourceLineNo">032</span>            13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.32"></a>
-<span class="sourceLineNo">033</span>            14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.33"></a>
-<span class="sourceLineNo">034</span>            14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.34"></a>
-<span class="sourceLineNo">035</span>            14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.35"></a>
-<span class="sourceLineNo">036</span>            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.36"></a>
-<span class="sourceLineNo">037</span>            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.37"></a>
-<span class="sourceLineNo">038</span>            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 16, 17,<a name="line.38"></a>
-<span class="sourceLineNo">039</span>            18, 18, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22,<a name="line.39"></a>
-<span class="sourceLineNo">040</span>            23, 23, 23, 23, 23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.40"></a>
-<span class="sourceLineNo">041</span>            24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,<a name="line.41"></a>
-<span class="sourceLineNo">042</span>            26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.42"></a>
-<span class="sourceLineNo">043</span>            26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.43"></a>
-<span class="sourceLineNo">044</span>            27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.44"></a>
-<span class="sourceLineNo">045</span>            27, 27, 27, 27, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.45"></a>
-<span class="sourceLineNo">046</span>            28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.46"></a>
-<span class="sourceLineNo">047</span>            28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.47"></a>
-<span class="sourceLineNo">048</span>            28, 28, 28, 28, 28, 28, 28, 28, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.48"></a>
-<span class="sourceLineNo">049</span>            29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.49"></a>
-<span class="sourceLineNo">050</span>            29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.50"></a>
-<span class="sourceLineNo">051</span>            29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29<a name="line.51"></a>
-<span class="sourceLineNo">052</span>    };<a name="line.52"></a>
-<span class="sourceLineNo">053</span>    protected static final byte[] LENGTH_CODE = {<a name="line.53"></a>
-<span class="sourceLineNo">054</span>            0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12,<a name="line.54"></a>
-<span class="sourceLineNo">055</span>            13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16,<a name="line.55"></a>
-<span class="sourceLineNo">056</span>            17, 17, 17, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 18, 18, 19, 19, 19, 19,<a name="line.56"></a>
-<span class="sourceLineNo">057</span>            19, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20,<a name="line.57"></a>
-<span class="sourceLineNo">058</span>            21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 22,<a name="line.58"></a>
-<span class="sourceLineNo">059</span>            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 23, 23, 23, 23, 23, 23, 23, 23,<a name="line.59"></a>
-<span class="sourceLineNo">060</span>            23, 23, 23, 23, 23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.60"></a>
-<span class="sourceLineNo">061</span>            24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.61"></a>
-<span class="sourceLineNo">062</span>            25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,<a name="line.62"></a>
-<span class="sourceLineNo">063</span>            25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.63"></a>
-<span class="sourceLineNo">064</span>            26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.64"></a>
-<span class="sourceLineNo">065</span>            26, 26, 26, 26, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.65"></a>
-<span class="sourceLineNo">066</span>            27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 28<a name="line.66"></a>
-<span class="sourceLineNo">067</span>    };<a name="line.67"></a>
-<span class="sourceLineNo">068</span>    protected static final int[] BASE_LENGTH = {<a name="line.68"></a>
-<span class="sourceLineNo">069</span>            0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56,<a name="line.69"></a>
-<span class="sourceLineNo">070</span>            64, 80, 96, 112, 128, 160, 192, 224, 0<a name="line.70"></a>
-<span class="sourceLineNo">071</span>    };<a name="line.71"></a>
-<span class="sourceLineNo">072</span>    protected static final int[] BASE_DIST = {<a name="line.72"></a>
-<span class="sourceLineNo">073</span>            0, 1, 2, 3, 4, 6, 8, 12, 16, 24,<a name="line.73"></a>
-<span class="sourceLineNo">074</span>            32, 48, 64, 96, 128, 192, 256, 384, 512, 768,<a name="line.74"></a>
-<span class="sourceLineNo">075</span>            1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576<a name="line.75"></a>
-<span class="sourceLineNo">076</span>    };<a name="line.76"></a>
-<span class="sourceLineNo">077</span><a name="line.77"></a>
-<span class="sourceLineNo">078</span>    // Mapping from a distance to a distance code. dist is the distance - 1 and<a name="line.78"></a>
-<span class="sourceLineNo">079</span>    // must not have side effects. DIST_CODE[256] and DIST_CODE[257] are never<a name="line.79"></a>
-<span class="sourceLineNo">080</span>    // used.<a name="line.80"></a>
-<span class="sourceLineNo">081</span>    protected static int distanceCode(int dist) {<a name="line.81"></a>
-<span class="sourceLineNo">082</span>        return ((dist) &lt; 256 ? DIST_CODE[dist] : DIST_CODE[256 + ((dist) &gt;&gt;&gt; 7)]);<a name="line.82"></a>
-<span class="sourceLineNo">083</span>    }<a name="line.83"></a>
-<span class="sourceLineNo">084</span><a name="line.84"></a>
-<span class="sourceLineNo">085</span>    protected short[] dynTree;      // the dynamic tree<a name="line.85"></a>
-<span class="sourceLineNo">086</span>    protected int maxCode;      // largest code with non zero frequency<a name="line.86"></a>
-<span class="sourceLineNo">087</span>    protected StaticTree statDesc;  // the corresponding static tree<a name="line.87"></a>
-<span class="sourceLineNo">088</span><a name="line.88"></a>
-<span class="sourceLineNo">089</span>    // Compute the optimal bit lengths for a tree and update the total bit length<a name="line.89"></a>
-<span class="sourceLineNo">090</span>    // for the current block.<a name="line.90"></a>
-<span class="sourceLineNo">091</span>    // IN assertion: the fields freq and dad are set, heap[heap_max] and<a name="line.91"></a>
-<span class="sourceLineNo">092</span>    //    above are the tree nodes sorted by increasing frequency.<a name="line.92"></a>
-<span class="sourceLineNo">093</span>    // OUT assertions: the field len is set to the optimal bit length, the<a name="line.93"></a>
-<span class="sourceLineNo">094</span>    //     array bl_count contains the frequencies for each bit length.<a name="line.94"></a>
-<span class="sourceLineNo">095</span>    //     The length opt_len is updated; static_len is also updated if stree is<a name="line.95"></a>
-<span class="sourceLineNo">096</span>    //     not null.<a name="line.96"></a>
-<span class="sourceLineNo">097</span>    private void genBitLen(Deflate s) {<a name="line.97"></a>
-<span class="sourceLineNo">098</span>        short[] tree = dynTree;<a name="line.98"></a>
-<span class="sourceLineNo">099</span>        short[] stree = statDesc.statictree;<a name="line.99"></a>
-<span class="sourceLineNo">100</span>        int[] extra = statDesc.extrabits;<a name="line.100"></a>
-<span class="sourceLineNo">101</span>        int base = statDesc.extrabase;<a name="line.101"></a>
-<span class="sourceLineNo">102</span>        int max_length = statDesc.maxlength;<a name="line.102"></a>
-<span class="sourceLineNo">103</span>        int h;              // heap index<a name="line.103"></a>
-<span class="sourceLineNo">104</span>        int n, m;           // iterate over the tree elements<a name="line.104"></a>
-<span class="sourceLineNo">105</span>        int bits;           // bit length<a name="line.105"></a>
-<span class="sourceLineNo">106</span>        int xbits;          // extra bits<a name="line.106"></a>
-<span class="sourceLineNo">107</span>        short f;            // frequency<a name="line.107"></a>
-<span class="sourceLineNo">108</span>        int overflow = 0;   // number of elements with bit length too large<a name="line.108"></a>
-<span class="sourceLineNo">109</span><a name="line.109"></a>
-<span class="sourceLineNo">110</span>        for (bits = 0; bits &lt;= MAX_BITS; bits++) {<a name="line.110"></a>
-<span class="sourceLineNo">111</span>            s.blCount[bits] = 0;<a name="line.111"></a>
-<span class="sourceLineNo">112</span>        }<a name="line.112"></a>
-<span class="sourceLineNo">113</span><a name="line.113"></a>
-<span class="sourceLineNo">114</span>        // In a first pass, compute the optimal bit lengths (which may<a name="line.114"></a>
-<span class="sourceLineNo">115</span>        // overflow in the case of the bit length tree).<a name="line.115"></a>
-<span class="sourceLineNo">116</span>        tree[s.heap[s.heapMax] * 2 + 1] = 0; // root of the heap<a name="line.116"></a>
-<span class="sourceLineNo">117</span><a name="line.117"></a>
-<span class="sourceLineNo">118</span>        for (h = s.heapMax + 1; h &lt; HEAP_SIZE; h++) {<a name="line.118"></a>
-<span class="sourceLineNo">119</span>            n = s.heap[h];<a name="line.119"></a>
-<span class="sourceLineNo">120</span>            bits = tree[tree[n * 2 + 1] * 2 + 1] + 1;<a name="line.120"></a>
-<span class="sourceLineNo">121</span>            if (bits &gt; max_length) {<a name="line.121"></a>
-<span class="sourceLineNo">122</span>                bits = max_length;<a name="line.122"></a>
-<span class="sourceLineNo">123</span>                overflow++;<a name="line.123"></a>
-<span class="sourceLineNo">124</span>            }<a name="line.124"></a>
-<span class="sourceLineNo">125</span>            tree[n * 2 + 1] = (short) bits;<a name="line.125"></a>
-<span class="sourceLineNo">126</span>            // We overwrite tree[n*2+1] which is no longer needed<a name="line.126"></a>
-<span class="sourceLineNo">127</span><a name="line.127"></a>
-<span class="sourceLineNo">128</span>            if (n &gt; maxCode) {<a name="line.128"></a>
-<span class="sourceLineNo">129</span>                continue;  // not a leaf node<a name="line.129"></a>
-<span class="sourceLineNo">130</span>            }<a name="line.130"></a>
-<span class="sourceLineNo">131</span>            s.blCount[bits]++;<a name="line.131"></a>
-<span class="sourceLineNo">132</span>            xbits = 0;<a name="line.132"></a>
-<span class="sourceLineNo">133</span>            if (n &gt;= base) {<a name="line.133"></a>
-<span class="sourceLineNo">134</span>                xbits = extra[n - base];<a name="line.134"></a>
-<span class="sourceLineNo">135</span>            }<a name="line.135"></a>
-<span class="sourceLineNo">136</span>            f = tree[n * 2];<a name="line.136"></a>
-<span class="sourceLineNo">137</span>            s.optLen += f * (bits + xbits);<a name="line.137"></a>
-<span class="sourceLineNo">138</span>            if (stree != null) {<a name="line.138"></a>
-<span class="sourceLineNo">139</span>                s.staticLen += f * (stree[n * 2 + 1] + xbits);<a name="line.139"></a>
-<span class="sourceLineNo">140</span>            }<a name="line.140"></a>
-<span class="sourceLineNo">141</span>        }<a name="line.141"></a>
-<span class="sourceLineNo">142</span>        if (overflow == 0) {<a name="line.142"></a>
-<span class="sourceLineNo">143</span>            return;<a name="line.143"></a>
-<span class="sourceLineNo">144</span>        }<a name="line.144"></a>
-<span class="sourceLineNo">145</span><a name="line.145"></a>
-<span class="sourceLineNo">146</span>        // This happens for example on obj2 and pic of the Calgary corpus<a name="line.146"></a>
-<span class="sourceLineNo">147</span>        // Find the first bit length which could increase:<a name="line.147"></a>
-<span class="sourceLineNo">148</span>        do {<a name="line.148"></a>
-<span class="sourceLineNo">149</span>            bits = max_length - 1;<a name="line.149"></a>
-<span class="sourceLineNo">150</span>            while (s.blCount[bits] == 0) {<a name="line.150"></a>
-<span class="sourceLineNo">151</span>                bits--;<a name="line.151"></a>
-<span class="sourceLineNo">152</span>            }<a name="line.152"></a>
-<span class="sourceLineNo">153</span>            s.blCount[bits]--;      // move one leaf down the tree<a name="line.153"></a>
-<span class="sourceLineNo">154</span>            s.blCount[bits + 1] += 2;   // move one overflow item as its brother<a name="line.154"></a>
-<span class="sourceLineNo">155</span>            s.blCount[max_length]--;<a name="line.155"></a>
-<span class="sourceLineNo">156</span>            // The brother of the overflow item also moves one step up,<a name="line.156"></a>
-<span class="sourceLineNo">157</span>            // but this does not affect bl_count[max_length]<a name="line.157"></a>
-<span class="sourceLineNo">158</span>            overflow -= 2;<a name="line.158"></a>
-<span class="sourceLineNo">159</span>        } while (overflow &gt; 0);<a name="line.159"></a>
-<span class="sourceLineNo">160</span><a name="line.160"></a>
-<span class="sourceLineNo">161</span>        for (bits = max_length; bits != 0; bits--) {<a name="line.161"></a>
-<span class="sourceLineNo">162</span>            n = s.blCount[bits];<a name="line.162"></a>
-<span class="sourceLineNo">163</span>            while (n != 0) {<a name="line.163"></a>
-<span class="sourceLineNo">164</span>                m = s.heap[--h];<a name="line.164"></a>
-<span class="sourceLineNo">165</span>                if (m &gt; maxCode) {<a name="line.165"></a>
-<span class="sourceLineNo">166</span>                    continue;<a name="line.166"></a>
-<span class="sourceLineNo">167</span>                }<a name="line.167"></a>
-<span class="sourceLineNo">168</span>                if (tree[m * 2 + 1] != bits) {<a name="line.168"></a>
-<span class="sourceLineNo">169</span>                    s.optLen += ((long) bits - (long) tree[m * 2 + 1]) * (long) tree[m * 2];<a name="line.169"></a>
-<span class="sourceLineNo">170</span>                    tree[m * 2 + 1] = (short) bits;<a name="line.170"></a>
-<span class="sourceLineNo">171</span>                }<a name="line.171"></a>
-<span class="sourceLineNo">172</span>                n--;<a name="line.172"></a>
-<span class="sourceLineNo">173</span>            }<a name="line.173"></a>
-<span class="sourceLineNo">174</span>        }<a name="line.174"></a>
-<span class="sourceLineNo">175</span>    }<a name="line.175"></a>
-<span class="sourceLineNo">176</span><a name="line.176"></a>
-<span class="sourceLineNo">177</span>    // Construct one Huffman tree and assigns the code bit strings and lengths.<a name="line.177"></a>
-<span class="sourceLineNo">178</span>    // Update the total bit length for the current block.<a name="line.178"></a>
-<span class="sourceLineNo">179</span>    // IN assertion: the field freq is set for all tree elements.<a name="line.179"></a>
-<span class="sourceLineNo">180</span>    // OUT assertions: the fields len and code are set to the optimal bit length<a name="line.180"></a>
-<span class="sourceLineNo">181</span>    //     and corresponding code. The length opt_len is updated; static_len is<a name="line.181"></a>
-<span class="sourceLineNo">182</span>    //     also updated if stree is not null. The field max_code is set.<a name="line.182"></a>
-<span class="sourceLineNo">183</span>    protected void buildTree(Deflate s) {<a name="line.183"></a>
-<span class="sourceLineNo">184</span>        short[] tree = dynTree;<a name="line.184"></a>
-<span class="sourceLineNo">185</span>        short[] stree = statDesc.statictree;<a name="line.185"></a>
-<span class="sourceLineNo">186</span>        int elems = statDesc.elems;<a name="line.186"></a>
-<span class="sourceLineNo">187</span>        int n, m;          // iterate over heap elements<a name="line.187"></a>
-<span class="sourceLineNo">188</span>        int maxCode = -1;   // largest code with non zero frequency<a name="line.188"></a>
-<span class="sourceLineNo">189</span>        int node;          // new node being created<a name="line.189"></a>
-<span class="sourceLineNo">190</span><a name="line.190"></a>
-<span class="sourceLineNo">191</span>        // Construct the initial heap, with least frequent element in<a name="line.191"></a>
-<span class="sourceLineNo">192</span>        // heap[1]. The sons of heap[n] are heap[2*n] and heap[2*n+1].<a name="line.192"></a>
-<span class="sourceLineNo">193</span>        // heap[0] is not used.<a name="line.193"></a>
-<span class="sourceLineNo">194</span>        s.heapLen = 0;<a name="line.194"></a>
-<span class="sourceLineNo">195</span>        s.heapMax = HEAP_SIZE;<a name="line.195"></a>
-<span class="sourceLineNo">196</span><a name="line.196"></a>
-<span class="sourceLineNo">197</span>        for (n = 0; n &lt; elems; n++) {<a name="line.197"></a>
-<span class="sourceLineNo">198</span>            if (tree[n * 2] != 0) {<a name="line.198"></a>
-<span class="sourceLineNo">199</span>                s.heap[++s.heapLen] = maxCode = n;<a name="line.199"></a>
-<span class="sourceLineNo">200</span>                s.depth[n] = 0;<a name="line.200"></a>
-<span class="sourceLineNo">201</span>            } else {<a name="line.201"></a>
-<span class="sourceLineNo">202</span>                tree[n * 2 + 1] = 0;<a name="line.202"></a>
-<span class="sourceLineNo">203</span>            }<a name="line.203"></a>
-<span class="sourceLineNo">204</span>        }<a name="line.204"></a>
-<span class="sourceLineNo">205</span><a name="line.205"></a>
-<span class="sourceLineNo">206</span>        // The pkzip format requires that at least one distance code exists,<a name="line.206"></a>
-<span class="sourceLineNo">207</span>        // and that at least one bit should be sent even if there is only one<a name="line.207"></a>
-<span class="sourceLineNo">208</span>        // possible code. So to avoid special checks later on we force at least<a name="line.208"></a>
-<span class="sourceLineNo">209</span>        // two codes of non zero frequency.<a name="line.209"></a>
-<span class="sourceLineNo">210</span>        while (s.heapLen &lt; 2) {<a name="line.210"></a>
-<span class="sourceLineNo">211</span>            node = s.heap[++s.heapLen] = (maxCode &lt; 2 ? ++maxCode : 0);<a name="line.211"></a>
-<span class="sourceLineNo">212</span>            tree[node * 2] = 1;<a name="line.212"></a>
-<span class="sourceLineNo">213</span>            s.depth[node] = 0;<a name="line.213"></a>
-<span class="sourceLineNo">214</span>            s.optLen--;<a name="line.214"></a>
-<span class="sourceLineNo">215</span>            if (stree != null) {<a name="line.215"></a>
-<span class="sourceLineNo">216</span>                s.staticLen -= stree[node * 2 + 1];<a name="line.216"></a>
-<span class="sourceLineNo">217</span>            }<a name="line.217"></a>
-<span class="sourceLineNo">218</span>            // node is 0 or 1 so it does not have extra bits<a name="line.218"></a>
-<span class="sourceLineNo">219</span>        }<a name="line.219"></a>
-<span class="sourceLineNo">220</span>        this.maxCode = maxCode;<a name="line.220"></a>
-<span class="sourceLineNo">221</span><a name="line.221"></a>
-<span class="sourceLineNo">222</span>        // The elements heap[heap_len/2+1 .. heap_len] are leaves of the tree,<a name="line.222"></a>
-<span class="sourceLineNo">223</span>        // establish sub-heaps of increasing lengths:<a name="line.223"></a>
-<span class="sourceLineNo">224</span><a name="line.224"></a>
-<span class="sourceLineNo">225</span>        for (n = s.heapLen / 2; n &gt;= 1; n--) {<a name="line.225"></a>
-<span class="sourceLineNo">226</span>            s.pqdownheap(tree, n);<a name="line.226"></a>
-<span class="sourceLineNo">227</span>        }<a name="line.227"></a>
-<span class="sourceLineNo">228</span><a name="line.228"></a>
-<span class="sourceLineNo">229</span>        // Construct the Huffman tree by repeatedly combining the least two<a name="line.229"></a>
-<span class="sourceLineNo">230</span>        // frequent nodes.<a name="line.230"></a>
-<span class="sourceLineNo">231</span><a name="line.231"></a>
-<span class="sourceLineNo">232</span>        node = elems;                 // next internal node of the tree<a name="line.232"></a>
-<span class="sourceLineNo">233</span>        do {<a name="line.233"></a>
-<span class="sourceLineNo">234</span>            // n = node of least frequency<a name="line.234"></a>
-<span class="sourceLineNo">235</span>            n = s.heap[1];<a name="line.235"></a>
-<span class="sourceLineNo">236</span>            s.heap[1] = s.heap[s.heapLen--];<a name="line.236"></a>
-<span class="sourceLineNo">237</span>            s.pqdownheap(tree, 1);<a name="line.237"></a>
-<span class="sourceLineNo">238</span>            m = s.heap[1];                // m = node of next least frequency<a name="line.238"></a>
-<span class="sourceLineNo">239</span><a name="line.239"></a>
-<span class="sourceLineNo">240</span>            s.heap[--s.heapMax] = n; // keep the nodes sorted by frequency<a name="line.240"></a>
-<span class="sourceLineNo">241</span>            s.heap[--s.heapMax] = m;<a name="line.241"></a>
-<span class="sourceLineNo">242</span><a name="line.242"></a>
-<span class="sourceLineNo">243</span>            // Create a new node father of n and m<a name="line.243"></a>
-<span class="sourceLineNo">244</span>            tree[node * 2] = (short) (tree[n * 2] + tree[m * 2]);<a name="line.244"></a>
-<span class="sourceLineNo">245</span>            s.depth[node] = (byte) (Math.max(s.depth[n], s.depth[m]) + 1);<a name="line.245"></a>
-<span class="sourceLineNo">246</span>            tree[n * 2 + 1] = tree[m * 2 + 1] = (short) node;<a name="line.246"></a>
-<span class="sourceLineNo">247</span><a name="line.247"></a>
-<span class="sourceLineNo">248</span>            // and insert the new node in the heap<a name="line.248"></a>
-<span class="sourceLineNo">249</span>            s.heap[1] = node++;<a name="line.249"></a>
-<span class="sourceLineNo">250</span>            s.pqdownheap(tree, 1);<a name="line.250"></a>
-<span class="sourceLineNo">251</span>        } while (s.heapLen &gt;= 2);<a name="line.251"></a>
-<span class="sourceLineNo">252</span><a name="line.252"></a>
-<span class="sourceLineNo">253</span>        s.heap[--s.heapMax] = s.heap[1];<a name="line.253"></a>
-<span class="sourceLineNo">254</span><a name="line.254"></a>
-<span class="sourceLineNo">255</span>        // At this point, the fields freq and dad are set. We can now<a name="line.255"></a>
-<span class="sourceLineNo">256</span>        // generate the bit lengths.<a name="line.256"></a>
-<span class="sourceLineNo">257</span><a name="line.257"></a>
-<span class="sourceLineNo">258</span>        genBitLen(s);<a name="line.258"></a>
-<span class="sourceLineNo">259</span><a name="line.259"></a>
-<span class="sourceLineNo">260</span>        // The field len is now set, we can generate the bit codes<a name="line.260"></a>
-<span class="sourceLineNo">261</span>        genCodes(tree, maxCode, s.blCount);<a name="line.261"></a>
-<span class="sourceLineNo">262</span>    }<a name="line.262"></a>
-<span class="sourceLineNo">263</span><a name="line.263"></a>
-<span class="sourceLineNo">264</span>    // Generate the codes for a given tree and bit counts (which need not be<a name="line.264"></a>
-<span class="sourceLineNo">265</span>    // optimal).<a name="line.265"></a>
-<span class="sourceLineNo">266</span>    // IN assertion: the array bl_count contains the bit length statistics for<a name="line.266"></a>
-<span class="sourceLineNo">267</span>    // the given tree and the field len is set for all tree elements.<a name="line.267"></a>
-<span class="sourceLineNo">268</span>    // OUT assertion: the field code is set for all tree elements of non<a name="line.268"></a>
-<span class="sourceLineNo">269</span>    //     zero code length.<a name="line.269"></a>
-<span class="sourceLineNo">270</span>    private void genCodes(short[] tree, // the tree to decorate<a name="line.270"></a>
-<span class="sourceLineNo">271</span>                          int max_code, // largest code with non zero frequency<a name="line.271"></a>
-<span class="sourceLineNo">272</span>                          short[] bl_count // number of codes at each bit length<a name="line.272"></a>
-<span class="sourceLineNo">273</span>    ) {<a name="line.273"></a>
-<span class="sourceLineNo">274</span>        short[] next_code = new short[MAX_BITS + 1]; // next code value for each bit length<a name="line.274"></a>
-<span class="sourceLineNo">275</span>        short code = 0;            // running code value<a name="line.275"></a>
-<span class="sourceLineNo">276</span>        int bits;                  // bit index<a name="line.276"></a>
-<span class="sourceLineNo">277</span>        int n;                     // code index<a name="line.277"></a>
-<span class="sourceLineNo">278</span><a name="line.278"></a>
-<span class="sourceLineNo">279</span>        // The distribution counts are first used to generate the code values<a name="line.279"></a>
-<span class="sourceLineNo">280</span>        // without bit reversal.<a name="line.280"></a>
-<span class="sourceLineNo">281</span>        for (bits = 1; bits &lt;= MAX_BITS; bits++) {<a name="line.281"></a>
-<span class="sourceLineNo">282</span>            next_code[bits] = code = (short) ((code + bl_count[bits - 1]) &lt;&lt; 1);<a name="line.282"></a>
-<span class="sourceLineNo">283</span>        }<a name="line.283"></a>
-<span class="sourceLineNo">284</span><a name="line.284"></a>
-<span class="sourceLineNo">285</span>        // Check that the bit counts in bl_count are consistent. The last code<a name="line.285"></a>
-<span class="sourceLineNo">286</span>        // must be all ones.<a name="line.286"></a>
-<span class="sourceLineNo">287</span>        //Assert (code + bl_count[MAX_BITS]-1 == (1&lt;&lt;MAX_BITS)-1,<a name="line.287"></a>
-<span class="sourceLineNo">288</span>        //        "inconsistent bit counts");<a name="line.288"></a>
-<span class="sourceLineNo">289</span>        //Tracev((stderr,"\ngen_codes: max_code %d ", max_code));<a name="line.289"></a>
-<span class="sourceLineNo">290</span><a name="line.290"></a>
-<span class="sourceLineNo">291</span>        for (n = 0; n &lt;= max_code; n++) {<a name="line.291"></a>
-<span class="sourceLineNo">292</span>            int len = tree[n * 2 + 1];<a name="line.292"></a>
-<span class="sourceLineNo">293</span>            if (len == 0) {<a name="line.293"></a>
-<span class="sourceLineNo">294</span>                continue;<a name="line.294"></a>
-<span class="sourceLineNo">295</span>            }<a name="line.295"></a>
-<span class="sourceLineNo">296</span>            // Now reverse the bits<a name="line.296"></a>
-<span class="sourceLineNo">297</span>            tree[n * 2] = (short) (biReverse(next_code[len]++, len));<a name="line.297"></a>
-<span class="sourceLineNo">298</span>        }<a name="line.298"></a>
-<span class="sourceLineNo">299</span>    }<a name="line.299"></a>
-<span class="sourceLineNo">300</span><a name="line.300"></a>
-<span class="sourceLineNo">301</span>    // Reverse the first len bits of a code, using straightforward code (a faster<a name="line.301"></a>
-<span class="sourceLineNo">302</span>    // method would use a table)<a name="line.302"></a>
-<span class="sourceLineNo">303</span>    // IN assertion: 1 &lt;= len &lt;= 15<a name="line.303"></a>
-<span class="sourceLineNo">304</span>    private int biReverse(int code, // the value to invert<a name="line.304"></a>
-<span class="sourceLineNo">305</span>                          int len // its bit length<a name="line.305"></a>
-<span class="sourceLineNo">306</span>    ) {<a name="line.306"></a>
-<span class="sourceLineNo">307</span>        int res = 0;<a name="line.307"></a>
-<span class="sourceLineNo">308</span>        do {<a name="line.308"></a>
-<span class="sourceLineNo">309</span>            res |= code &amp; 1;<a name="line.309"></a>
-<span class="sourceLineNo">310</span>            code &gt;&gt;&gt;= 1;<a name="line.310"></a>
-<span class="sourceLineNo">311</span>            res &lt;&lt;= 1;<a name="line.311"></a>
-<span class="sourceLineNo">312</span>        } while (--len &gt; 0);<a name="line.312"></a>
-<span class="sourceLineNo">313</span>        return res &gt;&gt;&gt; 1;<a name="line.313"></a>
-<span class="sourceLineNo">314</span>    }<a name="line.314"></a>
-<span class="sourceLineNo">315</span>}<a name="line.315"></a>
-<span class="sourceLineNo">316</span><a name="line.316"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    public class Tree {<a name="line.4"></a>
+<FONT color="green">005</FONT>    <a name="line.5"></a>
+<FONT color="green">006</FONT>        private static final int MAX_BITS = 15;<a name="line.6"></a>
+<FONT color="green">007</FONT>        private static final int LITERALS = 256;<a name="line.7"></a>
+<FONT color="green">008</FONT>        private static final int LENGTH_CODES = 29;<a name="line.8"></a>
+<FONT color="green">009</FONT>        private static final int L_CODES = (LITERALS + 1 + LENGTH_CODES);<a name="line.9"></a>
+<FONT color="green">010</FONT>        private static final int HEAP_SIZE = (2 * L_CODES + 1);<a name="line.10"></a>
+<FONT color="green">011</FONT>        // extra bits for each length code<a name="line.11"></a>
+<FONT color="green">012</FONT>        protected static final int[] EXTRA_LBITS = {<a name="line.12"></a>
+<FONT color="green">013</FONT>                0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0<a name="line.13"></a>
+<FONT color="green">014</FONT>        };<a name="line.14"></a>
+<FONT color="green">015</FONT>        // extra bits for each distance code<a name="line.15"></a>
+<FONT color="green">016</FONT>        protected static final int[] EXTRA_DBITS = {<a name="line.16"></a>
+<FONT color="green">017</FONT>                0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13<a name="line.17"></a>
+<FONT color="green">018</FONT>        };<a name="line.18"></a>
+<FONT color="green">019</FONT>        // extra bits for each bit length code<a name="line.19"></a>
+<FONT color="green">020</FONT>        protected static final int[] EXTRA_BLBITS = {<a name="line.20"></a>
+<FONT color="green">021</FONT>                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7<a name="line.21"></a>
+<FONT color="green">022</FONT>        };<a name="line.22"></a>
+<FONT color="green">023</FONT>        protected static final byte[] BL_ORDER = {<a name="line.23"></a>
+<FONT color="green">024</FONT>                16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};<a name="line.24"></a>
+<FONT color="green">025</FONT>        private static final byte[] DIST_CODE = {<a name="line.25"></a>
+<FONT color="green">026</FONT>                0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,<a name="line.26"></a>
+<FONT color="green">027</FONT>                8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10,<a name="line.27"></a>
+<FONT color="green">028</FONT>                10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,<a name="line.28"></a>
+<FONT color="green">029</FONT>                11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,<a name="line.29"></a>
+<FONT color="green">030</FONT>                12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13,<a name="line.30"></a>
+<FONT color="green">031</FONT>                13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,<a name="line.31"></a>
+<FONT color="green">032</FONT>                13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.32"></a>
+<FONT color="green">033</FONT>                14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.33"></a>
+<FONT color="green">034</FONT>                14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,<a name="line.34"></a>
+<FONT color="green">035</FONT>                14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.35"></a>
+<FONT color="green">036</FONT>                15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.36"></a>
+<FONT color="green">037</FONT>                15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,<a name="line.37"></a>
+<FONT color="green">038</FONT>                15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 16, 17,<a name="line.38"></a>
+<FONT color="green">039</FONT>                18, 18, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22,<a name="line.39"></a>
+<FONT color="green">040</FONT>                23, 23, 23, 23, 23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.40"></a>
+<FONT color="green">041</FONT>                24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,<a name="line.41"></a>
+<FONT color="green">042</FONT>                26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.42"></a>
+<FONT color="green">043</FONT>                26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.43"></a>
+<FONT color="green">044</FONT>                27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.44"></a>
+<FONT color="green">045</FONT>                27, 27, 27, 27, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.45"></a>
+<FONT color="green">046</FONT>                28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.46"></a>
+<FONT color="green">047</FONT>                28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,<a name="line.47"></a>
+<FONT color="green">048</FONT>                28, 28, 28, 28, 28, 28, 28, 28, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.48"></a>
+<FONT color="green">049</FONT>                29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.49"></a>
+<FONT color="green">050</FONT>                29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,<a name="line.50"></a>
+<FONT color="green">051</FONT>                29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29<a name="line.51"></a>
+<FONT color="green">052</FONT>        };<a name="line.52"></a>
+<FONT color="green">053</FONT>        protected static final byte[] LENGTH_CODE = {<a name="line.53"></a>
+<FONT color="green">054</FONT>                0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12,<a name="line.54"></a>
+<FONT color="green">055</FONT>                13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16,<a name="line.55"></a>
+<FONT color="green">056</FONT>                17, 17, 17, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 18, 18, 19, 19, 19, 19,<a name="line.56"></a>
+<FONT color="green">057</FONT>                19, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20,<a name="line.57"></a>
+<FONT color="green">058</FONT>                21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 22,<a name="line.58"></a>
+<FONT color="green">059</FONT>                22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 23, 23, 23, 23, 23, 23, 23, 23,<a name="line.59"></a>
+<FONT color="green">060</FONT>                23, 23, 23, 23, 23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.60"></a>
+<FONT color="green">061</FONT>                24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,<a name="line.61"></a>
+<FONT color="green">062</FONT>                25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25,<a name="line.62"></a>
+<FONT color="green">063</FONT>                25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.63"></a>
+<FONT color="green">064</FONT>                26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,<a name="line.64"></a>
+<FONT color="green">065</FONT>                26, 26, 26, 26, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,<a name="line.65"></a>
+<FONT color="green">066</FONT>                27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 28<a name="line.66"></a>
+<FONT color="green">067</FONT>        };<a name="line.67"></a>
+<FONT color="green">068</FONT>        protected static final int[] BASE_LENGTH = {<a name="line.68"></a>
+<FONT color="green">069</FONT>                0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56,<a name="line.69"></a>
+<FONT color="green">070</FONT>                64, 80, 96, 112, 128, 160, 192, 224, 0<a name="line.70"></a>
+<FONT color="green">071</FONT>        };<a name="line.71"></a>
+<FONT color="green">072</FONT>        protected static final int[] BASE_DIST = {<a name="line.72"></a>
+<FONT color="green">073</FONT>                0, 1, 2, 3, 4, 6, 8, 12, 16, 24,<a name="line.73"></a>
+<FONT color="green">074</FONT>                32, 48, 64, 96, 128, 192, 256, 384, 512, 768,<a name="line.74"></a>
+<FONT color="green">075</FONT>                1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576<a name="line.75"></a>
+<FONT color="green">076</FONT>        };<a name="line.76"></a>
+<FONT color="green">077</FONT>    <a name="line.77"></a>
+<FONT color="green">078</FONT>        // Mapping from a distance to a distance code. dist is the distance - 1 and<a name="line.78"></a>
+<FONT color="green">079</FONT>        // must not have side effects. DIST_CODE[256] and DIST_CODE[257] are never<a name="line.79"></a>
+<FONT color="green">080</FONT>        // used.<a name="line.80"></a>
+<FONT color="green">081</FONT>        protected static int distanceCode(int dist) {<a name="line.81"></a>
+<FONT color="green">082</FONT>            return ((dist) &lt; 256 ? DIST_CODE[dist] : DIST_CODE[256 + ((dist) &gt;&gt;&gt; 7)]);<a name="line.82"></a>
+<FONT color="green">083</FONT>        }<a name="line.83"></a>
+<FONT color="green">084</FONT>    <a name="line.84"></a>
+<FONT color="green">085</FONT>        protected short[] dynTree;      // the dynamic tree<a name="line.85"></a>
+<FONT color="green">086</FONT>        protected int maxCode;      // largest code with non zero frequency<a name="line.86"></a>
+<FONT color="green">087</FONT>        protected StaticTree statDesc;  // the corresponding static tree<a name="line.87"></a>
+<FONT color="green">088</FONT>    <a name="line.88"></a>
+<FONT color="green">089</FONT>        // Compute the optimal bit lengths for a tree and update the total bit length<a name="line.89"></a>
+<FONT color="green">090</FONT>        // for the current block.<a name="line.90"></a>
+<FONT color="green">091</FONT>        // IN assertion: the fields freq and dad are set, heap[heap_max] and<a name="line.91"></a>
+<FONT color="green">092</FONT>        //    above are the tree nodes sorted by increasing frequency.<a name="line.92"></a>
+<FONT color="green">093</FONT>        // OUT assertions: the field len is set to the optimal bit length, the<a name="line.93"></a>
+<FONT color="green">094</FONT>        //     array bl_count contains the frequencies for each bit length.<a name="line.94"></a>
+<FONT color="green">095</FONT>        //     The length opt_len is updated; static_len is also updated if stree is<a name="line.95"></a>
+<FONT color="green">096</FONT>        //     not null.<a name="line.96"></a>
+<FONT color="green">097</FONT>        private void genBitLen(Deflate s) {<a name="line.97"></a>
+<FONT color="green">098</FONT>            short[] tree = dynTree;<a name="line.98"></a>
+<FONT color="green">099</FONT>            short[] stree = statDesc.statictree;<a name="line.99"></a>
+<FONT color="green">100</FONT>            int[] extra = statDesc.extrabits;<a name="line.100"></a>
+<FONT color="green">101</FONT>            int base = statDesc.extrabase;<a name="line.101"></a>
+<FONT color="green">102</FONT>            int max_length = statDesc.maxlength;<a name="line.102"></a>
+<FONT color="green">103</FONT>            int h;              // heap index<a name="line.103"></a>
+<FONT color="green">104</FONT>            int n, m;           // iterate over the tree elements<a name="line.104"></a>
+<FONT color="green">105</FONT>            int bits;           // bit length<a name="line.105"></a>
+<FONT color="green">106</FONT>            int xbits;          // extra bits<a name="line.106"></a>
+<FONT color="green">107</FONT>            short f;            // frequency<a name="line.107"></a>
+<FONT color="green">108</FONT>            int overflow = 0;   // number of elements with bit length too large<a name="line.108"></a>
+<FONT color="green">109</FONT>    <a name="line.109"></a>
+<FONT color="green">110</FONT>            for (bits = 0; bits &lt;= MAX_BITS; bits++) {<a name="line.110"></a>
+<FONT color="green">111</FONT>                s.blCount[bits] = 0;<a name="line.111"></a>
+<FONT color="green">112</FONT>            }<a name="line.112"></a>
+<FONT color="green">113</FONT>    <a name="line.113"></a>
+<FONT color="green">114</FONT>            // In a first pass, compute the optimal bit lengths (which may<a name="line.114"></a>
+<FONT color="green">115</FONT>            // overflow in the case of the bit length tree).<a name="line.115"></a>
+<FONT color="green">116</FONT>            tree[s.heap[s.heapMax] * 2 + 1] = 0; // root of the heap<a name="line.116"></a>
+<FONT color="green">117</FONT>    <a name="line.117"></a>
+<FONT color="green">118</FONT>            for (h = s.heapMax + 1; h &lt; HEAP_SIZE; h++) {<a name="line.118"></a>
+<FONT color="green">119</FONT>                n = s.heap[h];<a name="line.119"></a>
+<FONT color="green">120</FONT>                bits = tree[tree[n * 2 + 1] * 2 + 1] + 1;<a name="line.120"></a>
+<FONT color="green">121</FONT>                if (bits &gt; max_length) {<a name="line.121"></a>
+<FONT color="green">122</FONT>                    bits = max_length;<a name="line.122"></a>
+<FONT color="green">123</FONT>                    overflow++;<a name="line.123"></a>
+<FONT color="green">124</FONT>                }<a name="line.124"></a>
+<FONT color="green">125</FONT>                tree[n * 2 + 1] = (short) bits;<a name="line.125"></a>
+<FONT color="green">126</FONT>                // We overwrite tree[n*2+1] which is no longer needed<a name="line.126"></a>
+<FONT color="green">127</FONT>    <a name="line.127"></a>
+<FONT color="green">128</FONT>                if (n &gt; maxCode) {<a name="line.128"></a>
+<FONT color="green">129</FONT>                    continue;  // not a leaf node<a name="line.129"></a>
+<FONT color="green">130</FONT>                }<a name="line.130"></a>
+<FONT color="green">131</FONT>                s.blCount[bits]++;<a name="line.131"></a>
+<FONT color="green">132</FONT>                xbits = 0;<a name="line.132"></a>
+<FONT color="green">133</FONT>                if (n &gt;= base) {<a name="line.133"></a>
+<FONT color="green">134</FONT>                    xbits = extra[n - base];<a name="line.134"></a>
+<FONT color="green">135</FONT>                }<a name="line.135"></a>
+<FONT color="green">136</FONT>                f = tree[n * 2];<a name="line.136"></a>
+<FONT color="green">137</FONT>                s.optLen += f * (bits + xbits);<a name="line.137"></a>
+<FONT color="green">138</FONT>                if (stree != null) {<a name="line.138"></a>
+<FONT color="green">139</FONT>                    s.staticLen += f * (stree[n * 2 + 1] + xbits);<a name="line.139"></a>
+<FONT color="green">140</FONT>                }<a name="line.140"></a>
+<FONT color="green">141</FONT>            }<a name="line.141"></a>
+<FONT color="green">142</FONT>            if (overflow == 0) {<a name="line.142"></a>
+<FONT color="green">143</FONT>                return;<a name="line.143"></a>
+<FONT color="green">144</FONT>            }<a name="line.144"></a>
+<FONT color="green">145</FONT>    <a name="line.145"></a>
+<FONT color="green">146</FONT>            // This happens for example on obj2 and pic of the Calgary corpus<a name="line.146"></a>
+<FONT color="green">147</FONT>            // Find the first bit length which could increase:<a name="line.147"></a>
+<FONT color="green">148</FONT>            do {<a name="line.148"></a>
+<FONT color="green">149</FONT>                bits = max_length - 1;<a name="line.149"></a>
+<FONT color="green">150</FONT>                while (s.blCount[bits] == 0) {<a name="line.150"></a>
+<FONT color="green">151</FONT>                    bits--;<a name="line.151"></a>
+<FONT color="green">152</FONT>                }<a name="line.152"></a>
+<FONT color="green">153</FONT>                s.blCount[bits]--;      // move one leaf down the tree<a name="line.153"></a>
+<FONT color="green">154</FONT>                s.blCount[bits + 1] += 2;   // move one overflow item as its brother<a name="line.154"></a>
+<FONT color="green">155</FONT>                s.blCount[max_length]--;<a name="line.155"></a>
+<FONT color="green">156</FONT>                // The brother of the overflow item also moves one step up,<a name="line.156"></a>
+<FONT color="green">157</FONT>                // but this does not affect bl_count[max_length]<a name="line.157"></a>
+<FONT color="green">158</FONT>                overflow -= 2;<a name="line.158"></a>
+<FONT color="green">159</FONT>            } while (overflow &gt; 0);<a name="line.159"></a>
+<FONT color="green">160</FONT>    <a name="line.160"></a>
+<FONT color="green">161</FONT>            for (bits = max_length; bits != 0; bits--) {<a name="line.161"></a>
+<FONT color="green">162</FONT>                n = s.blCount[bits];<a name="line.162"></a>
+<FONT color="green">163</FONT>                while (n != 0) {<a name="line.163"></a>
+<FONT color="green">164</FONT>                    m = s.heap[--h];<a name="line.164"></a>
+<FONT color="green">165</FONT>                    if (m &gt; maxCode) {<a name="line.165"></a>
+<FONT color="green">166</FONT>                        continue;<a name="line.166"></a>
+<FONT color="green">167</FONT>                    }<a name="line.167"></a>
+<FONT color="green">168</FONT>                    if (tree[m * 2 + 1] != bits) {<a name="line.168"></a>
+<FONT color="green">169</FONT>                        s.optLen += ((long) bits - (long) tree[m * 2 + 1]) * (long) tree[m * 2];<a name="line.169"></a>
+<FONT color="green">170</FONT>                        tree[m * 2 + 1] = (short) bits;<a name="line.170"></a>
+<FONT color="green">171</FONT>                    }<a name="line.171"></a>
+<FONT color="green">172</FONT>                    n--;<a name="line.172"></a>
+<FONT color="green">173</FONT>                }<a name="line.173"></a>
+<FONT color="green">174</FONT>            }<a name="line.174"></a>
+<FONT color="green">175</FONT>        }<a name="line.175"></a>
+<FONT color="green">176</FONT>    <a name="line.176"></a>
+<FONT color="green">177</FONT>        // Construct one Huffman tree and assigns the code bit strings and lengths.<a name="line.177"></a>
+<FONT color="green">178</FONT>        // Update the total bit length for the current block.<a name="line.178"></a>
+<FONT color="green">179</FONT>        // IN assertion: the field freq is set for all tree elements.<a name="line.179"></a>
+<FONT color="green">180</FONT>        // OUT assertions: the fields len and code are set to the optimal bit length<a name="line.180"></a>
+<FONT color="green">181</FONT>        //     and corresponding code. The length opt_len is updated; static_len is<a name="line.181"></a>
+<FONT color="green">182</FONT>        //     also updated if stree is not null. The field max_code is set.<a name="line.182"></a>
+<FONT color="green">183</FONT>        protected void buildTree(Deflate s) {<a name="line.183"></a>
+<FONT color="green">184</FONT>            short[] tree = dynTree;<a name="line.184"></a>
+<FONT color="green">185</FONT>            short[] stree = statDesc.statictree;<a name="line.185"></a>
+<FONT color="green">186</FONT>            int elems = statDesc.elems;<a name="line.186"></a>
+<FONT color="green">187</FONT>            int n, m;          // iterate over heap elements<a name="line.187"></a>
+<FONT color="green">188</FONT>            int maxCode = -1;   // largest code with non zero frequency<a name="line.188"></a>
+<FONT color="green">189</FONT>            int node;          // new node being created<a name="line.189"></a>
+<FONT color="green">190</FONT>    <a name="line.190"></a>
+<FONT color="green">191</FONT>            // Construct the initial heap, with least frequent element in<a name="line.191"></a>
+<FONT color="green">192</FONT>            // heap[1]. The sons of heap[n] are heap[2*n] and heap[2*n+1].<a name="line.192"></a>
+<FONT color="green">193</FONT>            // heap[0] is not used.<a name="line.193"></a>
+<FONT color="green">194</FONT>            s.heapLen = 0;<a name="line.194"></a>
+<FONT color="green">195</FONT>            s.heapMax = HEAP_SIZE;<a name="line.195"></a>
+<FONT color="green">196</FONT>    <a name="line.196"></a>
+<FONT color="green">197</FONT>            for (n = 0; n &lt; elems; n++) {<a name="line.197"></a>
+<FONT color="green">198</FONT>                if (tree[n * 2] != 0) {<a name="line.198"></a>
+<FONT color="green">199</FONT>                    s.heap[++s.heapLen] = maxCode = n;<a name="line.199"></a>
+<FONT color="green">200</FONT>                    s.depth[n] = 0;<a name="line.200"></a>
+<FONT color="green">201</FONT>                } else {<a name="line.201"></a>
+<FONT color="green">202</FONT>                    tree[n * 2 + 1] = 0;<a name="line.202"></a>
+<FONT color="green">203</FONT>                }<a name="line.203"></a>
+<FONT color="green">204</FONT>            }<a name="line.204"></a>
+<FONT color="green">205</FONT>    <a name="line.205"></a>
+<FONT color="green">206</FONT>            // The pkzip format requires that at least one distance code exists,<a name="line.206"></a>
+<FONT color="green">207</FONT>            // and that at least one bit should be sent even if there is only one<a name="line.207"></a>
+<FONT color="green">208</FONT>            // possible code. So to avoid special checks later on we force at least<a name="line.208"></a>
+<FONT color="green">209</FONT>            // two codes of non zero frequency.<a name="line.209"></a>
+<FONT color="green">210</FONT>            while (s.heapLen &lt; 2) {<a name="line.210"></a>
+<FONT color="green">211</FONT>                node = s.heap[++s.heapLen] = (maxCode &lt; 2 ? ++maxCode : 0);<a name="line.211"></a>
+<FONT color="green">212</FONT>                tree[node * 2] = 1;<a name="line.212"></a>
+<FONT color="green">213</FONT>                s.depth[node] = 0;<a name="line.213"></a>
+<FONT color="green">214</FONT>                s.optLen--;<a name="line.214"></a>
+<FONT color="green">215</FONT>                if (stree != null) {<a name="line.215"></a>
+<FONT color="green">216</FONT>                    s.staticLen -= stree[node * 2 + 1];<a name="line.216"></a>
+<FONT color="green">217</FONT>                }<a name="line.217"></a>
+<FONT color="green">218</FONT>                // node is 0 or 1 so it does not have extra bits<a name="line.218"></a>
+<FONT color="green">219</FONT>            }<a name="line.219"></a>
+<FONT color="green">220</FONT>            this.maxCode = maxCode;<a name="line.220"></a>
+<FONT color="green">221</FONT>    <a name="line.221"></a>
+<FONT color="green">222</FONT>            // The elements heap[heap_len/2+1 .. heap_len] are leaves of the tree,<a name="line.222"></a>
+<FONT color="green">223</FONT>            // establish sub-heaps of increasing lengths:<a name="line.223"></a>
+<FONT color="green">224</FONT>    <a name="line.224"></a>
+<FONT color="green">225</FONT>            for (n = s.heapLen / 2; n &gt;= 1; n--) {<a name="line.225"></a>
+<FONT color="green">226</FONT>                s.pqdownheap(tree, n);<a name="line.226"></a>
+<FONT color="green">227</FONT>            }<a name="line.227"></a>
+<FONT color="green">228</FONT>    <a name="line.228"></a>
+<FONT color="green">229</FONT>            // Construct the Huffman tree by repeatedly combining the least two<a name="line.229"></a>
+<FONT color="green">230</FONT>            // frequent nodes.<a name="line.230"></a>
+<FONT color="green">231</FONT>    <a name="line.231"></a>
+<FONT color="green">232</FONT>            node = elems;                 // next internal node of the tree<a name="line.232"></a>
+<FONT color="green">233</FONT>            do {<a name="line.233"></a>
+<FONT color="green">234</FONT>                // n = node of least frequency<a name="line.234"></a>
+<FONT color="green">235</FONT>                n = s.heap[1];<a name="line.235"></a>
+<FONT color="green">236</FONT>                s.heap[1] = s.heap[s.heapLen--];<a name="line.236"></a>
+<FONT color="green">237</FONT>                s.pqdownheap(tree, 1);<a name="line.237"></a>
+<FONT color="green">238</FONT>                m = s.heap[1];                // m = node of next least frequency<a name="line.238"></a>
+<FONT color="green">239</FONT>    <a name="line.239"></a>
+<FONT color="green">240</FONT>                s.heap[--s.heapMax] = n; // keep the nodes sorted by frequency<a name="line.240"></a>
+<FONT color="green">241</FONT>                s.heap[--s.heapMax] = m;<a name="line.241"></a>
+<FONT color="green">242</FONT>    <a name="line.242"></a>
+<FONT color="green">243</FONT>                // Create a new node father of n and m<a name="line.243"></a>
+<FONT color="green">244</FONT>                tree[node * 2] = (short) (tree[n * 2] + tree[m * 2]);<a name="line.244"></a>
+<FONT color="green">245</FONT>                s.depth[node] = (byte) (Math.max(s.depth[n], s.depth[m]) + 1);<a name="line.245"></a>
+<FONT color="green">246</FONT>                tree[n * 2 + 1] = tree[m * 2 + 1] = (short) node;<a name="line.246"></a>
+<FONT color="green">247</FONT>    <a name="line.247"></a>
+<FONT color="green">248</FONT>                // and insert the new node in the heap<a name="line.248"></a>
+<FONT color="green">249</FONT>                s.heap[1] = node++;<a name="line.249"></a>
+<FONT color="green">250</FONT>                s.pqdownheap(tree, 1);<a name="line.250"></a>
+<FONT color="green">251</FONT>            } while (s.heapLen &gt;= 2);<a name="line.251"></a>
+<FONT color="green">252</FONT>    <a name="line.252"></a>
+<FONT color="green">253</FONT>            s.heap[--s.heapMax] = s.heap[1];<a name="line.253"></a>
+<FONT color="green">254</FONT>    <a name="line.254"></a>
+<FONT color="green">255</FONT>            // At this point, the fields freq and dad are set. We can now<a name="line.255"></a>
+<FONT color="green">256</FONT>            // generate the bit lengths.<a name="line.256"></a>
+<FONT color="green">257</FONT>    <a name="line.257"></a>
+<FONT color="green">258</FONT>            genBitLen(s);<a name="line.258"></a>
+<FONT color="green">259</FONT>    <a name="line.259"></a>
+<FONT color="green">260</FONT>            // The field len is now set, we can generate the bit codes<a name="line.260"></a>
+<FONT color="green">261</FONT>            genCodes(tree, maxCode, s.blCount);<a name="line.261"></a>
+<FONT color="green">262</FONT>        }<a name="line.262"></a>
+<FONT color="green">263</FONT>    <a name="line.263"></a>
+<FONT color="green">264</FONT>        // Generate the codes for a given tree and bit counts (which need not be<a name="line.264"></a>
+<FONT color="green">265</FONT>        // optimal).<a name="line.265"></a>
+<FONT color="green">266</FONT>        // IN assertion: the array bl_count contains the bit length statistics for<a name="line.266"></a>
+<FONT color="green">267</FONT>        // the given tree and the field len is set for all tree elements.<a name="line.267"></a>
+<FONT color="green">268</FONT>        // OUT assertion: the field code is set for all tree elements of non<a name="line.268"></a>
+<FONT color="green">269</FONT>        //     zero code length.<a name="line.269"></a>
+<FONT color="green">270</FONT>        private void genCodes(short[] tree, // the tree to decorate<a name="line.270"></a>
+<FONT color="green">271</FONT>                              int max_code, // largest code with non zero frequency<a name="line.271"></a>
+<FONT color="green">272</FONT>                              short[] bl_count // number of codes at each bit length<a name="line.272"></a>
+<FONT color="green">273</FONT>        ) {<a name="line.273"></a>
+<FONT color="green">274</FONT>            short[] next_code = new short[MAX_BITS + 1]; // next code value for each bit length<a name="line.274"></a>
+<FONT color="green">275</FONT>            short code = 0;            // running code value<a name="line.275"></a>
+<FONT color="green">276</FONT>            int bits;                  // bit index<a name="line.276"></a>
+<FONT color="green">277</FONT>            int n;                     // code index<a name="line.277"></a>
+<FONT color="green">278</FONT>    <a name="line.278"></a>
+<FONT color="green">279</FONT>            // The distribution counts are first used to generate the code values<a name="line.279"></a>
+<FONT color="green">280</FONT>            // without bit reversal.<a name="line.280"></a>
+<FONT color="green">281</FONT>            for (bits = 1; bits &lt;= MAX_BITS; bits++) {<a name="line.281"></a>
+<FONT color="green">282</FONT>                next_code[bits] = code = (short) ((code + bl_count[bits - 1]) &lt;&lt; 1);<a name="line.282"></a>
+<FONT color="green">283</FONT>            }<a name="line.283"></a>
+<FONT color="green">284</FONT>    <a name="line.284"></a>
+<FONT color="green">285</FONT>            // Check that the bit counts in bl_count are consistent. The last code<a name="line.285"></a>
+<FONT color="green">286</FONT>            // must be all ones.<a name="line.286"></a>
+<FONT color="green">287</FONT>            //Assert (code + bl_count[MAX_BITS]-1 == (1&lt;&lt;MAX_BITS)-1,<a name="line.287"></a>
+<FONT color="green">288</FONT>            //        "inconsistent bit counts");<a name="line.288"></a>
+<FONT color="green">289</FONT>            //Tracev((stderr,"\ngen_codes: max_code %d ", max_code));<a name="line.289"></a>
+<FONT color="green">290</FONT>    <a name="line.290"></a>
+<FONT color="green">291</FONT>            for (n = 0; n &lt;= max_code; n++) {<a name="line.291"></a>
+<FONT color="green">292</FONT>                int len = tree[n * 2 + 1];<a name="line.292"></a>
+<FONT color="green">293</FONT>                if (len == 0) {<a name="line.293"></a>
+<FONT color="green">294</FONT>                    continue;<a name="line.294"></a>
+<FONT color="green">295</FONT>                }<a name="line.295"></a>
+<FONT color="green">296</FONT>                // Now reverse the bits<a name="line.296"></a>
+<FONT color="green">297</FONT>                tree[n * 2] = (short) (biReverse(next_code[len]++, len));<a name="line.297"></a>
+<FONT color="green">298</FONT>            }<a name="line.298"></a>
+<FONT color="green">299</FONT>        }<a name="line.299"></a>
+<FONT color="green">300</FONT>    <a name="line.300"></a>
+<FONT color="green">301</FONT>        // Reverse the first len bits of a code, using straightforward code (a faster<a name="line.301"></a>
+<FONT color="green">302</FONT>        // method would use a table)<a name="line.302"></a>
+<FONT color="green">303</FONT>        // IN assertion: 1 &lt;= len &lt;= 15<a name="line.303"></a>
+<FONT color="green">304</FONT>        private int biReverse(int code, // the value to invert<a name="line.304"></a>
+<FONT color="green">305</FONT>                              int len // its bit length<a name="line.305"></a>
+<FONT color="green">306</FONT>        ) {<a name="line.306"></a>
+<FONT color="green">307</FONT>            int res = 0;<a name="line.307"></a>
+<FONT color="green">308</FONT>            do {<a name="line.308"></a>
+<FONT color="green">309</FONT>                res |= code &amp; 1;<a name="line.309"></a>
+<FONT color="green">310</FONT>                code &gt;&gt;&gt;= 1;<a name="line.310"></a>
+<FONT color="green">311</FONT>                res &lt;&lt;= 1;<a name="line.311"></a>
+<FONT color="green">312</FONT>            } while (--len &gt; 0);<a name="line.312"></a>
+<FONT color="green">313</FONT>            return res &gt;&gt;&gt; 1;<a name="line.313"></a>
+<FONT color="green">314</FONT>        }<a name="line.314"></a>
+<FONT color="green">315</FONT>    }<a name="line.315"></a>
+<FONT color="green">316</FONT>    <a name="line.316"></a>
 
 
 
@@ -382,7 +377,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

@@ -1,44 +1,39 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public interface ZConstants {<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>    // compression levels<a name="line.6"></a>
-<span class="sourceLineNo">007</span>    int Z_NO_COMPRESSION = 0;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>    int Z_BEST_SPEED = 1;<a name="line.8"></a>
-<span class="sourceLineNo">009</span>    int Z_BEST_COMPRESSION = 9;<a name="line.9"></a>
-<span class="sourceLineNo">010</span>    int Z_DEFAULT_COMPRESSION = (-1);<a name="line.10"></a>
-<span class="sourceLineNo">011</span><a name="line.11"></a>
-<span class="sourceLineNo">012</span>    // compression strategy<a name="line.12"></a>
-<span class="sourceLineNo">013</span>    int Z_FILTERED = 1;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>    int Z_HUFFMAN_ONLY = 2;<a name="line.14"></a>
-<span class="sourceLineNo">015</span>    int Z_DEFAULT_STRATEGY = 0;<a name="line.15"></a>
-<span class="sourceLineNo">016</span>    int Z_NO_FLUSH = 0;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>    int Z_PARTIAL_FLUSH = 1;<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    int Z_SYNC_FLUSH = 2;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    int Z_FULL_FLUSH = 3;<a name="line.19"></a>
-<span class="sourceLineNo">020</span>    int Z_FINISH = 4;<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    int Z_OK = 0;<a name="line.21"></a>
-<span class="sourceLineNo">022</span>    int Z_STREAM_END = 1;<a name="line.22"></a>
-<span class="sourceLineNo">023</span>    int Z_NEED_DICT = 2;<a name="line.23"></a>
-<span class="sourceLineNo">024</span>    int Z_ERRNO = -1;<a name="line.24"></a>
-<span class="sourceLineNo">025</span>    int Z_STREAM_ERROR = -2;<a name="line.25"></a>
-<span class="sourceLineNo">026</span>    int Z_DATA_ERROR = -3;<a name="line.26"></a>
-<span class="sourceLineNo">027</span>    int Z_MEM_ERROR = -4;<a name="line.27"></a>
-<span class="sourceLineNo">028</span>    int Z_BUF_ERROR = -5;<a name="line.28"></a>
-<span class="sourceLineNo">029</span>    int Z_VERSION_ERROR = -6;<a name="line.29"></a>
-<span class="sourceLineNo">030</span><a name="line.30"></a>
-<span class="sourceLineNo">031</span>    int MAX_WBITS = 15;        // 32K LZ77 window<a name="line.31"></a>
-<span class="sourceLineNo">032</span><a name="line.32"></a>
-<span class="sourceLineNo">033</span>}<a name="line.33"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    public interface ZConstants {<a name="line.4"></a>
+<FONT color="green">005</FONT>    <a name="line.5"></a>
+<FONT color="green">006</FONT>        // compression levels<a name="line.6"></a>
+<FONT color="green">007</FONT>        int Z_NO_COMPRESSION = 0;<a name="line.7"></a>
+<FONT color="green">008</FONT>        int Z_BEST_SPEED = 1;<a name="line.8"></a>
+<FONT color="green">009</FONT>        int Z_BEST_COMPRESSION = 9;<a name="line.9"></a>
+<FONT color="green">010</FONT>        int Z_DEFAULT_COMPRESSION = (-1);<a name="line.10"></a>
+<FONT color="green">011</FONT>    <a name="line.11"></a>
+<FONT color="green">012</FONT>        // compression strategy<a name="line.12"></a>
+<FONT color="green">013</FONT>        int Z_FILTERED = 1;<a name="line.13"></a>
+<FONT color="green">014</FONT>        int Z_HUFFMAN_ONLY = 2;<a name="line.14"></a>
+<FONT color="green">015</FONT>        int Z_DEFAULT_STRATEGY = 0;<a name="line.15"></a>
+<FONT color="green">016</FONT>        int Z_NO_FLUSH = 0;<a name="line.16"></a>
+<FONT color="green">017</FONT>        int Z_PARTIAL_FLUSH = 1;<a name="line.17"></a>
+<FONT color="green">018</FONT>        int Z_SYNC_FLUSH = 2;<a name="line.18"></a>
+<FONT color="green">019</FONT>        int Z_FULL_FLUSH = 3;<a name="line.19"></a>
+<FONT color="green">020</FONT>        int Z_FINISH = 4;<a name="line.20"></a>
+<FONT color="green">021</FONT>        int Z_OK = 0;<a name="line.21"></a>
+<FONT color="green">022</FONT>        int Z_STREAM_END = 1;<a name="line.22"></a>
+<FONT color="green">023</FONT>        int Z_NEED_DICT = 2;<a name="line.23"></a>
+<FONT color="green">024</FONT>        int Z_ERRNO = -1;<a name="line.24"></a>
+<FONT color="green">025</FONT>        int Z_STREAM_ERROR = -2;<a name="line.25"></a>
+<FONT color="green">026</FONT>        int Z_DATA_ERROR = -3;<a name="line.26"></a>
+<FONT color="green">027</FONT>        int Z_MEM_ERROR = -4;<a name="line.27"></a>
+<FONT color="green">028</FONT>        int Z_BUF_ERROR = -5;<a name="line.28"></a>
+<FONT color="green">029</FONT>        int Z_VERSION_ERROR = -6;<a name="line.29"></a>
+<FONT color="green">030</FONT>    <a name="line.30"></a>
+<FONT color="green">031</FONT>        int MAX_WBITS = 15;        // 32K LZ77 window<a name="line.31"></a>
+<FONT color="green">032</FONT>    <a name="line.32"></a>
+<FONT color="green">033</FONT>    }<a name="line.33"></a>
 
 
 
@@ -99,7 +94,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

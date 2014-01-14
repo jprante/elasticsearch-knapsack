@@ -1,854 +1,849 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.bzip2;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import java.io.ByteArrayInputStream;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import java.io.ByteArrayOutputStream;<a name="line.5"></a>
-<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
-<span class="sourceLineNo">007</span><a name="line.7"></a>
-<span class="sourceLineNo">008</span>/**<a name="line.8"></a>
-<span class="sourceLineNo">009</span> * An input stream that decompresses from the BZip2 format (without the file<a name="line.9"></a>
-<span class="sourceLineNo">010</span> * header chars) to be read as any other stream.<a name="line.10"></a>
-<span class="sourceLineNo">011</span> */<a name="line.11"></a>
-<span class="sourceLineNo">012</span>public class BZip2Inflate implements Bzip2Constants {<a name="line.12"></a>
-<span class="sourceLineNo">013</span><a name="line.13"></a>
-<span class="sourceLineNo">014</span>    private ByteArrayOutputStream inputBuffer;<a name="line.14"></a>
-<span class="sourceLineNo">015</span>    private boolean readHeader = false;<a name="line.15"></a>
-<span class="sourceLineNo">016</span><a name="line.16"></a>
-<span class="sourceLineNo">017</span>    /*<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    index of the last char in the block, so<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    the block size == last + 1.<a name="line.19"></a>
-<span class="sourceLineNo">020</span>     */<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    private int last;<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>    /*<a name="line.23"></a>
-<span class="sourceLineNo">024</span>    index in zptr[] of original string after sorting.<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     */<a name="line.25"></a>
-<span class="sourceLineNo">026</span>    private int origPtr;<a name="line.26"></a>
-<span class="sourceLineNo">027</span><a name="line.27"></a>
-<span class="sourceLineNo">028</span>    /*<a name="line.28"></a>
-<span class="sourceLineNo">029</span>    always: in the range 0 .. 9.<a name="line.29"></a>
-<span class="sourceLineNo">030</span>    The current block size is 100000 * this number.<a name="line.30"></a>
-<span class="sourceLineNo">031</span>     */<a name="line.31"></a>
-<span class="sourceLineNo">032</span>    private int blockSize100k;<a name="line.32"></a>
-<span class="sourceLineNo">033</span>    private boolean blockRandomised;<a name="line.33"></a>
-<span class="sourceLineNo">034</span>    private int bsBuff;<a name="line.34"></a>
-<span class="sourceLineNo">035</span>    private int bsLive;<a name="line.35"></a>
-<span class="sourceLineNo">036</span>    private CRC mCrc = new CRC();<a name="line.36"></a>
-<span class="sourceLineNo">037</span>    private boolean[] inUse = new boolean[256];<a name="line.37"></a>
-<span class="sourceLineNo">038</span>    private int nInUse;<a name="line.38"></a>
-<span class="sourceLineNo">039</span>    private char[] seqToUnseq = new char[256];<a name="line.39"></a>
-<span class="sourceLineNo">040</span>    private char[] selector = new char[MAX_SELECTORS];<a name="line.40"></a>
-<span class="sourceLineNo">041</span>    private char[] selectorMtf = new char[MAX_SELECTORS];<a name="line.41"></a>
-<span class="sourceLineNo">042</span>    private int[] tt;<a name="line.42"></a>
-<span class="sourceLineNo">043</span>    private char[] ll8;<a name="line.43"></a>
-<span class="sourceLineNo">044</span><a name="line.44"></a>
-<span class="sourceLineNo">045</span>    /*<a name="line.45"></a>
-<span class="sourceLineNo">046</span>    freq table collected to save a pass over the data<a name="line.46"></a>
-<span class="sourceLineNo">047</span>    during decompression.<a name="line.47"></a>
-<span class="sourceLineNo">048</span>     */<a name="line.48"></a>
-<span class="sourceLineNo">049</span>    private int[] unzftab = new int[256];<a name="line.49"></a>
-<span class="sourceLineNo">050</span>    private int[][] limit = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.50"></a>
-<span class="sourceLineNo">051</span>    private int[][] base = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.51"></a>
-<span class="sourceLineNo">052</span>    private int[][] perm = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.52"></a>
-<span class="sourceLineNo">053</span>    private int[] minLens = new int[N_GROUPS];<a name="line.53"></a>
-<span class="sourceLineNo">054</span>    private ByteArrayInputStream bsStream;<a name="line.54"></a>
-<span class="sourceLineNo">055</span>    private boolean streamEnd = false;<a name="line.55"></a>
-<span class="sourceLineNo">056</span>    private int currentChar = -1;<a name="line.56"></a>
-<span class="sourceLineNo">057</span>    private static final int START_BLOCK_STATE = 1;<a name="line.57"></a>
-<span class="sourceLineNo">058</span>    private static final int RAND_PART_A_STATE = 2;<a name="line.58"></a>
-<span class="sourceLineNo">059</span>    private static final int RAND_PART_B_STATE = 3;<a name="line.59"></a>
-<span class="sourceLineNo">060</span>    private static final int RAND_PART_C_STATE = 4;<a name="line.60"></a>
-<span class="sourceLineNo">061</span>    private static final int NO_RAND_PART_A_STATE = 5;<a name="line.61"></a>
-<span class="sourceLineNo">062</span>    private static final int NO_RAND_PART_B_STATE = 6;<a name="line.62"></a>
-<span class="sourceLineNo">063</span>    private static final int NO_RAND_PART_C_STATE = 7;<a name="line.63"></a>
-<span class="sourceLineNo">064</span>    private int currentState = START_BLOCK_STATE;<a name="line.64"></a>
-<span class="sourceLineNo">065</span>    private int storedBlockCRC, storedCombinedCRC;<a name="line.65"></a>
-<span class="sourceLineNo">066</span>    private int computedBlockCRC, computedCombinedCRC;<a name="line.66"></a>
-<span class="sourceLineNo">067</span>    private int i2, count, chPrev, ch2;<a name="line.67"></a>
-<span class="sourceLineNo">068</span>    private int tPos;<a name="line.68"></a>
-<span class="sourceLineNo">069</span>    private int rNToGo = 0;<a name="line.69"></a>
-<span class="sourceLineNo">070</span>    private int rTPos = 0;<a name="line.70"></a>
-<span class="sourceLineNo">071</span>    private int j2;<a name="line.71"></a>
-<span class="sourceLineNo">072</span>    private char z;<a name="line.72"></a>
-<span class="sourceLineNo">073</span><a name="line.73"></a>
-<span class="sourceLineNo">074</span>    public BZip2Inflate() {<a name="line.74"></a>
-<span class="sourceLineNo">075</span>        this(8192);<a name="line.75"></a>
-<span class="sourceLineNo">076</span>    }<a name="line.76"></a>
-<span class="sourceLineNo">077</span><a name="line.77"></a>
-<span class="sourceLineNo">078</span>    public BZip2Inflate(int bufsize) {<a name="line.78"></a>
-<span class="sourceLineNo">079</span>        ll8 = null;<a name="line.79"></a>
-<span class="sourceLineNo">080</span>        tt = null;<a name="line.80"></a>
-<span class="sourceLineNo">081</span>        this.inputBuffer = new ByteArrayOutputStream(bufsize);<a name="line.81"></a>
-<span class="sourceLineNo">082</span>        bsSetStream();<a name="line.82"></a>
-<span class="sourceLineNo">083</span>    }<a name="line.83"></a>
-<span class="sourceLineNo">084</span><a name="line.84"></a>
-<span class="sourceLineNo">085</span>    private void makeMaps() {<a name="line.85"></a>
-<span class="sourceLineNo">086</span>        nInUse = 0;<a name="line.86"></a>
-<span class="sourceLineNo">087</span>        for (int j = 0; j &lt; 256; j++) {<a name="line.87"></a>
-<span class="sourceLineNo">088</span>            if (inUse[j]) {<a name="line.88"></a>
-<span class="sourceLineNo">089</span>                seqToUnseq[nInUse] = (char) j;<a name="line.89"></a>
-<span class="sourceLineNo">090</span>                nInUse++;<a name="line.90"></a>
-<span class="sourceLineNo">091</span>            }<a name="line.91"></a>
-<span class="sourceLineNo">092</span>        }<a name="line.92"></a>
-<span class="sourceLineNo">093</span>    }<a name="line.93"></a>
-<span class="sourceLineNo">094</span><a name="line.94"></a>
-<span class="sourceLineNo">095</span>    private void initStream() throws IOException {<a name="line.95"></a>
-<span class="sourceLineNo">096</span>        initialize();<a name="line.96"></a>
-<span class="sourceLineNo">097</span>        initBlock();<a name="line.97"></a>
-<span class="sourceLineNo">098</span>        setupBlock();<a name="line.98"></a>
-<span class="sourceLineNo">099</span>    }<a name="line.99"></a>
-<span class="sourceLineNo">100</span><a name="line.100"></a>
-<span class="sourceLineNo">101</span>    private int read() throws IOException {<a name="line.101"></a>
-<span class="sourceLineNo">102</span>        if (streamEnd) {<a name="line.102"></a>
-<span class="sourceLineNo">103</span>            return -1;<a name="line.103"></a>
-<span class="sourceLineNo">104</span>        } else {<a name="line.104"></a>
-<span class="sourceLineNo">105</span>            int retChar = currentChar;<a name="line.105"></a>
-<span class="sourceLineNo">106</span>            switch (currentState) {<a name="line.106"></a>
-<span class="sourceLineNo">107</span>                case START_BLOCK_STATE:<a name="line.107"></a>
-<span class="sourceLineNo">108</span>                    break;<a name="line.108"></a>
-<span class="sourceLineNo">109</span>                case RAND_PART_A_STATE:<a name="line.109"></a>
-<span class="sourceLineNo">110</span>                    break;<a name="line.110"></a>
-<span class="sourceLineNo">111</span>                case RAND_PART_B_STATE:<a name="line.111"></a>
-<span class="sourceLineNo">112</span>                    setupRandPartB();<a name="line.112"></a>
-<span class="sourceLineNo">113</span>                    break;<a name="line.113"></a>
-<span class="sourceLineNo">114</span>                case RAND_PART_C_STATE:<a name="line.114"></a>
-<span class="sourceLineNo">115</span>                    setupRandPartC();<a name="line.115"></a>
-<span class="sourceLineNo">116</span>                    break;<a name="line.116"></a>
-<span class="sourceLineNo">117</span>                case NO_RAND_PART_A_STATE:<a name="line.117"></a>
-<span class="sourceLineNo">118</span>                    break;<a name="line.118"></a>
-<span class="sourceLineNo">119</span>                case NO_RAND_PART_B_STATE:<a name="line.119"></a>
-<span class="sourceLineNo">120</span>                    setupNoRandPartB();<a name="line.120"></a>
-<span class="sourceLineNo">121</span>                    break;<a name="line.121"></a>
-<span class="sourceLineNo">122</span>                case NO_RAND_PART_C_STATE:<a name="line.122"></a>
-<span class="sourceLineNo">123</span>                    setupNoRandPartC();<a name="line.123"></a>
-<span class="sourceLineNo">124</span>                    break;<a name="line.124"></a>
-<span class="sourceLineNo">125</span>                default:<a name="line.125"></a>
-<span class="sourceLineNo">126</span>                    break;<a name="line.126"></a>
-<span class="sourceLineNo">127</span>            }<a name="line.127"></a>
-<span class="sourceLineNo">128</span>            return retChar;<a name="line.128"></a>
-<span class="sourceLineNo">129</span>        }<a name="line.129"></a>
-<span class="sourceLineNo">130</span>    }<a name="line.130"></a>
-<span class="sourceLineNo">131</span><a name="line.131"></a>
-<span class="sourceLineNo">132</span>    private void initialize() throws IOException {<a name="line.132"></a>
-<span class="sourceLineNo">133</span>        char magic1, magic2;<a name="line.133"></a>
-<span class="sourceLineNo">134</span>        char magic3, magic4;<a name="line.134"></a>
-<span class="sourceLineNo">135</span>        magic1 = bsGetUChar();<a name="line.135"></a>
-<span class="sourceLineNo">136</span>        magic2 = bsGetUChar();<a name="line.136"></a>
-<span class="sourceLineNo">137</span>        magic3 = bsGetUChar();<a name="line.137"></a>
-<span class="sourceLineNo">138</span>        magic4 = bsGetUChar();<a name="line.138"></a>
-<span class="sourceLineNo">139</span>        if (magic1 != 'B' || magic2 != 'Z' || magic3 != 'h' || magic4 &lt; '1' || magic4 &gt; '9') {<a name="line.139"></a>
-<span class="sourceLineNo">140</span>            bsFinishedWithStream();<a name="line.140"></a>
-<span class="sourceLineNo">141</span>            streamEnd = true;<a name="line.141"></a>
-<span class="sourceLineNo">142</span>            return;<a name="line.142"></a>
-<span class="sourceLineNo">143</span>        }<a name="line.143"></a>
-<span class="sourceLineNo">144</span><a name="line.144"></a>
-<span class="sourceLineNo">145</span>        setDecompressStructureSizes(magic4 - '0');<a name="line.145"></a>
-<span class="sourceLineNo">146</span>        computedCombinedCRC = 0;<a name="line.146"></a>
-<span class="sourceLineNo">147</span>    }<a name="line.147"></a>
-<span class="sourceLineNo">148</span><a name="line.148"></a>
-<span class="sourceLineNo">149</span>    private void initBlock() throws IOException {<a name="line.149"></a>
-<span class="sourceLineNo">150</span>        char magic1, magic2, magic3, magic4;<a name="line.150"></a>
-<span class="sourceLineNo">151</span>        char magic5, magic6;<a name="line.151"></a>
-<span class="sourceLineNo">152</span>        magic1 = bsGetUChar();<a name="line.152"></a>
-<span class="sourceLineNo">153</span>        magic2 = bsGetUChar();<a name="line.153"></a>
-<span class="sourceLineNo">154</span>        magic3 = bsGetUChar();<a name="line.154"></a>
-<span class="sourceLineNo">155</span>        magic4 = bsGetUChar();<a name="line.155"></a>
-<span class="sourceLineNo">156</span>        magic5 = bsGetUChar();<a name="line.156"></a>
-<span class="sourceLineNo">157</span>        magic6 = bsGetUChar();<a name="line.157"></a>
-<span class="sourceLineNo">158</span>        if (magic1 == 0x17 &amp;&amp; magic2 == 0x72 &amp;&amp; magic3 == 0x45 &amp;&amp; magic4 == 0x38 &amp;&amp; magic5 == 0x50 &amp;&amp; magic6 == 0x90) {<a name="line.158"></a>
-<span class="sourceLineNo">159</span>            complete();<a name="line.159"></a>
-<span class="sourceLineNo">160</span>            return;<a name="line.160"></a>
-<span class="sourceLineNo">161</span>        }<a name="line.161"></a>
-<span class="sourceLineNo">162</span><a name="line.162"></a>
-<span class="sourceLineNo">163</span>        if (magic1 != 0x31 || magic2 != 0x41 || magic3 != 0x59 || magic4 != 0x26 || magic5 != 0x53 || magic6 != 0x59) {<a name="line.163"></a>
-<span class="sourceLineNo">164</span>            throw new IOException("bad block header");<a name="line.164"></a>
-<span class="sourceLineNo">165</span>        }<a name="line.165"></a>
-<span class="sourceLineNo">166</span><a name="line.166"></a>
-<span class="sourceLineNo">167</span>        storedBlockCRC = bsGetInt32();<a name="line.167"></a>
-<span class="sourceLineNo">168</span><a name="line.168"></a>
-<span class="sourceLineNo">169</span>        if (bsR(1) == 1) {<a name="line.169"></a>
-<span class="sourceLineNo">170</span>            blockRandomised = true;<a name="line.170"></a>
-<span class="sourceLineNo">171</span>        } else {<a name="line.171"></a>
-<span class="sourceLineNo">172</span>            blockRandomised = false;<a name="line.172"></a>
-<span class="sourceLineNo">173</span>        }<a name="line.173"></a>
-<span class="sourceLineNo">174</span><a name="line.174"></a>
-<span class="sourceLineNo">175</span>        //        currBlockNo++;<a name="line.175"></a>
-<span class="sourceLineNo">176</span>        getAndMoveToFrontDecode();<a name="line.176"></a>
-<span class="sourceLineNo">177</span><a name="line.177"></a>
-<span class="sourceLineNo">178</span>        mCrc.initialiseCRC();<a name="line.178"></a>
-<span class="sourceLineNo">179</span>        currentState = START_BLOCK_STATE;<a name="line.179"></a>
-<span class="sourceLineNo">180</span>    }<a name="line.180"></a>
-<span class="sourceLineNo">181</span><a name="line.181"></a>
-<span class="sourceLineNo">182</span>    private void endBlock() throws IOException {<a name="line.182"></a>
-<span class="sourceLineNo">183</span>        computedBlockCRC = mCrc.getFinalCRC();<a name="line.183"></a>
-<span class="sourceLineNo">184</span>        /* A bad CRC is considered a fatal error. */<a name="line.184"></a>
-<span class="sourceLineNo">185</span>        if (storedBlockCRC != computedBlockCRC) {<a name="line.185"></a>
-<span class="sourceLineNo">186</span>            throw new IOException("CRC error");<a name="line.186"></a>
-<span class="sourceLineNo">187</span>        }<a name="line.187"></a>
-<span class="sourceLineNo">188</span><a name="line.188"></a>
-<span class="sourceLineNo">189</span>        computedCombinedCRC = (computedCombinedCRC &lt;&lt; 1) | (computedCombinedCRC &gt;&gt;&gt; 31);<a name="line.189"></a>
-<span class="sourceLineNo">190</span>        computedCombinedCRC ^= computedBlockCRC;<a name="line.190"></a>
-<span class="sourceLineNo">191</span>    }<a name="line.191"></a>
-<span class="sourceLineNo">192</span><a name="line.192"></a>
-<span class="sourceLineNo">193</span>    private void complete() throws IOException {<a name="line.193"></a>
-<span class="sourceLineNo">194</span>        storedCombinedCRC = bsGetInt32();<a name="line.194"></a>
-<span class="sourceLineNo">195</span>        if (storedCombinedCRC != computedCombinedCRC) {<a name="line.195"></a>
-<span class="sourceLineNo">196</span>            throw new IOException("CRC error");<a name="line.196"></a>
-<span class="sourceLineNo">197</span>        }<a name="line.197"></a>
-<span class="sourceLineNo">198</span><a name="line.198"></a>
-<span class="sourceLineNo">199</span>        bsFinishedWithStream();<a name="line.199"></a>
-<span class="sourceLineNo">200</span>        streamEnd = true;<a name="line.200"></a>
-<span class="sourceLineNo">201</span>    }<a name="line.201"></a>
-<span class="sourceLineNo">202</span><a name="line.202"></a>
-<span class="sourceLineNo">203</span>    private void bsFinishedWithStream() {<a name="line.203"></a>
-<span class="sourceLineNo">204</span>        try {<a name="line.204"></a>
-<span class="sourceLineNo">205</span>            if (this.bsStream != null &amp;&amp; this.bsStream != System.in) {<a name="line.205"></a>
-<span class="sourceLineNo">206</span>                this.bsStream.close();<a name="line.206"></a>
-<span class="sourceLineNo">207</span>                this.bsStream = null;<a name="line.207"></a>
-<span class="sourceLineNo">208</span><a name="line.208"></a>
-<span class="sourceLineNo">209</span>            }<a name="line.209"></a>
-<span class="sourceLineNo">210</span>        } catch (IOException ioe) {<a name="line.210"></a>
-<span class="sourceLineNo">211</span>            //ignore<a name="line.211"></a>
-<span class="sourceLineNo">212</span>        }<a name="line.212"></a>
-<span class="sourceLineNo">213</span>    }<a name="line.213"></a>
-<span class="sourceLineNo">214</span><a name="line.214"></a>
-<span class="sourceLineNo">215</span>    private void bsSetStream() {<a name="line.215"></a>
-<span class="sourceLineNo">216</span>        bsStream = null;<a name="line.216"></a>
-<span class="sourceLineNo">217</span>        bsLive = 0;<a name="line.217"></a>
-<span class="sourceLineNo">218</span>        bsBuff = 0;<a name="line.218"></a>
-<span class="sourceLineNo">219</span>    }<a name="line.219"></a>
-<span class="sourceLineNo">220</span><a name="line.220"></a>
-<span class="sourceLineNo">221</span>    private int bsR(int n) throws IOException {<a name="line.221"></a>
-<span class="sourceLineNo">222</span>        int v;<a name="line.222"></a>
-<span class="sourceLineNo">223</span>        while (bsLive &lt; n) {<a name="line.223"></a>
-<span class="sourceLineNo">224</span>            int zzi;<a name="line.224"></a>
-<span class="sourceLineNo">225</span>            char thech = 0;<a name="line.225"></a>
-<span class="sourceLineNo">226</span><a name="line.226"></a>
-<span class="sourceLineNo">227</span>            thech = (char) bsStream.read();<a name="line.227"></a>
-<span class="sourceLineNo">228</span><a name="line.228"></a>
-<span class="sourceLineNo">229</span>            if (thech == -1) {<a name="line.229"></a>
-<span class="sourceLineNo">230</span>                throw new IOException("unexpected end of file");<a name="line.230"></a>
-<span class="sourceLineNo">231</span>            }<a name="line.231"></a>
-<span class="sourceLineNo">232</span>            zzi = thech;<a name="line.232"></a>
-<span class="sourceLineNo">233</span>            bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.233"></a>
-<span class="sourceLineNo">234</span>            bsLive += 8;<a name="line.234"></a>
-<span class="sourceLineNo">235</span>        }<a name="line.235"></a>
-<span class="sourceLineNo">236</span><a name="line.236"></a>
-<span class="sourceLineNo">237</span>        v = (bsBuff &gt;&gt; (bsLive - n)) &amp; ((1 &lt;&lt; n) - 1);<a name="line.237"></a>
-<span class="sourceLineNo">238</span>        bsLive -= n;<a name="line.238"></a>
-<span class="sourceLineNo">239</span>        return v;<a name="line.239"></a>
-<span class="sourceLineNo">240</span>    }<a name="line.240"></a>
-<span class="sourceLineNo">241</span><a name="line.241"></a>
-<span class="sourceLineNo">242</span>    private char bsGetUChar() throws IOException {<a name="line.242"></a>
-<span class="sourceLineNo">243</span>        return (char) bsR(8);<a name="line.243"></a>
-<span class="sourceLineNo">244</span>    }<a name="line.244"></a>
-<span class="sourceLineNo">245</span><a name="line.245"></a>
-<span class="sourceLineNo">246</span>    private int bsGetint() throws IOException {<a name="line.246"></a>
-<span class="sourceLineNo">247</span>        int u = 0;<a name="line.247"></a>
-<span class="sourceLineNo">248</span>        u = (u &lt;&lt; 8) | bsR(8);<a name="line.248"></a>
-<span class="sourceLineNo">249</span>        u = (u &lt;&lt; 8) | bsR(8);<a name="line.249"></a>
-<span class="sourceLineNo">250</span>        u = (u &lt;&lt; 8) | bsR(8);<a name="line.250"></a>
-<span class="sourceLineNo">251</span>        u = (u &lt;&lt; 8) | bsR(8);<a name="line.251"></a>
-<span class="sourceLineNo">252</span>        return u;<a name="line.252"></a>
-<span class="sourceLineNo">253</span>    }<a name="line.253"></a>
-<span class="sourceLineNo">254</span><a name="line.254"></a>
-<span class="sourceLineNo">255</span>    private int bsGetIntVS(int numBits) throws IOException {<a name="line.255"></a>
-<span class="sourceLineNo">256</span>        return bsR(numBits);<a name="line.256"></a>
-<span class="sourceLineNo">257</span>    }<a name="line.257"></a>
-<span class="sourceLineNo">258</span><a name="line.258"></a>
-<span class="sourceLineNo">259</span>    private int bsGetInt32() throws IOException {<a name="line.259"></a>
-<span class="sourceLineNo">260</span>        return bsGetint();<a name="line.260"></a>
-<span class="sourceLineNo">261</span>    }<a name="line.261"></a>
-<span class="sourceLineNo">262</span><a name="line.262"></a>
-<span class="sourceLineNo">263</span>    private void hbCreateDecodeTables(int[] limit, int[] base,<a name="line.263"></a>
-<span class="sourceLineNo">264</span>                                      int[] perm, char[] length,<a name="line.264"></a>
-<span class="sourceLineNo">265</span>                                      int minLen, int maxLen, int alphaSize) {<a name="line.265"></a>
-<span class="sourceLineNo">266</span>        int pp, i, j, vec;<a name="line.266"></a>
-<span class="sourceLineNo">267</span><a name="line.267"></a>
-<span class="sourceLineNo">268</span>        pp = 0;<a name="line.268"></a>
-<span class="sourceLineNo">269</span>        for (i = minLen; i &lt;= maxLen; i++) {<a name="line.269"></a>
-<span class="sourceLineNo">270</span>            for (j = 0; j &lt; alphaSize; j++) {<a name="line.270"></a>
-<span class="sourceLineNo">271</span>                if (length[j] == i) {<a name="line.271"></a>
-<span class="sourceLineNo">272</span>                    perm[pp] = j;<a name="line.272"></a>
-<span class="sourceLineNo">273</span>                    pp++;<a name="line.273"></a>
-<span class="sourceLineNo">274</span>                }<a name="line.274"></a>
-<span class="sourceLineNo">275</span>            }<a name="line.275"></a>
-<span class="sourceLineNo">276</span>        }<a name="line.276"></a>
-<span class="sourceLineNo">277</span><a name="line.277"></a>
-<span class="sourceLineNo">278</span>        for (i = 0; i &lt; MAX_CODE_LEN; i++) {<a name="line.278"></a>
-<span class="sourceLineNo">279</span>            base[i] = 0;<a name="line.279"></a>
-<span class="sourceLineNo">280</span>        }<a name="line.280"></a>
-<span class="sourceLineNo">281</span>        for (i = 0; i &lt; alphaSize; i++) {<a name="line.281"></a>
-<span class="sourceLineNo">282</span>            base[length[i] + 1]++;<a name="line.282"></a>
-<span class="sourceLineNo">283</span>        }<a name="line.283"></a>
-<span class="sourceLineNo">284</span><a name="line.284"></a>
-<span class="sourceLineNo">285</span>        for (i = 1; i &lt; MAX_CODE_LEN; i++) {<a name="line.285"></a>
-<span class="sourceLineNo">286</span>            base[i] += base[i - 1];<a name="line.286"></a>
-<span class="sourceLineNo">287</span>        }<a name="line.287"></a>
-<span class="sourceLineNo">288</span><a name="line.288"></a>
-<span class="sourceLineNo">289</span>        for (i = 0; i &lt; MAX_CODE_LEN; i++) {<a name="line.289"></a>
-<span class="sourceLineNo">290</span>            limit[i] = 0;<a name="line.290"></a>
-<span class="sourceLineNo">291</span>        }<a name="line.291"></a>
-<span class="sourceLineNo">292</span>        vec = 0;<a name="line.292"></a>
-<span class="sourceLineNo">293</span><a name="line.293"></a>
-<span class="sourceLineNo">294</span>        for (i = minLen; i &lt;= maxLen; i++) {<a name="line.294"></a>
-<span class="sourceLineNo">295</span>            vec += (base[i + 1] - base[i]);<a name="line.295"></a>
-<span class="sourceLineNo">296</span>            limit[i] = vec - 1;<a name="line.296"></a>
-<span class="sourceLineNo">297</span>            vec &lt;&lt;= 1;<a name="line.297"></a>
-<span class="sourceLineNo">298</span>        }<a name="line.298"></a>
-<span class="sourceLineNo">299</span>        for (i = minLen + 1; i &lt;= maxLen; i++) {<a name="line.299"></a>
-<span class="sourceLineNo">300</span>            base[i] = ((limit[i - 1] + 1) &lt;&lt; 1) - base[i];<a name="line.300"></a>
-<span class="sourceLineNo">301</span>        }<a name="line.301"></a>
-<span class="sourceLineNo">302</span>    }<a name="line.302"></a>
-<span class="sourceLineNo">303</span><a name="line.303"></a>
-<span class="sourceLineNo">304</span>    private void recvDecodingTables() throws IOException {<a name="line.304"></a>
-<span class="sourceLineNo">305</span>        char len[][] = new char[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.305"></a>
-<span class="sourceLineNo">306</span>        int i, j, t, nGroups, nSelectors, alphaSize;<a name="line.306"></a>
-<span class="sourceLineNo">307</span>        int minLen, maxLen;<a name="line.307"></a>
-<span class="sourceLineNo">308</span>        boolean[] inUse16 = new boolean[16];<a name="line.308"></a>
-<span class="sourceLineNo">309</span><a name="line.309"></a>
-<span class="sourceLineNo">310</span>        /* Receive the mapping table */<a name="line.310"></a>
-<span class="sourceLineNo">311</span>        for (i = 0; i &lt; 16; i++) {<a name="line.311"></a>
-<span class="sourceLineNo">312</span>            if (bsR(1) == 1) {<a name="line.312"></a>
-<span class="sourceLineNo">313</span>                inUse16[i] = true;<a name="line.313"></a>
-<span class="sourceLineNo">314</span>            } else {<a name="line.314"></a>
-<span class="sourceLineNo">315</span>                inUse16[i] = false;<a name="line.315"></a>
-<span class="sourceLineNo">316</span>            }<a name="line.316"></a>
-<span class="sourceLineNo">317</span>        }<a name="line.317"></a>
-<span class="sourceLineNo">318</span><a name="line.318"></a>
-<span class="sourceLineNo">319</span>        for (i = 0; i &lt; 256; i++) {<a name="line.319"></a>
-<span class="sourceLineNo">320</span>            inUse[i] = false;<a name="line.320"></a>
-<span class="sourceLineNo">321</span>        }<a name="line.321"></a>
-<span class="sourceLineNo">322</span><a name="line.322"></a>
-<span class="sourceLineNo">323</span>        for (i = 0; i &lt; 16; i++) {<a name="line.323"></a>
-<span class="sourceLineNo">324</span>            if (inUse16[i]) {<a name="line.324"></a>
-<span class="sourceLineNo">325</span>                for (j = 0; j &lt; 16; j++) {<a name="line.325"></a>
-<span class="sourceLineNo">326</span>                    if (bsR(1) == 1) {<a name="line.326"></a>
-<span class="sourceLineNo">327</span>                        inUse[i * 16 + j] = true;<a name="line.327"></a>
-<span class="sourceLineNo">328</span>                    }<a name="line.328"></a>
-<span class="sourceLineNo">329</span>                }<a name="line.329"></a>
-<span class="sourceLineNo">330</span>            }<a name="line.330"></a>
-<span class="sourceLineNo">331</span>        }<a name="line.331"></a>
-<span class="sourceLineNo">332</span><a name="line.332"></a>
-<span class="sourceLineNo">333</span>        makeMaps();<a name="line.333"></a>
-<span class="sourceLineNo">334</span>        alphaSize = nInUse + 2;<a name="line.334"></a>
-<span class="sourceLineNo">335</span><a name="line.335"></a>
-<span class="sourceLineNo">336</span>        /* Now the selectors */<a name="line.336"></a>
-<span class="sourceLineNo">337</span>        nGroups = bsR(3);<a name="line.337"></a>
-<span class="sourceLineNo">338</span>        nSelectors = bsR(15);<a name="line.338"></a>
-<span class="sourceLineNo">339</span>        for (i = 0; i &lt; nSelectors; i++) {<a name="line.339"></a>
-<span class="sourceLineNo">340</span>            j = 0;<a name="line.340"></a>
-<span class="sourceLineNo">341</span>            while (bsR(1) == 1) {<a name="line.341"></a>
-<span class="sourceLineNo">342</span>                j++;<a name="line.342"></a>
-<span class="sourceLineNo">343</span>            }<a name="line.343"></a>
-<span class="sourceLineNo">344</span>            selectorMtf[i] = (char) j;<a name="line.344"></a>
-<span class="sourceLineNo">345</span>        }<a name="line.345"></a>
-<span class="sourceLineNo">346</span><a name="line.346"></a>
-<span class="sourceLineNo">347</span>        /* Undo the MTF values for the selectors. */<a name="line.347"></a>
-<span class="sourceLineNo">348</span>        {<a name="line.348"></a>
-<span class="sourceLineNo">349</span>            char[] pos = new char[N_GROUPS];<a name="line.349"></a>
-<span class="sourceLineNo">350</span>            char tmp, v;<a name="line.350"></a>
-<span class="sourceLineNo">351</span>            for (v = 0; v &lt; nGroups; v++) {<a name="line.351"></a>
-<span class="sourceLineNo">352</span>                pos[v] = v;<a name="line.352"></a>
-<span class="sourceLineNo">353</span>            }<a name="line.353"></a>
-<span class="sourceLineNo">354</span><a name="line.354"></a>
-<span class="sourceLineNo">355</span>            for (i = 0; i &lt; nSelectors; i++) {<a name="line.355"></a>
-<span class="sourceLineNo">356</span>                v = selectorMtf[i];<a name="line.356"></a>
-<span class="sourceLineNo">357</span>                tmp = pos[v];<a name="line.357"></a>
-<span class="sourceLineNo">358</span>                while (v &gt; 0) {<a name="line.358"></a>
-<span class="sourceLineNo">359</span>                    pos[v] = pos[v - 1];<a name="line.359"></a>
-<span class="sourceLineNo">360</span>                    v--;<a name="line.360"></a>
-<span class="sourceLineNo">361</span>                }<a name="line.361"></a>
-<span class="sourceLineNo">362</span>                pos[0] = tmp;<a name="line.362"></a>
-<span class="sourceLineNo">363</span>                selector[i] = tmp;<a name="line.363"></a>
-<span class="sourceLineNo">364</span>            }<a name="line.364"></a>
-<span class="sourceLineNo">365</span>        }<a name="line.365"></a>
-<span class="sourceLineNo">366</span><a name="line.366"></a>
-<span class="sourceLineNo">367</span>        /* Now the coding tables */<a name="line.367"></a>
-<span class="sourceLineNo">368</span>        for (t = 0; t &lt; nGroups; t++) {<a name="line.368"></a>
-<span class="sourceLineNo">369</span>            int curr = bsR(5);<a name="line.369"></a>
-<span class="sourceLineNo">370</span>            for (i = 0; i &lt; alphaSize; i++) {<a name="line.370"></a>
-<span class="sourceLineNo">371</span>                while (bsR(1) == 1) {<a name="line.371"></a>
-<span class="sourceLineNo">372</span>                    if (bsR(1) == 0) {<a name="line.372"></a>
-<span class="sourceLineNo">373</span>                        curr++;<a name="line.373"></a>
-<span class="sourceLineNo">374</span>                    } else {<a name="line.374"></a>
-<span class="sourceLineNo">375</span>                        curr--;<a name="line.375"></a>
-<span class="sourceLineNo">376</span>                    }<a name="line.376"></a>
-<span class="sourceLineNo">377</span>                }<a name="line.377"></a>
-<span class="sourceLineNo">378</span>                len[t][i] = (char) curr;<a name="line.378"></a>
-<span class="sourceLineNo">379</span>            }<a name="line.379"></a>
-<span class="sourceLineNo">380</span>        }<a name="line.380"></a>
-<span class="sourceLineNo">381</span><a name="line.381"></a>
-<span class="sourceLineNo">382</span>        /* Create the Huffman decoding tables */<a name="line.382"></a>
-<span class="sourceLineNo">383</span>        for (t = 0; t &lt; nGroups; t++) {<a name="line.383"></a>
-<span class="sourceLineNo">384</span>            minLen = 32;<a name="line.384"></a>
-<span class="sourceLineNo">385</span>            maxLen = 0;<a name="line.385"></a>
-<span class="sourceLineNo">386</span>            for (i = 0; i &lt; alphaSize; i++) {<a name="line.386"></a>
-<span class="sourceLineNo">387</span>                if (len[t][i] &gt; maxLen) {<a name="line.387"></a>
-<span class="sourceLineNo">388</span>                    maxLen = len[t][i];<a name="line.388"></a>
-<span class="sourceLineNo">389</span>                }<a name="line.389"></a>
-<span class="sourceLineNo">390</span>                if (len[t][i] &lt; minLen) {<a name="line.390"></a>
-<span class="sourceLineNo">391</span>                    minLen = len[t][i];<a name="line.391"></a>
-<span class="sourceLineNo">392</span>                }<a name="line.392"></a>
-<span class="sourceLineNo">393</span>            }<a name="line.393"></a>
-<span class="sourceLineNo">394</span>            hbCreateDecodeTables(limit[t], base[t], perm[t], len[t], minLen,<a name="line.394"></a>
-<span class="sourceLineNo">395</span>                    maxLen, alphaSize);<a name="line.395"></a>
-<span class="sourceLineNo">396</span>            minLens[t] = minLen;<a name="line.396"></a>
-<span class="sourceLineNo">397</span>        }<a name="line.397"></a>
-<span class="sourceLineNo">398</span>    }<a name="line.398"></a>
-<span class="sourceLineNo">399</span><a name="line.399"></a>
-<span class="sourceLineNo">400</span>    private void getAndMoveToFrontDecode() throws IOException {<a name="line.400"></a>
-<span class="sourceLineNo">401</span>        char[] yy = new char[256];<a name="line.401"></a>
-<span class="sourceLineNo">402</span>        int i, j, nextSym, limitLast;<a name="line.402"></a>
-<span class="sourceLineNo">403</span>        int EOB, groupNo, groupPos;<a name="line.403"></a>
-<span class="sourceLineNo">404</span><a name="line.404"></a>
-<span class="sourceLineNo">405</span>        limitLast = BASE_BLOCK_SIZE * blockSize100k;<a name="line.405"></a>
-<span class="sourceLineNo">406</span>        origPtr = bsGetIntVS(24);<a name="line.406"></a>
-<span class="sourceLineNo">407</span><a name="line.407"></a>
-<span class="sourceLineNo">408</span>        recvDecodingTables();<a name="line.408"></a>
-<span class="sourceLineNo">409</span>        EOB = nInUse + 1;<a name="line.409"></a>
-<span class="sourceLineNo">410</span>        groupNo = -1;<a name="line.410"></a>
-<span class="sourceLineNo">411</span>        groupPos = 0;<a name="line.411"></a>
-<span class="sourceLineNo">412</span><a name="line.412"></a>
-<span class="sourceLineNo">413</span>        /*<a name="line.413"></a>
-<span class="sourceLineNo">414</span>        Setting up the unzftab entries here is not strictly<a name="line.414"></a>
-<span class="sourceLineNo">415</span>        necessary, but it does save having to do it later<a name="line.415"></a>
-<span class="sourceLineNo">416</span>        in a separate pass, and so saves a block's worth of<a name="line.416"></a>
-<span class="sourceLineNo">417</span>        cache misses.<a name="line.417"></a>
-<span class="sourceLineNo">418</span>         */<a name="line.418"></a>
-<span class="sourceLineNo">419</span>        for (i = 0; i &lt;= 255; i++) {<a name="line.419"></a>
-<span class="sourceLineNo">420</span>            unzftab[i] = 0;<a name="line.420"></a>
-<span class="sourceLineNo">421</span>        }<a name="line.421"></a>
-<span class="sourceLineNo">422</span><a name="line.422"></a>
-<span class="sourceLineNo">423</span>        for (i = 0; i &lt;= 255; i++) {<a name="line.423"></a>
-<span class="sourceLineNo">424</span>            yy[i] = (char) i;<a name="line.424"></a>
-<span class="sourceLineNo">425</span>        }<a name="line.425"></a>
-<span class="sourceLineNo">426</span><a name="line.426"></a>
-<span class="sourceLineNo">427</span>        last = -1;<a name="line.427"></a>
-<span class="sourceLineNo">428</span><a name="line.428"></a>
-<span class="sourceLineNo">429</span>        {<a name="line.429"></a>
-<span class="sourceLineNo">430</span>            int zt, zn, zvec, zj;<a name="line.430"></a>
-<span class="sourceLineNo">431</span>            if (groupPos == 0) {<a name="line.431"></a>
-<span class="sourceLineNo">432</span>                groupNo++;<a name="line.432"></a>
-<span class="sourceLineNo">433</span>                groupPos = G_SIZE;<a name="line.433"></a>
-<span class="sourceLineNo">434</span>            }<a name="line.434"></a>
-<span class="sourceLineNo">435</span>            groupPos--;<a name="line.435"></a>
-<span class="sourceLineNo">436</span>            zt = selector[groupNo];<a name="line.436"></a>
-<span class="sourceLineNo">437</span>            zn = minLens[zt];<a name="line.437"></a>
-<span class="sourceLineNo">438</span>            zvec = bsR(zn);<a name="line.438"></a>
-<span class="sourceLineNo">439</span>            while (zvec &gt; limit[zt][zn]) {<a name="line.439"></a>
-<span class="sourceLineNo">440</span>                zn++;<a name="line.440"></a>
-<span class="sourceLineNo">441</span>                {<a name="line.441"></a>
-<span class="sourceLineNo">442</span>                    {<a name="line.442"></a>
-<span class="sourceLineNo">443</span>                        while (bsLive &lt; 1) {<a name="line.443"></a>
-<span class="sourceLineNo">444</span>                            int zzi;<a name="line.444"></a>
-<span class="sourceLineNo">445</span>                            char thech = 0;<a name="line.445"></a>
-<span class="sourceLineNo">446</span><a name="line.446"></a>
-<span class="sourceLineNo">447</span>                            thech = (char) bsStream.read();<a name="line.447"></a>
-<span class="sourceLineNo">448</span><a name="line.448"></a>
-<span class="sourceLineNo">449</span>                            if (thech == -1) {<a name="line.449"></a>
-<span class="sourceLineNo">450</span>                                throw new IOException("unexpected end of file");<a name="line.450"></a>
-<span class="sourceLineNo">451</span>                            }<a name="line.451"></a>
-<span class="sourceLineNo">452</span>                            zzi = thech;<a name="line.452"></a>
-<span class="sourceLineNo">453</span>                            bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.453"></a>
-<span class="sourceLineNo">454</span>                            bsLive += 8;<a name="line.454"></a>
-<span class="sourceLineNo">455</span>                        }<a name="line.455"></a>
-<span class="sourceLineNo">456</span>                    }<a name="line.456"></a>
-<span class="sourceLineNo">457</span>                    zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.457"></a>
-<span class="sourceLineNo">458</span>                    bsLive--;<a name="line.458"></a>
-<span class="sourceLineNo">459</span>                }<a name="line.459"></a>
-<span class="sourceLineNo">460</span>                zvec = (zvec &lt;&lt; 1) | zj;<a name="line.460"></a>
-<span class="sourceLineNo">461</span>            }<a name="line.461"></a>
-<span class="sourceLineNo">462</span>            nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.462"></a>
-<span class="sourceLineNo">463</span>        }<a name="line.463"></a>
-<span class="sourceLineNo">464</span><a name="line.464"></a>
-<span class="sourceLineNo">465</span>        while (true) {<a name="line.465"></a>
-<span class="sourceLineNo">466</span><a name="line.466"></a>
-<span class="sourceLineNo">467</span>            if (nextSym == EOB) {<a name="line.467"></a>
-<span class="sourceLineNo">468</span>                break;<a name="line.468"></a>
-<span class="sourceLineNo">469</span>            }<a name="line.469"></a>
-<span class="sourceLineNo">470</span><a name="line.470"></a>
-<span class="sourceLineNo">471</span>            if (nextSym == RUNA || nextSym == RUNB) {<a name="line.471"></a>
-<span class="sourceLineNo">472</span>                char ch;<a name="line.472"></a>
-<span class="sourceLineNo">473</span>                int s = -1;<a name="line.473"></a>
-<span class="sourceLineNo">474</span>                int N = 1;<a name="line.474"></a>
-<span class="sourceLineNo">475</span>                do {<a name="line.475"></a>
-<span class="sourceLineNo">476</span>                    if (nextSym == RUNA) {<a name="line.476"></a>
-<span class="sourceLineNo">477</span>                        s = s + (0 + 1) * N;<a name="line.477"></a>
-<span class="sourceLineNo">478</span>                    } else if (nextSym == RUNB) {<a name="line.478"></a>
-<span class="sourceLineNo">479</span>                        s = s + (1 + 1) * N;<a name="line.479"></a>
-<span class="sourceLineNo">480</span>                    }<a name="line.480"></a>
-<span class="sourceLineNo">481</span>                    N = N * 2;<a name="line.481"></a>
-<span class="sourceLineNo">482</span>                    {<a name="line.482"></a>
-<span class="sourceLineNo">483</span>                        int zt, zn, zvec, zj;<a name="line.483"></a>
-<span class="sourceLineNo">484</span>                        if (groupPos == 0) {<a name="line.484"></a>
-<span class="sourceLineNo">485</span>                            groupNo++;<a name="line.485"></a>
-<span class="sourceLineNo">486</span>                            groupPos = G_SIZE;<a name="line.486"></a>
-<span class="sourceLineNo">487</span>                        }<a name="line.487"></a>
-<span class="sourceLineNo">488</span>                        groupPos--;<a name="line.488"></a>
-<span class="sourceLineNo">489</span>                        zt = selector[groupNo];<a name="line.489"></a>
-<span class="sourceLineNo">490</span>                        zn = minLens[zt];<a name="line.490"></a>
-<span class="sourceLineNo">491</span>                        zvec = bsR(zn);<a name="line.491"></a>
-<span class="sourceLineNo">492</span>                        while (zvec &gt; limit[zt][zn]) {<a name="line.492"></a>
-<span class="sourceLineNo">493</span>                            zn++;<a name="line.493"></a>
-<span class="sourceLineNo">494</span>                            {<a name="line.494"></a>
-<span class="sourceLineNo">495</span>                                {<a name="line.495"></a>
-<span class="sourceLineNo">496</span>                                    while (bsLive &lt; 1) {<a name="line.496"></a>
-<span class="sourceLineNo">497</span>                                        int zzi;<a name="line.497"></a>
-<span class="sourceLineNo">498</span>                                        char thech = 0;<a name="line.498"></a>
-<span class="sourceLineNo">499</span><a name="line.499"></a>
-<span class="sourceLineNo">500</span>                                        thech = (char) bsStream.read();<a name="line.500"></a>
-<span class="sourceLineNo">501</span><a name="line.501"></a>
-<span class="sourceLineNo">502</span>                                        if (thech == -1) {<a name="line.502"></a>
-<span class="sourceLineNo">503</span>                                            throw new IOException("unexpected end of file");<a name="line.503"></a>
-<span class="sourceLineNo">504</span>                                        }<a name="line.504"></a>
-<span class="sourceLineNo">505</span>                                        zzi = thech;<a name="line.505"></a>
-<span class="sourceLineNo">506</span>                                        bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.506"></a>
-<span class="sourceLineNo">507</span>                                        bsLive += 8;<a name="line.507"></a>
-<span class="sourceLineNo">508</span>                                    }<a name="line.508"></a>
-<span class="sourceLineNo">509</span>                                }<a name="line.509"></a>
-<span class="sourceLineNo">510</span>                                zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.510"></a>
-<span class="sourceLineNo">511</span>                                bsLive--;<a name="line.511"></a>
-<span class="sourceLineNo">512</span>                            }<a name="line.512"></a>
-<span class="sourceLineNo">513</span>                            zvec = (zvec &lt;&lt; 1) | zj;<a name="line.513"></a>
-<span class="sourceLineNo">514</span>                        }<a name="line.514"></a>
-<span class="sourceLineNo">515</span>                        nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.515"></a>
-<span class="sourceLineNo">516</span>                    }<a name="line.516"></a>
-<span class="sourceLineNo">517</span>                } while (nextSym == RUNA || nextSym == RUNB);<a name="line.517"></a>
-<span class="sourceLineNo">518</span><a name="line.518"></a>
-<span class="sourceLineNo">519</span>                s++;<a name="line.519"></a>
-<span class="sourceLineNo">520</span>                ch = seqToUnseq[yy[0]];<a name="line.520"></a>
-<span class="sourceLineNo">521</span>                unzftab[ch] += s;<a name="line.521"></a>
-<span class="sourceLineNo">522</span><a name="line.522"></a>
-<span class="sourceLineNo">523</span>                while (s &gt; 0) {<a name="line.523"></a>
-<span class="sourceLineNo">524</span>                    last++;<a name="line.524"></a>
-<span class="sourceLineNo">525</span>                    ll8[last] = ch;<a name="line.525"></a>
-<span class="sourceLineNo">526</span>                    s--;<a name="line.526"></a>
-<span class="sourceLineNo">527</span>                }<a name="line.527"></a>
-<span class="sourceLineNo">528</span><a name="line.528"></a>
-<span class="sourceLineNo">529</span>                if (last &gt;= limitLast) {<a name="line.529"></a>
-<span class="sourceLineNo">530</span>                    throw new IOException("block overrun");<a name="line.530"></a>
-<span class="sourceLineNo">531</span>                }<a name="line.531"></a>
-<span class="sourceLineNo">532</span>                continue;<a name="line.532"></a>
-<span class="sourceLineNo">533</span>            } else {<a name="line.533"></a>
-<span class="sourceLineNo">534</span>                char tmp;<a name="line.534"></a>
-<span class="sourceLineNo">535</span>                last++;<a name="line.535"></a>
-<span class="sourceLineNo">536</span>                if (last &gt;= limitLast) {<a name="line.536"></a>
-<span class="sourceLineNo">537</span>                    throw new IOException("block overrun");<a name="line.537"></a>
-<span class="sourceLineNo">538</span>                }<a name="line.538"></a>
-<span class="sourceLineNo">539</span><a name="line.539"></a>
-<span class="sourceLineNo">540</span>                tmp = yy[nextSym - 1];<a name="line.540"></a>
-<span class="sourceLineNo">541</span>                unzftab[seqToUnseq[tmp]]++;<a name="line.541"></a>
-<span class="sourceLineNo">542</span>                ll8[last] = seqToUnseq[tmp];<a name="line.542"></a>
-<span class="sourceLineNo">543</span><a name="line.543"></a>
-<span class="sourceLineNo">544</span>                /*<a name="line.544"></a>
-<span class="sourceLineNo">545</span>                This loop is hammered during decompression,<a name="line.545"></a>
-<span class="sourceLineNo">546</span>                hence the unrolling.<a name="line.546"></a>
-<span class="sourceLineNo">547</span><a name="line.547"></a>
-<span class="sourceLineNo">548</span>                for (j = nextSym-1; j &gt; 0; j--) yy[j] = yy[j-1];<a name="line.548"></a>
-<span class="sourceLineNo">549</span>                 */<a name="line.549"></a>
-<span class="sourceLineNo">550</span><a name="line.550"></a>
-<span class="sourceLineNo">551</span>                j = nextSym - 1;<a name="line.551"></a>
-<span class="sourceLineNo">552</span>                for (; j &gt; 3; j -= 4) {<a name="line.552"></a>
-<span class="sourceLineNo">553</span>                    yy[j] = yy[j - 1];<a name="line.553"></a>
-<span class="sourceLineNo">554</span>                    yy[j - 1] = yy[j - 2];<a name="line.554"></a>
-<span class="sourceLineNo">555</span>                    yy[j - 2] = yy[j - 3];<a name="line.555"></a>
-<span class="sourceLineNo">556</span>                    yy[j - 3] = yy[j - 4];<a name="line.556"></a>
-<span class="sourceLineNo">557</span>                }<a name="line.557"></a>
-<span class="sourceLineNo">558</span>                for (; j &gt; 0; j--) {<a name="line.558"></a>
-<span class="sourceLineNo">559</span>                    yy[j] = yy[j - 1];<a name="line.559"></a>
-<span class="sourceLineNo">560</span>                }<a name="line.560"></a>
-<span class="sourceLineNo">561</span><a name="line.561"></a>
-<span class="sourceLineNo">562</span>                yy[0] = tmp;<a name="line.562"></a>
-<span class="sourceLineNo">563</span>                {<a name="line.563"></a>
-<span class="sourceLineNo">564</span>                    int zt, zn, zvec, zj;<a name="line.564"></a>
-<span class="sourceLineNo">565</span>                    if (groupPos == 0) {<a name="line.565"></a>
-<span class="sourceLineNo">566</span>                        groupNo++;<a name="line.566"></a>
-<span class="sourceLineNo">567</span>                        groupPos = G_SIZE;<a name="line.567"></a>
-<span class="sourceLineNo">568</span>                    }<a name="line.568"></a>
-<span class="sourceLineNo">569</span>                    groupPos--;<a name="line.569"></a>
-<span class="sourceLineNo">570</span>                    zt = selector[groupNo];<a name="line.570"></a>
-<span class="sourceLineNo">571</span>                    zn = minLens[zt];<a name="line.571"></a>
-<span class="sourceLineNo">572</span>                    zvec = bsR(zn);<a name="line.572"></a>
-<span class="sourceLineNo">573</span>                    while (zvec &gt; limit[zt][zn]) {<a name="line.573"></a>
-<span class="sourceLineNo">574</span>                        zn++;<a name="line.574"></a>
-<span class="sourceLineNo">575</span>                        {<a name="line.575"></a>
-<span class="sourceLineNo">576</span>                            {<a name="line.576"></a>
-<span class="sourceLineNo">577</span>                                while (bsLive &lt; 1) {<a name="line.577"></a>
-<span class="sourceLineNo">578</span>                                    int zzi;<a name="line.578"></a>
-<span class="sourceLineNo">579</span>                                    char thech = 0;<a name="line.579"></a>
-<span class="sourceLineNo">580</span><a name="line.580"></a>
-<span class="sourceLineNo">581</span>                                    thech = (char) bsStream.read();<a name="line.581"></a>
-<span class="sourceLineNo">582</span><a name="line.582"></a>
-<span class="sourceLineNo">583</span>                                    zzi = thech;<a name="line.583"></a>
-<span class="sourceLineNo">584</span>                                    bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.584"></a>
-<span class="sourceLineNo">585</span>                                    bsLive += 8;<a name="line.585"></a>
-<span class="sourceLineNo">586</span>                                }<a name="line.586"></a>
-<span class="sourceLineNo">587</span>                            }<a name="line.587"></a>
-<span class="sourceLineNo">588</span>                            zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.588"></a>
-<span class="sourceLineNo">589</span>                            bsLive--;<a name="line.589"></a>
-<span class="sourceLineNo">590</span>                        }<a name="line.590"></a>
-<span class="sourceLineNo">591</span>                        zvec = (zvec &lt;&lt; 1) | zj;<a name="line.591"></a>
-<span class="sourceLineNo">592</span>                    }<a name="line.592"></a>
-<span class="sourceLineNo">593</span>                    nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.593"></a>
-<span class="sourceLineNo">594</span>                }<a name="line.594"></a>
-<span class="sourceLineNo">595</span>                continue;<a name="line.595"></a>
-<span class="sourceLineNo">596</span>            }<a name="line.596"></a>
-<span class="sourceLineNo">597</span>        }<a name="line.597"></a>
-<span class="sourceLineNo">598</span>    }<a name="line.598"></a>
-<span class="sourceLineNo">599</span><a name="line.599"></a>
-<span class="sourceLineNo">600</span>    private void setupBlock() throws IOException {<a name="line.600"></a>
-<span class="sourceLineNo">601</span>        int i;<a name="line.601"></a>
-<span class="sourceLineNo">602</span>        int[] cftab = new int[257];<a name="line.602"></a>
-<span class="sourceLineNo">603</span>        char ch;<a name="line.603"></a>
-<span class="sourceLineNo">604</span><a name="line.604"></a>
-<span class="sourceLineNo">605</span>        cftab[0] = 0;<a name="line.605"></a>
-<span class="sourceLineNo">606</span>        for (i = 1; i &lt;= 256; i++) {<a name="line.606"></a>
-<span class="sourceLineNo">607</span>            cftab[i] = unzftab[i - 1];<a name="line.607"></a>
-<span class="sourceLineNo">608</span>        }<a name="line.608"></a>
-<span class="sourceLineNo">609</span>        for (i = 1; i &lt;= 256; i++) {<a name="line.609"></a>
-<span class="sourceLineNo">610</span>            cftab[i] += cftab[i - 1];<a name="line.610"></a>
-<span class="sourceLineNo">611</span>        }<a name="line.611"></a>
-<span class="sourceLineNo">612</span><a name="line.612"></a>
-<span class="sourceLineNo">613</span>        for (i = 0; i &lt;= last; i++) {<a name="line.613"></a>
-<span class="sourceLineNo">614</span>            ch = ll8[i];<a name="line.614"></a>
-<span class="sourceLineNo">615</span>            tt[cftab[ch]] = i;<a name="line.615"></a>
-<span class="sourceLineNo">616</span>            cftab[ch]++;<a name="line.616"></a>
-<span class="sourceLineNo">617</span>        }<a name="line.617"></a>
-<span class="sourceLineNo">618</span>        cftab = null;<a name="line.618"></a>
-<span class="sourceLineNo">619</span><a name="line.619"></a>
-<span class="sourceLineNo">620</span>        tPos = tt[origPtr];<a name="line.620"></a>
-<span class="sourceLineNo">621</span><a name="line.621"></a>
-<span class="sourceLineNo">622</span>        count = 0;<a name="line.622"></a>
-<span class="sourceLineNo">623</span>        i2 = 0;<a name="line.623"></a>
-<span class="sourceLineNo">624</span>        ch2 = 256;   /* not a char and not EOF */<a name="line.624"></a>
-<span class="sourceLineNo">625</span><a name="line.625"></a>
-<span class="sourceLineNo">626</span>        if (blockRandomised) {<a name="line.626"></a>
-<span class="sourceLineNo">627</span>            rNToGo = 0;<a name="line.627"></a>
-<span class="sourceLineNo">628</span>            rTPos = 0;<a name="line.628"></a>
-<span class="sourceLineNo">629</span>            setupRandPartA();<a name="line.629"></a>
-<span class="sourceLineNo">630</span>        } else {<a name="line.630"></a>
-<span class="sourceLineNo">631</span>            setupNoRandPartA();<a name="line.631"></a>
-<span class="sourceLineNo">632</span>        }<a name="line.632"></a>
-<span class="sourceLineNo">633</span>    }<a name="line.633"></a>
-<span class="sourceLineNo">634</span><a name="line.634"></a>
-<span class="sourceLineNo">635</span>    private void setupRandPartA() throws IOException {<a name="line.635"></a>
-<span class="sourceLineNo">636</span>        if (i2 &lt;= last) {<a name="line.636"></a>
-<span class="sourceLineNo">637</span>            chPrev = ch2;<a name="line.637"></a>
-<span class="sourceLineNo">638</span>            ch2 = ll8[tPos];<a name="line.638"></a>
-<span class="sourceLineNo">639</span>            tPos = tt[tPos];<a name="line.639"></a>
-<span class="sourceLineNo">640</span>            if (rNToGo == 0) {<a name="line.640"></a>
-<span class="sourceLineNo">641</span>                rNToGo = NUMS[rTPos];<a name="line.641"></a>
-<span class="sourceLineNo">642</span>                rTPos++;<a name="line.642"></a>
-<span class="sourceLineNo">643</span>                if (rTPos == 512) {<a name="line.643"></a>
-<span class="sourceLineNo">644</span>                    rTPos = 0;<a name="line.644"></a>
-<span class="sourceLineNo">645</span>                }<a name="line.645"></a>
-<span class="sourceLineNo">646</span>            }<a name="line.646"></a>
-<span class="sourceLineNo">647</span>            rNToGo--;<a name="line.647"></a>
-<span class="sourceLineNo">648</span>            ch2 ^= ((rNToGo == 1) ? 1 : 0);<a name="line.648"></a>
-<span class="sourceLineNo">649</span>            i2++;<a name="line.649"></a>
-<span class="sourceLineNo">650</span><a name="line.650"></a>
-<span class="sourceLineNo">651</span>            currentChar = ch2;<a name="line.651"></a>
-<span class="sourceLineNo">652</span>            currentState = RAND_PART_B_STATE;<a name="line.652"></a>
-<span class="sourceLineNo">653</span>            mCrc.updateCRC(ch2);<a name="line.653"></a>
-<span class="sourceLineNo">654</span>        } else {<a name="line.654"></a>
-<span class="sourceLineNo">655</span>            endBlock();<a name="line.655"></a>
-<span class="sourceLineNo">656</span>            initBlock();<a name="line.656"></a>
-<span class="sourceLineNo">657</span>            setupBlock();<a name="line.657"></a>
-<span class="sourceLineNo">658</span>        }<a name="line.658"></a>
-<span class="sourceLineNo">659</span>    }<a name="line.659"></a>
-<span class="sourceLineNo">660</span><a name="line.660"></a>
-<span class="sourceLineNo">661</span>    private void setupNoRandPartA() throws IOException {<a name="line.661"></a>
-<span class="sourceLineNo">662</span>        if (i2 &lt;= last) {<a name="line.662"></a>
-<span class="sourceLineNo">663</span>            chPrev = ch2;<a name="line.663"></a>
-<span class="sourceLineNo">664</span>            ch2 = ll8[tPos];<a name="line.664"></a>
-<span class="sourceLineNo">665</span>            tPos = tt[tPos];<a name="line.665"></a>
-<span class="sourceLineNo">666</span>            i2++;<a name="line.666"></a>
-<span class="sourceLineNo">667</span><a name="line.667"></a>
-<span class="sourceLineNo">668</span>            currentChar = ch2;<a name="line.668"></a>
-<span class="sourceLineNo">669</span>            currentState = NO_RAND_PART_B_STATE;<a name="line.669"></a>
-<span class="sourceLineNo">670</span>            mCrc.updateCRC(ch2);<a name="line.670"></a>
-<span class="sourceLineNo">671</span>        } else {<a name="line.671"></a>
-<span class="sourceLineNo">672</span>            endBlock();<a name="line.672"></a>
-<span class="sourceLineNo">673</span>            initBlock();<a name="line.673"></a>
-<span class="sourceLineNo">674</span>            setupBlock();<a name="line.674"></a>
-<span class="sourceLineNo">675</span>        }<a name="line.675"></a>
-<span class="sourceLineNo">676</span>    }<a name="line.676"></a>
-<span class="sourceLineNo">677</span><a name="line.677"></a>
-<span class="sourceLineNo">678</span>    private void setupRandPartB() throws IOException {<a name="line.678"></a>
-<span class="sourceLineNo">679</span>        if (ch2 != chPrev) {<a name="line.679"></a>
-<span class="sourceLineNo">680</span>            currentState = RAND_PART_A_STATE;<a name="line.680"></a>
-<span class="sourceLineNo">681</span>            count = 1;<a name="line.681"></a>
-<span class="sourceLineNo">682</span>            setupRandPartA();<a name="line.682"></a>
-<span class="sourceLineNo">683</span>        } else {<a name="line.683"></a>
-<span class="sourceLineNo">684</span>            count++;<a name="line.684"></a>
-<span class="sourceLineNo">685</span>            if (count &gt;= 4) {<a name="line.685"></a>
-<span class="sourceLineNo">686</span>                z = ll8[tPos];<a name="line.686"></a>
-<span class="sourceLineNo">687</span>                tPos = tt[tPos];<a name="line.687"></a>
-<span class="sourceLineNo">688</span>                if (rNToGo == 0) {<a name="line.688"></a>
-<span class="sourceLineNo">689</span>                    rNToGo = NUMS[rTPos];<a name="line.689"></a>
-<span class="sourceLineNo">690</span>                    rTPos++;<a name="line.690"></a>
-<span class="sourceLineNo">691</span>                    if (rTPos == 512) {<a name="line.691"></a>
-<span class="sourceLineNo">692</span>                        rTPos = 0;<a name="line.692"></a>
-<span class="sourceLineNo">693</span>                    }<a name="line.693"></a>
-<span class="sourceLineNo">694</span>                }<a name="line.694"></a>
-<span class="sourceLineNo">695</span>                rNToGo--;<a name="line.695"></a>
-<span class="sourceLineNo">696</span>                z ^= ((rNToGo == 1) ? 1 : 0);<a name="line.696"></a>
-<span class="sourceLineNo">697</span>                j2 = 0;<a name="line.697"></a>
-<span class="sourceLineNo">698</span>                currentState = RAND_PART_C_STATE;<a name="line.698"></a>
-<span class="sourceLineNo">699</span>                setupRandPartC();<a name="line.699"></a>
-<span class="sourceLineNo">700</span>            } else {<a name="line.700"></a>
-<span class="sourceLineNo">701</span>                currentState = RAND_PART_A_STATE;<a name="line.701"></a>
-<span class="sourceLineNo">702</span>                setupRandPartA();<a name="line.702"></a>
-<span class="sourceLineNo">703</span>            }<a name="line.703"></a>
-<span class="sourceLineNo">704</span>        }<a name="line.704"></a>
-<span class="sourceLineNo">705</span>    }<a name="line.705"></a>
-<span class="sourceLineNo">706</span><a name="line.706"></a>
-<span class="sourceLineNo">707</span>    private void setupRandPartC() throws IOException {<a name="line.707"></a>
-<span class="sourceLineNo">708</span>        if (j2 &lt; (int) z) {<a name="line.708"></a>
-<span class="sourceLineNo">709</span>            currentChar = ch2;<a name="line.709"></a>
-<span class="sourceLineNo">710</span>            mCrc.updateCRC(ch2);<a name="line.710"></a>
-<span class="sourceLineNo">711</span>            j2++;<a name="line.711"></a>
-<span class="sourceLineNo">712</span>        } else {<a name="line.712"></a>
-<span class="sourceLineNo">713</span>            currentState = RAND_PART_A_STATE;<a name="line.713"></a>
-<span class="sourceLineNo">714</span>            i2++;<a name="line.714"></a>
-<span class="sourceLineNo">715</span>            count = 0;<a name="line.715"></a>
-<span class="sourceLineNo">716</span>            setupRandPartA();<a name="line.716"></a>
-<span class="sourceLineNo">717</span>        }<a name="line.717"></a>
-<span class="sourceLineNo">718</span>    }<a name="line.718"></a>
-<span class="sourceLineNo">719</span><a name="line.719"></a>
-<span class="sourceLineNo">720</span>    private void setupNoRandPartB() throws IOException {<a name="line.720"></a>
-<span class="sourceLineNo">721</span>        if (ch2 != chPrev) {<a name="line.721"></a>
-<span class="sourceLineNo">722</span>            currentState = NO_RAND_PART_A_STATE;<a name="line.722"></a>
-<span class="sourceLineNo">723</span>            count = 1;<a name="line.723"></a>
-<span class="sourceLineNo">724</span>            setupNoRandPartA();<a name="line.724"></a>
-<span class="sourceLineNo">725</span>        } else {<a name="line.725"></a>
-<span class="sourceLineNo">726</span>            count++;<a name="line.726"></a>
-<span class="sourceLineNo">727</span>            if (count &gt;= 4) {<a name="line.727"></a>
-<span class="sourceLineNo">728</span>                z = ll8[tPos];<a name="line.728"></a>
-<span class="sourceLineNo">729</span>                tPos = tt[tPos];<a name="line.729"></a>
-<span class="sourceLineNo">730</span>                currentState = NO_RAND_PART_C_STATE;<a name="line.730"></a>
-<span class="sourceLineNo">731</span>                j2 = 0;<a name="line.731"></a>
-<span class="sourceLineNo">732</span>                setupNoRandPartC();<a name="line.732"></a>
-<span class="sourceLineNo">733</span>            } else {<a name="line.733"></a>
-<span class="sourceLineNo">734</span>                currentState = NO_RAND_PART_A_STATE;<a name="line.734"></a>
-<span class="sourceLineNo">735</span>                setupNoRandPartA();<a name="line.735"></a>
-<span class="sourceLineNo">736</span>            }<a name="line.736"></a>
-<span class="sourceLineNo">737</span>        }<a name="line.737"></a>
-<span class="sourceLineNo">738</span>    }<a name="line.738"></a>
-<span class="sourceLineNo">739</span><a name="line.739"></a>
-<span class="sourceLineNo">740</span>    private void setupNoRandPartC() throws IOException {<a name="line.740"></a>
-<span class="sourceLineNo">741</span>        if (j2 &lt; (int) z) {<a name="line.741"></a>
-<span class="sourceLineNo">742</span>            currentChar = ch2;<a name="line.742"></a>
-<span class="sourceLineNo">743</span>            mCrc.updateCRC(ch2);<a name="line.743"></a>
-<span class="sourceLineNo">744</span>            j2++;<a name="line.744"></a>
-<span class="sourceLineNo">745</span>        } else {<a name="line.745"></a>
-<span class="sourceLineNo">746</span>            currentState = NO_RAND_PART_A_STATE;<a name="line.746"></a>
-<span class="sourceLineNo">747</span>            i2++;<a name="line.747"></a>
-<span class="sourceLineNo">748</span>            count = 0;<a name="line.748"></a>
-<span class="sourceLineNo">749</span>            setupNoRandPartA();<a name="line.749"></a>
-<span class="sourceLineNo">750</span>        }<a name="line.750"></a>
-<span class="sourceLineNo">751</span>    }<a name="line.751"></a>
-<span class="sourceLineNo">752</span><a name="line.752"></a>
-<span class="sourceLineNo">753</span>    private void setDecompressStructureSizes(int newSize100k) throws IOException {<a name="line.753"></a>
-<span class="sourceLineNo">754</span>        if (!(0 &lt;= newSize100k &amp;&amp; newSize100k &lt;= 9 &amp;&amp; 0 &lt;= blockSize100k &amp;&amp; blockSize100k &lt;= 9)) {<a name="line.754"></a>
-<span class="sourceLineNo">755</span>            throw new IOException("invalid block size");<a name="line.755"></a>
-<span class="sourceLineNo">756</span>        }<a name="line.756"></a>
-<span class="sourceLineNo">757</span><a name="line.757"></a>
-<span class="sourceLineNo">758</span>        blockSize100k = newSize100k;<a name="line.758"></a>
-<span class="sourceLineNo">759</span><a name="line.759"></a>
-<span class="sourceLineNo">760</span>        if (newSize100k == 0) {<a name="line.760"></a>
-<span class="sourceLineNo">761</span>            return;<a name="line.761"></a>
-<span class="sourceLineNo">762</span>        }<a name="line.762"></a>
-<span class="sourceLineNo">763</span><a name="line.763"></a>
-<span class="sourceLineNo">764</span>        int n = BASE_BLOCK_SIZE * newSize100k;<a name="line.764"></a>
-<span class="sourceLineNo">765</span>        ll8 = new char[n];<a name="line.765"></a>
-<span class="sourceLineNo">766</span>        tt = new int[n];<a name="line.766"></a>
-<span class="sourceLineNo">767</span>    }<a name="line.767"></a>
-<span class="sourceLineNo">768</span><a name="line.768"></a>
-<span class="sourceLineNo">769</span>    public void setInput(byte[] b) throws IOException {<a name="line.769"></a>
-<span class="sourceLineNo">770</span>        this.setInput(b, 0, b.length);<a name="line.770"></a>
-<span class="sourceLineNo">771</span>    }<a name="line.771"></a>
-<span class="sourceLineNo">772</span><a name="line.772"></a>
-<span class="sourceLineNo">773</span>    public void setInput(byte[] b, int off, int len) throws IOException {<a name="line.773"></a>
-<span class="sourceLineNo">774</span>        this.inputBuffer.write(b, off, len);<a name="line.774"></a>
-<span class="sourceLineNo">775</span><a name="line.775"></a>
-<span class="sourceLineNo">776</span>        if (!this.readHeader) {<a name="line.776"></a>
-<span class="sourceLineNo">777</span>            if (this.inputBuffer.size() &gt; 10) {<a name="line.777"></a>
-<span class="sourceLineNo">778</span>                this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.778"></a>
-<span class="sourceLineNo">779</span>                this.inputBuffer.reset();<a name="line.779"></a>
-<span class="sourceLineNo">780</span><a name="line.780"></a>
-<span class="sourceLineNo">781</span>                this.initStream();<a name="line.781"></a>
-<span class="sourceLineNo">782</span><a name="line.782"></a>
-<span class="sourceLineNo">783</span>                if (this.streamEnd == true) {<a name="line.783"></a>
-<span class="sourceLineNo">784</span>                    throw new IOException("invalid BZip2 stream");<a name="line.784"></a>
-<span class="sourceLineNo">785</span>                }<a name="line.785"></a>
-<span class="sourceLineNo">786</span><a name="line.786"></a>
-<span class="sourceLineNo">787</span>                this.readHeader = true;<a name="line.787"></a>
-<span class="sourceLineNo">788</span>            }<a name="line.788"></a>
-<span class="sourceLineNo">789</span>        } else if (this.inputBuffer.size() &gt; 0 &amp;&amp; (this.bsStream == null || !(this.bsStream.available() &gt; 0))) {<a name="line.789"></a>
-<span class="sourceLineNo">790</span>            this.flush();<a name="line.790"></a>
-<span class="sourceLineNo">791</span>        } else if (this.inputBuffer.size() &gt; 8192) {<a name="line.791"></a>
-<span class="sourceLineNo">792</span>            this.flush();<a name="line.792"></a>
-<span class="sourceLineNo">793</span>        }<a name="line.793"></a>
-<span class="sourceLineNo">794</span>    }<a name="line.794"></a>
-<span class="sourceLineNo">795</span><a name="line.795"></a>
-<span class="sourceLineNo">796</span>    public boolean needsInput() {<a name="line.796"></a>
-<span class="sourceLineNo">797</span>        this.flush();<a name="line.797"></a>
-<span class="sourceLineNo">798</span><a name="line.798"></a>
-<span class="sourceLineNo">799</span>        return !(this.bsStream.available() &gt; 0);<a name="line.799"></a>
-<span class="sourceLineNo">800</span>    }<a name="line.800"></a>
-<span class="sourceLineNo">801</span><a name="line.801"></a>
-<span class="sourceLineNo">802</span>    public int inflate(byte[] b) throws IOException {<a name="line.802"></a>
-<span class="sourceLineNo">803</span>        int rc = 0;<a name="line.803"></a>
-<span class="sourceLineNo">804</span><a name="line.804"></a>
-<span class="sourceLineNo">805</span>        while (this.bsStream != null &amp;&amp; this.bsStream.available() &gt; 0 &amp;&amp; rc &lt; b.length) {<a name="line.805"></a>
-<span class="sourceLineNo">806</span>            b[rc++] = (byte) this.read();<a name="line.806"></a>
-<span class="sourceLineNo">807</span>        }<a name="line.807"></a>
-<span class="sourceLineNo">808</span><a name="line.808"></a>
-<span class="sourceLineNo">809</span>        this.flush();<a name="line.809"></a>
-<span class="sourceLineNo">810</span><a name="line.810"></a>
-<span class="sourceLineNo">811</span>        return rc;<a name="line.811"></a>
-<span class="sourceLineNo">812</span>    }<a name="line.812"></a>
-<span class="sourceLineNo">813</span><a name="line.813"></a>
-<span class="sourceLineNo">814</span>    public void flush() {<a name="line.814"></a>
-<span class="sourceLineNo">815</span>        if (this.inputBuffer.size() &gt; 0) {<a name="line.815"></a>
-<span class="sourceLineNo">816</span>            if (this.bsStream == null || !(this.bsStream.available() &gt; 0)) {<a name="line.816"></a>
-<span class="sourceLineNo">817</span>                this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.817"></a>
-<span class="sourceLineNo">818</span>            } else {<a name="line.818"></a>
-<span class="sourceLineNo">819</span>                byte[] buff = new byte[this.bsStream.available() + this.inputBuffer.size()];<a name="line.819"></a>
-<span class="sourceLineNo">820</span><a name="line.820"></a>
-<span class="sourceLineNo">821</span>                int i = 0;<a name="line.821"></a>
-<span class="sourceLineNo">822</span><a name="line.822"></a>
-<span class="sourceLineNo">823</span>                try {<a name="line.823"></a>
-<span class="sourceLineNo">824</span>                    i = this.bsStream.read(buff);<a name="line.824"></a>
-<span class="sourceLineNo">825</span>                } catch (IOException e) {<a name="line.825"></a>
-<span class="sourceLineNo">826</span>                }<a name="line.826"></a>
-<span class="sourceLineNo">827</span><a name="line.827"></a>
-<span class="sourceLineNo">828</span>                if (i == 0) {<a name="line.828"></a>
-<span class="sourceLineNo">829</span>                    this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.829"></a>
-<span class="sourceLineNo">830</span>                } else {<a name="line.830"></a>
-<span class="sourceLineNo">831</span>                    byte[] o = this.inputBuffer.toByteArray();<a name="line.831"></a>
-<span class="sourceLineNo">832</span><a name="line.832"></a>
-<span class="sourceLineNo">833</span>                    System.arraycopy(o, 0, buff, i, o.length);<a name="line.833"></a>
-<span class="sourceLineNo">834</span><a name="line.834"></a>
-<span class="sourceLineNo">835</span>                    this.bsStream = new ByteArrayInputStream(buff);<a name="line.835"></a>
-<span class="sourceLineNo">836</span>                }<a name="line.836"></a>
-<span class="sourceLineNo">837</span>            }<a name="line.837"></a>
-<span class="sourceLineNo">838</span><a name="line.838"></a>
-<span class="sourceLineNo">839</span>            this.inputBuffer.reset();<a name="line.839"></a>
-<span class="sourceLineNo">840</span>        }<a name="line.840"></a>
-<span class="sourceLineNo">841</span>    }<a name="line.841"></a>
-<span class="sourceLineNo">842</span>}<a name="line.842"></a>
-<span class="sourceLineNo">843</span><a name="line.843"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.bzip2;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import java.io.ByteArrayInputStream;<a name="line.4"></a>
+<FONT color="green">005</FONT>    import java.io.ByteArrayOutputStream;<a name="line.5"></a>
+<FONT color="green">006</FONT>    import java.io.IOException;<a name="line.6"></a>
+<FONT color="green">007</FONT>    <a name="line.7"></a>
+<FONT color="green">008</FONT>    /**<a name="line.8"></a>
+<FONT color="green">009</FONT>     * An input stream that decompresses from the BZip2 format (without the file<a name="line.9"></a>
+<FONT color="green">010</FONT>     * header chars) to be read as any other stream.<a name="line.10"></a>
+<FONT color="green">011</FONT>     */<a name="line.11"></a>
+<FONT color="green">012</FONT>    public class BZip2Inflate implements Bzip2Constants {<a name="line.12"></a>
+<FONT color="green">013</FONT>    <a name="line.13"></a>
+<FONT color="green">014</FONT>        private ByteArrayOutputStream inputBuffer;<a name="line.14"></a>
+<FONT color="green">015</FONT>        private boolean readHeader = false;<a name="line.15"></a>
+<FONT color="green">016</FONT>    <a name="line.16"></a>
+<FONT color="green">017</FONT>        /*<a name="line.17"></a>
+<FONT color="green">018</FONT>        index of the last char in the block, so<a name="line.18"></a>
+<FONT color="green">019</FONT>        the block size == last + 1.<a name="line.19"></a>
+<FONT color="green">020</FONT>         */<a name="line.20"></a>
+<FONT color="green">021</FONT>        private int last;<a name="line.21"></a>
+<FONT color="green">022</FONT>    <a name="line.22"></a>
+<FONT color="green">023</FONT>        /*<a name="line.23"></a>
+<FONT color="green">024</FONT>        index in zptr[] of original string after sorting.<a name="line.24"></a>
+<FONT color="green">025</FONT>         */<a name="line.25"></a>
+<FONT color="green">026</FONT>        private int origPtr;<a name="line.26"></a>
+<FONT color="green">027</FONT>    <a name="line.27"></a>
+<FONT color="green">028</FONT>        /*<a name="line.28"></a>
+<FONT color="green">029</FONT>        always: in the range 0 .. 9.<a name="line.29"></a>
+<FONT color="green">030</FONT>        The current block size is 100000 * this number.<a name="line.30"></a>
+<FONT color="green">031</FONT>         */<a name="line.31"></a>
+<FONT color="green">032</FONT>        private int blockSize100k;<a name="line.32"></a>
+<FONT color="green">033</FONT>        private boolean blockRandomised;<a name="line.33"></a>
+<FONT color="green">034</FONT>        private int bsBuff;<a name="line.34"></a>
+<FONT color="green">035</FONT>        private int bsLive;<a name="line.35"></a>
+<FONT color="green">036</FONT>        private CRC mCrc = new CRC();<a name="line.36"></a>
+<FONT color="green">037</FONT>        private boolean[] inUse = new boolean[256];<a name="line.37"></a>
+<FONT color="green">038</FONT>        private int nInUse;<a name="line.38"></a>
+<FONT color="green">039</FONT>        private char[] seqToUnseq = new char[256];<a name="line.39"></a>
+<FONT color="green">040</FONT>        private char[] selector = new char[MAX_SELECTORS];<a name="line.40"></a>
+<FONT color="green">041</FONT>        private char[] selectorMtf = new char[MAX_SELECTORS];<a name="line.41"></a>
+<FONT color="green">042</FONT>        private int[] tt;<a name="line.42"></a>
+<FONT color="green">043</FONT>        private char[] ll8;<a name="line.43"></a>
+<FONT color="green">044</FONT>    <a name="line.44"></a>
+<FONT color="green">045</FONT>        /*<a name="line.45"></a>
+<FONT color="green">046</FONT>        freq table collected to save a pass over the data<a name="line.46"></a>
+<FONT color="green">047</FONT>        during decompression.<a name="line.47"></a>
+<FONT color="green">048</FONT>         */<a name="line.48"></a>
+<FONT color="green">049</FONT>        private int[] unzftab = new int[256];<a name="line.49"></a>
+<FONT color="green">050</FONT>        private int[][] limit = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.50"></a>
+<FONT color="green">051</FONT>        private int[][] base = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.51"></a>
+<FONT color="green">052</FONT>        private int[][] perm = new int[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.52"></a>
+<FONT color="green">053</FONT>        private int[] minLens = new int[N_GROUPS];<a name="line.53"></a>
+<FONT color="green">054</FONT>        private ByteArrayInputStream bsStream;<a name="line.54"></a>
+<FONT color="green">055</FONT>        private boolean streamEnd = false;<a name="line.55"></a>
+<FONT color="green">056</FONT>        private int currentChar = -1;<a name="line.56"></a>
+<FONT color="green">057</FONT>        private static final int START_BLOCK_STATE = 1;<a name="line.57"></a>
+<FONT color="green">058</FONT>        private static final int RAND_PART_A_STATE = 2;<a name="line.58"></a>
+<FONT color="green">059</FONT>        private static final int RAND_PART_B_STATE = 3;<a name="line.59"></a>
+<FONT color="green">060</FONT>        private static final int RAND_PART_C_STATE = 4;<a name="line.60"></a>
+<FONT color="green">061</FONT>        private static final int NO_RAND_PART_A_STATE = 5;<a name="line.61"></a>
+<FONT color="green">062</FONT>        private static final int NO_RAND_PART_B_STATE = 6;<a name="line.62"></a>
+<FONT color="green">063</FONT>        private static final int NO_RAND_PART_C_STATE = 7;<a name="line.63"></a>
+<FONT color="green">064</FONT>        private int currentState = START_BLOCK_STATE;<a name="line.64"></a>
+<FONT color="green">065</FONT>        private int storedBlockCRC, storedCombinedCRC;<a name="line.65"></a>
+<FONT color="green">066</FONT>        private int computedBlockCRC, computedCombinedCRC;<a name="line.66"></a>
+<FONT color="green">067</FONT>        private int i2, count, chPrev, ch2;<a name="line.67"></a>
+<FONT color="green">068</FONT>        private int tPos;<a name="line.68"></a>
+<FONT color="green">069</FONT>        private int rNToGo = 0;<a name="line.69"></a>
+<FONT color="green">070</FONT>        private int rTPos = 0;<a name="line.70"></a>
+<FONT color="green">071</FONT>        private int j2;<a name="line.71"></a>
+<FONT color="green">072</FONT>        private char z;<a name="line.72"></a>
+<FONT color="green">073</FONT>    <a name="line.73"></a>
+<FONT color="green">074</FONT>        public BZip2Inflate() {<a name="line.74"></a>
+<FONT color="green">075</FONT>            this(8192);<a name="line.75"></a>
+<FONT color="green">076</FONT>        }<a name="line.76"></a>
+<FONT color="green">077</FONT>    <a name="line.77"></a>
+<FONT color="green">078</FONT>        public BZip2Inflate(int bufsize) {<a name="line.78"></a>
+<FONT color="green">079</FONT>            ll8 = null;<a name="line.79"></a>
+<FONT color="green">080</FONT>            tt = null;<a name="line.80"></a>
+<FONT color="green">081</FONT>            this.inputBuffer = new ByteArrayOutputStream(bufsize);<a name="line.81"></a>
+<FONT color="green">082</FONT>            bsSetStream();<a name="line.82"></a>
+<FONT color="green">083</FONT>        }<a name="line.83"></a>
+<FONT color="green">084</FONT>    <a name="line.84"></a>
+<FONT color="green">085</FONT>        private void makeMaps() {<a name="line.85"></a>
+<FONT color="green">086</FONT>            nInUse = 0;<a name="line.86"></a>
+<FONT color="green">087</FONT>            for (int j = 0; j &lt; 256; j++) {<a name="line.87"></a>
+<FONT color="green">088</FONT>                if (inUse[j]) {<a name="line.88"></a>
+<FONT color="green">089</FONT>                    seqToUnseq[nInUse] = (char) j;<a name="line.89"></a>
+<FONT color="green">090</FONT>                    nInUse++;<a name="line.90"></a>
+<FONT color="green">091</FONT>                }<a name="line.91"></a>
+<FONT color="green">092</FONT>            }<a name="line.92"></a>
+<FONT color="green">093</FONT>        }<a name="line.93"></a>
+<FONT color="green">094</FONT>    <a name="line.94"></a>
+<FONT color="green">095</FONT>        private void initStream() throws IOException {<a name="line.95"></a>
+<FONT color="green">096</FONT>            initialize();<a name="line.96"></a>
+<FONT color="green">097</FONT>            initBlock();<a name="line.97"></a>
+<FONT color="green">098</FONT>            setupBlock();<a name="line.98"></a>
+<FONT color="green">099</FONT>        }<a name="line.99"></a>
+<FONT color="green">100</FONT>    <a name="line.100"></a>
+<FONT color="green">101</FONT>        private int read() throws IOException {<a name="line.101"></a>
+<FONT color="green">102</FONT>            if (streamEnd) {<a name="line.102"></a>
+<FONT color="green">103</FONT>                return -1;<a name="line.103"></a>
+<FONT color="green">104</FONT>            } else {<a name="line.104"></a>
+<FONT color="green">105</FONT>                int retChar = currentChar;<a name="line.105"></a>
+<FONT color="green">106</FONT>                switch (currentState) {<a name="line.106"></a>
+<FONT color="green">107</FONT>                    case START_BLOCK_STATE:<a name="line.107"></a>
+<FONT color="green">108</FONT>                        break;<a name="line.108"></a>
+<FONT color="green">109</FONT>                    case RAND_PART_A_STATE:<a name="line.109"></a>
+<FONT color="green">110</FONT>                        break;<a name="line.110"></a>
+<FONT color="green">111</FONT>                    case RAND_PART_B_STATE:<a name="line.111"></a>
+<FONT color="green">112</FONT>                        setupRandPartB();<a name="line.112"></a>
+<FONT color="green">113</FONT>                        break;<a name="line.113"></a>
+<FONT color="green">114</FONT>                    case RAND_PART_C_STATE:<a name="line.114"></a>
+<FONT color="green">115</FONT>                        setupRandPartC();<a name="line.115"></a>
+<FONT color="green">116</FONT>                        break;<a name="line.116"></a>
+<FONT color="green">117</FONT>                    case NO_RAND_PART_A_STATE:<a name="line.117"></a>
+<FONT color="green">118</FONT>                        break;<a name="line.118"></a>
+<FONT color="green">119</FONT>                    case NO_RAND_PART_B_STATE:<a name="line.119"></a>
+<FONT color="green">120</FONT>                        setupNoRandPartB();<a name="line.120"></a>
+<FONT color="green">121</FONT>                        break;<a name="line.121"></a>
+<FONT color="green">122</FONT>                    case NO_RAND_PART_C_STATE:<a name="line.122"></a>
+<FONT color="green">123</FONT>                        setupNoRandPartC();<a name="line.123"></a>
+<FONT color="green">124</FONT>                        break;<a name="line.124"></a>
+<FONT color="green">125</FONT>                    default:<a name="line.125"></a>
+<FONT color="green">126</FONT>                        break;<a name="line.126"></a>
+<FONT color="green">127</FONT>                }<a name="line.127"></a>
+<FONT color="green">128</FONT>                return retChar;<a name="line.128"></a>
+<FONT color="green">129</FONT>            }<a name="line.129"></a>
+<FONT color="green">130</FONT>        }<a name="line.130"></a>
+<FONT color="green">131</FONT>    <a name="line.131"></a>
+<FONT color="green">132</FONT>        private void initialize() throws IOException {<a name="line.132"></a>
+<FONT color="green">133</FONT>            char magic1, magic2;<a name="line.133"></a>
+<FONT color="green">134</FONT>            char magic3, magic4;<a name="line.134"></a>
+<FONT color="green">135</FONT>            magic1 = bsGetUChar();<a name="line.135"></a>
+<FONT color="green">136</FONT>            magic2 = bsGetUChar();<a name="line.136"></a>
+<FONT color="green">137</FONT>            magic3 = bsGetUChar();<a name="line.137"></a>
+<FONT color="green">138</FONT>            magic4 = bsGetUChar();<a name="line.138"></a>
+<FONT color="green">139</FONT>            if (magic1 != 'B' || magic2 != 'Z' || magic3 != 'h' || magic4 &lt; '1' || magic4 &gt; '9') {<a name="line.139"></a>
+<FONT color="green">140</FONT>                bsFinishedWithStream();<a name="line.140"></a>
+<FONT color="green">141</FONT>                streamEnd = true;<a name="line.141"></a>
+<FONT color="green">142</FONT>                return;<a name="line.142"></a>
+<FONT color="green">143</FONT>            }<a name="line.143"></a>
+<FONT color="green">144</FONT>    <a name="line.144"></a>
+<FONT color="green">145</FONT>            setDecompressStructureSizes(magic4 - '0');<a name="line.145"></a>
+<FONT color="green">146</FONT>            computedCombinedCRC = 0;<a name="line.146"></a>
+<FONT color="green">147</FONT>        }<a name="line.147"></a>
+<FONT color="green">148</FONT>    <a name="line.148"></a>
+<FONT color="green">149</FONT>        private void initBlock() throws IOException {<a name="line.149"></a>
+<FONT color="green">150</FONT>            char magic1, magic2, magic3, magic4;<a name="line.150"></a>
+<FONT color="green">151</FONT>            char magic5, magic6;<a name="line.151"></a>
+<FONT color="green">152</FONT>            magic1 = bsGetUChar();<a name="line.152"></a>
+<FONT color="green">153</FONT>            magic2 = bsGetUChar();<a name="line.153"></a>
+<FONT color="green">154</FONT>            magic3 = bsGetUChar();<a name="line.154"></a>
+<FONT color="green">155</FONT>            magic4 = bsGetUChar();<a name="line.155"></a>
+<FONT color="green">156</FONT>            magic5 = bsGetUChar();<a name="line.156"></a>
+<FONT color="green">157</FONT>            magic6 = bsGetUChar();<a name="line.157"></a>
+<FONT color="green">158</FONT>            if (magic1 == 0x17 &amp;&amp; magic2 == 0x72 &amp;&amp; magic3 == 0x45 &amp;&amp; magic4 == 0x38 &amp;&amp; magic5 == 0x50 &amp;&amp; magic6 == 0x90) {<a name="line.158"></a>
+<FONT color="green">159</FONT>                complete();<a name="line.159"></a>
+<FONT color="green">160</FONT>                return;<a name="line.160"></a>
+<FONT color="green">161</FONT>            }<a name="line.161"></a>
+<FONT color="green">162</FONT>    <a name="line.162"></a>
+<FONT color="green">163</FONT>            if (magic1 != 0x31 || magic2 != 0x41 || magic3 != 0x59 || magic4 != 0x26 || magic5 != 0x53 || magic6 != 0x59) {<a name="line.163"></a>
+<FONT color="green">164</FONT>                throw new IOException("bad block header");<a name="line.164"></a>
+<FONT color="green">165</FONT>            }<a name="line.165"></a>
+<FONT color="green">166</FONT>    <a name="line.166"></a>
+<FONT color="green">167</FONT>            storedBlockCRC = bsGetInt32();<a name="line.167"></a>
+<FONT color="green">168</FONT>    <a name="line.168"></a>
+<FONT color="green">169</FONT>            if (bsR(1) == 1) {<a name="line.169"></a>
+<FONT color="green">170</FONT>                blockRandomised = true;<a name="line.170"></a>
+<FONT color="green">171</FONT>            } else {<a name="line.171"></a>
+<FONT color="green">172</FONT>                blockRandomised = false;<a name="line.172"></a>
+<FONT color="green">173</FONT>            }<a name="line.173"></a>
+<FONT color="green">174</FONT>    <a name="line.174"></a>
+<FONT color="green">175</FONT>            //        currBlockNo++;<a name="line.175"></a>
+<FONT color="green">176</FONT>            getAndMoveToFrontDecode();<a name="line.176"></a>
+<FONT color="green">177</FONT>    <a name="line.177"></a>
+<FONT color="green">178</FONT>            mCrc.initialiseCRC();<a name="line.178"></a>
+<FONT color="green">179</FONT>            currentState = START_BLOCK_STATE;<a name="line.179"></a>
+<FONT color="green">180</FONT>        }<a name="line.180"></a>
+<FONT color="green">181</FONT>    <a name="line.181"></a>
+<FONT color="green">182</FONT>        private void endBlock() throws IOException {<a name="line.182"></a>
+<FONT color="green">183</FONT>            computedBlockCRC = mCrc.getFinalCRC();<a name="line.183"></a>
+<FONT color="green">184</FONT>            /* A bad CRC is considered a fatal error. */<a name="line.184"></a>
+<FONT color="green">185</FONT>            if (storedBlockCRC != computedBlockCRC) {<a name="line.185"></a>
+<FONT color="green">186</FONT>                throw new IOException("CRC error");<a name="line.186"></a>
+<FONT color="green">187</FONT>            }<a name="line.187"></a>
+<FONT color="green">188</FONT>    <a name="line.188"></a>
+<FONT color="green">189</FONT>            computedCombinedCRC = (computedCombinedCRC &lt;&lt; 1) | (computedCombinedCRC &gt;&gt;&gt; 31);<a name="line.189"></a>
+<FONT color="green">190</FONT>            computedCombinedCRC ^= computedBlockCRC;<a name="line.190"></a>
+<FONT color="green">191</FONT>        }<a name="line.191"></a>
+<FONT color="green">192</FONT>    <a name="line.192"></a>
+<FONT color="green">193</FONT>        private void complete() throws IOException {<a name="line.193"></a>
+<FONT color="green">194</FONT>            storedCombinedCRC = bsGetInt32();<a name="line.194"></a>
+<FONT color="green">195</FONT>            if (storedCombinedCRC != computedCombinedCRC) {<a name="line.195"></a>
+<FONT color="green">196</FONT>                throw new IOException("CRC error");<a name="line.196"></a>
+<FONT color="green">197</FONT>            }<a name="line.197"></a>
+<FONT color="green">198</FONT>    <a name="line.198"></a>
+<FONT color="green">199</FONT>            bsFinishedWithStream();<a name="line.199"></a>
+<FONT color="green">200</FONT>            streamEnd = true;<a name="line.200"></a>
+<FONT color="green">201</FONT>        }<a name="line.201"></a>
+<FONT color="green">202</FONT>    <a name="line.202"></a>
+<FONT color="green">203</FONT>        private void bsFinishedWithStream() {<a name="line.203"></a>
+<FONT color="green">204</FONT>            try {<a name="line.204"></a>
+<FONT color="green">205</FONT>                if (this.bsStream != null &amp;&amp; this.bsStream != System.in) {<a name="line.205"></a>
+<FONT color="green">206</FONT>                    this.bsStream.close();<a name="line.206"></a>
+<FONT color="green">207</FONT>                    this.bsStream = null;<a name="line.207"></a>
+<FONT color="green">208</FONT>    <a name="line.208"></a>
+<FONT color="green">209</FONT>                }<a name="line.209"></a>
+<FONT color="green">210</FONT>            } catch (IOException ioe) {<a name="line.210"></a>
+<FONT color="green">211</FONT>                //ignore<a name="line.211"></a>
+<FONT color="green">212</FONT>            }<a name="line.212"></a>
+<FONT color="green">213</FONT>        }<a name="line.213"></a>
+<FONT color="green">214</FONT>    <a name="line.214"></a>
+<FONT color="green">215</FONT>        private void bsSetStream() {<a name="line.215"></a>
+<FONT color="green">216</FONT>            bsStream = null;<a name="line.216"></a>
+<FONT color="green">217</FONT>            bsLive = 0;<a name="line.217"></a>
+<FONT color="green">218</FONT>            bsBuff = 0;<a name="line.218"></a>
+<FONT color="green">219</FONT>        }<a name="line.219"></a>
+<FONT color="green">220</FONT>    <a name="line.220"></a>
+<FONT color="green">221</FONT>        private int bsR(int n) throws IOException {<a name="line.221"></a>
+<FONT color="green">222</FONT>            int v;<a name="line.222"></a>
+<FONT color="green">223</FONT>            while (bsLive &lt; n) {<a name="line.223"></a>
+<FONT color="green">224</FONT>                int zzi;<a name="line.224"></a>
+<FONT color="green">225</FONT>                char thech = 0;<a name="line.225"></a>
+<FONT color="green">226</FONT>    <a name="line.226"></a>
+<FONT color="green">227</FONT>                thech = (char) bsStream.read();<a name="line.227"></a>
+<FONT color="green">228</FONT>    <a name="line.228"></a>
+<FONT color="green">229</FONT>                if (thech == -1) {<a name="line.229"></a>
+<FONT color="green">230</FONT>                    throw new IOException("unexpected end of file");<a name="line.230"></a>
+<FONT color="green">231</FONT>                }<a name="line.231"></a>
+<FONT color="green">232</FONT>                zzi = thech;<a name="line.232"></a>
+<FONT color="green">233</FONT>                bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.233"></a>
+<FONT color="green">234</FONT>                bsLive += 8;<a name="line.234"></a>
+<FONT color="green">235</FONT>            }<a name="line.235"></a>
+<FONT color="green">236</FONT>    <a name="line.236"></a>
+<FONT color="green">237</FONT>            v = (bsBuff &gt;&gt; (bsLive - n)) &amp; ((1 &lt;&lt; n) - 1);<a name="line.237"></a>
+<FONT color="green">238</FONT>            bsLive -= n;<a name="line.238"></a>
+<FONT color="green">239</FONT>            return v;<a name="line.239"></a>
+<FONT color="green">240</FONT>        }<a name="line.240"></a>
+<FONT color="green">241</FONT>    <a name="line.241"></a>
+<FONT color="green">242</FONT>        private char bsGetUChar() throws IOException {<a name="line.242"></a>
+<FONT color="green">243</FONT>            return (char) bsR(8);<a name="line.243"></a>
+<FONT color="green">244</FONT>        }<a name="line.244"></a>
+<FONT color="green">245</FONT>    <a name="line.245"></a>
+<FONT color="green">246</FONT>        private int bsGetint() throws IOException {<a name="line.246"></a>
+<FONT color="green">247</FONT>            int u = 0;<a name="line.247"></a>
+<FONT color="green">248</FONT>            u = (u &lt;&lt; 8) | bsR(8);<a name="line.248"></a>
+<FONT color="green">249</FONT>            u = (u &lt;&lt; 8) | bsR(8);<a name="line.249"></a>
+<FONT color="green">250</FONT>            u = (u &lt;&lt; 8) | bsR(8);<a name="line.250"></a>
+<FONT color="green">251</FONT>            u = (u &lt;&lt; 8) | bsR(8);<a name="line.251"></a>
+<FONT color="green">252</FONT>            return u;<a name="line.252"></a>
+<FONT color="green">253</FONT>        }<a name="line.253"></a>
+<FONT color="green">254</FONT>    <a name="line.254"></a>
+<FONT color="green">255</FONT>        private int bsGetIntVS(int numBits) throws IOException {<a name="line.255"></a>
+<FONT color="green">256</FONT>            return bsR(numBits);<a name="line.256"></a>
+<FONT color="green">257</FONT>        }<a name="line.257"></a>
+<FONT color="green">258</FONT>    <a name="line.258"></a>
+<FONT color="green">259</FONT>        private int bsGetInt32() throws IOException {<a name="line.259"></a>
+<FONT color="green">260</FONT>            return bsGetint();<a name="line.260"></a>
+<FONT color="green">261</FONT>        }<a name="line.261"></a>
+<FONT color="green">262</FONT>    <a name="line.262"></a>
+<FONT color="green">263</FONT>        private void hbCreateDecodeTables(int[] limit, int[] base,<a name="line.263"></a>
+<FONT color="green">264</FONT>                                          int[] perm, char[] length,<a name="line.264"></a>
+<FONT color="green">265</FONT>                                          int minLen, int maxLen, int alphaSize) {<a name="line.265"></a>
+<FONT color="green">266</FONT>            int pp, i, j, vec;<a name="line.266"></a>
+<FONT color="green">267</FONT>    <a name="line.267"></a>
+<FONT color="green">268</FONT>            pp = 0;<a name="line.268"></a>
+<FONT color="green">269</FONT>            for (i = minLen; i &lt;= maxLen; i++) {<a name="line.269"></a>
+<FONT color="green">270</FONT>                for (j = 0; j &lt; alphaSize; j++) {<a name="line.270"></a>
+<FONT color="green">271</FONT>                    if (length[j] == i) {<a name="line.271"></a>
+<FONT color="green">272</FONT>                        perm[pp] = j;<a name="line.272"></a>
+<FONT color="green">273</FONT>                        pp++;<a name="line.273"></a>
+<FONT color="green">274</FONT>                    }<a name="line.274"></a>
+<FONT color="green">275</FONT>                }<a name="line.275"></a>
+<FONT color="green">276</FONT>            }<a name="line.276"></a>
+<FONT color="green">277</FONT>    <a name="line.277"></a>
+<FONT color="green">278</FONT>            for (i = 0; i &lt; MAX_CODE_LEN; i++) {<a name="line.278"></a>
+<FONT color="green">279</FONT>                base[i] = 0;<a name="line.279"></a>
+<FONT color="green">280</FONT>            }<a name="line.280"></a>
+<FONT color="green">281</FONT>            for (i = 0; i &lt; alphaSize; i++) {<a name="line.281"></a>
+<FONT color="green">282</FONT>                base[length[i] + 1]++;<a name="line.282"></a>
+<FONT color="green">283</FONT>            }<a name="line.283"></a>
+<FONT color="green">284</FONT>    <a name="line.284"></a>
+<FONT color="green">285</FONT>            for (i = 1; i &lt; MAX_CODE_LEN; i++) {<a name="line.285"></a>
+<FONT color="green">286</FONT>                base[i] += base[i - 1];<a name="line.286"></a>
+<FONT color="green">287</FONT>            }<a name="line.287"></a>
+<FONT color="green">288</FONT>    <a name="line.288"></a>
+<FONT color="green">289</FONT>            for (i = 0; i &lt; MAX_CODE_LEN; i++) {<a name="line.289"></a>
+<FONT color="green">290</FONT>                limit[i] = 0;<a name="line.290"></a>
+<FONT color="green">291</FONT>            }<a name="line.291"></a>
+<FONT color="green">292</FONT>            vec = 0;<a name="line.292"></a>
+<FONT color="green">293</FONT>    <a name="line.293"></a>
+<FONT color="green">294</FONT>            for (i = minLen; i &lt;= maxLen; i++) {<a name="line.294"></a>
+<FONT color="green">295</FONT>                vec += (base[i + 1] - base[i]);<a name="line.295"></a>
+<FONT color="green">296</FONT>                limit[i] = vec - 1;<a name="line.296"></a>
+<FONT color="green">297</FONT>                vec &lt;&lt;= 1;<a name="line.297"></a>
+<FONT color="green">298</FONT>            }<a name="line.298"></a>
+<FONT color="green">299</FONT>            for (i = minLen + 1; i &lt;= maxLen; i++) {<a name="line.299"></a>
+<FONT color="green">300</FONT>                base[i] = ((limit[i - 1] + 1) &lt;&lt; 1) - base[i];<a name="line.300"></a>
+<FONT color="green">301</FONT>            }<a name="line.301"></a>
+<FONT color="green">302</FONT>        }<a name="line.302"></a>
+<FONT color="green">303</FONT>    <a name="line.303"></a>
+<FONT color="green">304</FONT>        private void recvDecodingTables() throws IOException {<a name="line.304"></a>
+<FONT color="green">305</FONT>            char len[][] = new char[N_GROUPS][MAX_ALPHA_SIZE];<a name="line.305"></a>
+<FONT color="green">306</FONT>            int i, j, t, nGroups, nSelectors, alphaSize;<a name="line.306"></a>
+<FONT color="green">307</FONT>            int minLen, maxLen;<a name="line.307"></a>
+<FONT color="green">308</FONT>            boolean[] inUse16 = new boolean[16];<a name="line.308"></a>
+<FONT color="green">309</FONT>    <a name="line.309"></a>
+<FONT color="green">310</FONT>            /* Receive the mapping table */<a name="line.310"></a>
+<FONT color="green">311</FONT>            for (i = 0; i &lt; 16; i++) {<a name="line.311"></a>
+<FONT color="green">312</FONT>                if (bsR(1) == 1) {<a name="line.312"></a>
+<FONT color="green">313</FONT>                    inUse16[i] = true;<a name="line.313"></a>
+<FONT color="green">314</FONT>                } else {<a name="line.314"></a>
+<FONT color="green">315</FONT>                    inUse16[i] = false;<a name="line.315"></a>
+<FONT color="green">316</FONT>                }<a name="line.316"></a>
+<FONT color="green">317</FONT>            }<a name="line.317"></a>
+<FONT color="green">318</FONT>    <a name="line.318"></a>
+<FONT color="green">319</FONT>            for (i = 0; i &lt; 256; i++) {<a name="line.319"></a>
+<FONT color="green">320</FONT>                inUse[i] = false;<a name="line.320"></a>
+<FONT color="green">321</FONT>            }<a name="line.321"></a>
+<FONT color="green">322</FONT>    <a name="line.322"></a>
+<FONT color="green">323</FONT>            for (i = 0; i &lt; 16; i++) {<a name="line.323"></a>
+<FONT color="green">324</FONT>                if (inUse16[i]) {<a name="line.324"></a>
+<FONT color="green">325</FONT>                    for (j = 0; j &lt; 16; j++) {<a name="line.325"></a>
+<FONT color="green">326</FONT>                        if (bsR(1) == 1) {<a name="line.326"></a>
+<FONT color="green">327</FONT>                            inUse[i * 16 + j] = true;<a name="line.327"></a>
+<FONT color="green">328</FONT>                        }<a name="line.328"></a>
+<FONT color="green">329</FONT>                    }<a name="line.329"></a>
+<FONT color="green">330</FONT>                }<a name="line.330"></a>
+<FONT color="green">331</FONT>            }<a name="line.331"></a>
+<FONT color="green">332</FONT>    <a name="line.332"></a>
+<FONT color="green">333</FONT>            makeMaps();<a name="line.333"></a>
+<FONT color="green">334</FONT>            alphaSize = nInUse + 2;<a name="line.334"></a>
+<FONT color="green">335</FONT>    <a name="line.335"></a>
+<FONT color="green">336</FONT>            /* Now the selectors */<a name="line.336"></a>
+<FONT color="green">337</FONT>            nGroups = bsR(3);<a name="line.337"></a>
+<FONT color="green">338</FONT>            nSelectors = bsR(15);<a name="line.338"></a>
+<FONT color="green">339</FONT>            for (i = 0; i &lt; nSelectors; i++) {<a name="line.339"></a>
+<FONT color="green">340</FONT>                j = 0;<a name="line.340"></a>
+<FONT color="green">341</FONT>                while (bsR(1) == 1) {<a name="line.341"></a>
+<FONT color="green">342</FONT>                    j++;<a name="line.342"></a>
+<FONT color="green">343</FONT>                }<a name="line.343"></a>
+<FONT color="green">344</FONT>                selectorMtf[i] = (char) j;<a name="line.344"></a>
+<FONT color="green">345</FONT>            }<a name="line.345"></a>
+<FONT color="green">346</FONT>    <a name="line.346"></a>
+<FONT color="green">347</FONT>            /* Undo the MTF values for the selectors. */<a name="line.347"></a>
+<FONT color="green">348</FONT>            {<a name="line.348"></a>
+<FONT color="green">349</FONT>                char[] pos = new char[N_GROUPS];<a name="line.349"></a>
+<FONT color="green">350</FONT>                char tmp, v;<a name="line.350"></a>
+<FONT color="green">351</FONT>                for (v = 0; v &lt; nGroups; v++) {<a name="line.351"></a>
+<FONT color="green">352</FONT>                    pos[v] = v;<a name="line.352"></a>
+<FONT color="green">353</FONT>                }<a name="line.353"></a>
+<FONT color="green">354</FONT>    <a name="line.354"></a>
+<FONT color="green">355</FONT>                for (i = 0; i &lt; nSelectors; i++) {<a name="line.355"></a>
+<FONT color="green">356</FONT>                    v = selectorMtf[i];<a name="line.356"></a>
+<FONT color="green">357</FONT>                    tmp = pos[v];<a name="line.357"></a>
+<FONT color="green">358</FONT>                    while (v &gt; 0) {<a name="line.358"></a>
+<FONT color="green">359</FONT>                        pos[v] = pos[v - 1];<a name="line.359"></a>
+<FONT color="green">360</FONT>                        v--;<a name="line.360"></a>
+<FONT color="green">361</FONT>                    }<a name="line.361"></a>
+<FONT color="green">362</FONT>                    pos[0] = tmp;<a name="line.362"></a>
+<FONT color="green">363</FONT>                    selector[i] = tmp;<a name="line.363"></a>
+<FONT color="green">364</FONT>                }<a name="line.364"></a>
+<FONT color="green">365</FONT>            }<a name="line.365"></a>
+<FONT color="green">366</FONT>    <a name="line.366"></a>
+<FONT color="green">367</FONT>            /* Now the coding tables */<a name="line.367"></a>
+<FONT color="green">368</FONT>            for (t = 0; t &lt; nGroups; t++) {<a name="line.368"></a>
+<FONT color="green">369</FONT>                int curr = bsR(5);<a name="line.369"></a>
+<FONT color="green">370</FONT>                for (i = 0; i &lt; alphaSize; i++) {<a name="line.370"></a>
+<FONT color="green">371</FONT>                    while (bsR(1) == 1) {<a name="line.371"></a>
+<FONT color="green">372</FONT>                        if (bsR(1) == 0) {<a name="line.372"></a>
+<FONT color="green">373</FONT>                            curr++;<a name="line.373"></a>
+<FONT color="green">374</FONT>                        } else {<a name="line.374"></a>
+<FONT color="green">375</FONT>                            curr--;<a name="line.375"></a>
+<FONT color="green">376</FONT>                        }<a name="line.376"></a>
+<FONT color="green">377</FONT>                    }<a name="line.377"></a>
+<FONT color="green">378</FONT>                    len[t][i] = (char) curr;<a name="line.378"></a>
+<FONT color="green">379</FONT>                }<a name="line.379"></a>
+<FONT color="green">380</FONT>            }<a name="line.380"></a>
+<FONT color="green">381</FONT>    <a name="line.381"></a>
+<FONT color="green">382</FONT>            /* Create the Huffman decoding tables */<a name="line.382"></a>
+<FONT color="green">383</FONT>            for (t = 0; t &lt; nGroups; t++) {<a name="line.383"></a>
+<FONT color="green">384</FONT>                minLen = 32;<a name="line.384"></a>
+<FONT color="green">385</FONT>                maxLen = 0;<a name="line.385"></a>
+<FONT color="green">386</FONT>                for (i = 0; i &lt; alphaSize; i++) {<a name="line.386"></a>
+<FONT color="green">387</FONT>                    if (len[t][i] &gt; maxLen) {<a name="line.387"></a>
+<FONT color="green">388</FONT>                        maxLen = len[t][i];<a name="line.388"></a>
+<FONT color="green">389</FONT>                    }<a name="line.389"></a>
+<FONT color="green">390</FONT>                    if (len[t][i] &lt; minLen) {<a name="line.390"></a>
+<FONT color="green">391</FONT>                        minLen = len[t][i];<a name="line.391"></a>
+<FONT color="green">392</FONT>                    }<a name="line.392"></a>
+<FONT color="green">393</FONT>                }<a name="line.393"></a>
+<FONT color="green">394</FONT>                hbCreateDecodeTables(limit[t], base[t], perm[t], len[t], minLen,<a name="line.394"></a>
+<FONT color="green">395</FONT>                        maxLen, alphaSize);<a name="line.395"></a>
+<FONT color="green">396</FONT>                minLens[t] = minLen;<a name="line.396"></a>
+<FONT color="green">397</FONT>            }<a name="line.397"></a>
+<FONT color="green">398</FONT>        }<a name="line.398"></a>
+<FONT color="green">399</FONT>    <a name="line.399"></a>
+<FONT color="green">400</FONT>        private void getAndMoveToFrontDecode() throws IOException {<a name="line.400"></a>
+<FONT color="green">401</FONT>            char[] yy = new char[256];<a name="line.401"></a>
+<FONT color="green">402</FONT>            int i, j, nextSym, limitLast;<a name="line.402"></a>
+<FONT color="green">403</FONT>            int EOB, groupNo, groupPos;<a name="line.403"></a>
+<FONT color="green">404</FONT>    <a name="line.404"></a>
+<FONT color="green">405</FONT>            limitLast = BASE_BLOCK_SIZE * blockSize100k;<a name="line.405"></a>
+<FONT color="green">406</FONT>            origPtr = bsGetIntVS(24);<a name="line.406"></a>
+<FONT color="green">407</FONT>    <a name="line.407"></a>
+<FONT color="green">408</FONT>            recvDecodingTables();<a name="line.408"></a>
+<FONT color="green">409</FONT>            EOB = nInUse + 1;<a name="line.409"></a>
+<FONT color="green">410</FONT>            groupNo = -1;<a name="line.410"></a>
+<FONT color="green">411</FONT>            groupPos = 0;<a name="line.411"></a>
+<FONT color="green">412</FONT>    <a name="line.412"></a>
+<FONT color="green">413</FONT>            /*<a name="line.413"></a>
+<FONT color="green">414</FONT>            Setting up the unzftab entries here is not strictly<a name="line.414"></a>
+<FONT color="green">415</FONT>            necessary, but it does save having to do it later<a name="line.415"></a>
+<FONT color="green">416</FONT>            in a separate pass, and so saves a block's worth of<a name="line.416"></a>
+<FONT color="green">417</FONT>            cache misses.<a name="line.417"></a>
+<FONT color="green">418</FONT>             */<a name="line.418"></a>
+<FONT color="green">419</FONT>            for (i = 0; i &lt;= 255; i++) {<a name="line.419"></a>
+<FONT color="green">420</FONT>                unzftab[i] = 0;<a name="line.420"></a>
+<FONT color="green">421</FONT>            }<a name="line.421"></a>
+<FONT color="green">422</FONT>    <a name="line.422"></a>
+<FONT color="green">423</FONT>            for (i = 0; i &lt;= 255; i++) {<a name="line.423"></a>
+<FONT color="green">424</FONT>                yy[i] = (char) i;<a name="line.424"></a>
+<FONT color="green">425</FONT>            }<a name="line.425"></a>
+<FONT color="green">426</FONT>    <a name="line.426"></a>
+<FONT color="green">427</FONT>            last = -1;<a name="line.427"></a>
+<FONT color="green">428</FONT>    <a name="line.428"></a>
+<FONT color="green">429</FONT>            {<a name="line.429"></a>
+<FONT color="green">430</FONT>                int zt, zn, zvec, zj;<a name="line.430"></a>
+<FONT color="green">431</FONT>                if (groupPos == 0) {<a name="line.431"></a>
+<FONT color="green">432</FONT>                    groupNo++;<a name="line.432"></a>
+<FONT color="green">433</FONT>                    groupPos = G_SIZE;<a name="line.433"></a>
+<FONT color="green">434</FONT>                }<a name="line.434"></a>
+<FONT color="green">435</FONT>                groupPos--;<a name="line.435"></a>
+<FONT color="green">436</FONT>                zt = selector[groupNo];<a name="line.436"></a>
+<FONT color="green">437</FONT>                zn = minLens[zt];<a name="line.437"></a>
+<FONT color="green">438</FONT>                zvec = bsR(zn);<a name="line.438"></a>
+<FONT color="green">439</FONT>                while (zvec &gt; limit[zt][zn]) {<a name="line.439"></a>
+<FONT color="green">440</FONT>                    zn++;<a name="line.440"></a>
+<FONT color="green">441</FONT>                    {<a name="line.441"></a>
+<FONT color="green">442</FONT>                        {<a name="line.442"></a>
+<FONT color="green">443</FONT>                            while (bsLive &lt; 1) {<a name="line.443"></a>
+<FONT color="green">444</FONT>                                int zzi;<a name="line.444"></a>
+<FONT color="green">445</FONT>                                char thech = 0;<a name="line.445"></a>
+<FONT color="green">446</FONT>    <a name="line.446"></a>
+<FONT color="green">447</FONT>                                thech = (char) bsStream.read();<a name="line.447"></a>
+<FONT color="green">448</FONT>    <a name="line.448"></a>
+<FONT color="green">449</FONT>                                if (thech == -1) {<a name="line.449"></a>
+<FONT color="green">450</FONT>                                    throw new IOException("unexpected end of file");<a name="line.450"></a>
+<FONT color="green">451</FONT>                                }<a name="line.451"></a>
+<FONT color="green">452</FONT>                                zzi = thech;<a name="line.452"></a>
+<FONT color="green">453</FONT>                                bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.453"></a>
+<FONT color="green">454</FONT>                                bsLive += 8;<a name="line.454"></a>
+<FONT color="green">455</FONT>                            }<a name="line.455"></a>
+<FONT color="green">456</FONT>                        }<a name="line.456"></a>
+<FONT color="green">457</FONT>                        zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.457"></a>
+<FONT color="green">458</FONT>                        bsLive--;<a name="line.458"></a>
+<FONT color="green">459</FONT>                    }<a name="line.459"></a>
+<FONT color="green">460</FONT>                    zvec = (zvec &lt;&lt; 1) | zj;<a name="line.460"></a>
+<FONT color="green">461</FONT>                }<a name="line.461"></a>
+<FONT color="green">462</FONT>                nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.462"></a>
+<FONT color="green">463</FONT>            }<a name="line.463"></a>
+<FONT color="green">464</FONT>    <a name="line.464"></a>
+<FONT color="green">465</FONT>            while (true) {<a name="line.465"></a>
+<FONT color="green">466</FONT>    <a name="line.466"></a>
+<FONT color="green">467</FONT>                if (nextSym == EOB) {<a name="line.467"></a>
+<FONT color="green">468</FONT>                    break;<a name="line.468"></a>
+<FONT color="green">469</FONT>                }<a name="line.469"></a>
+<FONT color="green">470</FONT>    <a name="line.470"></a>
+<FONT color="green">471</FONT>                if (nextSym == RUNA || nextSym == RUNB) {<a name="line.471"></a>
+<FONT color="green">472</FONT>                    char ch;<a name="line.472"></a>
+<FONT color="green">473</FONT>                    int s = -1;<a name="line.473"></a>
+<FONT color="green">474</FONT>                    int N = 1;<a name="line.474"></a>
+<FONT color="green">475</FONT>                    do {<a name="line.475"></a>
+<FONT color="green">476</FONT>                        if (nextSym == RUNA) {<a name="line.476"></a>
+<FONT color="green">477</FONT>                            s = s + (0 + 1) * N;<a name="line.477"></a>
+<FONT color="green">478</FONT>                        } else if (nextSym == RUNB) {<a name="line.478"></a>
+<FONT color="green">479</FONT>                            s = s + (1 + 1) * N;<a name="line.479"></a>
+<FONT color="green">480</FONT>                        }<a name="line.480"></a>
+<FONT color="green">481</FONT>                        N = N * 2;<a name="line.481"></a>
+<FONT color="green">482</FONT>                        {<a name="line.482"></a>
+<FONT color="green">483</FONT>                            int zt, zn, zvec, zj;<a name="line.483"></a>
+<FONT color="green">484</FONT>                            if (groupPos == 0) {<a name="line.484"></a>
+<FONT color="green">485</FONT>                                groupNo++;<a name="line.485"></a>
+<FONT color="green">486</FONT>                                groupPos = G_SIZE;<a name="line.486"></a>
+<FONT color="green">487</FONT>                            }<a name="line.487"></a>
+<FONT color="green">488</FONT>                            groupPos--;<a name="line.488"></a>
+<FONT color="green">489</FONT>                            zt = selector[groupNo];<a name="line.489"></a>
+<FONT color="green">490</FONT>                            zn = minLens[zt];<a name="line.490"></a>
+<FONT color="green">491</FONT>                            zvec = bsR(zn);<a name="line.491"></a>
+<FONT color="green">492</FONT>                            while (zvec &gt; limit[zt][zn]) {<a name="line.492"></a>
+<FONT color="green">493</FONT>                                zn++;<a name="line.493"></a>
+<FONT color="green">494</FONT>                                {<a name="line.494"></a>
+<FONT color="green">495</FONT>                                    {<a name="line.495"></a>
+<FONT color="green">496</FONT>                                        while (bsLive &lt; 1) {<a name="line.496"></a>
+<FONT color="green">497</FONT>                                            int zzi;<a name="line.497"></a>
+<FONT color="green">498</FONT>                                            char thech = 0;<a name="line.498"></a>
+<FONT color="green">499</FONT>    <a name="line.499"></a>
+<FONT color="green">500</FONT>                                            thech = (char) bsStream.read();<a name="line.500"></a>
+<FONT color="green">501</FONT>    <a name="line.501"></a>
+<FONT color="green">502</FONT>                                            if (thech == -1) {<a name="line.502"></a>
+<FONT color="green">503</FONT>                                                throw new IOException("unexpected end of file");<a name="line.503"></a>
+<FONT color="green">504</FONT>                                            }<a name="line.504"></a>
+<FONT color="green">505</FONT>                                            zzi = thech;<a name="line.505"></a>
+<FONT color="green">506</FONT>                                            bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.506"></a>
+<FONT color="green">507</FONT>                                            bsLive += 8;<a name="line.507"></a>
+<FONT color="green">508</FONT>                                        }<a name="line.508"></a>
+<FONT color="green">509</FONT>                                    }<a name="line.509"></a>
+<FONT color="green">510</FONT>                                    zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.510"></a>
+<FONT color="green">511</FONT>                                    bsLive--;<a name="line.511"></a>
+<FONT color="green">512</FONT>                                }<a name="line.512"></a>
+<FONT color="green">513</FONT>                                zvec = (zvec &lt;&lt; 1) | zj;<a name="line.513"></a>
+<FONT color="green">514</FONT>                            }<a name="line.514"></a>
+<FONT color="green">515</FONT>                            nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.515"></a>
+<FONT color="green">516</FONT>                        }<a name="line.516"></a>
+<FONT color="green">517</FONT>                    } while (nextSym == RUNA || nextSym == RUNB);<a name="line.517"></a>
+<FONT color="green">518</FONT>    <a name="line.518"></a>
+<FONT color="green">519</FONT>                    s++;<a name="line.519"></a>
+<FONT color="green">520</FONT>                    ch = seqToUnseq[yy[0]];<a name="line.520"></a>
+<FONT color="green">521</FONT>                    unzftab[ch] += s;<a name="line.521"></a>
+<FONT color="green">522</FONT>    <a name="line.522"></a>
+<FONT color="green">523</FONT>                    while (s &gt; 0) {<a name="line.523"></a>
+<FONT color="green">524</FONT>                        last++;<a name="line.524"></a>
+<FONT color="green">525</FONT>                        ll8[last] = ch;<a name="line.525"></a>
+<FONT color="green">526</FONT>                        s--;<a name="line.526"></a>
+<FONT color="green">527</FONT>                    }<a name="line.527"></a>
+<FONT color="green">528</FONT>    <a name="line.528"></a>
+<FONT color="green">529</FONT>                    if (last &gt;= limitLast) {<a name="line.529"></a>
+<FONT color="green">530</FONT>                        throw new IOException("block overrun");<a name="line.530"></a>
+<FONT color="green">531</FONT>                    }<a name="line.531"></a>
+<FONT color="green">532</FONT>                    continue;<a name="line.532"></a>
+<FONT color="green">533</FONT>                } else {<a name="line.533"></a>
+<FONT color="green">534</FONT>                    char tmp;<a name="line.534"></a>
+<FONT color="green">535</FONT>                    last++;<a name="line.535"></a>
+<FONT color="green">536</FONT>                    if (last &gt;= limitLast) {<a name="line.536"></a>
+<FONT color="green">537</FONT>                        throw new IOException("block overrun");<a name="line.537"></a>
+<FONT color="green">538</FONT>                    }<a name="line.538"></a>
+<FONT color="green">539</FONT>    <a name="line.539"></a>
+<FONT color="green">540</FONT>                    tmp = yy[nextSym - 1];<a name="line.540"></a>
+<FONT color="green">541</FONT>                    unzftab[seqToUnseq[tmp]]++;<a name="line.541"></a>
+<FONT color="green">542</FONT>                    ll8[last] = seqToUnseq[tmp];<a name="line.542"></a>
+<FONT color="green">543</FONT>    <a name="line.543"></a>
+<FONT color="green">544</FONT>                    /*<a name="line.544"></a>
+<FONT color="green">545</FONT>                    This loop is hammered during decompression,<a name="line.545"></a>
+<FONT color="green">546</FONT>                    hence the unrolling.<a name="line.546"></a>
+<FONT color="green">547</FONT>    <a name="line.547"></a>
+<FONT color="green">548</FONT>                    for (j = nextSym-1; j &gt; 0; j--) yy[j] = yy[j-1];<a name="line.548"></a>
+<FONT color="green">549</FONT>                     */<a name="line.549"></a>
+<FONT color="green">550</FONT>    <a name="line.550"></a>
+<FONT color="green">551</FONT>                    j = nextSym - 1;<a name="line.551"></a>
+<FONT color="green">552</FONT>                    for (; j &gt; 3; j -= 4) {<a name="line.552"></a>
+<FONT color="green">553</FONT>                        yy[j] = yy[j - 1];<a name="line.553"></a>
+<FONT color="green">554</FONT>                        yy[j - 1] = yy[j - 2];<a name="line.554"></a>
+<FONT color="green">555</FONT>                        yy[j - 2] = yy[j - 3];<a name="line.555"></a>
+<FONT color="green">556</FONT>                        yy[j - 3] = yy[j - 4];<a name="line.556"></a>
+<FONT color="green">557</FONT>                    }<a name="line.557"></a>
+<FONT color="green">558</FONT>                    for (; j &gt; 0; j--) {<a name="line.558"></a>
+<FONT color="green">559</FONT>                        yy[j] = yy[j - 1];<a name="line.559"></a>
+<FONT color="green">560</FONT>                    }<a name="line.560"></a>
+<FONT color="green">561</FONT>    <a name="line.561"></a>
+<FONT color="green">562</FONT>                    yy[0] = tmp;<a name="line.562"></a>
+<FONT color="green">563</FONT>                    {<a name="line.563"></a>
+<FONT color="green">564</FONT>                        int zt, zn, zvec, zj;<a name="line.564"></a>
+<FONT color="green">565</FONT>                        if (groupPos == 0) {<a name="line.565"></a>
+<FONT color="green">566</FONT>                            groupNo++;<a name="line.566"></a>
+<FONT color="green">567</FONT>                            groupPos = G_SIZE;<a name="line.567"></a>
+<FONT color="green">568</FONT>                        }<a name="line.568"></a>
+<FONT color="green">569</FONT>                        groupPos--;<a name="line.569"></a>
+<FONT color="green">570</FONT>                        zt = selector[groupNo];<a name="line.570"></a>
+<FONT color="green">571</FONT>                        zn = minLens[zt];<a name="line.571"></a>
+<FONT color="green">572</FONT>                        zvec = bsR(zn);<a name="line.572"></a>
+<FONT color="green">573</FONT>                        while (zvec &gt; limit[zt][zn]) {<a name="line.573"></a>
+<FONT color="green">574</FONT>                            zn++;<a name="line.574"></a>
+<FONT color="green">575</FONT>                            {<a name="line.575"></a>
+<FONT color="green">576</FONT>                                {<a name="line.576"></a>
+<FONT color="green">577</FONT>                                    while (bsLive &lt; 1) {<a name="line.577"></a>
+<FONT color="green">578</FONT>                                        int zzi;<a name="line.578"></a>
+<FONT color="green">579</FONT>                                        char thech = 0;<a name="line.579"></a>
+<FONT color="green">580</FONT>    <a name="line.580"></a>
+<FONT color="green">581</FONT>                                        thech = (char) bsStream.read();<a name="line.581"></a>
+<FONT color="green">582</FONT>    <a name="line.582"></a>
+<FONT color="green">583</FONT>                                        zzi = thech;<a name="line.583"></a>
+<FONT color="green">584</FONT>                                        bsBuff = (bsBuff &lt;&lt; 8) | (zzi &amp; 0xff);<a name="line.584"></a>
+<FONT color="green">585</FONT>                                        bsLive += 8;<a name="line.585"></a>
+<FONT color="green">586</FONT>                                    }<a name="line.586"></a>
+<FONT color="green">587</FONT>                                }<a name="line.587"></a>
+<FONT color="green">588</FONT>                                zj = (bsBuff &gt;&gt; (bsLive - 1)) &amp; 1;<a name="line.588"></a>
+<FONT color="green">589</FONT>                                bsLive--;<a name="line.589"></a>
+<FONT color="green">590</FONT>                            }<a name="line.590"></a>
+<FONT color="green">591</FONT>                            zvec = (zvec &lt;&lt; 1) | zj;<a name="line.591"></a>
+<FONT color="green">592</FONT>                        }<a name="line.592"></a>
+<FONT color="green">593</FONT>                        nextSym = perm[zt][zvec - base[zt][zn]];<a name="line.593"></a>
+<FONT color="green">594</FONT>                    }<a name="line.594"></a>
+<FONT color="green">595</FONT>                    continue;<a name="line.595"></a>
+<FONT color="green">596</FONT>                }<a name="line.596"></a>
+<FONT color="green">597</FONT>            }<a name="line.597"></a>
+<FONT color="green">598</FONT>        }<a name="line.598"></a>
+<FONT color="green">599</FONT>    <a name="line.599"></a>
+<FONT color="green">600</FONT>        private void setupBlock() throws IOException {<a name="line.600"></a>
+<FONT color="green">601</FONT>            int i;<a name="line.601"></a>
+<FONT color="green">602</FONT>            int[] cftab = new int[257];<a name="line.602"></a>
+<FONT color="green">603</FONT>            char ch;<a name="line.603"></a>
+<FONT color="green">604</FONT>    <a name="line.604"></a>
+<FONT color="green">605</FONT>            cftab[0] = 0;<a name="line.605"></a>
+<FONT color="green">606</FONT>            for (i = 1; i &lt;= 256; i++) {<a name="line.606"></a>
+<FONT color="green">607</FONT>                cftab[i] = unzftab[i - 1];<a name="line.607"></a>
+<FONT color="green">608</FONT>            }<a name="line.608"></a>
+<FONT color="green">609</FONT>            for (i = 1; i &lt;= 256; i++) {<a name="line.609"></a>
+<FONT color="green">610</FONT>                cftab[i] += cftab[i - 1];<a name="line.610"></a>
+<FONT color="green">611</FONT>            }<a name="line.611"></a>
+<FONT color="green">612</FONT>    <a name="line.612"></a>
+<FONT color="green">613</FONT>            for (i = 0; i &lt;= last; i++) {<a name="line.613"></a>
+<FONT color="green">614</FONT>                ch = ll8[i];<a name="line.614"></a>
+<FONT color="green">615</FONT>                tt[cftab[ch]] = i;<a name="line.615"></a>
+<FONT color="green">616</FONT>                cftab[ch]++;<a name="line.616"></a>
+<FONT color="green">617</FONT>            }<a name="line.617"></a>
+<FONT color="green">618</FONT>            cftab = null;<a name="line.618"></a>
+<FONT color="green">619</FONT>    <a name="line.619"></a>
+<FONT color="green">620</FONT>            tPos = tt[origPtr];<a name="line.620"></a>
+<FONT color="green">621</FONT>    <a name="line.621"></a>
+<FONT color="green">622</FONT>            count = 0;<a name="line.622"></a>
+<FONT color="green">623</FONT>            i2 = 0;<a name="line.623"></a>
+<FONT color="green">624</FONT>            ch2 = 256;   /* not a char and not EOF */<a name="line.624"></a>
+<FONT color="green">625</FONT>    <a name="line.625"></a>
+<FONT color="green">626</FONT>            if (blockRandomised) {<a name="line.626"></a>
+<FONT color="green">627</FONT>                rNToGo = 0;<a name="line.627"></a>
+<FONT color="green">628</FONT>                rTPos = 0;<a name="line.628"></a>
+<FONT color="green">629</FONT>                setupRandPartA();<a name="line.629"></a>
+<FONT color="green">630</FONT>            } else {<a name="line.630"></a>
+<FONT color="green">631</FONT>                setupNoRandPartA();<a name="line.631"></a>
+<FONT color="green">632</FONT>            }<a name="line.632"></a>
+<FONT color="green">633</FONT>        }<a name="line.633"></a>
+<FONT color="green">634</FONT>    <a name="line.634"></a>
+<FONT color="green">635</FONT>        private void setupRandPartA() throws IOException {<a name="line.635"></a>
+<FONT color="green">636</FONT>            if (i2 &lt;= last) {<a name="line.636"></a>
+<FONT color="green">637</FONT>                chPrev = ch2;<a name="line.637"></a>
+<FONT color="green">638</FONT>                ch2 = ll8[tPos];<a name="line.638"></a>
+<FONT color="green">639</FONT>                tPos = tt[tPos];<a name="line.639"></a>
+<FONT color="green">640</FONT>                if (rNToGo == 0) {<a name="line.640"></a>
+<FONT color="green">641</FONT>                    rNToGo = NUMS[rTPos];<a name="line.641"></a>
+<FONT color="green">642</FONT>                    rTPos++;<a name="line.642"></a>
+<FONT color="green">643</FONT>                    if (rTPos == 512) {<a name="line.643"></a>
+<FONT color="green">644</FONT>                        rTPos = 0;<a name="line.644"></a>
+<FONT color="green">645</FONT>                    }<a name="line.645"></a>
+<FONT color="green">646</FONT>                }<a name="line.646"></a>
+<FONT color="green">647</FONT>                rNToGo--;<a name="line.647"></a>
+<FONT color="green">648</FONT>                ch2 ^= ((rNToGo == 1) ? 1 : 0);<a name="line.648"></a>
+<FONT color="green">649</FONT>                i2++;<a name="line.649"></a>
+<FONT color="green">650</FONT>    <a name="line.650"></a>
+<FONT color="green">651</FONT>                currentChar = ch2;<a name="line.651"></a>
+<FONT color="green">652</FONT>                currentState = RAND_PART_B_STATE;<a name="line.652"></a>
+<FONT color="green">653</FONT>                mCrc.updateCRC(ch2);<a name="line.653"></a>
+<FONT color="green">654</FONT>            } else {<a name="line.654"></a>
+<FONT color="green">655</FONT>                endBlock();<a name="line.655"></a>
+<FONT color="green">656</FONT>                initBlock();<a name="line.656"></a>
+<FONT color="green">657</FONT>                setupBlock();<a name="line.657"></a>
+<FONT color="green">658</FONT>            }<a name="line.658"></a>
+<FONT color="green">659</FONT>        }<a name="line.659"></a>
+<FONT color="green">660</FONT>    <a name="line.660"></a>
+<FONT color="green">661</FONT>        private void setupNoRandPartA() throws IOException {<a name="line.661"></a>
+<FONT color="green">662</FONT>            if (i2 &lt;= last) {<a name="line.662"></a>
+<FONT color="green">663</FONT>                chPrev = ch2;<a name="line.663"></a>
+<FONT color="green">664</FONT>                ch2 = ll8[tPos];<a name="line.664"></a>
+<FONT color="green">665</FONT>                tPos = tt[tPos];<a name="line.665"></a>
+<FONT color="green">666</FONT>                i2++;<a name="line.666"></a>
+<FONT color="green">667</FONT>    <a name="line.667"></a>
+<FONT color="green">668</FONT>                currentChar = ch2;<a name="line.668"></a>
+<FONT color="green">669</FONT>                currentState = NO_RAND_PART_B_STATE;<a name="line.669"></a>
+<FONT color="green">670</FONT>                mCrc.updateCRC(ch2);<a name="line.670"></a>
+<FONT color="green">671</FONT>            } else {<a name="line.671"></a>
+<FONT color="green">672</FONT>                endBlock();<a name="line.672"></a>
+<FONT color="green">673</FONT>                initBlock();<a name="line.673"></a>
+<FONT color="green">674</FONT>                setupBlock();<a name="line.674"></a>
+<FONT color="green">675</FONT>            }<a name="line.675"></a>
+<FONT color="green">676</FONT>        }<a name="line.676"></a>
+<FONT color="green">677</FONT>    <a name="line.677"></a>
+<FONT color="green">678</FONT>        private void setupRandPartB() throws IOException {<a name="line.678"></a>
+<FONT color="green">679</FONT>            if (ch2 != chPrev) {<a name="line.679"></a>
+<FONT color="green">680</FONT>                currentState = RAND_PART_A_STATE;<a name="line.680"></a>
+<FONT color="green">681</FONT>                count = 1;<a name="line.681"></a>
+<FONT color="green">682</FONT>                setupRandPartA();<a name="line.682"></a>
+<FONT color="green">683</FONT>            } else {<a name="line.683"></a>
+<FONT color="green">684</FONT>                count++;<a name="line.684"></a>
+<FONT color="green">685</FONT>                if (count &gt;= 4) {<a name="line.685"></a>
+<FONT color="green">686</FONT>                    z = ll8[tPos];<a name="line.686"></a>
+<FONT color="green">687</FONT>                    tPos = tt[tPos];<a name="line.687"></a>
+<FONT color="green">688</FONT>                    if (rNToGo == 0) {<a name="line.688"></a>
+<FONT color="green">689</FONT>                        rNToGo = NUMS[rTPos];<a name="line.689"></a>
+<FONT color="green">690</FONT>                        rTPos++;<a name="line.690"></a>
+<FONT color="green">691</FONT>                        if (rTPos == 512) {<a name="line.691"></a>
+<FONT color="green">692</FONT>                            rTPos = 0;<a name="line.692"></a>
+<FONT color="green">693</FONT>                        }<a name="line.693"></a>
+<FONT color="green">694</FONT>                    }<a name="line.694"></a>
+<FONT color="green">695</FONT>                    rNToGo--;<a name="line.695"></a>
+<FONT color="green">696</FONT>                    z ^= ((rNToGo == 1) ? 1 : 0);<a name="line.696"></a>
+<FONT color="green">697</FONT>                    j2 = 0;<a name="line.697"></a>
+<FONT color="green">698</FONT>                    currentState = RAND_PART_C_STATE;<a name="line.698"></a>
+<FONT color="green">699</FONT>                    setupRandPartC();<a name="line.699"></a>
+<FONT color="green">700</FONT>                } else {<a name="line.700"></a>
+<FONT color="green">701</FONT>                    currentState = RAND_PART_A_STATE;<a name="line.701"></a>
+<FONT color="green">702</FONT>                    setupRandPartA();<a name="line.702"></a>
+<FONT color="green">703</FONT>                }<a name="line.703"></a>
+<FONT color="green">704</FONT>            }<a name="line.704"></a>
+<FONT color="green">705</FONT>        }<a name="line.705"></a>
+<FONT color="green">706</FONT>    <a name="line.706"></a>
+<FONT color="green">707</FONT>        private void setupRandPartC() throws IOException {<a name="line.707"></a>
+<FONT color="green">708</FONT>            if (j2 &lt; (int) z) {<a name="line.708"></a>
+<FONT color="green">709</FONT>                currentChar = ch2;<a name="line.709"></a>
+<FONT color="green">710</FONT>                mCrc.updateCRC(ch2);<a name="line.710"></a>
+<FONT color="green">711</FONT>                j2++;<a name="line.711"></a>
+<FONT color="green">712</FONT>            } else {<a name="line.712"></a>
+<FONT color="green">713</FONT>                currentState = RAND_PART_A_STATE;<a name="line.713"></a>
+<FONT color="green">714</FONT>                i2++;<a name="line.714"></a>
+<FONT color="green">715</FONT>                count = 0;<a name="line.715"></a>
+<FONT color="green">716</FONT>                setupRandPartA();<a name="line.716"></a>
+<FONT color="green">717</FONT>            }<a name="line.717"></a>
+<FONT color="green">718</FONT>        }<a name="line.718"></a>
+<FONT color="green">719</FONT>    <a name="line.719"></a>
+<FONT color="green">720</FONT>        private void setupNoRandPartB() throws IOException {<a name="line.720"></a>
+<FONT color="green">721</FONT>            if (ch2 != chPrev) {<a name="line.721"></a>
+<FONT color="green">722</FONT>                currentState = NO_RAND_PART_A_STATE;<a name="line.722"></a>
+<FONT color="green">723</FONT>                count = 1;<a name="line.723"></a>
+<FONT color="green">724</FONT>                setupNoRandPartA();<a name="line.724"></a>
+<FONT color="green">725</FONT>            } else {<a name="line.725"></a>
+<FONT color="green">726</FONT>                count++;<a name="line.726"></a>
+<FONT color="green">727</FONT>                if (count &gt;= 4) {<a name="line.727"></a>
+<FONT color="green">728</FONT>                    z = ll8[tPos];<a name="line.728"></a>
+<FONT color="green">729</FONT>                    tPos = tt[tPos];<a name="line.729"></a>
+<FONT color="green">730</FONT>                    currentState = NO_RAND_PART_C_STATE;<a name="line.730"></a>
+<FONT color="green">731</FONT>                    j2 = 0;<a name="line.731"></a>
+<FONT color="green">732</FONT>                    setupNoRandPartC();<a name="line.732"></a>
+<FONT color="green">733</FONT>                } else {<a name="line.733"></a>
+<FONT color="green">734</FONT>                    currentState = NO_RAND_PART_A_STATE;<a name="line.734"></a>
+<FONT color="green">735</FONT>                    setupNoRandPartA();<a name="line.735"></a>
+<FONT color="green">736</FONT>                }<a name="line.736"></a>
+<FONT color="green">737</FONT>            }<a name="line.737"></a>
+<FONT color="green">738</FONT>        }<a name="line.738"></a>
+<FONT color="green">739</FONT>    <a name="line.739"></a>
+<FONT color="green">740</FONT>        private void setupNoRandPartC() throws IOException {<a name="line.740"></a>
+<FONT color="green">741</FONT>            if (j2 &lt; (int) z) {<a name="line.741"></a>
+<FONT color="green">742</FONT>                currentChar = ch2;<a name="line.742"></a>
+<FONT color="green">743</FONT>                mCrc.updateCRC(ch2);<a name="line.743"></a>
+<FONT color="green">744</FONT>                j2++;<a name="line.744"></a>
+<FONT color="green">745</FONT>            } else {<a name="line.745"></a>
+<FONT color="green">746</FONT>                currentState = NO_RAND_PART_A_STATE;<a name="line.746"></a>
+<FONT color="green">747</FONT>                i2++;<a name="line.747"></a>
+<FONT color="green">748</FONT>                count = 0;<a name="line.748"></a>
+<FONT color="green">749</FONT>                setupNoRandPartA();<a name="line.749"></a>
+<FONT color="green">750</FONT>            }<a name="line.750"></a>
+<FONT color="green">751</FONT>        }<a name="line.751"></a>
+<FONT color="green">752</FONT>    <a name="line.752"></a>
+<FONT color="green">753</FONT>        private void setDecompressStructureSizes(int newSize100k) throws IOException {<a name="line.753"></a>
+<FONT color="green">754</FONT>            if (!(0 &lt;= newSize100k &amp;&amp; newSize100k &lt;= 9 &amp;&amp; 0 &lt;= blockSize100k &amp;&amp; blockSize100k &lt;= 9)) {<a name="line.754"></a>
+<FONT color="green">755</FONT>                throw new IOException("invalid block size");<a name="line.755"></a>
+<FONT color="green">756</FONT>            }<a name="line.756"></a>
+<FONT color="green">757</FONT>    <a name="line.757"></a>
+<FONT color="green">758</FONT>            blockSize100k = newSize100k;<a name="line.758"></a>
+<FONT color="green">759</FONT>    <a name="line.759"></a>
+<FONT color="green">760</FONT>            if (newSize100k == 0) {<a name="line.760"></a>
+<FONT color="green">761</FONT>                return;<a name="line.761"></a>
+<FONT color="green">762</FONT>            }<a name="line.762"></a>
+<FONT color="green">763</FONT>    <a name="line.763"></a>
+<FONT color="green">764</FONT>            int n = BASE_BLOCK_SIZE * newSize100k;<a name="line.764"></a>
+<FONT color="green">765</FONT>            ll8 = new char[n];<a name="line.765"></a>
+<FONT color="green">766</FONT>            tt = new int[n];<a name="line.766"></a>
+<FONT color="green">767</FONT>        }<a name="line.767"></a>
+<FONT color="green">768</FONT>    <a name="line.768"></a>
+<FONT color="green">769</FONT>        public void setInput(byte[] b) throws IOException {<a name="line.769"></a>
+<FONT color="green">770</FONT>            this.setInput(b, 0, b.length);<a name="line.770"></a>
+<FONT color="green">771</FONT>        }<a name="line.771"></a>
+<FONT color="green">772</FONT>    <a name="line.772"></a>
+<FONT color="green">773</FONT>        public void setInput(byte[] b, int off, int len) throws IOException {<a name="line.773"></a>
+<FONT color="green">774</FONT>            this.inputBuffer.write(b, off, len);<a name="line.774"></a>
+<FONT color="green">775</FONT>    <a name="line.775"></a>
+<FONT color="green">776</FONT>            if (!this.readHeader) {<a name="line.776"></a>
+<FONT color="green">777</FONT>                if (this.inputBuffer.size() &gt; 10) {<a name="line.777"></a>
+<FONT color="green">778</FONT>                    this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.778"></a>
+<FONT color="green">779</FONT>                    this.inputBuffer.reset();<a name="line.779"></a>
+<FONT color="green">780</FONT>    <a name="line.780"></a>
+<FONT color="green">781</FONT>                    this.initStream();<a name="line.781"></a>
+<FONT color="green">782</FONT>    <a name="line.782"></a>
+<FONT color="green">783</FONT>                    if (this.streamEnd == true) {<a name="line.783"></a>
+<FONT color="green">784</FONT>                        throw new IOException("invalid BZip2 stream");<a name="line.784"></a>
+<FONT color="green">785</FONT>                    }<a name="line.785"></a>
+<FONT color="green">786</FONT>    <a name="line.786"></a>
+<FONT color="green">787</FONT>                    this.readHeader = true;<a name="line.787"></a>
+<FONT color="green">788</FONT>                }<a name="line.788"></a>
+<FONT color="green">789</FONT>            } else if (this.inputBuffer.size() &gt; 0 &amp;&amp; (this.bsStream == null || !(this.bsStream.available() &gt; 0))) {<a name="line.789"></a>
+<FONT color="green">790</FONT>                this.flush();<a name="line.790"></a>
+<FONT color="green">791</FONT>            } else if (this.inputBuffer.size() &gt; 8192) {<a name="line.791"></a>
+<FONT color="green">792</FONT>                this.flush();<a name="line.792"></a>
+<FONT color="green">793</FONT>            }<a name="line.793"></a>
+<FONT color="green">794</FONT>        }<a name="line.794"></a>
+<FONT color="green">795</FONT>    <a name="line.795"></a>
+<FONT color="green">796</FONT>        public boolean needsInput() {<a name="line.796"></a>
+<FONT color="green">797</FONT>            this.flush();<a name="line.797"></a>
+<FONT color="green">798</FONT>    <a name="line.798"></a>
+<FONT color="green">799</FONT>            return !(this.bsStream.available() &gt; 0);<a name="line.799"></a>
+<FONT color="green">800</FONT>        }<a name="line.800"></a>
+<FONT color="green">801</FONT>    <a name="line.801"></a>
+<FONT color="green">802</FONT>        public int inflate(byte[] b) throws IOException {<a name="line.802"></a>
+<FONT color="green">803</FONT>            int rc = 0;<a name="line.803"></a>
+<FONT color="green">804</FONT>    <a name="line.804"></a>
+<FONT color="green">805</FONT>            while (this.bsStream != null &amp;&amp; this.bsStream.available() &gt; 0 &amp;&amp; rc &lt; b.length) {<a name="line.805"></a>
+<FONT color="green">806</FONT>                b[rc++] = (byte) this.read();<a name="line.806"></a>
+<FONT color="green">807</FONT>            }<a name="line.807"></a>
+<FONT color="green">808</FONT>    <a name="line.808"></a>
+<FONT color="green">809</FONT>            this.flush();<a name="line.809"></a>
+<FONT color="green">810</FONT>    <a name="line.810"></a>
+<FONT color="green">811</FONT>            return rc;<a name="line.811"></a>
+<FONT color="green">812</FONT>        }<a name="line.812"></a>
+<FONT color="green">813</FONT>    <a name="line.813"></a>
+<FONT color="green">814</FONT>        public void flush() {<a name="line.814"></a>
+<FONT color="green">815</FONT>            if (this.inputBuffer.size() &gt; 0) {<a name="line.815"></a>
+<FONT color="green">816</FONT>                if (this.bsStream == null || !(this.bsStream.available() &gt; 0)) {<a name="line.816"></a>
+<FONT color="green">817</FONT>                    this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.817"></a>
+<FONT color="green">818</FONT>                } else {<a name="line.818"></a>
+<FONT color="green">819</FONT>                    byte[] buff = new byte[this.bsStream.available() + this.inputBuffer.size()];<a name="line.819"></a>
+<FONT color="green">820</FONT>    <a name="line.820"></a>
+<FONT color="green">821</FONT>                    int i = 0;<a name="line.821"></a>
+<FONT color="green">822</FONT>    <a name="line.822"></a>
+<FONT color="green">823</FONT>                    try {<a name="line.823"></a>
+<FONT color="green">824</FONT>                        i = this.bsStream.read(buff);<a name="line.824"></a>
+<FONT color="green">825</FONT>                    } catch (IOException e) {<a name="line.825"></a>
+<FONT color="green">826</FONT>                    }<a name="line.826"></a>
+<FONT color="green">827</FONT>    <a name="line.827"></a>
+<FONT color="green">828</FONT>                    if (i == 0) {<a name="line.828"></a>
+<FONT color="green">829</FONT>                        this.bsStream = new ByteArrayInputStream(this.inputBuffer.toByteArray());<a name="line.829"></a>
+<FONT color="green">830</FONT>                    } else {<a name="line.830"></a>
+<FONT color="green">831</FONT>                        byte[] o = this.inputBuffer.toByteArray();<a name="line.831"></a>
+<FONT color="green">832</FONT>    <a name="line.832"></a>
+<FONT color="green">833</FONT>                        System.arraycopy(o, 0, buff, i, o.length);<a name="line.833"></a>
+<FONT color="green">834</FONT>    <a name="line.834"></a>
+<FONT color="green">835</FONT>                        this.bsStream = new ByteArrayInputStream(buff);<a name="line.835"></a>
+<FONT color="green">836</FONT>                    }<a name="line.836"></a>
+<FONT color="green">837</FONT>                }<a name="line.837"></a>
+<FONT color="green">838</FONT>    <a name="line.838"></a>
+<FONT color="green">839</FONT>                this.inputBuffer.reset();<a name="line.839"></a>
+<FONT color="green">840</FONT>            }<a name="line.840"></a>
+<FONT color="green">841</FONT>        }<a name="line.841"></a>
+<FONT color="green">842</FONT>    }<a name="line.842"></a>
+<FONT color="green">843</FONT>    <a name="line.843"></a>
 
 
 
@@ -909,7 +904,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

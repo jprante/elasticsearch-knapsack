@@ -1,260 +1,255 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.lzf;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.compress.BufferRecycler;<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
-<span class="sourceLineNo">007</span>import java.io.InputStream;<a name="line.7"></a>
-<span class="sourceLineNo">008</span><a name="line.8"></a>
-<span class="sourceLineNo">009</span>/**<a name="line.9"></a>
-<span class="sourceLineNo">010</span> * Decorator {@link java.io.InputStream} implementation used for reading<a name="line.10"></a>
-<span class="sourceLineNo">011</span> * &lt;b&gt;uncompressed&lt;/b&gt; data and &lt;b&gt;compressing&lt;/b&gt; it on the fly, such that<a name="line.11"></a>
-<span class="sourceLineNo">012</span> * reads return compressed data. It is reverse of {@link LZFInputStream} (which<a name="line.12"></a>
-<span class="sourceLineNo">013</span> * instead uncompresses data).<a name="line.13"></a>
-<span class="sourceLineNo">014</span> */<a name="line.14"></a>
-<span class="sourceLineNo">015</span>public class LZFCompressingInputStream extends InputStream {<a name="line.15"></a>
-<span class="sourceLineNo">016</span><a name="line.16"></a>
-<span class="sourceLineNo">017</span>    private final BufferRecycler _recycler;<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    private ChunkEncoder _encoder;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>    /**<a name="line.19"></a>
-<span class="sourceLineNo">020</span>     * stream to be decompressed<a name="line.20"></a>
-<span class="sourceLineNo">021</span>     */<a name="line.21"></a>
-<span class="sourceLineNo">022</span>    protected final InputStream _inputStream;<a name="line.22"></a>
-<span class="sourceLineNo">023</span>    /**<a name="line.23"></a>
-<span class="sourceLineNo">024</span>     * Flag that indicates if we have already called 'inputStream.close()' (to<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     * avoid calling it multiple times)<a name="line.25"></a>
-<span class="sourceLineNo">026</span>     */<a name="line.26"></a>
-<span class="sourceLineNo">027</span>    protected boolean _inputStreamClosed;<a name="line.27"></a>
-<span class="sourceLineNo">028</span>    /**<a name="line.28"></a>
-<span class="sourceLineNo">029</span>     * Flag that indicates whether we force full reads (reading of as many bytes<a name="line.29"></a>
-<span class="sourceLineNo">030</span>     * as requested), or 'optimal' reads (up to as many as available, but at<a name="line.30"></a>
-<span class="sourceLineNo">031</span>     * least one). Default is false, meaning that 'optimal' read is used.<a name="line.31"></a>
-<span class="sourceLineNo">032</span>     */<a name="line.32"></a>
-<span class="sourceLineNo">033</span>    protected boolean _cfgFullReads = false;<a name="line.33"></a>
-<span class="sourceLineNo">034</span>    /**<a name="line.34"></a>
-<span class="sourceLineNo">035</span>     * Buffer in which uncompressed input is first read, before getting encoded<a name="line.35"></a>
-<span class="sourceLineNo">036</span>     * in {@link #_encodedBytes}.<a name="line.36"></a>
-<span class="sourceLineNo">037</span>     */<a name="line.37"></a>
-<span class="sourceLineNo">038</span>    protected byte[] _inputBuffer;<a name="line.38"></a>
-<span class="sourceLineNo">039</span>    /**<a name="line.39"></a>
-<span class="sourceLineNo">040</span>     * Buffer that contains compressed data that is returned to readers.<a name="line.40"></a>
-<span class="sourceLineNo">041</span>     */<a name="line.41"></a>
-<span class="sourceLineNo">042</span>    protected byte[] _encodedBytes;<a name="line.42"></a>
-<span class="sourceLineNo">043</span>    /**<a name="line.43"></a>
-<span class="sourceLineNo">044</span>     * The current position (next char to output) in the uncompressed bytes<a name="line.44"></a>
-<span class="sourceLineNo">045</span>     * buffer.<a name="line.45"></a>
-<span class="sourceLineNo">046</span>     */<a name="line.46"></a>
-<span class="sourceLineNo">047</span>    protected int _bufferPosition = 0;<a name="line.47"></a>
-<span class="sourceLineNo">048</span>    /**<a name="line.48"></a>
-<span class="sourceLineNo">049</span>     * Length of the current uncompressed bytes buffer<a name="line.49"></a>
-<span class="sourceLineNo">050</span>     */<a name="line.50"></a>
-<span class="sourceLineNo">051</span>    protected int _bufferLength = 0;<a name="line.51"></a>
-<span class="sourceLineNo">052</span>    /**<a name="line.52"></a>
-<span class="sourceLineNo">053</span>     * Number of bytes read from the underlying {@link #_inputStream}<a name="line.53"></a>
-<span class="sourceLineNo">054</span>     */<a name="line.54"></a>
-<span class="sourceLineNo">055</span>    protected int _readCount = 0;<a name="line.55"></a>
-<span class="sourceLineNo">056</span><a name="line.56"></a>
-<span class="sourceLineNo">057</span>    /*<a name="line.57"></a>
-<span class="sourceLineNo">058</span>     ///////////////////////////////////////////////////////////////////////<a name="line.58"></a>
-<span class="sourceLineNo">059</span>     // Construction, configuration<a name="line.59"></a>
-<span class="sourceLineNo">060</span>     ///////////////////////////////////////////////////////////////////////<a name="line.60"></a>
-<span class="sourceLineNo">061</span>     */<a name="line.61"></a>
-<span class="sourceLineNo">062</span>    public LZFCompressingInputStream(InputStream in) {<a name="line.62"></a>
-<span class="sourceLineNo">063</span>        _inputStream = in;<a name="line.63"></a>
-<span class="sourceLineNo">064</span>        _recycler = BufferRecycler.instance();<a name="line.64"></a>
-<span class="sourceLineNo">065</span>        _inputBuffer = _recycler.allocInputBuffer(LZFChunk.MAX_CHUNK_LEN);<a name="line.65"></a>
-<span class="sourceLineNo">066</span>        // let's not yet allocate encoding buffer; don't know optimal size<a name="line.66"></a>
-<span class="sourceLineNo">067</span>    }<a name="line.67"></a>
-<span class="sourceLineNo">068</span><a name="line.68"></a>
-<span class="sourceLineNo">069</span>    /**<a name="line.69"></a>
-<span class="sourceLineNo">070</span>     * Method that can be used define whether reads should be "full" or<a name="line.70"></a>
-<span class="sourceLineNo">071</span>     * "optimal": former means that full compressed blocks are read right away<a name="line.71"></a>
-<span class="sourceLineNo">072</span>     * as needed, optimal that only smaller chunks are read at a time, more<a name="line.72"></a>
-<span class="sourceLineNo">073</span>     * being read as needed.<a name="line.73"></a>
-<span class="sourceLineNo">074</span>     */<a name="line.74"></a>
-<span class="sourceLineNo">075</span>    public void setUseFullReads(boolean b) {<a name="line.75"></a>
-<span class="sourceLineNo">076</span>        _cfgFullReads = b;<a name="line.76"></a>
-<span class="sourceLineNo">077</span>    }<a name="line.77"></a>
-<span class="sourceLineNo">078</span><a name="line.78"></a>
-<span class="sourceLineNo">079</span>    @Override<a name="line.79"></a>
-<span class="sourceLineNo">080</span>    public int available() {<a name="line.80"></a>
-<span class="sourceLineNo">081</span>        // if closed, return -1;<a name="line.81"></a>
-<span class="sourceLineNo">082</span>        if (_inputStreamClosed) {<a name="line.82"></a>
-<span class="sourceLineNo">083</span>            return -1;<a name="line.83"></a>
-<span class="sourceLineNo">084</span>        }<a name="line.84"></a>
-<span class="sourceLineNo">085</span>        int left = (_bufferLength - _bufferPosition);<a name="line.85"></a>
-<span class="sourceLineNo">086</span>        return (left &lt;= 0) ? 0 : left;<a name="line.86"></a>
-<span class="sourceLineNo">087</span>    }<a name="line.87"></a>
-<span class="sourceLineNo">088</span><a name="line.88"></a>
-<span class="sourceLineNo">089</span>    @Override<a name="line.89"></a>
-<span class="sourceLineNo">090</span>    public int read() throws IOException {<a name="line.90"></a>
-<span class="sourceLineNo">091</span>        if (!readyBuffer()) {<a name="line.91"></a>
-<span class="sourceLineNo">092</span>            return -1;<a name="line.92"></a>
-<span class="sourceLineNo">093</span>        }<a name="line.93"></a>
-<span class="sourceLineNo">094</span>        return _encodedBytes[_bufferPosition++] &amp; 255;<a name="line.94"></a>
-<span class="sourceLineNo">095</span>    }<a name="line.95"></a>
-<span class="sourceLineNo">096</span><a name="line.96"></a>
-<span class="sourceLineNo">097</span>    @Override<a name="line.97"></a>
-<span class="sourceLineNo">098</span>    public int read(final byte[] buffer) throws IOException {<a name="line.98"></a>
-<span class="sourceLineNo">099</span>        return read(buffer, 0, buffer.length);<a name="line.99"></a>
-<span class="sourceLineNo">100</span>    }<a name="line.100"></a>
-<span class="sourceLineNo">101</span><a name="line.101"></a>
-<span class="sourceLineNo">102</span>    @Override<a name="line.102"></a>
-<span class="sourceLineNo">103</span>    public int read(final byte[] buffer, int offset, int length) throws IOException {<a name="line.103"></a>
-<span class="sourceLineNo">104</span>        if (length &lt; 1) {<a name="line.104"></a>
-<span class="sourceLineNo">105</span>            return 0;<a name="line.105"></a>
-<span class="sourceLineNo">106</span>        }<a name="line.106"></a>
-<span class="sourceLineNo">107</span>        if (!readyBuffer()) {<a name="line.107"></a>
-<span class="sourceLineNo">108</span>            return -1;<a name="line.108"></a>
-<span class="sourceLineNo">109</span>        }<a name="line.109"></a>
-<span class="sourceLineNo">110</span>        // First let's read however much data we happen to have...<a name="line.110"></a>
-<span class="sourceLineNo">111</span>        int chunkLength = Math.min(_bufferLength - _bufferPosition, length);<a name="line.111"></a>
-<span class="sourceLineNo">112</span>        System.arraycopy(_encodedBytes, _bufferPosition, buffer, offset, chunkLength);<a name="line.112"></a>
-<span class="sourceLineNo">113</span>        _bufferPosition += chunkLength;<a name="line.113"></a>
-<span class="sourceLineNo">114</span><a name="line.114"></a>
-<span class="sourceLineNo">115</span>        if (chunkLength == length || !_cfgFullReads) {<a name="line.115"></a>
-<span class="sourceLineNo">116</span>            return chunkLength;<a name="line.116"></a>
-<span class="sourceLineNo">117</span>        }<a name="line.117"></a>
-<span class="sourceLineNo">118</span>        // Need more data, then<a name="line.118"></a>
-<span class="sourceLineNo">119</span>        int totalRead = chunkLength;<a name="line.119"></a>
-<span class="sourceLineNo">120</span>        do {<a name="line.120"></a>
-<span class="sourceLineNo">121</span>            offset += chunkLength;<a name="line.121"></a>
-<span class="sourceLineNo">122</span>            if (!readyBuffer()) {<a name="line.122"></a>
-<span class="sourceLineNo">123</span>                break;<a name="line.123"></a>
-<span class="sourceLineNo">124</span>            }<a name="line.124"></a>
-<span class="sourceLineNo">125</span>            chunkLength = Math.min(_bufferLength - _bufferPosition, (length - totalRead));<a name="line.125"></a>
-<span class="sourceLineNo">126</span>            System.arraycopy(_encodedBytes, _bufferPosition, buffer, offset, chunkLength);<a name="line.126"></a>
-<span class="sourceLineNo">127</span>            _bufferPosition += chunkLength;<a name="line.127"></a>
-<span class="sourceLineNo">128</span>            totalRead += chunkLength;<a name="line.128"></a>
-<span class="sourceLineNo">129</span>        } while (totalRead &lt; length);<a name="line.129"></a>
-<span class="sourceLineNo">130</span><a name="line.130"></a>
-<span class="sourceLineNo">131</span>        return totalRead;<a name="line.131"></a>
-<span class="sourceLineNo">132</span>    }<a name="line.132"></a>
-<span class="sourceLineNo">133</span><a name="line.133"></a>
-<span class="sourceLineNo">134</span>    @Override<a name="line.134"></a>
-<span class="sourceLineNo">135</span>    public void close() throws IOException {<a name="line.135"></a>
-<span class="sourceLineNo">136</span>        _bufferPosition = _bufferLength = 0;<a name="line.136"></a>
-<span class="sourceLineNo">137</span>        byte[] buf = _encodedBytes;<a name="line.137"></a>
-<span class="sourceLineNo">138</span>        if (buf != null) {<a name="line.138"></a>
-<span class="sourceLineNo">139</span>            _encodedBytes = null;<a name="line.139"></a>
-<span class="sourceLineNo">140</span>            _recycler.releaseEncodeBuffer(buf);<a name="line.140"></a>
-<span class="sourceLineNo">141</span>        }<a name="line.141"></a>
-<span class="sourceLineNo">142</span>        if (_encoder != null) {<a name="line.142"></a>
-<span class="sourceLineNo">143</span>            _encoder.close();<a name="line.143"></a>
-<span class="sourceLineNo">144</span>        }<a name="line.144"></a>
-<span class="sourceLineNo">145</span>        _closeInput();<a name="line.145"></a>
-<span class="sourceLineNo">146</span>    }<a name="line.146"></a>
-<span class="sourceLineNo">147</span><a name="line.147"></a>
-<span class="sourceLineNo">148</span>    private void _closeInput() throws IOException {<a name="line.148"></a>
-<span class="sourceLineNo">149</span>        byte[] buf = _inputBuffer;<a name="line.149"></a>
-<span class="sourceLineNo">150</span>        if (buf != null) {<a name="line.150"></a>
-<span class="sourceLineNo">151</span>            _inputBuffer = null;<a name="line.151"></a>
-<span class="sourceLineNo">152</span>            _recycler.releaseInputBuffer(buf);<a name="line.152"></a>
-<span class="sourceLineNo">153</span>        }<a name="line.153"></a>
-<span class="sourceLineNo">154</span>        if (!_inputStreamClosed) {<a name="line.154"></a>
-<span class="sourceLineNo">155</span>            _inputStreamClosed = true;<a name="line.155"></a>
-<span class="sourceLineNo">156</span>            _inputStream.close();<a name="line.156"></a>
-<span class="sourceLineNo">157</span>        }<a name="line.157"></a>
-<span class="sourceLineNo">158</span>    }<a name="line.158"></a>
-<span class="sourceLineNo">159</span><a name="line.159"></a>
-<span class="sourceLineNo">160</span>    /**<a name="line.160"></a>
-<span class="sourceLineNo">161</span>     * Overridden to just skip at most a single chunk at a time<a name="line.161"></a>
-<span class="sourceLineNo">162</span>     */<a name="line.162"></a>
-<span class="sourceLineNo">163</span>    @Override<a name="line.163"></a>
-<span class="sourceLineNo">164</span>    public long skip(long n) throws IOException {<a name="line.164"></a>
-<span class="sourceLineNo">165</span>        if (_inputStreamClosed) {<a name="line.165"></a>
-<span class="sourceLineNo">166</span>            return -1;<a name="line.166"></a>
-<span class="sourceLineNo">167</span>        }<a name="line.167"></a>
-<span class="sourceLineNo">168</span>        int left = (_bufferLength - _bufferPosition);<a name="line.168"></a>
-<span class="sourceLineNo">169</span>        // if none left, must read more:<a name="line.169"></a>
-<span class="sourceLineNo">170</span>        if (left &lt;= 0) {<a name="line.170"></a>
-<span class="sourceLineNo">171</span>            // otherwise must read more to skip...<a name="line.171"></a>
-<span class="sourceLineNo">172</span>            int b = read();<a name="line.172"></a>
-<span class="sourceLineNo">173</span>            if (b &lt; 0) { // EOF<a name="line.173"></a>
-<span class="sourceLineNo">174</span>                return -1;<a name="line.174"></a>
-<span class="sourceLineNo">175</span>            }<a name="line.175"></a>
-<span class="sourceLineNo">176</span>            // push it back to get accurate skip count<a name="line.176"></a>
-<span class="sourceLineNo">177</span>            --_bufferPosition;<a name="line.177"></a>
-<span class="sourceLineNo">178</span>            left = (_bufferLength - _bufferPosition);<a name="line.178"></a>
-<span class="sourceLineNo">179</span>        }<a name="line.179"></a>
-<span class="sourceLineNo">180</span>        // either way, just skip whatever we have decoded<a name="line.180"></a>
-<span class="sourceLineNo">181</span>        if (left &gt; n) {<a name="line.181"></a>
-<span class="sourceLineNo">182</span>            left = (int) n;<a name="line.182"></a>
-<span class="sourceLineNo">183</span>        }<a name="line.183"></a>
-<span class="sourceLineNo">184</span>        _bufferPosition += left;<a name="line.184"></a>
-<span class="sourceLineNo">185</span>        return left;<a name="line.185"></a>
-<span class="sourceLineNo">186</span>    }<a name="line.186"></a>
-<span class="sourceLineNo">187</span>    /*<a name="line.187"></a>
-<span class="sourceLineNo">188</span>     ///////////////////////////////////////////////////////////////////////<a name="line.188"></a>
-<span class="sourceLineNo">189</span>     // Internal methods<a name="line.189"></a>
-<span class="sourceLineNo">190</span>     ///////////////////////////////////////////////////////////////////////<a name="line.190"></a>
-<span class="sourceLineNo">191</span>     */<a name="line.191"></a>
-<span class="sourceLineNo">192</span><a name="line.192"></a>
-<span class="sourceLineNo">193</span>    /**<a name="line.193"></a>
-<span class="sourceLineNo">194</span>     * Fill the uncompressed bytes buffer by reading the underlying inputStream.<a name="line.194"></a>
-<span class="sourceLineNo">195</span>     *<a name="line.195"></a>
-<span class="sourceLineNo">196</span>     * @throws java.io.IOException<a name="line.196"></a>
-<span class="sourceLineNo">197</span>     */<a name="line.197"></a>
-<span class="sourceLineNo">198</span>    protected boolean readyBuffer() throws IOException {<a name="line.198"></a>
-<span class="sourceLineNo">199</span>        if (_bufferPosition &lt; _bufferLength) {<a name="line.199"></a>
-<span class="sourceLineNo">200</span>            return true;<a name="line.200"></a>
-<span class="sourceLineNo">201</span>        }<a name="line.201"></a>
-<span class="sourceLineNo">202</span>        if (_inputStreamClosed) {<a name="line.202"></a>
-<span class="sourceLineNo">203</span>            return false;<a name="line.203"></a>
-<span class="sourceLineNo">204</span>        }<a name="line.204"></a>
-<span class="sourceLineNo">205</span>        // Ok: read as much as we can from input source first<a name="line.205"></a>
-<span class="sourceLineNo">206</span>        int count = _inputStream.read(_inputBuffer, 0, _inputBuffer.length);<a name="line.206"></a>
-<span class="sourceLineNo">207</span>        if (count &lt; 0) { // if no input read, it's EOF<a name="line.207"></a>
-<span class="sourceLineNo">208</span>            _closeInput(); // and we can close input source as well<a name="line.208"></a>
-<span class="sourceLineNo">209</span>            return false;<a name="line.209"></a>
-<span class="sourceLineNo">210</span>        }<a name="line.210"></a>
-<span class="sourceLineNo">211</span>        int chunkLength = count;<a name="line.211"></a>
-<span class="sourceLineNo">212</span>        int left = _inputBuffer.length - count;<a name="line.212"></a>
-<span class="sourceLineNo">213</span><a name="line.213"></a>
-<span class="sourceLineNo">214</span>        while ((count = _inputStream.read(_inputBuffer, chunkLength, left)) &gt; 0) {<a name="line.214"></a>
-<span class="sourceLineNo">215</span>            chunkLength += count;<a name="line.215"></a>
-<span class="sourceLineNo">216</span>            left -= count;<a name="line.216"></a>
-<span class="sourceLineNo">217</span>            if (left &lt; 1) {<a name="line.217"></a>
-<span class="sourceLineNo">218</span>                break;<a name="line.218"></a>
-<span class="sourceLineNo">219</span>            }<a name="line.219"></a>
-<span class="sourceLineNo">220</span>        }<a name="line.220"></a>
-<span class="sourceLineNo">221</span><a name="line.221"></a>
-<span class="sourceLineNo">222</span>        _bufferPosition = 0;<a name="line.222"></a>
-<span class="sourceLineNo">223</span><a name="line.223"></a>
-<span class="sourceLineNo">224</span>        // Ok: if we don't yet have an encoder (and buffer for it), let's get one<a name="line.224"></a>
-<span class="sourceLineNo">225</span>        if (_encoder == null) {<a name="line.225"></a>
-<span class="sourceLineNo">226</span>            // need 7 byte header, plus regular max buffer size:<a name="line.226"></a>
-<span class="sourceLineNo">227</span>            int bufferLen = chunkLength + ((chunkLength + 31) &gt;&gt; 5) + 7;<a name="line.227"></a>
-<span class="sourceLineNo">228</span>            _encoder = ChunkEncoder.nonAllocatingEncoder(bufferLen);<a name="line.228"></a>
-<span class="sourceLineNo">229</span>            _encodedBytes = _recycler.allocEncodingBuffer(bufferLen);<a name="line.229"></a>
-<span class="sourceLineNo">230</span>        }<a name="line.230"></a>
-<span class="sourceLineNo">231</span>        // offset of 7 so we can prepend header as necessary<a name="line.231"></a>
-<span class="sourceLineNo">232</span>        int encodeEnd = _encoder.tryCompress(_inputBuffer, 0, chunkLength, _encodedBytes, 7);<a name="line.232"></a>
-<span class="sourceLineNo">233</span>        // but did it compress?<a name="line.233"></a>
-<span class="sourceLineNo">234</span>        if (encodeEnd &lt; (chunkLength + 5)) { // yes! (compared to 5 byte uncomp prefix, data)<a name="line.234"></a>
-<span class="sourceLineNo">235</span>            // prepend header in situ<a name="line.235"></a>
-<span class="sourceLineNo">236</span>            LZFChunk.appendCompressedHeader(chunkLength, encodeEnd - 7, _encodedBytes, 0);<a name="line.236"></a>
-<span class="sourceLineNo">237</span>            _bufferLength = encodeEnd;<a name="line.237"></a>
-<span class="sourceLineNo">238</span>        } else { // no -- so sad...<a name="line.238"></a>
-<span class="sourceLineNo">239</span>            int ptr = LZFChunk.appendNonCompressedHeader(chunkLength, _encodedBytes, 0);<a name="line.239"></a>
-<span class="sourceLineNo">240</span>            // TODO: figure out a way to avoid this copy; need a header<a name="line.240"></a>
-<span class="sourceLineNo">241</span>            System.arraycopy(_inputBuffer, 0, _encodedBytes, ptr, chunkLength);<a name="line.241"></a>
-<span class="sourceLineNo">242</span>            _bufferLength = ptr + chunkLength;<a name="line.242"></a>
-<span class="sourceLineNo">243</span>        }<a name="line.243"></a>
-<span class="sourceLineNo">244</span>        if (count &lt; 0) { // did we get end-of-input?<a name="line.244"></a>
-<span class="sourceLineNo">245</span>            _closeInput();<a name="line.245"></a>
-<span class="sourceLineNo">246</span>        }<a name="line.246"></a>
-<span class="sourceLineNo">247</span>        return true;<a name="line.247"></a>
-<span class="sourceLineNo">248</span>    }<a name="line.248"></a>
-<span class="sourceLineNo">249</span>}<a name="line.249"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.lzf;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import org.xbib.io.compress.BufferRecycler;<a name="line.4"></a>
+<FONT color="green">005</FONT>    <a name="line.5"></a>
+<FONT color="green">006</FONT>    import java.io.IOException;<a name="line.6"></a>
+<FONT color="green">007</FONT>    import java.io.InputStream;<a name="line.7"></a>
+<FONT color="green">008</FONT>    <a name="line.8"></a>
+<FONT color="green">009</FONT>    /**<a name="line.9"></a>
+<FONT color="green">010</FONT>     * Decorator {@link java.io.InputStream} implementation used for reading<a name="line.10"></a>
+<FONT color="green">011</FONT>     * &lt;b&gt;uncompressed&lt;/b&gt; data and &lt;b&gt;compressing&lt;/b&gt; it on the fly, such that<a name="line.11"></a>
+<FONT color="green">012</FONT>     * reads return compressed data. It is reverse of {@link LZFInputStream} (which<a name="line.12"></a>
+<FONT color="green">013</FONT>     * instead uncompresses data).<a name="line.13"></a>
+<FONT color="green">014</FONT>     */<a name="line.14"></a>
+<FONT color="green">015</FONT>    public class LZFCompressingInputStream extends InputStream {<a name="line.15"></a>
+<FONT color="green">016</FONT>    <a name="line.16"></a>
+<FONT color="green">017</FONT>        private final BufferRecycler _recycler;<a name="line.17"></a>
+<FONT color="green">018</FONT>        private ChunkEncoder _encoder;<a name="line.18"></a>
+<FONT color="green">019</FONT>        /**<a name="line.19"></a>
+<FONT color="green">020</FONT>         * stream to be decompressed<a name="line.20"></a>
+<FONT color="green">021</FONT>         */<a name="line.21"></a>
+<FONT color="green">022</FONT>        protected final InputStream _inputStream;<a name="line.22"></a>
+<FONT color="green">023</FONT>        /**<a name="line.23"></a>
+<FONT color="green">024</FONT>         * Flag that indicates if we have already called 'inputStream.close()' (to<a name="line.24"></a>
+<FONT color="green">025</FONT>         * avoid calling it multiple times)<a name="line.25"></a>
+<FONT color="green">026</FONT>         */<a name="line.26"></a>
+<FONT color="green">027</FONT>        protected boolean _inputStreamClosed;<a name="line.27"></a>
+<FONT color="green">028</FONT>        /**<a name="line.28"></a>
+<FONT color="green">029</FONT>         * Flag that indicates whether we force full reads (reading of as many bytes<a name="line.29"></a>
+<FONT color="green">030</FONT>         * as requested), or 'optimal' reads (up to as many as available, but at<a name="line.30"></a>
+<FONT color="green">031</FONT>         * least one). Default is false, meaning that 'optimal' read is used.<a name="line.31"></a>
+<FONT color="green">032</FONT>         */<a name="line.32"></a>
+<FONT color="green">033</FONT>        protected boolean _cfgFullReads = false;<a name="line.33"></a>
+<FONT color="green">034</FONT>        /**<a name="line.34"></a>
+<FONT color="green">035</FONT>         * Buffer in which uncompressed input is first read, before getting encoded<a name="line.35"></a>
+<FONT color="green">036</FONT>         * in {@link #_encodedBytes}.<a name="line.36"></a>
+<FONT color="green">037</FONT>         */<a name="line.37"></a>
+<FONT color="green">038</FONT>        protected byte[] _inputBuffer;<a name="line.38"></a>
+<FONT color="green">039</FONT>        /**<a name="line.39"></a>
+<FONT color="green">040</FONT>         * Buffer that contains compressed data that is returned to readers.<a name="line.40"></a>
+<FONT color="green">041</FONT>         */<a name="line.41"></a>
+<FONT color="green">042</FONT>        protected byte[] _encodedBytes;<a name="line.42"></a>
+<FONT color="green">043</FONT>        /**<a name="line.43"></a>
+<FONT color="green">044</FONT>         * The current position (next char to output) in the uncompressed bytes<a name="line.44"></a>
+<FONT color="green">045</FONT>         * buffer.<a name="line.45"></a>
+<FONT color="green">046</FONT>         */<a name="line.46"></a>
+<FONT color="green">047</FONT>        protected int _bufferPosition = 0;<a name="line.47"></a>
+<FONT color="green">048</FONT>        /**<a name="line.48"></a>
+<FONT color="green">049</FONT>         * Length of the current uncompressed bytes buffer<a name="line.49"></a>
+<FONT color="green">050</FONT>         */<a name="line.50"></a>
+<FONT color="green">051</FONT>        protected int _bufferLength = 0;<a name="line.51"></a>
+<FONT color="green">052</FONT>        /**<a name="line.52"></a>
+<FONT color="green">053</FONT>         * Number of bytes read from the underlying {@link #_inputStream}<a name="line.53"></a>
+<FONT color="green">054</FONT>         */<a name="line.54"></a>
+<FONT color="green">055</FONT>        protected int _readCount = 0;<a name="line.55"></a>
+<FONT color="green">056</FONT>    <a name="line.56"></a>
+<FONT color="green">057</FONT>        /*<a name="line.57"></a>
+<FONT color="green">058</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.58"></a>
+<FONT color="green">059</FONT>         // Construction, configuration<a name="line.59"></a>
+<FONT color="green">060</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.60"></a>
+<FONT color="green">061</FONT>         */<a name="line.61"></a>
+<FONT color="green">062</FONT>        public LZFCompressingInputStream(InputStream in) {<a name="line.62"></a>
+<FONT color="green">063</FONT>            _inputStream = in;<a name="line.63"></a>
+<FONT color="green">064</FONT>            _recycler = BufferRecycler.instance();<a name="line.64"></a>
+<FONT color="green">065</FONT>            _inputBuffer = _recycler.allocInputBuffer(LZFChunk.MAX_CHUNK_LEN);<a name="line.65"></a>
+<FONT color="green">066</FONT>            // let's not yet allocate encoding buffer; don't know optimal size<a name="line.66"></a>
+<FONT color="green">067</FONT>        }<a name="line.67"></a>
+<FONT color="green">068</FONT>    <a name="line.68"></a>
+<FONT color="green">069</FONT>        /**<a name="line.69"></a>
+<FONT color="green">070</FONT>         * Method that can be used define whether reads should be "full" or<a name="line.70"></a>
+<FONT color="green">071</FONT>         * "optimal": former means that full compressed blocks are read right away<a name="line.71"></a>
+<FONT color="green">072</FONT>         * as needed, optimal that only smaller chunks are read at a time, more<a name="line.72"></a>
+<FONT color="green">073</FONT>         * being read as needed.<a name="line.73"></a>
+<FONT color="green">074</FONT>         */<a name="line.74"></a>
+<FONT color="green">075</FONT>        public void setUseFullReads(boolean b) {<a name="line.75"></a>
+<FONT color="green">076</FONT>            _cfgFullReads = b;<a name="line.76"></a>
+<FONT color="green">077</FONT>        }<a name="line.77"></a>
+<FONT color="green">078</FONT>    <a name="line.78"></a>
+<FONT color="green">079</FONT>        @Override<a name="line.79"></a>
+<FONT color="green">080</FONT>        public int available() {<a name="line.80"></a>
+<FONT color="green">081</FONT>            // if closed, return -1;<a name="line.81"></a>
+<FONT color="green">082</FONT>            if (_inputStreamClosed) {<a name="line.82"></a>
+<FONT color="green">083</FONT>                return -1;<a name="line.83"></a>
+<FONT color="green">084</FONT>            }<a name="line.84"></a>
+<FONT color="green">085</FONT>            int left = (_bufferLength - _bufferPosition);<a name="line.85"></a>
+<FONT color="green">086</FONT>            return (left &lt;= 0) ? 0 : left;<a name="line.86"></a>
+<FONT color="green">087</FONT>        }<a name="line.87"></a>
+<FONT color="green">088</FONT>    <a name="line.88"></a>
+<FONT color="green">089</FONT>        @Override<a name="line.89"></a>
+<FONT color="green">090</FONT>        public int read() throws IOException {<a name="line.90"></a>
+<FONT color="green">091</FONT>            if (!readyBuffer()) {<a name="line.91"></a>
+<FONT color="green">092</FONT>                return -1;<a name="line.92"></a>
+<FONT color="green">093</FONT>            }<a name="line.93"></a>
+<FONT color="green">094</FONT>            return _encodedBytes[_bufferPosition++] &amp; 255;<a name="line.94"></a>
+<FONT color="green">095</FONT>        }<a name="line.95"></a>
+<FONT color="green">096</FONT>    <a name="line.96"></a>
+<FONT color="green">097</FONT>        @Override<a name="line.97"></a>
+<FONT color="green">098</FONT>        public int read(final byte[] buffer) throws IOException {<a name="line.98"></a>
+<FONT color="green">099</FONT>            return read(buffer, 0, buffer.length);<a name="line.99"></a>
+<FONT color="green">100</FONT>        }<a name="line.100"></a>
+<FONT color="green">101</FONT>    <a name="line.101"></a>
+<FONT color="green">102</FONT>        @Override<a name="line.102"></a>
+<FONT color="green">103</FONT>        public int read(final byte[] buffer, int offset, int length) throws IOException {<a name="line.103"></a>
+<FONT color="green">104</FONT>            if (length &lt; 1) {<a name="line.104"></a>
+<FONT color="green">105</FONT>                return 0;<a name="line.105"></a>
+<FONT color="green">106</FONT>            }<a name="line.106"></a>
+<FONT color="green">107</FONT>            if (!readyBuffer()) {<a name="line.107"></a>
+<FONT color="green">108</FONT>                return -1;<a name="line.108"></a>
+<FONT color="green">109</FONT>            }<a name="line.109"></a>
+<FONT color="green">110</FONT>            // First let's read however much data we happen to have...<a name="line.110"></a>
+<FONT color="green">111</FONT>            int chunkLength = Math.min(_bufferLength - _bufferPosition, length);<a name="line.111"></a>
+<FONT color="green">112</FONT>            System.arraycopy(_encodedBytes, _bufferPosition, buffer, offset, chunkLength);<a name="line.112"></a>
+<FONT color="green">113</FONT>            _bufferPosition += chunkLength;<a name="line.113"></a>
+<FONT color="green">114</FONT>    <a name="line.114"></a>
+<FONT color="green">115</FONT>            if (chunkLength == length || !_cfgFullReads) {<a name="line.115"></a>
+<FONT color="green">116</FONT>                return chunkLength;<a name="line.116"></a>
+<FONT color="green">117</FONT>            }<a name="line.117"></a>
+<FONT color="green">118</FONT>            // Need more data, then<a name="line.118"></a>
+<FONT color="green">119</FONT>            int totalRead = chunkLength;<a name="line.119"></a>
+<FONT color="green">120</FONT>            do {<a name="line.120"></a>
+<FONT color="green">121</FONT>                offset += chunkLength;<a name="line.121"></a>
+<FONT color="green">122</FONT>                if (!readyBuffer()) {<a name="line.122"></a>
+<FONT color="green">123</FONT>                    break;<a name="line.123"></a>
+<FONT color="green">124</FONT>                }<a name="line.124"></a>
+<FONT color="green">125</FONT>                chunkLength = Math.min(_bufferLength - _bufferPosition, (length - totalRead));<a name="line.125"></a>
+<FONT color="green">126</FONT>                System.arraycopy(_encodedBytes, _bufferPosition, buffer, offset, chunkLength);<a name="line.126"></a>
+<FONT color="green">127</FONT>                _bufferPosition += chunkLength;<a name="line.127"></a>
+<FONT color="green">128</FONT>                totalRead += chunkLength;<a name="line.128"></a>
+<FONT color="green">129</FONT>            } while (totalRead &lt; length);<a name="line.129"></a>
+<FONT color="green">130</FONT>    <a name="line.130"></a>
+<FONT color="green">131</FONT>            return totalRead;<a name="line.131"></a>
+<FONT color="green">132</FONT>        }<a name="line.132"></a>
+<FONT color="green">133</FONT>    <a name="line.133"></a>
+<FONT color="green">134</FONT>        @Override<a name="line.134"></a>
+<FONT color="green">135</FONT>        public void close() throws IOException {<a name="line.135"></a>
+<FONT color="green">136</FONT>            _bufferPosition = _bufferLength = 0;<a name="line.136"></a>
+<FONT color="green">137</FONT>            byte[] buf = _encodedBytes;<a name="line.137"></a>
+<FONT color="green">138</FONT>            if (buf != null) {<a name="line.138"></a>
+<FONT color="green">139</FONT>                _encodedBytes = null;<a name="line.139"></a>
+<FONT color="green">140</FONT>                _recycler.releaseEncodeBuffer(buf);<a name="line.140"></a>
+<FONT color="green">141</FONT>            }<a name="line.141"></a>
+<FONT color="green">142</FONT>            if (_encoder != null) {<a name="line.142"></a>
+<FONT color="green">143</FONT>                _encoder.close();<a name="line.143"></a>
+<FONT color="green">144</FONT>            }<a name="line.144"></a>
+<FONT color="green">145</FONT>            _closeInput();<a name="line.145"></a>
+<FONT color="green">146</FONT>        }<a name="line.146"></a>
+<FONT color="green">147</FONT>    <a name="line.147"></a>
+<FONT color="green">148</FONT>        private void _closeInput() throws IOException {<a name="line.148"></a>
+<FONT color="green">149</FONT>            byte[] buf = _inputBuffer;<a name="line.149"></a>
+<FONT color="green">150</FONT>            if (buf != null) {<a name="line.150"></a>
+<FONT color="green">151</FONT>                _inputBuffer = null;<a name="line.151"></a>
+<FONT color="green">152</FONT>                _recycler.releaseInputBuffer(buf);<a name="line.152"></a>
+<FONT color="green">153</FONT>            }<a name="line.153"></a>
+<FONT color="green">154</FONT>            if (!_inputStreamClosed) {<a name="line.154"></a>
+<FONT color="green">155</FONT>                _inputStreamClosed = true;<a name="line.155"></a>
+<FONT color="green">156</FONT>                _inputStream.close();<a name="line.156"></a>
+<FONT color="green">157</FONT>            }<a name="line.157"></a>
+<FONT color="green">158</FONT>        }<a name="line.158"></a>
+<FONT color="green">159</FONT>    <a name="line.159"></a>
+<FONT color="green">160</FONT>        /**<a name="line.160"></a>
+<FONT color="green">161</FONT>         * Overridden to just skip at most a single chunk at a time<a name="line.161"></a>
+<FONT color="green">162</FONT>         */<a name="line.162"></a>
+<FONT color="green">163</FONT>        @Override<a name="line.163"></a>
+<FONT color="green">164</FONT>        public long skip(long n) throws IOException {<a name="line.164"></a>
+<FONT color="green">165</FONT>            if (_inputStreamClosed) {<a name="line.165"></a>
+<FONT color="green">166</FONT>                return -1;<a name="line.166"></a>
+<FONT color="green">167</FONT>            }<a name="line.167"></a>
+<FONT color="green">168</FONT>            int left = (_bufferLength - _bufferPosition);<a name="line.168"></a>
+<FONT color="green">169</FONT>            // if none left, must read more:<a name="line.169"></a>
+<FONT color="green">170</FONT>            if (left &lt;= 0) {<a name="line.170"></a>
+<FONT color="green">171</FONT>                // otherwise must read more to skip...<a name="line.171"></a>
+<FONT color="green">172</FONT>                int b = read();<a name="line.172"></a>
+<FONT color="green">173</FONT>                if (b &lt; 0) { // EOF<a name="line.173"></a>
+<FONT color="green">174</FONT>                    return -1;<a name="line.174"></a>
+<FONT color="green">175</FONT>                }<a name="line.175"></a>
+<FONT color="green">176</FONT>                // push it back to get accurate skip count<a name="line.176"></a>
+<FONT color="green">177</FONT>                --_bufferPosition;<a name="line.177"></a>
+<FONT color="green">178</FONT>                left = (_bufferLength - _bufferPosition);<a name="line.178"></a>
+<FONT color="green">179</FONT>            }<a name="line.179"></a>
+<FONT color="green">180</FONT>            // either way, just skip whatever we have decoded<a name="line.180"></a>
+<FONT color="green">181</FONT>            if (left &gt; n) {<a name="line.181"></a>
+<FONT color="green">182</FONT>                left = (int) n;<a name="line.182"></a>
+<FONT color="green">183</FONT>            }<a name="line.183"></a>
+<FONT color="green">184</FONT>            _bufferPosition += left;<a name="line.184"></a>
+<FONT color="green">185</FONT>            return left;<a name="line.185"></a>
+<FONT color="green">186</FONT>        }<a name="line.186"></a>
+<FONT color="green">187</FONT>        /*<a name="line.187"></a>
+<FONT color="green">188</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.188"></a>
+<FONT color="green">189</FONT>         // Internal methods<a name="line.189"></a>
+<FONT color="green">190</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.190"></a>
+<FONT color="green">191</FONT>         */<a name="line.191"></a>
+<FONT color="green">192</FONT>    <a name="line.192"></a>
+<FONT color="green">193</FONT>        /**<a name="line.193"></a>
+<FONT color="green">194</FONT>         * Fill the uncompressed bytes buffer by reading the underlying inputStream.<a name="line.194"></a>
+<FONT color="green">195</FONT>         *<a name="line.195"></a>
+<FONT color="green">196</FONT>         * @throws java.io.IOException<a name="line.196"></a>
+<FONT color="green">197</FONT>         */<a name="line.197"></a>
+<FONT color="green">198</FONT>        protected boolean readyBuffer() throws IOException {<a name="line.198"></a>
+<FONT color="green">199</FONT>            if (_bufferPosition &lt; _bufferLength) {<a name="line.199"></a>
+<FONT color="green">200</FONT>                return true;<a name="line.200"></a>
+<FONT color="green">201</FONT>            }<a name="line.201"></a>
+<FONT color="green">202</FONT>            if (_inputStreamClosed) {<a name="line.202"></a>
+<FONT color="green">203</FONT>                return false;<a name="line.203"></a>
+<FONT color="green">204</FONT>            }<a name="line.204"></a>
+<FONT color="green">205</FONT>            // Ok: read as much as we can from input source first<a name="line.205"></a>
+<FONT color="green">206</FONT>            int count = _inputStream.read(_inputBuffer, 0, _inputBuffer.length);<a name="line.206"></a>
+<FONT color="green">207</FONT>            if (count &lt; 0) { // if no input read, it's EOF<a name="line.207"></a>
+<FONT color="green">208</FONT>                _closeInput(); // and we can close input source as well<a name="line.208"></a>
+<FONT color="green">209</FONT>                return false;<a name="line.209"></a>
+<FONT color="green">210</FONT>            }<a name="line.210"></a>
+<FONT color="green">211</FONT>            int chunkLength = count;<a name="line.211"></a>
+<FONT color="green">212</FONT>            int left = _inputBuffer.length - count;<a name="line.212"></a>
+<FONT color="green">213</FONT>    <a name="line.213"></a>
+<FONT color="green">214</FONT>            while ((count = _inputStream.read(_inputBuffer, chunkLength, left)) &gt; 0) {<a name="line.214"></a>
+<FONT color="green">215</FONT>                chunkLength += count;<a name="line.215"></a>
+<FONT color="green">216</FONT>                left -= count;<a name="line.216"></a>
+<FONT color="green">217</FONT>                if (left &lt; 1) {<a name="line.217"></a>
+<FONT color="green">218</FONT>                    break;<a name="line.218"></a>
+<FONT color="green">219</FONT>                }<a name="line.219"></a>
+<FONT color="green">220</FONT>            }<a name="line.220"></a>
+<FONT color="green">221</FONT>    <a name="line.221"></a>
+<FONT color="green">222</FONT>            _bufferPosition = 0;<a name="line.222"></a>
+<FONT color="green">223</FONT>    <a name="line.223"></a>
+<FONT color="green">224</FONT>            // Ok: if we don't yet have an encoder (and buffer for it), let's get one<a name="line.224"></a>
+<FONT color="green">225</FONT>            if (_encoder == null) {<a name="line.225"></a>
+<FONT color="green">226</FONT>                // need 7 byte header, plus regular max buffer size:<a name="line.226"></a>
+<FONT color="green">227</FONT>                int bufferLen = chunkLength + ((chunkLength + 31) &gt;&gt; 5) + 7;<a name="line.227"></a>
+<FONT color="green">228</FONT>                _encoder = ChunkEncoder.nonAllocatingEncoder(bufferLen);<a name="line.228"></a>
+<FONT color="green">229</FONT>                _encodedBytes = _recycler.allocEncodingBuffer(bufferLen);<a name="line.229"></a>
+<FONT color="green">230</FONT>            }<a name="line.230"></a>
+<FONT color="green">231</FONT>            // offset of 7 so we can prepend header as necessary<a name="line.231"></a>
+<FONT color="green">232</FONT>            int encodeEnd = _encoder.tryCompress(_inputBuffer, 0, chunkLength, _encodedBytes, 7);<a name="line.232"></a>
+<FONT color="green">233</FONT>            // but did it compress?<a name="line.233"></a>
+<FONT color="green">234</FONT>            if (encodeEnd &lt; (chunkLength + 5)) { // yes! (compared to 5 byte uncomp prefix, data)<a name="line.234"></a>
+<FONT color="green">235</FONT>                // prepend header in situ<a name="line.235"></a>
+<FONT color="green">236</FONT>                LZFChunk.appendCompressedHeader(chunkLength, encodeEnd - 7, _encodedBytes, 0);<a name="line.236"></a>
+<FONT color="green">237</FONT>                _bufferLength = encodeEnd;<a name="line.237"></a>
+<FONT color="green">238</FONT>            } else { // no -- so sad...<a name="line.238"></a>
+<FONT color="green">239</FONT>                int ptr = LZFChunk.appendNonCompressedHeader(chunkLength, _encodedBytes, 0);<a name="line.239"></a>
+<FONT color="green">240</FONT>                // TODO: figure out a way to avoid this copy; need a header<a name="line.240"></a>
+<FONT color="green">241</FONT>                System.arraycopy(_inputBuffer, 0, _encodedBytes, ptr, chunkLength);<a name="line.241"></a>
+<FONT color="green">242</FONT>                _bufferLength = ptr + chunkLength;<a name="line.242"></a>
+<FONT color="green">243</FONT>            }<a name="line.243"></a>
+<FONT color="green">244</FONT>            if (count &lt; 0) { // did we get end-of-input?<a name="line.244"></a>
+<FONT color="green">245</FONT>                _closeInput();<a name="line.245"></a>
+<FONT color="green">246</FONT>            }<a name="line.246"></a>
+<FONT color="green">247</FONT>            return true;<a name="line.247"></a>
+<FONT color="green">248</FONT>        }<a name="line.248"></a>
+<FONT color="green">249</FONT>    }<a name="line.249"></a>
 
 
 
@@ -315,7 +310,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

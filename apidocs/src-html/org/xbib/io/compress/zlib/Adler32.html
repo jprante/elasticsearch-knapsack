@@ -1,83 +1,78 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public class Adler32 {<a name="line.4"></a>
-<span class="sourceLineNo">005</span><a name="line.5"></a>
-<span class="sourceLineNo">006</span>    // largest prime smaller than 65536<a name="line.6"></a>
-<span class="sourceLineNo">007</span>    private static final int BASE = 65521;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>    // NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) &lt;= 2^32-1<a name="line.8"></a>
-<span class="sourceLineNo">009</span>    private static final int NMAX = 5552;<a name="line.9"></a>
-<span class="sourceLineNo">010</span><a name="line.10"></a>
-<span class="sourceLineNo">011</span>    private Adler32() {<a name="line.11"></a>
-<span class="sourceLineNo">012</span>    }<a name="line.12"></a>
-<span class="sourceLineNo">013</span><a name="line.13"></a>
-<span class="sourceLineNo">014</span>    public static long adler32(long adler, byte[] buf, int ind, int len) {<a name="line.14"></a>
-<span class="sourceLineNo">015</span>        if (buf == null) {<a name="line.15"></a>
-<span class="sourceLineNo">016</span>            return 1L;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>        }<a name="line.17"></a>
-<span class="sourceLineNo">018</span>        int index = ind;<a name="line.18"></a>
-<span class="sourceLineNo">019</span>        long s1 = adler &amp; 0xffff;<a name="line.19"></a>
-<span class="sourceLineNo">020</span>        long s2 = (adler &gt;&gt; 16) &amp; 0xffff;<a name="line.20"></a>
-<span class="sourceLineNo">021</span>        int k;<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>        while (len &gt; 0) {<a name="line.23"></a>
-<span class="sourceLineNo">024</span>            k = len &lt; NMAX ? len : NMAX;<a name="line.24"></a>
-<span class="sourceLineNo">025</span>            len -= k;<a name="line.25"></a>
-<span class="sourceLineNo">026</span>            while (k &gt;= 16) {<a name="line.26"></a>
-<span class="sourceLineNo">027</span>                s1 += buf[index++] &amp; 0xff;<a name="line.27"></a>
-<span class="sourceLineNo">028</span>                s2 += s1;<a name="line.28"></a>
-<span class="sourceLineNo">029</span>                s1 += buf[index++] &amp; 0xff;<a name="line.29"></a>
-<span class="sourceLineNo">030</span>                s2 += s1;<a name="line.30"></a>
-<span class="sourceLineNo">031</span>                s1 += buf[index++] &amp; 0xff;<a name="line.31"></a>
-<span class="sourceLineNo">032</span>                s2 += s1;<a name="line.32"></a>
-<span class="sourceLineNo">033</span>                s1 += buf[index++] &amp; 0xff;<a name="line.33"></a>
-<span class="sourceLineNo">034</span>                s2 += s1;<a name="line.34"></a>
-<span class="sourceLineNo">035</span>                s1 += buf[index++] &amp; 0xff;<a name="line.35"></a>
-<span class="sourceLineNo">036</span>                s2 += s1;<a name="line.36"></a>
-<span class="sourceLineNo">037</span>                s1 += buf[index++] &amp; 0xff;<a name="line.37"></a>
-<span class="sourceLineNo">038</span>                s2 += s1;<a name="line.38"></a>
-<span class="sourceLineNo">039</span>                s1 += buf[index++] &amp; 0xff;<a name="line.39"></a>
-<span class="sourceLineNo">040</span>                s2 += s1;<a name="line.40"></a>
-<span class="sourceLineNo">041</span>                s1 += buf[index++] &amp; 0xff;<a name="line.41"></a>
-<span class="sourceLineNo">042</span>                s2 += s1;<a name="line.42"></a>
-<span class="sourceLineNo">043</span>                s1 += buf[index++] &amp; 0xff;<a name="line.43"></a>
-<span class="sourceLineNo">044</span>                s2 += s1;<a name="line.44"></a>
-<span class="sourceLineNo">045</span>                s1 += buf[index++] &amp; 0xff;<a name="line.45"></a>
-<span class="sourceLineNo">046</span>                s2 += s1;<a name="line.46"></a>
-<span class="sourceLineNo">047</span>                s1 += buf[index++] &amp; 0xff;<a name="line.47"></a>
-<span class="sourceLineNo">048</span>                s2 += s1;<a name="line.48"></a>
-<span class="sourceLineNo">049</span>                s1 += buf[index++] &amp; 0xff;<a name="line.49"></a>
-<span class="sourceLineNo">050</span>                s2 += s1;<a name="line.50"></a>
-<span class="sourceLineNo">051</span>                s1 += buf[index++] &amp; 0xff;<a name="line.51"></a>
-<span class="sourceLineNo">052</span>                s2 += s1;<a name="line.52"></a>
-<span class="sourceLineNo">053</span>                s1 += buf[index++] &amp; 0xff;<a name="line.53"></a>
-<span class="sourceLineNo">054</span>                s2 += s1;<a name="line.54"></a>
-<span class="sourceLineNo">055</span>                s1 += buf[index++] &amp; 0xff;<a name="line.55"></a>
-<span class="sourceLineNo">056</span>                s2 += s1;<a name="line.56"></a>
-<span class="sourceLineNo">057</span>                s1 += buf[index++] &amp; 0xff;<a name="line.57"></a>
-<span class="sourceLineNo">058</span>                s2 += s1;<a name="line.58"></a>
-<span class="sourceLineNo">059</span>                k -= 16;<a name="line.59"></a>
-<span class="sourceLineNo">060</span>            }<a name="line.60"></a>
-<span class="sourceLineNo">061</span>            if (k != 0) {<a name="line.61"></a>
-<span class="sourceLineNo">062</span>                do {<a name="line.62"></a>
-<span class="sourceLineNo">063</span>                    s1 += buf[index++] &amp; 0xff;<a name="line.63"></a>
-<span class="sourceLineNo">064</span>                    s2 += s1;<a name="line.64"></a>
-<span class="sourceLineNo">065</span>                } while (--k != 0);<a name="line.65"></a>
-<span class="sourceLineNo">066</span>            }<a name="line.66"></a>
-<span class="sourceLineNo">067</span>            s1 %= BASE;<a name="line.67"></a>
-<span class="sourceLineNo">068</span>            s2 %= BASE;<a name="line.68"></a>
-<span class="sourceLineNo">069</span>        }<a name="line.69"></a>
-<span class="sourceLineNo">070</span>        return (s2 &lt;&lt; 16) | s1;<a name="line.70"></a>
-<span class="sourceLineNo">071</span>    }<a name="line.71"></a>
-<span class="sourceLineNo">072</span>}<a name="line.72"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    public class Adler32 {<a name="line.4"></a>
+<FONT color="green">005</FONT>    <a name="line.5"></a>
+<FONT color="green">006</FONT>        // largest prime smaller than 65536<a name="line.6"></a>
+<FONT color="green">007</FONT>        private static final int BASE = 65521;<a name="line.7"></a>
+<FONT color="green">008</FONT>        // NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) &lt;= 2^32-1<a name="line.8"></a>
+<FONT color="green">009</FONT>        private static final int NMAX = 5552;<a name="line.9"></a>
+<FONT color="green">010</FONT>    <a name="line.10"></a>
+<FONT color="green">011</FONT>        private Adler32() {<a name="line.11"></a>
+<FONT color="green">012</FONT>        }<a name="line.12"></a>
+<FONT color="green">013</FONT>    <a name="line.13"></a>
+<FONT color="green">014</FONT>        public static long adler32(long adler, byte[] buf, int ind, int len) {<a name="line.14"></a>
+<FONT color="green">015</FONT>            if (buf == null) {<a name="line.15"></a>
+<FONT color="green">016</FONT>                return 1L;<a name="line.16"></a>
+<FONT color="green">017</FONT>            }<a name="line.17"></a>
+<FONT color="green">018</FONT>            int index = ind;<a name="line.18"></a>
+<FONT color="green">019</FONT>            long s1 = adler &amp; 0xffff;<a name="line.19"></a>
+<FONT color="green">020</FONT>            long s2 = (adler &gt;&gt; 16) &amp; 0xffff;<a name="line.20"></a>
+<FONT color="green">021</FONT>            int k;<a name="line.21"></a>
+<FONT color="green">022</FONT>    <a name="line.22"></a>
+<FONT color="green">023</FONT>            while (len &gt; 0) {<a name="line.23"></a>
+<FONT color="green">024</FONT>                k = len &lt; NMAX ? len : NMAX;<a name="line.24"></a>
+<FONT color="green">025</FONT>                len -= k;<a name="line.25"></a>
+<FONT color="green">026</FONT>                while (k &gt;= 16) {<a name="line.26"></a>
+<FONT color="green">027</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.27"></a>
+<FONT color="green">028</FONT>                    s2 += s1;<a name="line.28"></a>
+<FONT color="green">029</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.29"></a>
+<FONT color="green">030</FONT>                    s2 += s1;<a name="line.30"></a>
+<FONT color="green">031</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.31"></a>
+<FONT color="green">032</FONT>                    s2 += s1;<a name="line.32"></a>
+<FONT color="green">033</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.33"></a>
+<FONT color="green">034</FONT>                    s2 += s1;<a name="line.34"></a>
+<FONT color="green">035</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.35"></a>
+<FONT color="green">036</FONT>                    s2 += s1;<a name="line.36"></a>
+<FONT color="green">037</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.37"></a>
+<FONT color="green">038</FONT>                    s2 += s1;<a name="line.38"></a>
+<FONT color="green">039</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.39"></a>
+<FONT color="green">040</FONT>                    s2 += s1;<a name="line.40"></a>
+<FONT color="green">041</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.41"></a>
+<FONT color="green">042</FONT>                    s2 += s1;<a name="line.42"></a>
+<FONT color="green">043</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.43"></a>
+<FONT color="green">044</FONT>                    s2 += s1;<a name="line.44"></a>
+<FONT color="green">045</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.45"></a>
+<FONT color="green">046</FONT>                    s2 += s1;<a name="line.46"></a>
+<FONT color="green">047</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.47"></a>
+<FONT color="green">048</FONT>                    s2 += s1;<a name="line.48"></a>
+<FONT color="green">049</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.49"></a>
+<FONT color="green">050</FONT>                    s2 += s1;<a name="line.50"></a>
+<FONT color="green">051</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.51"></a>
+<FONT color="green">052</FONT>                    s2 += s1;<a name="line.52"></a>
+<FONT color="green">053</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.53"></a>
+<FONT color="green">054</FONT>                    s2 += s1;<a name="line.54"></a>
+<FONT color="green">055</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.55"></a>
+<FONT color="green">056</FONT>                    s2 += s1;<a name="line.56"></a>
+<FONT color="green">057</FONT>                    s1 += buf[index++] &amp; 0xff;<a name="line.57"></a>
+<FONT color="green">058</FONT>                    s2 += s1;<a name="line.58"></a>
+<FONT color="green">059</FONT>                    k -= 16;<a name="line.59"></a>
+<FONT color="green">060</FONT>                }<a name="line.60"></a>
+<FONT color="green">061</FONT>                if (k != 0) {<a name="line.61"></a>
+<FONT color="green">062</FONT>                    do {<a name="line.62"></a>
+<FONT color="green">063</FONT>                        s1 += buf[index++] &amp; 0xff;<a name="line.63"></a>
+<FONT color="green">064</FONT>                        s2 += s1;<a name="line.64"></a>
+<FONT color="green">065</FONT>                    } while (--k != 0);<a name="line.65"></a>
+<FONT color="green">066</FONT>                }<a name="line.66"></a>
+<FONT color="green">067</FONT>                s1 %= BASE;<a name="line.67"></a>
+<FONT color="green">068</FONT>                s2 %= BASE;<a name="line.68"></a>
+<FONT color="green">069</FONT>            }<a name="line.69"></a>
+<FONT color="green">070</FONT>            return (s2 &lt;&lt; 16) | s1;<a name="line.70"></a>
+<FONT color="green">071</FONT>        }<a name="line.71"></a>
+<FONT color="green">072</FONT>    }<a name="line.72"></a>
 
 
 
@@ -138,7 +133,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>

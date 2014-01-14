@@ -1,548 +1,543 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en">
-<head>
-<title>Source code</title>
-<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
-</head>
-<body>
-<div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.archivers.tar;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import org.xbib.io.archivers.ArchiveInputStream;<a name="line.5"></a>
-<span class="sourceLineNo">006</span>import org.xbib.io.archivers.ArchiveUtils;<a name="line.6"></a>
-<span class="sourceLineNo">007</span>import org.xbib.io.archivers.zip.ZipEncoding;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>import org.xbib.io.archivers.zip.ZipEncodingHelper;<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>import java.io.ByteArrayOutputStream;<a name="line.10"></a>
-<span class="sourceLineNo">011</span>import java.io.IOException;<a name="line.11"></a>
-<span class="sourceLineNo">012</span>import java.io.InputStream;<a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.nio.charset.Charset;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>import java.util.Date;<a name="line.14"></a>
-<span class="sourceLineNo">015</span>import java.util.HashMap;<a name="line.15"></a>
-<span class="sourceLineNo">016</span>import java.util.Map;<a name="line.16"></a>
-<span class="sourceLineNo">017</span>import java.util.Map.Entry;<a name="line.17"></a>
-<span class="sourceLineNo">018</span><a name="line.18"></a>
-<span class="sourceLineNo">019</span>/**<a name="line.19"></a>
-<span class="sourceLineNo">020</span> * The TarInputStream reads a UNIX tar archive as an InputStream.<a name="line.20"></a>
-<span class="sourceLineNo">021</span> * methods are provided to position at each successive entry in<a name="line.21"></a>
-<span class="sourceLineNo">022</span> * the archive, and the read each entry as a normal input stream<a name="line.22"></a>
-<span class="sourceLineNo">023</span> * using read().<a name="line.23"></a>
-<span class="sourceLineNo">024</span> */<a name="line.24"></a>
-<span class="sourceLineNo">025</span>public class TarArchiveInputStream extends ArchiveInputStream {<a name="line.25"></a>
-<span class="sourceLineNo">026</span><a name="line.26"></a>
-<span class="sourceLineNo">027</span>    private static final int SMALL_BUFFER_SIZE = 256;<a name="line.27"></a>
-<span class="sourceLineNo">028</span><a name="line.28"></a>
-<span class="sourceLineNo">029</span>    private static final int BUFFER_SIZE = 8 * 1024;<a name="line.29"></a>
-<span class="sourceLineNo">030</span><a name="line.30"></a>
-<span class="sourceLineNo">031</span>    private boolean hasHitEOF;<a name="line.31"></a>
-<span class="sourceLineNo">032</span>    private long entrySize;<a name="line.32"></a>
-<span class="sourceLineNo">033</span>    private long entryOffset;<a name="line.33"></a>
-<span class="sourceLineNo">034</span>    private byte[] readBuf;<a name="line.34"></a>
-<span class="sourceLineNo">035</span>    protected final TarBuffer buffer;<a name="line.35"></a>
-<span class="sourceLineNo">036</span>    private TarArchiveEntry currEntry;<a name="line.36"></a>
-<span class="sourceLineNo">037</span>    private final ZipEncoding encoding;<a name="line.37"></a>
-<span class="sourceLineNo">038</span><a name="line.38"></a>
-<span class="sourceLineNo">039</span>    /**<a name="line.39"></a>
-<span class="sourceLineNo">040</span>     * Constructor for TarInputStream.<a name="line.40"></a>
-<span class="sourceLineNo">041</span>     *<a name="line.41"></a>
-<span class="sourceLineNo">042</span>     * @param is the input stream to use<a name="line.42"></a>
-<span class="sourceLineNo">043</span>     */<a name="line.43"></a>
-<span class="sourceLineNo">044</span>    public TarArchiveInputStream(InputStream is) {<a name="line.44"></a>
-<span class="sourceLineNo">045</span>        this(is, TarBuffer.DEFAULT_BLKSIZE, TarBuffer.DEFAULT_RCDSIZE);<a name="line.45"></a>
-<span class="sourceLineNo">046</span>    }<a name="line.46"></a>
-<span class="sourceLineNo">047</span><a name="line.47"></a>
-<span class="sourceLineNo">048</span>    /**<a name="line.48"></a>
-<span class="sourceLineNo">049</span>     * Constructor for TarInputStream.<a name="line.49"></a>
-<span class="sourceLineNo">050</span>     *<a name="line.50"></a>
-<span class="sourceLineNo">051</span>     * @param is       the input stream to use<a name="line.51"></a>
-<span class="sourceLineNo">052</span>     * @param encoding name of the encoding to use for file names<a name="line.52"></a>
-<span class="sourceLineNo">053</span>     */<a name="line.53"></a>
-<span class="sourceLineNo">054</span>    public TarArchiveInputStream(InputStream is, String encoding) {<a name="line.54"></a>
-<span class="sourceLineNo">055</span>        this(is, TarBuffer.DEFAULT_BLKSIZE, TarBuffer.DEFAULT_RCDSIZE, encoding);<a name="line.55"></a>
-<span class="sourceLineNo">056</span>    }<a name="line.56"></a>
-<span class="sourceLineNo">057</span><a name="line.57"></a>
-<span class="sourceLineNo">058</span>    /**<a name="line.58"></a>
-<span class="sourceLineNo">059</span>     * Constructor for TarInputStream.<a name="line.59"></a>
-<span class="sourceLineNo">060</span>     *<a name="line.60"></a>
-<span class="sourceLineNo">061</span>     * @param is        the input stream to use<a name="line.61"></a>
-<span class="sourceLineNo">062</span>     * @param blockSize the block size to use<a name="line.62"></a>
-<span class="sourceLineNo">063</span>     */<a name="line.63"></a>
-<span class="sourceLineNo">064</span>    public TarArchiveInputStream(InputStream is, int blockSize) {<a name="line.64"></a>
-<span class="sourceLineNo">065</span>        this(is, blockSize, TarBuffer.DEFAULT_RCDSIZE);<a name="line.65"></a>
-<span class="sourceLineNo">066</span>    }<a name="line.66"></a>
-<span class="sourceLineNo">067</span><a name="line.67"></a>
-<span class="sourceLineNo">068</span>    /**<a name="line.68"></a>
-<span class="sourceLineNo">069</span>     * Constructor for TarInputStream.<a name="line.69"></a>
-<span class="sourceLineNo">070</span>     *<a name="line.70"></a>
-<span class="sourceLineNo">071</span>     * @param is        the input stream to use<a name="line.71"></a>
-<span class="sourceLineNo">072</span>     * @param blockSize the block size to use<a name="line.72"></a>
-<span class="sourceLineNo">073</span>     * @param encoding  name of the encoding to use for file names<a name="line.73"></a>
-<span class="sourceLineNo">074</span>     */<a name="line.74"></a>
-<span class="sourceLineNo">075</span>    public TarArchiveInputStream(InputStream is, int blockSize,<a name="line.75"></a>
-<span class="sourceLineNo">076</span>                                 String encoding) {<a name="line.76"></a>
-<span class="sourceLineNo">077</span>        this(is, blockSize, TarBuffer.DEFAULT_RCDSIZE, encoding);<a name="line.77"></a>
-<span class="sourceLineNo">078</span>    }<a name="line.78"></a>
-<span class="sourceLineNo">079</span><a name="line.79"></a>
-<span class="sourceLineNo">080</span>    /**<a name="line.80"></a>
-<span class="sourceLineNo">081</span>     * Constructor for TarInputStream.<a name="line.81"></a>
-<span class="sourceLineNo">082</span>     *<a name="line.82"></a>
-<span class="sourceLineNo">083</span>     * @param is         the input stream to use<a name="line.83"></a>
-<span class="sourceLineNo">084</span>     * @param blockSize  the block size to use<a name="line.84"></a>
-<span class="sourceLineNo">085</span>     * @param recordSize the record size to use<a name="line.85"></a>
-<span class="sourceLineNo">086</span>     */<a name="line.86"></a>
-<span class="sourceLineNo">087</span>    public TarArchiveInputStream(InputStream is, int blockSize, int recordSize) {<a name="line.87"></a>
-<span class="sourceLineNo">088</span>        this(is, blockSize, recordSize, null);<a name="line.88"></a>
-<span class="sourceLineNo">089</span>    }<a name="line.89"></a>
-<span class="sourceLineNo">090</span><a name="line.90"></a>
-<span class="sourceLineNo">091</span>    /**<a name="line.91"></a>
-<span class="sourceLineNo">092</span>     * Constructor for TarInputStream.<a name="line.92"></a>
-<span class="sourceLineNo">093</span>     *<a name="line.93"></a>
-<span class="sourceLineNo">094</span>     * @param is         the input stream to use<a name="line.94"></a>
-<span class="sourceLineNo">095</span>     * @param blockSize  the block size to use<a name="line.95"></a>
-<span class="sourceLineNo">096</span>     * @param recordSize the record size to use<a name="line.96"></a>
-<span class="sourceLineNo">097</span>     * @param encoding   name of the encoding to use for file names<a name="line.97"></a>
-<span class="sourceLineNo">098</span>     */<a name="line.98"></a>
-<span class="sourceLineNo">099</span>    public TarArchiveInputStream(InputStream is, int blockSize, int recordSize,<a name="line.99"></a>
-<span class="sourceLineNo">100</span>                                 String encoding) {<a name="line.100"></a>
-<span class="sourceLineNo">101</span>        this.buffer = new TarBuffer(is, blockSize, recordSize);<a name="line.101"></a>
-<span class="sourceLineNo">102</span>        this.readBuf = null;<a name="line.102"></a>
-<span class="sourceLineNo">103</span>        this.hasHitEOF = false;<a name="line.103"></a>
-<span class="sourceLineNo">104</span>        this.encoding = ZipEncodingHelper.getZipEncoding(encoding);<a name="line.104"></a>
-<span class="sourceLineNo">105</span>    }<a name="line.105"></a>
-<span class="sourceLineNo">106</span><a name="line.106"></a>
-<span class="sourceLineNo">107</span>    /**<a name="line.107"></a>
-<span class="sourceLineNo">108</span>     * Closes this stream. Calls the TarBuffer's close() method.<a name="line.108"></a>
-<span class="sourceLineNo">109</span>     *<a name="line.109"></a>
-<span class="sourceLineNo">110</span>     * @throws java.io.IOException on error<a name="line.110"></a>
-<span class="sourceLineNo">111</span>     */<a name="line.111"></a>
-<span class="sourceLineNo">112</span>    @Override<a name="line.112"></a>
-<span class="sourceLineNo">113</span>    public void close() throws IOException {<a name="line.113"></a>
-<span class="sourceLineNo">114</span>        buffer.close();<a name="line.114"></a>
-<span class="sourceLineNo">115</span>    }<a name="line.115"></a>
-<span class="sourceLineNo">116</span><a name="line.116"></a>
-<span class="sourceLineNo">117</span>    /**<a name="line.117"></a>
-<span class="sourceLineNo">118</span>     * Get the record size being used by this stream's TarBuffer.<a name="line.118"></a>
-<span class="sourceLineNo">119</span>     *<a name="line.119"></a>
-<span class="sourceLineNo">120</span>     * @return The TarBuffer record size.<a name="line.120"></a>
-<span class="sourceLineNo">121</span>     */<a name="line.121"></a>
-<span class="sourceLineNo">122</span>    public int getRecordSize() {<a name="line.122"></a>
-<span class="sourceLineNo">123</span>        return buffer.getRecordSize();<a name="line.123"></a>
-<span class="sourceLineNo">124</span>    }<a name="line.124"></a>
-<span class="sourceLineNo">125</span><a name="line.125"></a>
-<span class="sourceLineNo">126</span>    /**<a name="line.126"></a>
-<span class="sourceLineNo">127</span>     * Get the available data that can be read from the current<a name="line.127"></a>
-<span class="sourceLineNo">128</span>     * entry in the archive. This does not indicate how much data<a name="line.128"></a>
-<span class="sourceLineNo">129</span>     * is left in the entire archive, only in the current entry.<a name="line.129"></a>
-<span class="sourceLineNo">130</span>     * This value is determined from the entry's size header field<a name="line.130"></a>
-<span class="sourceLineNo">131</span>     * and the amount of data already read from the current entry.<a name="line.131"></a>
-<span class="sourceLineNo">132</span>     * Integer.MAX_VALUE is returen in case more than Integer.MAX_VALUE<a name="line.132"></a>
-<span class="sourceLineNo">133</span>     * bytes are left in the current entry in the archive.<a name="line.133"></a>
-<span class="sourceLineNo">134</span>     *<a name="line.134"></a>
-<span class="sourceLineNo">135</span>     * @return The number of available bytes for the current entry.<a name="line.135"></a>
-<span class="sourceLineNo">136</span>     * @throws java.io.IOException for signature<a name="line.136"></a>
-<span class="sourceLineNo">137</span>     */<a name="line.137"></a>
-<span class="sourceLineNo">138</span>    @Override<a name="line.138"></a>
-<span class="sourceLineNo">139</span>    public int available() throws IOException {<a name="line.139"></a>
-<span class="sourceLineNo">140</span>        if (entrySize - entryOffset &gt; Integer.MAX_VALUE) {<a name="line.140"></a>
-<span class="sourceLineNo">141</span>            return Integer.MAX_VALUE;<a name="line.141"></a>
-<span class="sourceLineNo">142</span>        }<a name="line.142"></a>
-<span class="sourceLineNo">143</span>        return (int) (entrySize - entryOffset);<a name="line.143"></a>
-<span class="sourceLineNo">144</span>    }<a name="line.144"></a>
-<span class="sourceLineNo">145</span><a name="line.145"></a>
-<span class="sourceLineNo">146</span>    /**<a name="line.146"></a>
-<span class="sourceLineNo">147</span>     * Skip bytes in the input buffer. This skips bytes in the<a name="line.147"></a>
-<span class="sourceLineNo">148</span>     * current entry's data, not the entire archive, and will<a name="line.148"></a>
-<span class="sourceLineNo">149</span>     * stop at the end of the current entry's data if the number<a name="line.149"></a>
-<span class="sourceLineNo">150</span>     * to skip extends beyond that point.<a name="line.150"></a>
-<span class="sourceLineNo">151</span>     *<a name="line.151"></a>
-<span class="sourceLineNo">152</span>     * @param numToSkip The number of bytes to skip.<a name="line.152"></a>
-<span class="sourceLineNo">153</span>     * @return the number actually skipped<a name="line.153"></a>
-<span class="sourceLineNo">154</span>     * @throws java.io.IOException on error<a name="line.154"></a>
-<span class="sourceLineNo">155</span>     */<a name="line.155"></a>
-<span class="sourceLineNo">156</span>    @Override<a name="line.156"></a>
-<span class="sourceLineNo">157</span>    public long skip(long numToSkip) throws IOException {<a name="line.157"></a>
-<span class="sourceLineNo">158</span>        // REVIEW<a name="line.158"></a>
-<span class="sourceLineNo">159</span>        // This is horribly inefficient, but it ensures that we<a name="line.159"></a>
-<span class="sourceLineNo">160</span>        // properly skip over bytes via the TarBuffer...<a name="line.160"></a>
-<span class="sourceLineNo">161</span>        //<a name="line.161"></a>
-<span class="sourceLineNo">162</span>        byte[] skipBuf = new byte[BUFFER_SIZE];<a name="line.162"></a>
-<span class="sourceLineNo">163</span>        long skip = numToSkip;<a name="line.163"></a>
-<span class="sourceLineNo">164</span>        while (skip &gt; 0) {<a name="line.164"></a>
-<span class="sourceLineNo">165</span>            int realSkip = (int) (skip &gt; skipBuf.length ? skipBuf.length : skip);<a name="line.165"></a>
-<span class="sourceLineNo">166</span>            int numRead = read(skipBuf, 0, realSkip);<a name="line.166"></a>
-<span class="sourceLineNo">167</span>            if (numRead == -1) {<a name="line.167"></a>
-<span class="sourceLineNo">168</span>                break;<a name="line.168"></a>
-<span class="sourceLineNo">169</span>            }<a name="line.169"></a>
-<span class="sourceLineNo">170</span>            skip -= numRead;<a name="line.170"></a>
-<span class="sourceLineNo">171</span>        }<a name="line.171"></a>
-<span class="sourceLineNo">172</span>        return (numToSkip - skip);<a name="line.172"></a>
-<span class="sourceLineNo">173</span>    }<a name="line.173"></a>
-<span class="sourceLineNo">174</span><a name="line.174"></a>
-<span class="sourceLineNo">175</span>    /**<a name="line.175"></a>
-<span class="sourceLineNo">176</span>     * Since we do not support marking just yet, we do nothing.<a name="line.176"></a>
-<span class="sourceLineNo">177</span>     */<a name="line.177"></a>
-<span class="sourceLineNo">178</span>    @Override<a name="line.178"></a>
-<span class="sourceLineNo">179</span>    public synchronized void reset() {<a name="line.179"></a>
-<span class="sourceLineNo">180</span>    }<a name="line.180"></a>
-<span class="sourceLineNo">181</span><a name="line.181"></a>
-<span class="sourceLineNo">182</span>    /**<a name="line.182"></a>
-<span class="sourceLineNo">183</span>     * Get the next entry in this tar archive. This will skip<a name="line.183"></a>
-<span class="sourceLineNo">184</span>     * over any remaining data in the current entry, if there<a name="line.184"></a>
-<span class="sourceLineNo">185</span>     * is one, and place the input stream at the header of the<a name="line.185"></a>
-<span class="sourceLineNo">186</span>     * next entry, and read the header and instantiate a new<a name="line.186"></a>
-<span class="sourceLineNo">187</span>     * TarEntry from the header bytes and return that entry.<a name="line.187"></a>
-<span class="sourceLineNo">188</span>     * If there are no more entries in the archive, null will<a name="line.188"></a>
-<span class="sourceLineNo">189</span>     * be returned to indicate that the end of the archive has<a name="line.189"></a>
-<span class="sourceLineNo">190</span>     * been reached.<a name="line.190"></a>
-<span class="sourceLineNo">191</span>     *<a name="line.191"></a>
-<span class="sourceLineNo">192</span>     * @return The next TarEntry in the archive, or null.<a name="line.192"></a>
-<span class="sourceLineNo">193</span>     * @throws java.io.IOException on error<a name="line.193"></a>
-<span class="sourceLineNo">194</span>     */<a name="line.194"></a>
-<span class="sourceLineNo">195</span>    public TarArchiveEntry getNextTarEntry() throws IOException {<a name="line.195"></a>
-<span class="sourceLineNo">196</span>        if (hasHitEOF) {<a name="line.196"></a>
-<span class="sourceLineNo">197</span>            return null;<a name="line.197"></a>
-<span class="sourceLineNo">198</span>        }<a name="line.198"></a>
-<span class="sourceLineNo">199</span><a name="line.199"></a>
-<span class="sourceLineNo">200</span>        if (currEntry != null) {<a name="line.200"></a>
-<span class="sourceLineNo">201</span>            long numToSkip = entrySize - entryOffset;<a name="line.201"></a>
-<span class="sourceLineNo">202</span><a name="line.202"></a>
-<span class="sourceLineNo">203</span>            while (numToSkip &gt; 0) {<a name="line.203"></a>
-<span class="sourceLineNo">204</span>                long skipped = skip(numToSkip);<a name="line.204"></a>
-<span class="sourceLineNo">205</span>                if (skipped &lt;= 0) {<a name="line.205"></a>
-<span class="sourceLineNo">206</span>                    throw new RuntimeException("failed to skip current tar entry");<a name="line.206"></a>
-<span class="sourceLineNo">207</span>                }<a name="line.207"></a>
-<span class="sourceLineNo">208</span>                numToSkip -= skipped;<a name="line.208"></a>
-<span class="sourceLineNo">209</span>            }<a name="line.209"></a>
-<span class="sourceLineNo">210</span><a name="line.210"></a>
-<span class="sourceLineNo">211</span>            readBuf = null;<a name="line.211"></a>
-<span class="sourceLineNo">212</span>        }<a name="line.212"></a>
-<span class="sourceLineNo">213</span><a name="line.213"></a>
-<span class="sourceLineNo">214</span>        byte[] headerBuf = getRecord();<a name="line.214"></a>
-<span class="sourceLineNo">215</span><a name="line.215"></a>
-<span class="sourceLineNo">216</span>        if (hasHitEOF) {<a name="line.216"></a>
-<span class="sourceLineNo">217</span>            currEntry = null;<a name="line.217"></a>
-<span class="sourceLineNo">218</span>            return null;<a name="line.218"></a>
-<span class="sourceLineNo">219</span>        }<a name="line.219"></a>
-<span class="sourceLineNo">220</span><a name="line.220"></a>
-<span class="sourceLineNo">221</span>        try {<a name="line.221"></a>
-<span class="sourceLineNo">222</span>            currEntry = new TarArchiveEntry(headerBuf, encoding);<a name="line.222"></a>
-<span class="sourceLineNo">223</span>        } catch (IllegalArgumentException e) {<a name="line.223"></a>
-<span class="sourceLineNo">224</span>            IOException ioe = new IOException("Error detected parsing the header");<a name="line.224"></a>
-<span class="sourceLineNo">225</span>            ioe.initCause(e);<a name="line.225"></a>
-<span class="sourceLineNo">226</span>            throw ioe;<a name="line.226"></a>
-<span class="sourceLineNo">227</span>        }<a name="line.227"></a>
-<span class="sourceLineNo">228</span>        entryOffset = 0;<a name="line.228"></a>
-<span class="sourceLineNo">229</span>        entrySize = currEntry.getEntrySize();<a name="line.229"></a>
-<span class="sourceLineNo">230</span><a name="line.230"></a>
-<span class="sourceLineNo">231</span>        if (currEntry.isGNULongNameEntry()) {<a name="line.231"></a>
-<span class="sourceLineNo">232</span>            // read in the name<a name="line.232"></a>
-<span class="sourceLineNo">233</span>            StringBuffer longName = new StringBuffer();<a name="line.233"></a>
-<span class="sourceLineNo">234</span>            byte[] buf = new byte[SMALL_BUFFER_SIZE];<a name="line.234"></a>
-<span class="sourceLineNo">235</span>            int length = 0;<a name="line.235"></a>
-<span class="sourceLineNo">236</span>            while ((length = read(buf)) &gt;= 0) {<a name="line.236"></a>
-<span class="sourceLineNo">237</span>                longName.append(new String(buf, 0, length)); // TODO default charset?<a name="line.237"></a>
-<span class="sourceLineNo">238</span>            }<a name="line.238"></a>
-<span class="sourceLineNo">239</span>            getNextEntry();<a name="line.239"></a>
-<span class="sourceLineNo">240</span>            if (currEntry == null) {<a name="line.240"></a>
-<span class="sourceLineNo">241</span>                // Bugzilla: 40334<a name="line.241"></a>
-<span class="sourceLineNo">242</span>                // Malformed tar file - long entry name not followed by entry<a name="line.242"></a>
-<span class="sourceLineNo">243</span>                return null;<a name="line.243"></a>
-<span class="sourceLineNo">244</span>            }<a name="line.244"></a>
-<span class="sourceLineNo">245</span>            // remove trailing null terminator<a name="line.245"></a>
-<span class="sourceLineNo">246</span>            if (longName.length() &gt; 0<a name="line.246"></a>
-<span class="sourceLineNo">247</span>                    &amp;&amp; longName.charAt(longName.length() - 1) == 0) {<a name="line.247"></a>
-<span class="sourceLineNo">248</span>                longName.deleteCharAt(longName.length() - 1);<a name="line.248"></a>
-<span class="sourceLineNo">249</span>            }<a name="line.249"></a>
-<span class="sourceLineNo">250</span>            currEntry.setName(longName.toString());<a name="line.250"></a>
-<span class="sourceLineNo">251</span>        }<a name="line.251"></a>
-<span class="sourceLineNo">252</span><a name="line.252"></a>
-<span class="sourceLineNo">253</span>        if (currEntry.isPaxHeader()) { // Process Pax headers<a name="line.253"></a>
-<span class="sourceLineNo">254</span>            paxHeaders();<a name="line.254"></a>
-<span class="sourceLineNo">255</span>        }<a name="line.255"></a>
-<span class="sourceLineNo">256</span><a name="line.256"></a>
-<span class="sourceLineNo">257</span>        if (currEntry.isGNUSparse()) { // Process sparse files<a name="line.257"></a>
-<span class="sourceLineNo">258</span>            readGNUSparse();<a name="line.258"></a>
-<span class="sourceLineNo">259</span>        }<a name="line.259"></a>
-<span class="sourceLineNo">260</span><a name="line.260"></a>
-<span class="sourceLineNo">261</span>        // If the size of the next element in the archive has changed<a name="line.261"></a>
-<span class="sourceLineNo">262</span>        // due to a new size being reported in the posix header<a name="line.262"></a>
-<span class="sourceLineNo">263</span>        // information, we update entrySize here so that it contains<a name="line.263"></a>
-<span class="sourceLineNo">264</span>        // the correct value.<a name="line.264"></a>
-<span class="sourceLineNo">265</span>        entrySize = currEntry.getEntrySize();<a name="line.265"></a>
-<span class="sourceLineNo">266</span>        return currEntry;<a name="line.266"></a>
-<span class="sourceLineNo">267</span>    }<a name="line.267"></a>
-<span class="sourceLineNo">268</span><a name="line.268"></a>
-<span class="sourceLineNo">269</span>    /**<a name="line.269"></a>
-<span class="sourceLineNo">270</span>     * Get the next record in this tar archive. This will skip<a name="line.270"></a>
-<span class="sourceLineNo">271</span>     * over any remaining data in the current entry, if there<a name="line.271"></a>
-<span class="sourceLineNo">272</span>     * is one, and place the input stream at the header of the<a name="line.272"></a>
-<span class="sourceLineNo">273</span>     * next entry.<a name="line.273"></a>
-<span class="sourceLineNo">274</span>     * If there are no more entries in the archive, null will<a name="line.274"></a>
-<span class="sourceLineNo">275</span>     * be returned to indicate that the end of the archive has<a name="line.275"></a>
-<span class="sourceLineNo">276</span>     * been reached.<a name="line.276"></a>
-<span class="sourceLineNo">277</span>     *<a name="line.277"></a>
-<span class="sourceLineNo">278</span>     * @return The next header in the archive, or null.<a name="line.278"></a>
-<span class="sourceLineNo">279</span>     * @throws java.io.IOException on error<a name="line.279"></a>
-<span class="sourceLineNo">280</span>     */<a name="line.280"></a>
-<span class="sourceLineNo">281</span>    private byte[] getRecord() throws IOException {<a name="line.281"></a>
-<span class="sourceLineNo">282</span>        if (hasHitEOF) {<a name="line.282"></a>
-<span class="sourceLineNo">283</span>            return null;<a name="line.283"></a>
-<span class="sourceLineNo">284</span>        }<a name="line.284"></a>
-<span class="sourceLineNo">285</span><a name="line.285"></a>
-<span class="sourceLineNo">286</span>        byte[] headerBuf = buffer.readRecord();<a name="line.286"></a>
-<span class="sourceLineNo">287</span><a name="line.287"></a>
-<span class="sourceLineNo">288</span>        if (headerBuf == null) {<a name="line.288"></a>
-<span class="sourceLineNo">289</span>            hasHitEOF = true;<a name="line.289"></a>
-<span class="sourceLineNo">290</span>        } else if (buffer.isEOFRecord(headerBuf)) {<a name="line.290"></a>
-<span class="sourceLineNo">291</span>            hasHitEOF = true;<a name="line.291"></a>
-<span class="sourceLineNo">292</span>        }<a name="line.292"></a>
-<span class="sourceLineNo">293</span><a name="line.293"></a>
-<span class="sourceLineNo">294</span>        return hasHitEOF ? null : headerBuf;<a name="line.294"></a>
-<span class="sourceLineNo">295</span>    }<a name="line.295"></a>
-<span class="sourceLineNo">296</span><a name="line.296"></a>
-<span class="sourceLineNo">297</span>    private void paxHeaders() throws IOException {<a name="line.297"></a>
-<span class="sourceLineNo">298</span>        Map&lt;String, String&gt; headers = parsePaxHeaders(this);<a name="line.298"></a>
-<span class="sourceLineNo">299</span>        getNextEntry(); // Get the actual file entry<a name="line.299"></a>
-<span class="sourceLineNo">300</span>        applyPaxHeadersToCurrentEntry(headers);<a name="line.300"></a>
-<span class="sourceLineNo">301</span>    }<a name="line.301"></a>
-<span class="sourceLineNo">302</span><a name="line.302"></a>
-<span class="sourceLineNo">303</span>    Map&lt;String, String&gt; parsePaxHeaders(InputStream i) throws IOException {<a name="line.303"></a>
-<span class="sourceLineNo">304</span>        Map&lt;String, String&gt; headers = new HashMap&lt;String, String&gt;();<a name="line.304"></a>
-<span class="sourceLineNo">305</span>        // Format is "length keyword=value\n";<a name="line.305"></a>
-<span class="sourceLineNo">306</span>        while (true) { // get length<a name="line.306"></a>
-<span class="sourceLineNo">307</span>            int ch;<a name="line.307"></a>
-<span class="sourceLineNo">308</span>            int len = 0;<a name="line.308"></a>
-<span class="sourceLineNo">309</span>            int read = 0;<a name="line.309"></a>
-<span class="sourceLineNo">310</span>            while ((ch = i.read()) != -1) {<a name="line.310"></a>
-<span class="sourceLineNo">311</span>                read++;<a name="line.311"></a>
-<span class="sourceLineNo">312</span>                if (ch == ' ') { // End of length string<a name="line.312"></a>
-<span class="sourceLineNo">313</span>                    // Get keyword<a name="line.313"></a>
-<span class="sourceLineNo">314</span>                    ByteArrayOutputStream coll = new ByteArrayOutputStream();<a name="line.314"></a>
-<span class="sourceLineNo">315</span>                    while ((ch = i.read()) != -1) {<a name="line.315"></a>
-<span class="sourceLineNo">316</span>                        read++;<a name="line.316"></a>
-<span class="sourceLineNo">317</span>                        if (ch == '=') { // end of keyword<a name="line.317"></a>
-<span class="sourceLineNo">318</span>                            String keyword = coll.toString("UTF-8");<a name="line.318"></a>
-<span class="sourceLineNo">319</span>                            // Get rest of entry<a name="line.319"></a>
-<span class="sourceLineNo">320</span>                            byte[] rest = new byte[len - read];<a name="line.320"></a>
-<span class="sourceLineNo">321</span>                            int got = i.read(rest);<a name="line.321"></a>
-<span class="sourceLineNo">322</span>                            if (got != len - read) {<a name="line.322"></a>
-<span class="sourceLineNo">323</span>                                throw new IOException("Failed to read "<a name="line.323"></a>
-<span class="sourceLineNo">324</span>                                        + "Paxheader. Expected "<a name="line.324"></a>
-<span class="sourceLineNo">325</span>                                        + (len - read)<a name="line.325"></a>
-<span class="sourceLineNo">326</span>                                        + " bytes, read "<a name="line.326"></a>
-<span class="sourceLineNo">327</span>                                        + got);<a name="line.327"></a>
-<span class="sourceLineNo">328</span>                            }<a name="line.328"></a>
-<span class="sourceLineNo">329</span>                            // Drop trailing NL<a name="line.329"></a>
-<span class="sourceLineNo">330</span>                            String value = new String(rest, 0,<a name="line.330"></a>
-<span class="sourceLineNo">331</span>                                    len - read - 1, Charset.forName("UTF-8"));<a name="line.331"></a>
-<span class="sourceLineNo">332</span>                            headers.put(keyword, value);<a name="line.332"></a>
-<span class="sourceLineNo">333</span>                            break;<a name="line.333"></a>
-<span class="sourceLineNo">334</span>                        }<a name="line.334"></a>
-<span class="sourceLineNo">335</span>                        coll.write((byte) ch);<a name="line.335"></a>
-<span class="sourceLineNo">336</span>                    }<a name="line.336"></a>
-<span class="sourceLineNo">337</span>                    break; // Processed single header<a name="line.337"></a>
-<span class="sourceLineNo">338</span>                }<a name="line.338"></a>
-<span class="sourceLineNo">339</span>                len *= 10;<a name="line.339"></a>
-<span class="sourceLineNo">340</span>                len += ch - '0';<a name="line.340"></a>
-<span class="sourceLineNo">341</span>            }<a name="line.341"></a>
-<span class="sourceLineNo">342</span>            if (ch == -1) { // EOF<a name="line.342"></a>
-<span class="sourceLineNo">343</span>                break;<a name="line.343"></a>
-<span class="sourceLineNo">344</span>            }<a name="line.344"></a>
-<span class="sourceLineNo">345</span>        }<a name="line.345"></a>
-<span class="sourceLineNo">346</span>        return headers;<a name="line.346"></a>
-<span class="sourceLineNo">347</span>    }<a name="line.347"></a>
-<span class="sourceLineNo">348</span><a name="line.348"></a>
-<span class="sourceLineNo">349</span>    private void applyPaxHeadersToCurrentEntry(Map&lt;String, String&gt; headers) {<a name="line.349"></a>
-<span class="sourceLineNo">350</span>        /*<a name="line.350"></a>
-<span class="sourceLineNo">351</span>         * The following headers are defined for Pax.<a name="line.351"></a>
-<span class="sourceLineNo">352</span>         * atime, ctime, charset: cannot use these without changing TarArchiveEntry fields<a name="line.352"></a>
-<span class="sourceLineNo">353</span>         * mtime<a name="line.353"></a>
-<span class="sourceLineNo">354</span>         * comment<a name="line.354"></a>
-<span class="sourceLineNo">355</span>         * gid, gname<a name="line.355"></a>
-<span class="sourceLineNo">356</span>         * linkpath<a name="line.356"></a>
-<span class="sourceLineNo">357</span>         * size<a name="line.357"></a>
-<span class="sourceLineNo">358</span>         * uid,uname<a name="line.358"></a>
-<span class="sourceLineNo">359</span>         * SCHILY.devminor, SCHILY.devmajor: don't have setters/getters for those<a name="line.359"></a>
-<span class="sourceLineNo">360</span>         */<a name="line.360"></a>
-<span class="sourceLineNo">361</span>        for (Entry&lt;String, String&gt; ent : headers.entrySet()) {<a name="line.361"></a>
-<span class="sourceLineNo">362</span>            String key = ent.getKey();<a name="line.362"></a>
-<span class="sourceLineNo">363</span>            String val = ent.getValue();<a name="line.363"></a>
-<span class="sourceLineNo">364</span>            if ("path".equals(key)) {<a name="line.364"></a>
-<span class="sourceLineNo">365</span>                currEntry.setName(val);<a name="line.365"></a>
-<span class="sourceLineNo">366</span>            } else if ("linkpath".equals(key)) {<a name="line.366"></a>
-<span class="sourceLineNo">367</span>                currEntry.setLinkName(val);<a name="line.367"></a>
-<span class="sourceLineNo">368</span>            } else if ("gid".equals(key)) {<a name="line.368"></a>
-<span class="sourceLineNo">369</span>                currEntry.setGroupId(Integer.parseInt(val));<a name="line.369"></a>
-<span class="sourceLineNo">370</span>            } else if ("gname".equals(key)) {<a name="line.370"></a>
-<span class="sourceLineNo">371</span>                currEntry.setGroupName(val);<a name="line.371"></a>
-<span class="sourceLineNo">372</span>            } else if ("uid".equals(key)) {<a name="line.372"></a>
-<span class="sourceLineNo">373</span>                currEntry.setUserId(Integer.parseInt(val));<a name="line.373"></a>
-<span class="sourceLineNo">374</span>            } else if ("uname".equals(key)) {<a name="line.374"></a>
-<span class="sourceLineNo">375</span>                currEntry.setUserName(val);<a name="line.375"></a>
-<span class="sourceLineNo">376</span>            } else if ("size".equals(key)) {<a name="line.376"></a>
-<span class="sourceLineNo">377</span>                currEntry.setEntrySize(Long.parseLong(val));<a name="line.377"></a>
-<span class="sourceLineNo">378</span>            } else if ("mtime".equals(key)) {<a name="line.378"></a>
-<span class="sourceLineNo">379</span>                long mtime = (long) (Double.parseDouble(val) * 1000);<a name="line.379"></a>
-<span class="sourceLineNo">380</span>                currEntry.setLastModified(new Date(mtime));<a name="line.380"></a>
-<span class="sourceLineNo">381</span>            } else if ("SCHILY.devminor".equals(key)) {<a name="line.381"></a>
-<span class="sourceLineNo">382</span>                currEntry.setDevMinor(Integer.parseInt(val));<a name="line.382"></a>
-<span class="sourceLineNo">383</span>            } else if ("SCHILY.devmajor".equals(key)) {<a name="line.383"></a>
-<span class="sourceLineNo">384</span>                currEntry.setDevMajor(Integer.parseInt(val));<a name="line.384"></a>
-<span class="sourceLineNo">385</span>            }<a name="line.385"></a>
-<span class="sourceLineNo">386</span>        }<a name="line.386"></a>
-<span class="sourceLineNo">387</span>    }<a name="line.387"></a>
-<span class="sourceLineNo">388</span><a name="line.388"></a>
-<span class="sourceLineNo">389</span>    /**<a name="line.389"></a>
-<span class="sourceLineNo">390</span>     * Adds the sparse chunks from the current entry to the sparse chunks,<a name="line.390"></a>
-<span class="sourceLineNo">391</span>     * including any additional sparse entries following the current entry.<a name="line.391"></a>
-<span class="sourceLineNo">392</span>     *<a name="line.392"></a>
-<span class="sourceLineNo">393</span>     * @throws java.io.IOException on error<a name="line.393"></a>
-<span class="sourceLineNo">394</span>     */<a name="line.394"></a>
-<span class="sourceLineNo">395</span>    private void readGNUSparse() throws IOException {<a name="line.395"></a>
-<span class="sourceLineNo">396</span>        /* we do not really process sparse files yet<a name="line.396"></a>
-<span class="sourceLineNo">397</span>        sparses = new ArrayList();<a name="line.397"></a>
-<span class="sourceLineNo">398</span>        sparses.addAll(currEntry.getSparses());<a name="line.398"></a>
-<span class="sourceLineNo">399</span>        */<a name="line.399"></a>
-<span class="sourceLineNo">400</span>        if (currEntry.isExtended()) {<a name="line.400"></a>
-<span class="sourceLineNo">401</span>            TarArchiveSparseEntry entry;<a name="line.401"></a>
-<span class="sourceLineNo">402</span>            do {<a name="line.402"></a>
-<span class="sourceLineNo">403</span>                byte[] headerBuf = getRecord();<a name="line.403"></a>
-<span class="sourceLineNo">404</span>                if (hasHitEOF) {<a name="line.404"></a>
-<span class="sourceLineNo">405</span>                    currEntry = null;<a name="line.405"></a>
-<span class="sourceLineNo">406</span>                    break;<a name="line.406"></a>
-<span class="sourceLineNo">407</span>                }<a name="line.407"></a>
-<span class="sourceLineNo">408</span>                entry = new TarArchiveSparseEntry(headerBuf);<a name="line.408"></a>
-<span class="sourceLineNo">409</span>                /* we do not really process sparse files yet<a name="line.409"></a>
-<span class="sourceLineNo">410</span>                sparses.addAll(entry.getSparses());<a name="line.410"></a>
-<span class="sourceLineNo">411</span>                */<a name="line.411"></a>
-<span class="sourceLineNo">412</span>            } while (entry.isExtended());<a name="line.412"></a>
-<span class="sourceLineNo">413</span>        }<a name="line.413"></a>
-<span class="sourceLineNo">414</span>    }<a name="line.414"></a>
-<span class="sourceLineNo">415</span><a name="line.415"></a>
-<span class="sourceLineNo">416</span>    @Override<a name="line.416"></a>
-<span class="sourceLineNo">417</span>    public ArchiveEntry getNextEntry() throws IOException {<a name="line.417"></a>
-<span class="sourceLineNo">418</span>        return getNextTarEntry();<a name="line.418"></a>
-<span class="sourceLineNo">419</span>    }<a name="line.419"></a>
-<span class="sourceLineNo">420</span><a name="line.420"></a>
-<span class="sourceLineNo">421</span>    /**<a name="line.421"></a>
-<span class="sourceLineNo">422</span>     * Reads bytes from the current tar archive entry.<a name="line.422"></a>
-<span class="sourceLineNo">423</span>     * &lt;p/&gt;<a name="line.423"></a>
-<span class="sourceLineNo">424</span>     * This method is aware of the boundaries of the current<a name="line.424"></a>
-<span class="sourceLineNo">425</span>     * entry in the archive and will deal with them as if they<a name="line.425"></a>
-<span class="sourceLineNo">426</span>     * were this stream's start and EOF.<a name="line.426"></a>
-<span class="sourceLineNo">427</span>     *<a name="line.427"></a>
-<span class="sourceLineNo">428</span>     * @param buf       The buffer into which to place bytes read.<a name="line.428"></a>
-<span class="sourceLineNo">429</span>     * @param offset    The offset at which to place bytes read.<a name="line.429"></a>
-<span class="sourceLineNo">430</span>     * @param numToRead The number of bytes to read.<a name="line.430"></a>
-<span class="sourceLineNo">431</span>     * @return The number of bytes read, or -1 at EOF.<a name="line.431"></a>
-<span class="sourceLineNo">432</span>     * @throws java.io.IOException on error<a name="line.432"></a>
-<span class="sourceLineNo">433</span>     */<a name="line.433"></a>
-<span class="sourceLineNo">434</span>    @Override<a name="line.434"></a>
-<span class="sourceLineNo">435</span>    public int read(byte[] buf, int offset, int numToRead) throws IOException {<a name="line.435"></a>
-<span class="sourceLineNo">436</span>        int totalRead = 0;<a name="line.436"></a>
-<span class="sourceLineNo">437</span><a name="line.437"></a>
-<span class="sourceLineNo">438</span>        if (entryOffset &gt;= entrySize) {<a name="line.438"></a>
-<span class="sourceLineNo">439</span>            return -1;<a name="line.439"></a>
-<span class="sourceLineNo">440</span>        }<a name="line.440"></a>
-<span class="sourceLineNo">441</span><a name="line.441"></a>
-<span class="sourceLineNo">442</span>        if ((numToRead + entryOffset) &gt; entrySize) {<a name="line.442"></a>
-<span class="sourceLineNo">443</span>            numToRead = (int) (entrySize - entryOffset);<a name="line.443"></a>
-<span class="sourceLineNo">444</span>        }<a name="line.444"></a>
-<span class="sourceLineNo">445</span><a name="line.445"></a>
-<span class="sourceLineNo">446</span>        if (readBuf != null) {<a name="line.446"></a>
-<span class="sourceLineNo">447</span>            int sz = (numToRead &gt; readBuf.length) ? readBuf.length<a name="line.447"></a>
-<span class="sourceLineNo">448</span>                    : numToRead;<a name="line.448"></a>
-<span class="sourceLineNo">449</span><a name="line.449"></a>
-<span class="sourceLineNo">450</span>            System.arraycopy(readBuf, 0, buf, offset, sz);<a name="line.450"></a>
-<span class="sourceLineNo">451</span><a name="line.451"></a>
-<span class="sourceLineNo">452</span>            if (sz &gt;= readBuf.length) {<a name="line.452"></a>
-<span class="sourceLineNo">453</span>                readBuf = null;<a name="line.453"></a>
-<span class="sourceLineNo">454</span>            } else {<a name="line.454"></a>
-<span class="sourceLineNo">455</span>                int newLen = readBuf.length - sz;<a name="line.455"></a>
-<span class="sourceLineNo">456</span>                byte[] newBuf = new byte[newLen];<a name="line.456"></a>
-<span class="sourceLineNo">457</span><a name="line.457"></a>
-<span class="sourceLineNo">458</span>                System.arraycopy(readBuf, sz, newBuf, 0, newLen);<a name="line.458"></a>
-<span class="sourceLineNo">459</span><a name="line.459"></a>
-<span class="sourceLineNo">460</span>                readBuf = newBuf;<a name="line.460"></a>
-<span class="sourceLineNo">461</span>            }<a name="line.461"></a>
-<span class="sourceLineNo">462</span><a name="line.462"></a>
-<span class="sourceLineNo">463</span>            totalRead += sz;<a name="line.463"></a>
-<span class="sourceLineNo">464</span>            numToRead -= sz;<a name="line.464"></a>
-<span class="sourceLineNo">465</span>            offset += sz;<a name="line.465"></a>
-<span class="sourceLineNo">466</span>        }<a name="line.466"></a>
-<span class="sourceLineNo">467</span><a name="line.467"></a>
-<span class="sourceLineNo">468</span>        while (numToRead &gt; 0) {<a name="line.468"></a>
-<span class="sourceLineNo">469</span>            byte[] rec = buffer.readRecord();<a name="line.469"></a>
-<span class="sourceLineNo">470</span><a name="line.470"></a>
-<span class="sourceLineNo">471</span>            if (rec == null) {<a name="line.471"></a>
-<span class="sourceLineNo">472</span>                // Unexpected EOF!<a name="line.472"></a>
-<span class="sourceLineNo">473</span>                throw new IOException("unexpected EOF with " + numToRead<a name="line.473"></a>
-<span class="sourceLineNo">474</span>                        + " bytes unread. Occured at byte: " + getBytesRead());<a name="line.474"></a>
-<span class="sourceLineNo">475</span>            }<a name="line.475"></a>
-<span class="sourceLineNo">476</span>            count(rec.length);<a name="line.476"></a>
-<span class="sourceLineNo">477</span>            int sz = numToRead;<a name="line.477"></a>
-<span class="sourceLineNo">478</span>            int recLen = rec.length;<a name="line.478"></a>
-<span class="sourceLineNo">479</span><a name="line.479"></a>
-<span class="sourceLineNo">480</span>            if (recLen &gt; sz) {<a name="line.480"></a>
-<span class="sourceLineNo">481</span>                System.arraycopy(rec, 0, buf, offset, sz);<a name="line.481"></a>
-<span class="sourceLineNo">482</span><a name="line.482"></a>
-<span class="sourceLineNo">483</span>                readBuf = new byte[recLen - sz];<a name="line.483"></a>
-<span class="sourceLineNo">484</span><a name="line.484"></a>
-<span class="sourceLineNo">485</span>                System.arraycopy(rec, sz, readBuf, 0, recLen - sz);<a name="line.485"></a>
-<span class="sourceLineNo">486</span>            } else {<a name="line.486"></a>
-<span class="sourceLineNo">487</span>                sz = recLen;<a name="line.487"></a>
-<span class="sourceLineNo">488</span><a name="line.488"></a>
-<span class="sourceLineNo">489</span>                System.arraycopy(rec, 0, buf, offset, recLen);<a name="line.489"></a>
-<span class="sourceLineNo">490</span>            }<a name="line.490"></a>
-<span class="sourceLineNo">491</span><a name="line.491"></a>
-<span class="sourceLineNo">492</span>            totalRead += sz;<a name="line.492"></a>
-<span class="sourceLineNo">493</span>            numToRead -= sz;<a name="line.493"></a>
-<span class="sourceLineNo">494</span>            offset += sz;<a name="line.494"></a>
-<span class="sourceLineNo">495</span>        }<a name="line.495"></a>
-<span class="sourceLineNo">496</span><a name="line.496"></a>
-<span class="sourceLineNo">497</span>        entryOffset += totalRead;<a name="line.497"></a>
-<span class="sourceLineNo">498</span><a name="line.498"></a>
-<span class="sourceLineNo">499</span>        return totalRead;<a name="line.499"></a>
-<span class="sourceLineNo">500</span>    }<a name="line.500"></a>
-<span class="sourceLineNo">501</span><a name="line.501"></a>
-<span class="sourceLineNo">502</span>    protected final TarArchiveEntry getCurrentEntry() {<a name="line.502"></a>
-<span class="sourceLineNo">503</span>        return currEntry;<a name="line.503"></a>
-<span class="sourceLineNo">504</span>    }<a name="line.504"></a>
-<span class="sourceLineNo">505</span><a name="line.505"></a>
-<span class="sourceLineNo">506</span>    protected final void setCurrentEntry(TarArchiveEntry e) {<a name="line.506"></a>
-<span class="sourceLineNo">507</span>        currEntry = e;<a name="line.507"></a>
-<span class="sourceLineNo">508</span>    }<a name="line.508"></a>
-<span class="sourceLineNo">509</span><a name="line.509"></a>
-<span class="sourceLineNo">510</span>    protected final boolean isAtEOF() {<a name="line.510"></a>
-<span class="sourceLineNo">511</span>        return hasHitEOF;<a name="line.511"></a>
-<span class="sourceLineNo">512</span>    }<a name="line.512"></a>
-<span class="sourceLineNo">513</span><a name="line.513"></a>
-<span class="sourceLineNo">514</span>    protected final void setAtEOF(boolean b) {<a name="line.514"></a>
-<span class="sourceLineNo">515</span>        hasHitEOF = b;<a name="line.515"></a>
-<span class="sourceLineNo">516</span>    }<a name="line.516"></a>
-<span class="sourceLineNo">517</span><a name="line.517"></a>
-<span class="sourceLineNo">518</span>    /**<a name="line.518"></a>
-<span class="sourceLineNo">519</span>     * Checks if the signature matches what is expected for a tar file.<a name="line.519"></a>
-<span class="sourceLineNo">520</span>     *<a name="line.520"></a>
-<span class="sourceLineNo">521</span>     * @param signature the bytes to check<a name="line.521"></a>
-<span class="sourceLineNo">522</span>     * @param length    the number of bytes to check<a name="line.522"></a>
-<span class="sourceLineNo">523</span>     * @return true, if this stream is a tar archive stream, false otherwise<a name="line.523"></a>
-<span class="sourceLineNo">524</span>     */<a name="line.524"></a>
-<span class="sourceLineNo">525</span>    public static boolean matches(byte[] signature, int length) {<a name="line.525"></a>
-<span class="sourceLineNo">526</span>        return length &gt;= TarConstants.VERSION_OFFSET + TarConstants.VERSIONLEN<a name="line.526"></a>
-<span class="sourceLineNo">527</span>                &amp;&amp; (ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_POSIX, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.527"></a>
-<span class="sourceLineNo">528</span>                &amp;&amp; ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_POSIX, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN)<a name="line.528"></a>
-<span class="sourceLineNo">529</span>                || ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_GNU, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.529"></a>
-<span class="sourceLineNo">530</span>                &amp;&amp; (ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_GNU_SPACE, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN)<a name="line.530"></a>
-<span class="sourceLineNo">531</span>                || ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_GNU_ZERO, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN))<a name="line.531"></a>
-<span class="sourceLineNo">532</span>                || ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_ANT, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.532"></a>
-<span class="sourceLineNo">533</span>                &amp;&amp; ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_ANT, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN));<a name="line.533"></a>
-<span class="sourceLineNo">534</span><a name="line.534"></a>
-<span class="sourceLineNo">535</span>    }<a name="line.535"></a>
-<span class="sourceLineNo">536</span><a name="line.536"></a>
-<span class="sourceLineNo">537</span>}<a name="line.537"></a>
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.io.archivers.tar;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
+<FONT color="green">005</FONT>    import org.xbib.io.archivers.ArchiveInputStream;<a name="line.5"></a>
+<FONT color="green">006</FONT>    import org.xbib.io.archivers.ArchiveUtils;<a name="line.6"></a>
+<FONT color="green">007</FONT>    import org.xbib.io.archivers.zip.ZipEncoding;<a name="line.7"></a>
+<FONT color="green">008</FONT>    import org.xbib.io.archivers.zip.ZipEncodingHelper;<a name="line.8"></a>
+<FONT color="green">009</FONT>    <a name="line.9"></a>
+<FONT color="green">010</FONT>    import java.io.ByteArrayOutputStream;<a name="line.10"></a>
+<FONT color="green">011</FONT>    import java.io.IOException;<a name="line.11"></a>
+<FONT color="green">012</FONT>    import java.io.InputStream;<a name="line.12"></a>
+<FONT color="green">013</FONT>    import java.nio.charset.Charset;<a name="line.13"></a>
+<FONT color="green">014</FONT>    import java.util.Date;<a name="line.14"></a>
+<FONT color="green">015</FONT>    import java.util.HashMap;<a name="line.15"></a>
+<FONT color="green">016</FONT>    import java.util.Map;<a name="line.16"></a>
+<FONT color="green">017</FONT>    import java.util.Map.Entry;<a name="line.17"></a>
+<FONT color="green">018</FONT>    <a name="line.18"></a>
+<FONT color="green">019</FONT>    /**<a name="line.19"></a>
+<FONT color="green">020</FONT>     * The TarInputStream reads a UNIX tar archive as an InputStream.<a name="line.20"></a>
+<FONT color="green">021</FONT>     * methods are provided to position at each successive entry in<a name="line.21"></a>
+<FONT color="green">022</FONT>     * the archive, and the read each entry as a normal input stream<a name="line.22"></a>
+<FONT color="green">023</FONT>     * using read().<a name="line.23"></a>
+<FONT color="green">024</FONT>     */<a name="line.24"></a>
+<FONT color="green">025</FONT>    public class TarArchiveInputStream extends ArchiveInputStream {<a name="line.25"></a>
+<FONT color="green">026</FONT>    <a name="line.26"></a>
+<FONT color="green">027</FONT>        private static final int SMALL_BUFFER_SIZE = 256;<a name="line.27"></a>
+<FONT color="green">028</FONT>    <a name="line.28"></a>
+<FONT color="green">029</FONT>        private static final int BUFFER_SIZE = 8 * 1024;<a name="line.29"></a>
+<FONT color="green">030</FONT>    <a name="line.30"></a>
+<FONT color="green">031</FONT>        private boolean hasHitEOF;<a name="line.31"></a>
+<FONT color="green">032</FONT>        private long entrySize;<a name="line.32"></a>
+<FONT color="green">033</FONT>        private long entryOffset;<a name="line.33"></a>
+<FONT color="green">034</FONT>        private byte[] readBuf;<a name="line.34"></a>
+<FONT color="green">035</FONT>        protected final TarBuffer buffer;<a name="line.35"></a>
+<FONT color="green">036</FONT>        private TarArchiveEntry currEntry;<a name="line.36"></a>
+<FONT color="green">037</FONT>        private final ZipEncoding encoding;<a name="line.37"></a>
+<FONT color="green">038</FONT>    <a name="line.38"></a>
+<FONT color="green">039</FONT>        /**<a name="line.39"></a>
+<FONT color="green">040</FONT>         * Constructor for TarInputStream.<a name="line.40"></a>
+<FONT color="green">041</FONT>         *<a name="line.41"></a>
+<FONT color="green">042</FONT>         * @param is the input stream to use<a name="line.42"></a>
+<FONT color="green">043</FONT>         */<a name="line.43"></a>
+<FONT color="green">044</FONT>        public TarArchiveInputStream(InputStream is) {<a name="line.44"></a>
+<FONT color="green">045</FONT>            this(is, TarBuffer.DEFAULT_BLKSIZE, TarBuffer.DEFAULT_RCDSIZE);<a name="line.45"></a>
+<FONT color="green">046</FONT>        }<a name="line.46"></a>
+<FONT color="green">047</FONT>    <a name="line.47"></a>
+<FONT color="green">048</FONT>        /**<a name="line.48"></a>
+<FONT color="green">049</FONT>         * Constructor for TarInputStream.<a name="line.49"></a>
+<FONT color="green">050</FONT>         *<a name="line.50"></a>
+<FONT color="green">051</FONT>         * @param is       the input stream to use<a name="line.51"></a>
+<FONT color="green">052</FONT>         * @param encoding name of the encoding to use for file names<a name="line.52"></a>
+<FONT color="green">053</FONT>         */<a name="line.53"></a>
+<FONT color="green">054</FONT>        public TarArchiveInputStream(InputStream is, String encoding) {<a name="line.54"></a>
+<FONT color="green">055</FONT>            this(is, TarBuffer.DEFAULT_BLKSIZE, TarBuffer.DEFAULT_RCDSIZE, encoding);<a name="line.55"></a>
+<FONT color="green">056</FONT>        }<a name="line.56"></a>
+<FONT color="green">057</FONT>    <a name="line.57"></a>
+<FONT color="green">058</FONT>        /**<a name="line.58"></a>
+<FONT color="green">059</FONT>         * Constructor for TarInputStream.<a name="line.59"></a>
+<FONT color="green">060</FONT>         *<a name="line.60"></a>
+<FONT color="green">061</FONT>         * @param is        the input stream to use<a name="line.61"></a>
+<FONT color="green">062</FONT>         * @param blockSize the block size to use<a name="line.62"></a>
+<FONT color="green">063</FONT>         */<a name="line.63"></a>
+<FONT color="green">064</FONT>        public TarArchiveInputStream(InputStream is, int blockSize) {<a name="line.64"></a>
+<FONT color="green">065</FONT>            this(is, blockSize, TarBuffer.DEFAULT_RCDSIZE);<a name="line.65"></a>
+<FONT color="green">066</FONT>        }<a name="line.66"></a>
+<FONT color="green">067</FONT>    <a name="line.67"></a>
+<FONT color="green">068</FONT>        /**<a name="line.68"></a>
+<FONT color="green">069</FONT>         * Constructor for TarInputStream.<a name="line.69"></a>
+<FONT color="green">070</FONT>         *<a name="line.70"></a>
+<FONT color="green">071</FONT>         * @param is        the input stream to use<a name="line.71"></a>
+<FONT color="green">072</FONT>         * @param blockSize the block size to use<a name="line.72"></a>
+<FONT color="green">073</FONT>         * @param encoding  name of the encoding to use for file names<a name="line.73"></a>
+<FONT color="green">074</FONT>         */<a name="line.74"></a>
+<FONT color="green">075</FONT>        public TarArchiveInputStream(InputStream is, int blockSize,<a name="line.75"></a>
+<FONT color="green">076</FONT>                                     String encoding) {<a name="line.76"></a>
+<FONT color="green">077</FONT>            this(is, blockSize, TarBuffer.DEFAULT_RCDSIZE, encoding);<a name="line.77"></a>
+<FONT color="green">078</FONT>        }<a name="line.78"></a>
+<FONT color="green">079</FONT>    <a name="line.79"></a>
+<FONT color="green">080</FONT>        /**<a name="line.80"></a>
+<FONT color="green">081</FONT>         * Constructor for TarInputStream.<a name="line.81"></a>
+<FONT color="green">082</FONT>         *<a name="line.82"></a>
+<FONT color="green">083</FONT>         * @param is         the input stream to use<a name="line.83"></a>
+<FONT color="green">084</FONT>         * @param blockSize  the block size to use<a name="line.84"></a>
+<FONT color="green">085</FONT>         * @param recordSize the record size to use<a name="line.85"></a>
+<FONT color="green">086</FONT>         */<a name="line.86"></a>
+<FONT color="green">087</FONT>        public TarArchiveInputStream(InputStream is, int blockSize, int recordSize) {<a name="line.87"></a>
+<FONT color="green">088</FONT>            this(is, blockSize, recordSize, null);<a name="line.88"></a>
+<FONT color="green">089</FONT>        }<a name="line.89"></a>
+<FONT color="green">090</FONT>    <a name="line.90"></a>
+<FONT color="green">091</FONT>        /**<a name="line.91"></a>
+<FONT color="green">092</FONT>         * Constructor for TarInputStream.<a name="line.92"></a>
+<FONT color="green">093</FONT>         *<a name="line.93"></a>
+<FONT color="green">094</FONT>         * @param is         the input stream to use<a name="line.94"></a>
+<FONT color="green">095</FONT>         * @param blockSize  the block size to use<a name="line.95"></a>
+<FONT color="green">096</FONT>         * @param recordSize the record size to use<a name="line.96"></a>
+<FONT color="green">097</FONT>         * @param encoding   name of the encoding to use for file names<a name="line.97"></a>
+<FONT color="green">098</FONT>         */<a name="line.98"></a>
+<FONT color="green">099</FONT>        public TarArchiveInputStream(InputStream is, int blockSize, int recordSize,<a name="line.99"></a>
+<FONT color="green">100</FONT>                                     String encoding) {<a name="line.100"></a>
+<FONT color="green">101</FONT>            this.buffer = new TarBuffer(is, blockSize, recordSize);<a name="line.101"></a>
+<FONT color="green">102</FONT>            this.readBuf = null;<a name="line.102"></a>
+<FONT color="green">103</FONT>            this.hasHitEOF = false;<a name="line.103"></a>
+<FONT color="green">104</FONT>            this.encoding = ZipEncodingHelper.getZipEncoding(encoding);<a name="line.104"></a>
+<FONT color="green">105</FONT>        }<a name="line.105"></a>
+<FONT color="green">106</FONT>    <a name="line.106"></a>
+<FONT color="green">107</FONT>        /**<a name="line.107"></a>
+<FONT color="green">108</FONT>         * Closes this stream. Calls the TarBuffer's close() method.<a name="line.108"></a>
+<FONT color="green">109</FONT>         *<a name="line.109"></a>
+<FONT color="green">110</FONT>         * @throws java.io.IOException on error<a name="line.110"></a>
+<FONT color="green">111</FONT>         */<a name="line.111"></a>
+<FONT color="green">112</FONT>        @Override<a name="line.112"></a>
+<FONT color="green">113</FONT>        public void close() throws IOException {<a name="line.113"></a>
+<FONT color="green">114</FONT>            buffer.close();<a name="line.114"></a>
+<FONT color="green">115</FONT>        }<a name="line.115"></a>
+<FONT color="green">116</FONT>    <a name="line.116"></a>
+<FONT color="green">117</FONT>        /**<a name="line.117"></a>
+<FONT color="green">118</FONT>         * Get the record size being used by this stream's TarBuffer.<a name="line.118"></a>
+<FONT color="green">119</FONT>         *<a name="line.119"></a>
+<FONT color="green">120</FONT>         * @return The TarBuffer record size.<a name="line.120"></a>
+<FONT color="green">121</FONT>         */<a name="line.121"></a>
+<FONT color="green">122</FONT>        public int getRecordSize() {<a name="line.122"></a>
+<FONT color="green">123</FONT>            return buffer.getRecordSize();<a name="line.123"></a>
+<FONT color="green">124</FONT>        }<a name="line.124"></a>
+<FONT color="green">125</FONT>    <a name="line.125"></a>
+<FONT color="green">126</FONT>        /**<a name="line.126"></a>
+<FONT color="green">127</FONT>         * Get the available data that can be read from the current<a name="line.127"></a>
+<FONT color="green">128</FONT>         * entry in the archive. This does not indicate how much data<a name="line.128"></a>
+<FONT color="green">129</FONT>         * is left in the entire archive, only in the current entry.<a name="line.129"></a>
+<FONT color="green">130</FONT>         * This value is determined from the entry's size header field<a name="line.130"></a>
+<FONT color="green">131</FONT>         * and the amount of data already read from the current entry.<a name="line.131"></a>
+<FONT color="green">132</FONT>         * Integer.MAX_VALUE is returen in case more than Integer.MAX_VALUE<a name="line.132"></a>
+<FONT color="green">133</FONT>         * bytes are left in the current entry in the archive.<a name="line.133"></a>
+<FONT color="green">134</FONT>         *<a name="line.134"></a>
+<FONT color="green">135</FONT>         * @return The number of available bytes for the current entry.<a name="line.135"></a>
+<FONT color="green">136</FONT>         * @throws java.io.IOException for signature<a name="line.136"></a>
+<FONT color="green">137</FONT>         */<a name="line.137"></a>
+<FONT color="green">138</FONT>        @Override<a name="line.138"></a>
+<FONT color="green">139</FONT>        public int available() throws IOException {<a name="line.139"></a>
+<FONT color="green">140</FONT>            if (entrySize - entryOffset &gt; Integer.MAX_VALUE) {<a name="line.140"></a>
+<FONT color="green">141</FONT>                return Integer.MAX_VALUE;<a name="line.141"></a>
+<FONT color="green">142</FONT>            }<a name="line.142"></a>
+<FONT color="green">143</FONT>            return (int) (entrySize - entryOffset);<a name="line.143"></a>
+<FONT color="green">144</FONT>        }<a name="line.144"></a>
+<FONT color="green">145</FONT>    <a name="line.145"></a>
+<FONT color="green">146</FONT>        /**<a name="line.146"></a>
+<FONT color="green">147</FONT>         * Skip bytes in the input buffer. This skips bytes in the<a name="line.147"></a>
+<FONT color="green">148</FONT>         * current entry's data, not the entire archive, and will<a name="line.148"></a>
+<FONT color="green">149</FONT>         * stop at the end of the current entry's data if the number<a name="line.149"></a>
+<FONT color="green">150</FONT>         * to skip extends beyond that point.<a name="line.150"></a>
+<FONT color="green">151</FONT>         *<a name="line.151"></a>
+<FONT color="green">152</FONT>         * @param numToSkip The number of bytes to skip.<a name="line.152"></a>
+<FONT color="green">153</FONT>         * @return the number actually skipped<a name="line.153"></a>
+<FONT color="green">154</FONT>         * @throws java.io.IOException on error<a name="line.154"></a>
+<FONT color="green">155</FONT>         */<a name="line.155"></a>
+<FONT color="green">156</FONT>        @Override<a name="line.156"></a>
+<FONT color="green">157</FONT>        public long skip(long numToSkip) throws IOException {<a name="line.157"></a>
+<FONT color="green">158</FONT>            // REVIEW<a name="line.158"></a>
+<FONT color="green">159</FONT>            // This is horribly inefficient, but it ensures that we<a name="line.159"></a>
+<FONT color="green">160</FONT>            // properly skip over bytes via the TarBuffer...<a name="line.160"></a>
+<FONT color="green">161</FONT>            //<a name="line.161"></a>
+<FONT color="green">162</FONT>            byte[] skipBuf = new byte[BUFFER_SIZE];<a name="line.162"></a>
+<FONT color="green">163</FONT>            long skip = numToSkip;<a name="line.163"></a>
+<FONT color="green">164</FONT>            while (skip &gt; 0) {<a name="line.164"></a>
+<FONT color="green">165</FONT>                int realSkip = (int) (skip &gt; skipBuf.length ? skipBuf.length : skip);<a name="line.165"></a>
+<FONT color="green">166</FONT>                int numRead = read(skipBuf, 0, realSkip);<a name="line.166"></a>
+<FONT color="green">167</FONT>                if (numRead == -1) {<a name="line.167"></a>
+<FONT color="green">168</FONT>                    break;<a name="line.168"></a>
+<FONT color="green">169</FONT>                }<a name="line.169"></a>
+<FONT color="green">170</FONT>                skip -= numRead;<a name="line.170"></a>
+<FONT color="green">171</FONT>            }<a name="line.171"></a>
+<FONT color="green">172</FONT>            return (numToSkip - skip);<a name="line.172"></a>
+<FONT color="green">173</FONT>        }<a name="line.173"></a>
+<FONT color="green">174</FONT>    <a name="line.174"></a>
+<FONT color="green">175</FONT>        /**<a name="line.175"></a>
+<FONT color="green">176</FONT>         * Since we do not support marking just yet, we do nothing.<a name="line.176"></a>
+<FONT color="green">177</FONT>         */<a name="line.177"></a>
+<FONT color="green">178</FONT>        @Override<a name="line.178"></a>
+<FONT color="green">179</FONT>        public synchronized void reset() {<a name="line.179"></a>
+<FONT color="green">180</FONT>        }<a name="line.180"></a>
+<FONT color="green">181</FONT>    <a name="line.181"></a>
+<FONT color="green">182</FONT>        /**<a name="line.182"></a>
+<FONT color="green">183</FONT>         * Get the next entry in this tar archive. This will skip<a name="line.183"></a>
+<FONT color="green">184</FONT>         * over any remaining data in the current entry, if there<a name="line.184"></a>
+<FONT color="green">185</FONT>         * is one, and place the input stream at the header of the<a name="line.185"></a>
+<FONT color="green">186</FONT>         * next entry, and read the header and instantiate a new<a name="line.186"></a>
+<FONT color="green">187</FONT>         * TarEntry from the header bytes and return that entry.<a name="line.187"></a>
+<FONT color="green">188</FONT>         * If there are no more entries in the archive, null will<a name="line.188"></a>
+<FONT color="green">189</FONT>         * be returned to indicate that the end of the archive has<a name="line.189"></a>
+<FONT color="green">190</FONT>         * been reached.<a name="line.190"></a>
+<FONT color="green">191</FONT>         *<a name="line.191"></a>
+<FONT color="green">192</FONT>         * @return The next TarEntry in the archive, or null.<a name="line.192"></a>
+<FONT color="green">193</FONT>         * @throws java.io.IOException on error<a name="line.193"></a>
+<FONT color="green">194</FONT>         */<a name="line.194"></a>
+<FONT color="green">195</FONT>        public TarArchiveEntry getNextTarEntry() throws IOException {<a name="line.195"></a>
+<FONT color="green">196</FONT>            if (hasHitEOF) {<a name="line.196"></a>
+<FONT color="green">197</FONT>                return null;<a name="line.197"></a>
+<FONT color="green">198</FONT>            }<a name="line.198"></a>
+<FONT color="green">199</FONT>    <a name="line.199"></a>
+<FONT color="green">200</FONT>            if (currEntry != null) {<a name="line.200"></a>
+<FONT color="green">201</FONT>                long numToSkip = entrySize - entryOffset;<a name="line.201"></a>
+<FONT color="green">202</FONT>    <a name="line.202"></a>
+<FONT color="green">203</FONT>                while (numToSkip &gt; 0) {<a name="line.203"></a>
+<FONT color="green">204</FONT>                    long skipped = skip(numToSkip);<a name="line.204"></a>
+<FONT color="green">205</FONT>                    if (skipped &lt;= 0) {<a name="line.205"></a>
+<FONT color="green">206</FONT>                        throw new RuntimeException("failed to skip current tar entry");<a name="line.206"></a>
+<FONT color="green">207</FONT>                    }<a name="line.207"></a>
+<FONT color="green">208</FONT>                    numToSkip -= skipped;<a name="line.208"></a>
+<FONT color="green">209</FONT>                }<a name="line.209"></a>
+<FONT color="green">210</FONT>    <a name="line.210"></a>
+<FONT color="green">211</FONT>                readBuf = null;<a name="line.211"></a>
+<FONT color="green">212</FONT>            }<a name="line.212"></a>
+<FONT color="green">213</FONT>    <a name="line.213"></a>
+<FONT color="green">214</FONT>            byte[] headerBuf = getRecord();<a name="line.214"></a>
+<FONT color="green">215</FONT>    <a name="line.215"></a>
+<FONT color="green">216</FONT>            if (hasHitEOF) {<a name="line.216"></a>
+<FONT color="green">217</FONT>                currEntry = null;<a name="line.217"></a>
+<FONT color="green">218</FONT>                return null;<a name="line.218"></a>
+<FONT color="green">219</FONT>            }<a name="line.219"></a>
+<FONT color="green">220</FONT>    <a name="line.220"></a>
+<FONT color="green">221</FONT>            try {<a name="line.221"></a>
+<FONT color="green">222</FONT>                currEntry = new TarArchiveEntry(headerBuf, encoding);<a name="line.222"></a>
+<FONT color="green">223</FONT>            } catch (IllegalArgumentException e) {<a name="line.223"></a>
+<FONT color="green">224</FONT>                IOException ioe = new IOException("Error detected parsing the header");<a name="line.224"></a>
+<FONT color="green">225</FONT>                ioe.initCause(e);<a name="line.225"></a>
+<FONT color="green">226</FONT>                throw ioe;<a name="line.226"></a>
+<FONT color="green">227</FONT>            }<a name="line.227"></a>
+<FONT color="green">228</FONT>            entryOffset = 0;<a name="line.228"></a>
+<FONT color="green">229</FONT>            entrySize = currEntry.getEntrySize();<a name="line.229"></a>
+<FONT color="green">230</FONT>    <a name="line.230"></a>
+<FONT color="green">231</FONT>            if (currEntry.isGNULongNameEntry()) {<a name="line.231"></a>
+<FONT color="green">232</FONT>                // read in the name<a name="line.232"></a>
+<FONT color="green">233</FONT>                StringBuffer longName = new StringBuffer();<a name="line.233"></a>
+<FONT color="green">234</FONT>                byte[] buf = new byte[SMALL_BUFFER_SIZE];<a name="line.234"></a>
+<FONT color="green">235</FONT>                int length = 0;<a name="line.235"></a>
+<FONT color="green">236</FONT>                while ((length = read(buf)) &gt;= 0) {<a name="line.236"></a>
+<FONT color="green">237</FONT>                    longName.append(new String(buf, 0, length)); // TODO default charset?<a name="line.237"></a>
+<FONT color="green">238</FONT>                }<a name="line.238"></a>
+<FONT color="green">239</FONT>                getNextEntry();<a name="line.239"></a>
+<FONT color="green">240</FONT>                if (currEntry == null) {<a name="line.240"></a>
+<FONT color="green">241</FONT>                    // Bugzilla: 40334<a name="line.241"></a>
+<FONT color="green">242</FONT>                    // Malformed tar file - long entry name not followed by entry<a name="line.242"></a>
+<FONT color="green">243</FONT>                    return null;<a name="line.243"></a>
+<FONT color="green">244</FONT>                }<a name="line.244"></a>
+<FONT color="green">245</FONT>                // remove trailing null terminator<a name="line.245"></a>
+<FONT color="green">246</FONT>                if (longName.length() &gt; 0<a name="line.246"></a>
+<FONT color="green">247</FONT>                        &amp;&amp; longName.charAt(longName.length() - 1) == 0) {<a name="line.247"></a>
+<FONT color="green">248</FONT>                    longName.deleteCharAt(longName.length() - 1);<a name="line.248"></a>
+<FONT color="green">249</FONT>                }<a name="line.249"></a>
+<FONT color="green">250</FONT>                currEntry.setName(longName.toString());<a name="line.250"></a>
+<FONT color="green">251</FONT>            }<a name="line.251"></a>
+<FONT color="green">252</FONT>    <a name="line.252"></a>
+<FONT color="green">253</FONT>            if (currEntry.isPaxHeader()) { // Process Pax headers<a name="line.253"></a>
+<FONT color="green">254</FONT>                paxHeaders();<a name="line.254"></a>
+<FONT color="green">255</FONT>            }<a name="line.255"></a>
+<FONT color="green">256</FONT>    <a name="line.256"></a>
+<FONT color="green">257</FONT>            if (currEntry.isGNUSparse()) { // Process sparse files<a name="line.257"></a>
+<FONT color="green">258</FONT>                readGNUSparse();<a name="line.258"></a>
+<FONT color="green">259</FONT>            }<a name="line.259"></a>
+<FONT color="green">260</FONT>    <a name="line.260"></a>
+<FONT color="green">261</FONT>            // If the size of the next element in the archive has changed<a name="line.261"></a>
+<FONT color="green">262</FONT>            // due to a new size being reported in the posix header<a name="line.262"></a>
+<FONT color="green">263</FONT>            // information, we update entrySize here so that it contains<a name="line.263"></a>
+<FONT color="green">264</FONT>            // the correct value.<a name="line.264"></a>
+<FONT color="green">265</FONT>            entrySize = currEntry.getEntrySize();<a name="line.265"></a>
+<FONT color="green">266</FONT>            return currEntry;<a name="line.266"></a>
+<FONT color="green">267</FONT>        }<a name="line.267"></a>
+<FONT color="green">268</FONT>    <a name="line.268"></a>
+<FONT color="green">269</FONT>        /**<a name="line.269"></a>
+<FONT color="green">270</FONT>         * Get the next record in this tar archive. This will skip<a name="line.270"></a>
+<FONT color="green">271</FONT>         * over any remaining data in the current entry, if there<a name="line.271"></a>
+<FONT color="green">272</FONT>         * is one, and place the input stream at the header of the<a name="line.272"></a>
+<FONT color="green">273</FONT>         * next entry.<a name="line.273"></a>
+<FONT color="green">274</FONT>         * If there are no more entries in the archive, null will<a name="line.274"></a>
+<FONT color="green">275</FONT>         * be returned to indicate that the end of the archive has<a name="line.275"></a>
+<FONT color="green">276</FONT>         * been reached.<a name="line.276"></a>
+<FONT color="green">277</FONT>         *<a name="line.277"></a>
+<FONT color="green">278</FONT>         * @return The next header in the archive, or null.<a name="line.278"></a>
+<FONT color="green">279</FONT>         * @throws java.io.IOException on error<a name="line.279"></a>
+<FONT color="green">280</FONT>         */<a name="line.280"></a>
+<FONT color="green">281</FONT>        private byte[] getRecord() throws IOException {<a name="line.281"></a>
+<FONT color="green">282</FONT>            if (hasHitEOF) {<a name="line.282"></a>
+<FONT color="green">283</FONT>                return null;<a name="line.283"></a>
+<FONT color="green">284</FONT>            }<a name="line.284"></a>
+<FONT color="green">285</FONT>    <a name="line.285"></a>
+<FONT color="green">286</FONT>            byte[] headerBuf = buffer.readRecord();<a name="line.286"></a>
+<FONT color="green">287</FONT>    <a name="line.287"></a>
+<FONT color="green">288</FONT>            if (headerBuf == null) {<a name="line.288"></a>
+<FONT color="green">289</FONT>                hasHitEOF = true;<a name="line.289"></a>
+<FONT color="green">290</FONT>            } else if (buffer.isEOFRecord(headerBuf)) {<a name="line.290"></a>
+<FONT color="green">291</FONT>                hasHitEOF = true;<a name="line.291"></a>
+<FONT color="green">292</FONT>            }<a name="line.292"></a>
+<FONT color="green">293</FONT>    <a name="line.293"></a>
+<FONT color="green">294</FONT>            return hasHitEOF ? null : headerBuf;<a name="line.294"></a>
+<FONT color="green">295</FONT>        }<a name="line.295"></a>
+<FONT color="green">296</FONT>    <a name="line.296"></a>
+<FONT color="green">297</FONT>        private void paxHeaders() throws IOException {<a name="line.297"></a>
+<FONT color="green">298</FONT>            Map&lt;String, String&gt; headers = parsePaxHeaders(this);<a name="line.298"></a>
+<FONT color="green">299</FONT>            getNextEntry(); // Get the actual file entry<a name="line.299"></a>
+<FONT color="green">300</FONT>            applyPaxHeadersToCurrentEntry(headers);<a name="line.300"></a>
+<FONT color="green">301</FONT>        }<a name="line.301"></a>
+<FONT color="green">302</FONT>    <a name="line.302"></a>
+<FONT color="green">303</FONT>        Map&lt;String, String&gt; parsePaxHeaders(InputStream i) throws IOException {<a name="line.303"></a>
+<FONT color="green">304</FONT>            Map&lt;String, String&gt; headers = new HashMap&lt;String, String&gt;();<a name="line.304"></a>
+<FONT color="green">305</FONT>            // Format is "length keyword=value\n";<a name="line.305"></a>
+<FONT color="green">306</FONT>            while (true) { // get length<a name="line.306"></a>
+<FONT color="green">307</FONT>                int ch;<a name="line.307"></a>
+<FONT color="green">308</FONT>                int len = 0;<a name="line.308"></a>
+<FONT color="green">309</FONT>                int read = 0;<a name="line.309"></a>
+<FONT color="green">310</FONT>                while ((ch = i.read()) != -1) {<a name="line.310"></a>
+<FONT color="green">311</FONT>                    read++;<a name="line.311"></a>
+<FONT color="green">312</FONT>                    if (ch == ' ') { // End of length string<a name="line.312"></a>
+<FONT color="green">313</FONT>                        // Get keyword<a name="line.313"></a>
+<FONT color="green">314</FONT>                        ByteArrayOutputStream coll = new ByteArrayOutputStream();<a name="line.314"></a>
+<FONT color="green">315</FONT>                        while ((ch = i.read()) != -1) {<a name="line.315"></a>
+<FONT color="green">316</FONT>                            read++;<a name="line.316"></a>
+<FONT color="green">317</FONT>                            if (ch == '=') { // end of keyword<a name="line.317"></a>
+<FONT color="green">318</FONT>                                String keyword = coll.toString("UTF-8");<a name="line.318"></a>
+<FONT color="green">319</FONT>                                // Get rest of entry<a name="line.319"></a>
+<FONT color="green">320</FONT>                                byte[] rest = new byte[len - read];<a name="line.320"></a>
+<FONT color="green">321</FONT>                                int got = i.read(rest);<a name="line.321"></a>
+<FONT color="green">322</FONT>                                if (got != len - read) {<a name="line.322"></a>
+<FONT color="green">323</FONT>                                    throw new IOException("Failed to read "<a name="line.323"></a>
+<FONT color="green">324</FONT>                                            + "Paxheader. Expected "<a name="line.324"></a>
+<FONT color="green">325</FONT>                                            + (len - read)<a name="line.325"></a>
+<FONT color="green">326</FONT>                                            + " bytes, read "<a name="line.326"></a>
+<FONT color="green">327</FONT>                                            + got);<a name="line.327"></a>
+<FONT color="green">328</FONT>                                }<a name="line.328"></a>
+<FONT color="green">329</FONT>                                // Drop trailing NL<a name="line.329"></a>
+<FONT color="green">330</FONT>                                String value = new String(rest, 0,<a name="line.330"></a>
+<FONT color="green">331</FONT>                                        len - read - 1, Charset.forName("UTF-8"));<a name="line.331"></a>
+<FONT color="green">332</FONT>                                headers.put(keyword, value);<a name="line.332"></a>
+<FONT color="green">333</FONT>                                break;<a name="line.333"></a>
+<FONT color="green">334</FONT>                            }<a name="line.334"></a>
+<FONT color="green">335</FONT>                            coll.write((byte) ch);<a name="line.335"></a>
+<FONT color="green">336</FONT>                        }<a name="line.336"></a>
+<FONT color="green">337</FONT>                        break; // Processed single header<a name="line.337"></a>
+<FONT color="green">338</FONT>                    }<a name="line.338"></a>
+<FONT color="green">339</FONT>                    len *= 10;<a name="line.339"></a>
+<FONT color="green">340</FONT>                    len += ch - '0';<a name="line.340"></a>
+<FONT color="green">341</FONT>                }<a name="line.341"></a>
+<FONT color="green">342</FONT>                if (ch == -1) { // EOF<a name="line.342"></a>
+<FONT color="green">343</FONT>                    break;<a name="line.343"></a>
+<FONT color="green">344</FONT>                }<a name="line.344"></a>
+<FONT color="green">345</FONT>            }<a name="line.345"></a>
+<FONT color="green">346</FONT>            return headers;<a name="line.346"></a>
+<FONT color="green">347</FONT>        }<a name="line.347"></a>
+<FONT color="green">348</FONT>    <a name="line.348"></a>
+<FONT color="green">349</FONT>        private void applyPaxHeadersToCurrentEntry(Map&lt;String, String&gt; headers) {<a name="line.349"></a>
+<FONT color="green">350</FONT>            /*<a name="line.350"></a>
+<FONT color="green">351</FONT>             * The following headers are defined for Pax.<a name="line.351"></a>
+<FONT color="green">352</FONT>             * atime, ctime, charset: cannot use these without changing TarArchiveEntry fields<a name="line.352"></a>
+<FONT color="green">353</FONT>             * mtime<a name="line.353"></a>
+<FONT color="green">354</FONT>             * comment<a name="line.354"></a>
+<FONT color="green">355</FONT>             * gid, gname<a name="line.355"></a>
+<FONT color="green">356</FONT>             * linkpath<a name="line.356"></a>
+<FONT color="green">357</FONT>             * size<a name="line.357"></a>
+<FONT color="green">358</FONT>             * uid,uname<a name="line.358"></a>
+<FONT color="green">359</FONT>             * SCHILY.devminor, SCHILY.devmajor: don't have setters/getters for those<a name="line.359"></a>
+<FONT color="green">360</FONT>             */<a name="line.360"></a>
+<FONT color="green">361</FONT>            for (Entry&lt;String, String&gt; ent : headers.entrySet()) {<a name="line.361"></a>
+<FONT color="green">362</FONT>                String key = ent.getKey();<a name="line.362"></a>
+<FONT color="green">363</FONT>                String val = ent.getValue();<a name="line.363"></a>
+<FONT color="green">364</FONT>                if ("path".equals(key)) {<a name="line.364"></a>
+<FONT color="green">365</FONT>                    currEntry.setName(val);<a name="line.365"></a>
+<FONT color="green">366</FONT>                } else if ("linkpath".equals(key)) {<a name="line.366"></a>
+<FONT color="green">367</FONT>                    currEntry.setLinkName(val);<a name="line.367"></a>
+<FONT color="green">368</FONT>                } else if ("gid".equals(key)) {<a name="line.368"></a>
+<FONT color="green">369</FONT>                    currEntry.setGroupId(Integer.parseInt(val));<a name="line.369"></a>
+<FONT color="green">370</FONT>                } else if ("gname".equals(key)) {<a name="line.370"></a>
+<FONT color="green">371</FONT>                    currEntry.setGroupName(val);<a name="line.371"></a>
+<FONT color="green">372</FONT>                } else if ("uid".equals(key)) {<a name="line.372"></a>
+<FONT color="green">373</FONT>                    currEntry.setUserId(Integer.parseInt(val));<a name="line.373"></a>
+<FONT color="green">374</FONT>                } else if ("uname".equals(key)) {<a name="line.374"></a>
+<FONT color="green">375</FONT>                    currEntry.setUserName(val);<a name="line.375"></a>
+<FONT color="green">376</FONT>                } else if ("size".equals(key)) {<a name="line.376"></a>
+<FONT color="green">377</FONT>                    currEntry.setEntrySize(Long.parseLong(val));<a name="line.377"></a>
+<FONT color="green">378</FONT>                } else if ("mtime".equals(key)) {<a name="line.378"></a>
+<FONT color="green">379</FONT>                    long mtime = (long) (Double.parseDouble(val) * 1000);<a name="line.379"></a>
+<FONT color="green">380</FONT>                    currEntry.setLastModified(new Date(mtime));<a name="line.380"></a>
+<FONT color="green">381</FONT>                } else if ("SCHILY.devminor".equals(key)) {<a name="line.381"></a>
+<FONT color="green">382</FONT>                    currEntry.setDevMinor(Integer.parseInt(val));<a name="line.382"></a>
+<FONT color="green">383</FONT>                } else if ("SCHILY.devmajor".equals(key)) {<a name="line.383"></a>
+<FONT color="green">384</FONT>                    currEntry.setDevMajor(Integer.parseInt(val));<a name="line.384"></a>
+<FONT color="green">385</FONT>                }<a name="line.385"></a>
+<FONT color="green">386</FONT>            }<a name="line.386"></a>
+<FONT color="green">387</FONT>        }<a name="line.387"></a>
+<FONT color="green">388</FONT>    <a name="line.388"></a>
+<FONT color="green">389</FONT>        /**<a name="line.389"></a>
+<FONT color="green">390</FONT>         * Adds the sparse chunks from the current entry to the sparse chunks,<a name="line.390"></a>
+<FONT color="green">391</FONT>         * including any additional sparse entries following the current entry.<a name="line.391"></a>
+<FONT color="green">392</FONT>         *<a name="line.392"></a>
+<FONT color="green">393</FONT>         * @throws java.io.IOException on error<a name="line.393"></a>
+<FONT color="green">394</FONT>         */<a name="line.394"></a>
+<FONT color="green">395</FONT>        private void readGNUSparse() throws IOException {<a name="line.395"></a>
+<FONT color="green">396</FONT>            /* we do not really process sparse files yet<a name="line.396"></a>
+<FONT color="green">397</FONT>            sparses = new ArrayList();<a name="line.397"></a>
+<FONT color="green">398</FONT>            sparses.addAll(currEntry.getSparses());<a name="line.398"></a>
+<FONT color="green">399</FONT>            */<a name="line.399"></a>
+<FONT color="green">400</FONT>            if (currEntry.isExtended()) {<a name="line.400"></a>
+<FONT color="green">401</FONT>                TarArchiveSparseEntry entry;<a name="line.401"></a>
+<FONT color="green">402</FONT>                do {<a name="line.402"></a>
+<FONT color="green">403</FONT>                    byte[] headerBuf = getRecord();<a name="line.403"></a>
+<FONT color="green">404</FONT>                    if (hasHitEOF) {<a name="line.404"></a>
+<FONT color="green">405</FONT>                        currEntry = null;<a name="line.405"></a>
+<FONT color="green">406</FONT>                        break;<a name="line.406"></a>
+<FONT color="green">407</FONT>                    }<a name="line.407"></a>
+<FONT color="green">408</FONT>                    entry = new TarArchiveSparseEntry(headerBuf);<a name="line.408"></a>
+<FONT color="green">409</FONT>                    /* we do not really process sparse files yet<a name="line.409"></a>
+<FONT color="green">410</FONT>                    sparses.addAll(entry.getSparses());<a name="line.410"></a>
+<FONT color="green">411</FONT>                    */<a name="line.411"></a>
+<FONT color="green">412</FONT>                } while (entry.isExtended());<a name="line.412"></a>
+<FONT color="green">413</FONT>            }<a name="line.413"></a>
+<FONT color="green">414</FONT>        }<a name="line.414"></a>
+<FONT color="green">415</FONT>    <a name="line.415"></a>
+<FONT color="green">416</FONT>        @Override<a name="line.416"></a>
+<FONT color="green">417</FONT>        public ArchiveEntry getNextEntry() throws IOException {<a name="line.417"></a>
+<FONT color="green">418</FONT>            return getNextTarEntry();<a name="line.418"></a>
+<FONT color="green">419</FONT>        }<a name="line.419"></a>
+<FONT color="green">420</FONT>    <a name="line.420"></a>
+<FONT color="green">421</FONT>        /**<a name="line.421"></a>
+<FONT color="green">422</FONT>         * Reads bytes from the current tar archive entry.<a name="line.422"></a>
+<FONT color="green">423</FONT>         * &lt;p/&gt;<a name="line.423"></a>
+<FONT color="green">424</FONT>         * This method is aware of the boundaries of the current<a name="line.424"></a>
+<FONT color="green">425</FONT>         * entry in the archive and will deal with them as if they<a name="line.425"></a>
+<FONT color="green">426</FONT>         * were this stream's start and EOF.<a name="line.426"></a>
+<FONT color="green">427</FONT>         *<a name="line.427"></a>
+<FONT color="green">428</FONT>         * @param buf       The buffer into which to place bytes read.<a name="line.428"></a>
+<FONT color="green">429</FONT>         * @param offset    The offset at which to place bytes read.<a name="line.429"></a>
+<FONT color="green">430</FONT>         * @param numToRead The number of bytes to read.<a name="line.430"></a>
+<FONT color="green">431</FONT>         * @return The number of bytes read, or -1 at EOF.<a name="line.431"></a>
+<FONT color="green">432</FONT>         * @throws java.io.IOException on error<a name="line.432"></a>
+<FONT color="green">433</FONT>         */<a name="line.433"></a>
+<FONT color="green">434</FONT>        @Override<a name="line.434"></a>
+<FONT color="green">435</FONT>        public int read(byte[] buf, int offset, int numToRead) throws IOException {<a name="line.435"></a>
+<FONT color="green">436</FONT>            int totalRead = 0;<a name="line.436"></a>
+<FONT color="green">437</FONT>    <a name="line.437"></a>
+<FONT color="green">438</FONT>            if (entryOffset &gt;= entrySize) {<a name="line.438"></a>
+<FONT color="green">439</FONT>                return -1;<a name="line.439"></a>
+<FONT color="green">440</FONT>            }<a name="line.440"></a>
+<FONT color="green">441</FONT>    <a name="line.441"></a>
+<FONT color="green">442</FONT>            if ((numToRead + entryOffset) &gt; entrySize) {<a name="line.442"></a>
+<FONT color="green">443</FONT>                numToRead = (int) (entrySize - entryOffset);<a name="line.443"></a>
+<FONT color="green">444</FONT>            }<a name="line.444"></a>
+<FONT color="green">445</FONT>    <a name="line.445"></a>
+<FONT color="green">446</FONT>            if (readBuf != null) {<a name="line.446"></a>
+<FONT color="green">447</FONT>                int sz = (numToRead &gt; readBuf.length) ? readBuf.length<a name="line.447"></a>
+<FONT color="green">448</FONT>                        : numToRead;<a name="line.448"></a>
+<FONT color="green">449</FONT>    <a name="line.449"></a>
+<FONT color="green">450</FONT>                System.arraycopy(readBuf, 0, buf, offset, sz);<a name="line.450"></a>
+<FONT color="green">451</FONT>    <a name="line.451"></a>
+<FONT color="green">452</FONT>                if (sz &gt;= readBuf.length) {<a name="line.452"></a>
+<FONT color="green">453</FONT>                    readBuf = null;<a name="line.453"></a>
+<FONT color="green">454</FONT>                } else {<a name="line.454"></a>
+<FONT color="green">455</FONT>                    int newLen = readBuf.length - sz;<a name="line.455"></a>
+<FONT color="green">456</FONT>                    byte[] newBuf = new byte[newLen];<a name="line.456"></a>
+<FONT color="green">457</FONT>    <a name="line.457"></a>
+<FONT color="green">458</FONT>                    System.arraycopy(readBuf, sz, newBuf, 0, newLen);<a name="line.458"></a>
+<FONT color="green">459</FONT>    <a name="line.459"></a>
+<FONT color="green">460</FONT>                    readBuf = newBuf;<a name="line.460"></a>
+<FONT color="green">461</FONT>                }<a name="line.461"></a>
+<FONT color="green">462</FONT>    <a name="line.462"></a>
+<FONT color="green">463</FONT>                totalRead += sz;<a name="line.463"></a>
+<FONT color="green">464</FONT>                numToRead -= sz;<a name="line.464"></a>
+<FONT color="green">465</FONT>                offset += sz;<a name="line.465"></a>
+<FONT color="green">466</FONT>            }<a name="line.466"></a>
+<FONT color="green">467</FONT>    <a name="line.467"></a>
+<FONT color="green">468</FONT>            while (numToRead &gt; 0) {<a name="line.468"></a>
+<FONT color="green">469</FONT>                byte[] rec = buffer.readRecord();<a name="line.469"></a>
+<FONT color="green">470</FONT>    <a name="line.470"></a>
+<FONT color="green">471</FONT>                if (rec == null) {<a name="line.471"></a>
+<FONT color="green">472</FONT>                    // Unexpected EOF!<a name="line.472"></a>
+<FONT color="green">473</FONT>                    throw new IOException("unexpected EOF with " + numToRead<a name="line.473"></a>
+<FONT color="green">474</FONT>                            + " bytes unread. Occured at byte: " + getBytesRead());<a name="line.474"></a>
+<FONT color="green">475</FONT>                }<a name="line.475"></a>
+<FONT color="green">476</FONT>                count(rec.length);<a name="line.476"></a>
+<FONT color="green">477</FONT>                int sz = numToRead;<a name="line.477"></a>
+<FONT color="green">478</FONT>                int recLen = rec.length;<a name="line.478"></a>
+<FONT color="green">479</FONT>    <a name="line.479"></a>
+<FONT color="green">480</FONT>                if (recLen &gt; sz) {<a name="line.480"></a>
+<FONT color="green">481</FONT>                    System.arraycopy(rec, 0, buf, offset, sz);<a name="line.481"></a>
+<FONT color="green">482</FONT>    <a name="line.482"></a>
+<FONT color="green">483</FONT>                    readBuf = new byte[recLen - sz];<a name="line.483"></a>
+<FONT color="green">484</FONT>    <a name="line.484"></a>
+<FONT color="green">485</FONT>                    System.arraycopy(rec, sz, readBuf, 0, recLen - sz);<a name="line.485"></a>
+<FONT color="green">486</FONT>                } else {<a name="line.486"></a>
+<FONT color="green">487</FONT>                    sz = recLen;<a name="line.487"></a>
+<FONT color="green">488</FONT>    <a name="line.488"></a>
+<FONT color="green">489</FONT>                    System.arraycopy(rec, 0, buf, offset, recLen);<a name="line.489"></a>
+<FONT color="green">490</FONT>                }<a name="line.490"></a>
+<FONT color="green">491</FONT>    <a name="line.491"></a>
+<FONT color="green">492</FONT>                totalRead += sz;<a name="line.492"></a>
+<FONT color="green">493</FONT>                numToRead -= sz;<a name="line.493"></a>
+<FONT color="green">494</FONT>                offset += sz;<a name="line.494"></a>
+<FONT color="green">495</FONT>            }<a name="line.495"></a>
+<FONT color="green">496</FONT>    <a name="line.496"></a>
+<FONT color="green">497</FONT>            entryOffset += totalRead;<a name="line.497"></a>
+<FONT color="green">498</FONT>    <a name="line.498"></a>
+<FONT color="green">499</FONT>            return totalRead;<a name="line.499"></a>
+<FONT color="green">500</FONT>        }<a name="line.500"></a>
+<FONT color="green">501</FONT>    <a name="line.501"></a>
+<FONT color="green">502</FONT>        protected final TarArchiveEntry getCurrentEntry() {<a name="line.502"></a>
+<FONT color="green">503</FONT>            return currEntry;<a name="line.503"></a>
+<FONT color="green">504</FONT>        }<a name="line.504"></a>
+<FONT color="green">505</FONT>    <a name="line.505"></a>
+<FONT color="green">506</FONT>        protected final void setCurrentEntry(TarArchiveEntry e) {<a name="line.506"></a>
+<FONT color="green">507</FONT>            currEntry = e;<a name="line.507"></a>
+<FONT color="green">508</FONT>        }<a name="line.508"></a>
+<FONT color="green">509</FONT>    <a name="line.509"></a>
+<FONT color="green">510</FONT>        protected final boolean isAtEOF() {<a name="line.510"></a>
+<FONT color="green">511</FONT>            return hasHitEOF;<a name="line.511"></a>
+<FONT color="green">512</FONT>        }<a name="line.512"></a>
+<FONT color="green">513</FONT>    <a name="line.513"></a>
+<FONT color="green">514</FONT>        protected final void setAtEOF(boolean b) {<a name="line.514"></a>
+<FONT color="green">515</FONT>            hasHitEOF = b;<a name="line.515"></a>
+<FONT color="green">516</FONT>        }<a name="line.516"></a>
+<FONT color="green">517</FONT>    <a name="line.517"></a>
+<FONT color="green">518</FONT>        /**<a name="line.518"></a>
+<FONT color="green">519</FONT>         * Checks if the signature matches what is expected for a tar file.<a name="line.519"></a>
+<FONT color="green">520</FONT>         *<a name="line.520"></a>
+<FONT color="green">521</FONT>         * @param signature the bytes to check<a name="line.521"></a>
+<FONT color="green">522</FONT>         * @param length    the number of bytes to check<a name="line.522"></a>
+<FONT color="green">523</FONT>         * @return true, if this stream is a tar archive stream, false otherwise<a name="line.523"></a>
+<FONT color="green">524</FONT>         */<a name="line.524"></a>
+<FONT color="green">525</FONT>        public static boolean matches(byte[] signature, int length) {<a name="line.525"></a>
+<FONT color="green">526</FONT>            return length &gt;= TarConstants.VERSION_OFFSET + TarConstants.VERSIONLEN<a name="line.526"></a>
+<FONT color="green">527</FONT>                    &amp;&amp; (ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_POSIX, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.527"></a>
+<FONT color="green">528</FONT>                    &amp;&amp; ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_POSIX, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN)<a name="line.528"></a>
+<FONT color="green">529</FONT>                    || ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_GNU, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.529"></a>
+<FONT color="green">530</FONT>                    &amp;&amp; (ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_GNU_SPACE, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN)<a name="line.530"></a>
+<FONT color="green">531</FONT>                    || ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_GNU_ZERO, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN))<a name="line.531"></a>
+<FONT color="green">532</FONT>                    || ArchiveUtils.matchAsciiBuffer(TarConstants.MAGIC_ANT, signature, TarConstants.MAGIC_OFFSET, TarConstants.MAGICLEN)<a name="line.532"></a>
+<FONT color="green">533</FONT>                    &amp;&amp; ArchiveUtils.matchAsciiBuffer(TarConstants.VERSION_ANT, signature, TarConstants.VERSION_OFFSET, TarConstants.VERSIONLEN));<a name="line.533"></a>
+<FONT color="green">534</FONT>    <a name="line.534"></a>
+<FONT color="green">535</FONT>        }<a name="line.535"></a>
+<FONT color="green">536</FONT>    <a name="line.536"></a>
+<FONT color="green">537</FONT>    }<a name="line.537"></a>
 
 
 
@@ -603,7 +598,6 @@
 
 
 
-</pre>
-</div>
-</body>
-</html>
+</PRE>
+</BODY>
+</HTML>
