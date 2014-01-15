@@ -1,7 +1,7 @@
 
 package org.xbib.elasticsearch.action;
 
-import org.elasticsearch.ElasticSearchIllegalStateException;
+import org.elasticsearch.ElasticsearchIllegalStateException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -202,7 +202,7 @@ public class RestImportAction extends BaseRestHandler {
                 while ((packet = session.read()) != null) {
                     String[] entry = KnapsackPacket.decodeName(packet.name());
                     if (entry.length != 4) {
-                        throw new ElasticSearchIllegalStateException("archive entry too short, can't import");
+                        throw new ElasticsearchIllegalStateException("archive entry too short, can't import");
                     }
                     String index = entry[0];
                     String type = entry[1];
@@ -283,7 +283,7 @@ public class RestImportAction extends BaseRestHandler {
             String entryName = packets.values().iterator().next().name();
             String[] entry = KnapsackPacket.decodeName(entryName);
             if (entry.length < 3) {
-                throw new ElasticSearchIllegalStateException("entry too short: " + entryName);
+                throw new ElasticsearchIllegalStateException("entry too short: " + entryName);
             }
             String index = entry[0];
             String type = entry[1];

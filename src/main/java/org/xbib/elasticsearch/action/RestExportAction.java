@@ -423,9 +423,9 @@ public class RestExportAction extends BaseRestHandler {
     private Map<String, String> getSettings(String... index) throws IOException {
         Map<String, String> settings = newHashMap();
         ClusterStateRequestBuilder request = client.admin().cluster().prepareState()
-                .setFilterRoutingTable(true)
-                .setFilterNodes(true)
-                .setFilterIndices(index);
+                .setRoutingTable(true)
+                .setNodes(true)
+                .setIndices(index);
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().metaData();
         if (!metaData.getIndices().isEmpty()) {
@@ -447,10 +447,10 @@ public class RestExportAction extends BaseRestHandler {
     private Map<String, String> getMapping(String index, Set<String> types) throws IOException {
         Map<String, String> mappings = newHashMap();
         ClusterStateRequestBuilder request = client.admin().cluster().prepareState()
-                .setFilterRoutingTable(true)
-                .setFilterNodes(true);
+                .setRoutingTable(true)
+                .setNodes(true);
         if (!"_all".equals(index)) {
-            request.setFilterIndices(index);
+            request.setIndices(index);
         }
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().getMetaData();
