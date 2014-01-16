@@ -4,7 +4,7 @@
 <FONT color="green">001</FONT>    <a name="line.1"></a>
 <FONT color="green">002</FONT>    package org.xbib.elasticsearch.action;<a name="line.2"></a>
 <FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.elasticsearch.ElasticSearchIllegalStateException;<a name="line.4"></a>
+<FONT color="green">004</FONT>    import org.elasticsearch.ElasticsearchIllegalStateException;<a name="line.4"></a>
 <FONT color="green">005</FONT>    import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;<a name="line.5"></a>
 <FONT color="green">006</FONT>    import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;<a name="line.6"></a>
 <FONT color="green">007</FONT>    import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;<a name="line.7"></a>
@@ -205,7 +205,7 @@
 <FONT color="green">202</FONT>                    while ((packet = session.read()) != null) {<a name="line.202"></a>
 <FONT color="green">203</FONT>                        String[] entry = KnapsackPacket.decodeName(packet.name());<a name="line.203"></a>
 <FONT color="green">204</FONT>                        if (entry.length != 4) {<a name="line.204"></a>
-<FONT color="green">205</FONT>                            throw new ElasticSearchIllegalStateException("archive entry too short, can't import");<a name="line.205"></a>
+<FONT color="green">205</FONT>                            throw new ElasticsearchIllegalStateException("archive entry too short, can't import");<a name="line.205"></a>
 <FONT color="green">206</FONT>                        }<a name="line.206"></a>
 <FONT color="green">207</FONT>                        String index = entry[0];<a name="line.207"></a>
 <FONT color="green">208</FONT>                        String type = entry[1];<a name="line.208"></a>
@@ -286,7 +286,7 @@
 <FONT color="green">283</FONT>                String entryName = packets.values().iterator().next().name();<a name="line.283"></a>
 <FONT color="green">284</FONT>                String[] entry = KnapsackPacket.decodeName(entryName);<a name="line.284"></a>
 <FONT color="green">285</FONT>                if (entry.length &lt; 3) {<a name="line.285"></a>
-<FONT color="green">286</FONT>                    throw new ElasticSearchIllegalStateException("entry too short: " + entryName);<a name="line.286"></a>
+<FONT color="green">286</FONT>                    throw new ElasticsearchIllegalStateException("entry too short: " + entryName);<a name="line.286"></a>
 <FONT color="green">287</FONT>                }<a name="line.287"></a>
 <FONT color="green">288</FONT>                String index = entry[0];<a name="line.288"></a>
 <FONT color="green">289</FONT>                String type = entry[1];<a name="line.289"></a>

@@ -426,9 +426,9 @@
 <FONT color="green">423</FONT>        private Map&lt;String, String&gt; getSettings(String... index) throws IOException {<a name="line.423"></a>
 <FONT color="green">424</FONT>            Map&lt;String, String&gt; settings = newHashMap();<a name="line.424"></a>
 <FONT color="green">425</FONT>            ClusterStateRequestBuilder request = client.admin().cluster().prepareState()<a name="line.425"></a>
-<FONT color="green">426</FONT>                    .setFilterRoutingTable(true)<a name="line.426"></a>
-<FONT color="green">427</FONT>                    .setFilterNodes(true)<a name="line.427"></a>
-<FONT color="green">428</FONT>                    .setFilterIndices(index);<a name="line.428"></a>
+<FONT color="green">426</FONT>                    .setRoutingTable(true)<a name="line.426"></a>
+<FONT color="green">427</FONT>                    .setNodes(true)<a name="line.427"></a>
+<FONT color="green">428</FONT>                    .setIndices(index);<a name="line.428"></a>
 <FONT color="green">429</FONT>            ClusterStateResponse response = request.execute().actionGet();<a name="line.429"></a>
 <FONT color="green">430</FONT>            MetaData metaData = response.getState().metaData();<a name="line.430"></a>
 <FONT color="green">431</FONT>            if (!metaData.getIndices().isEmpty()) {<a name="line.431"></a>
@@ -450,10 +450,10 @@
 <FONT color="green">447</FONT>        private Map&lt;String, String&gt; getMapping(String index, Set&lt;String&gt; types) throws IOException {<a name="line.447"></a>
 <FONT color="green">448</FONT>            Map&lt;String, String&gt; mappings = newHashMap();<a name="line.448"></a>
 <FONT color="green">449</FONT>            ClusterStateRequestBuilder request = client.admin().cluster().prepareState()<a name="line.449"></a>
-<FONT color="green">450</FONT>                    .setFilterRoutingTable(true)<a name="line.450"></a>
-<FONT color="green">451</FONT>                    .setFilterNodes(true);<a name="line.451"></a>
+<FONT color="green">450</FONT>                    .setRoutingTable(true)<a name="line.450"></a>
+<FONT color="green">451</FONT>                    .setNodes(true);<a name="line.451"></a>
 <FONT color="green">452</FONT>            if (!"_all".equals(index)) {<a name="line.452"></a>
-<FONT color="green">453</FONT>                request.setFilterIndices(index);<a name="line.453"></a>
+<FONT color="green">453</FONT>                request.setIndices(index);<a name="line.453"></a>
 <FONT color="green">454</FONT>            }<a name="line.454"></a>
 <FONT color="green">455</FONT>            ClusterStateResponse response = request.execute().actionGet();<a name="line.455"></a>
 <FONT color="green">456</FONT>            MetaData metaData = response.getState().getMetaData();<a name="line.456"></a>
