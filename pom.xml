@@ -74,7 +74,7 @@
         <dependency>
             <groupId>org.xbib.elasticsearch.plugin</groupId>
             <artifactId>elasticsearch-support</artifactId>
-            <version>0.90.10.1</version>
+            <version>${project.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
