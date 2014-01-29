@@ -410,6 +410,9 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      */
     public TarArchiveEntry setName(String name) {
         this.name = normalizeFileName(name, false);
+        boolean isDir = name.endsWith("/");
+        this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;
+        this.linkFlag = isDir ? LF_DIR : LF_NORMAL;
         return this;
     }
 
