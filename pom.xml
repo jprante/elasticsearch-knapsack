@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.0.0.RC1.2</version>
+    <version>0.19.11.1</version>
 
     <packaging>jar</packaging>
 
@@ -58,7 +58,7 @@
     <properties>
         <github.global.server>github</github.global.server>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>1.0.0.RC1</elasticsearch.version>
+        <elasticsearch.version>0.19.11</elasticsearch.version>
     </properties>
 
     <dependencies>

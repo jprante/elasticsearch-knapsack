@@ -6,7 +6,6 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.ImmutableList.Builder;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -15,15 +14,12 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.xbib.io.URIUtil;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
-import static org.elasticsearch.common.collect.Maps.newHashMap;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
 import static org.elasticsearch.common.xcontent.XContentFactory.xContent;
@@ -126,7 +122,7 @@ public class KnapsackHelper {
 
     private void updateSetting(String name, String value) {
         client.admin().cluster().prepareUpdateSettings()
-                .setTransientSettings(ImmutableSettings.builder()
+                .setTransientSettings(ImmutableSettings.settingsBuilder()
                         .put(getSettings())
                         .put(name, value)
                         .build())
