@@ -201,13 +201,14 @@ public class RestImportAction extends BaseRestHandler {
                 String lastCoord = null;
                 while ((packet = session.read()) != null) {
                     String[] entry = KnapsackPacket.decodeName(packet.name());
-                    if (entry.length != 4) {
+                    if (entry.length < 2) {
                         throw new ElasticsearchIllegalStateException("archive entry too short, can't import");
                     }
                     String index = entry[0];
                     String type = entry[1];
-                    String id = entry[2];
-                    String field = entry[3];
+                    // entry length != 4 ? older knapsack format
+                    String id = entry.length > 2 ? entry[2] : null;
+                    String field = entry.length > 3 ? entry[3] : "_source";
                     if ("_settings".equals(type)) {
                         index = mapIndex(index);
                         String settings;
