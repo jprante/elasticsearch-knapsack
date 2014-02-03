@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.0.0.RC1.2</version>
+    <version>1.0.0.RC2.1</version>
 
     <packaging>jar</packaging>
 
@@ -58,7 +58,7 @@
     <properties>
         <github.global.server>github</github.global.server>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>1.0.0.RC1</elasticsearch.version>
+        <elasticsearch.version>1.0.0.RC2</elasticsearch.version>
     </properties>
 
     <dependencies>
@@ -85,6 +85,7 @@
             <version>1.6.11</version>
             <type>jar</type>
             <scope>compile</scope>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
@@ -104,7 +105,22 @@
     </dependencies>
 
     <build>
-
+        <resources>
+            <resource>
+                <directory>${basedir}/src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>es-plugin.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>${basedir}/src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>es-plugin.properties</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -169,6 +185,23 @@
                 <version>2.6</version>
                 <configuration>
                     <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>buildnumber-maven-plugin</artifactId>
+                <version>1.2</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>create</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doCheck>false</doCheck>
+                    <doUpdate>false</doUpdate>
                 </configuration>
             </plugin>
             <plugin>

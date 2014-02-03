@@ -6,7 +6,6 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.ImmutableList.Builder;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -15,15 +14,15 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.Environment;
+import org.xbib.classloader.uri.URIClassLoader;
 import org.xbib.io.URIUtil;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
-import static org.elasticsearch.common.collect.Maps.newHashMap;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
 import static org.elasticsearch.common.xcontent.XContentFactory.xContent;
@@ -173,7 +172,7 @@ public class KnapsackHelper {
         return URI.create("es://" + host + ":" + port + "?es.cluster.name=" + cluster);
     }
 
-    public static Settings clientSettings(URI uri) {
+    public static Settings clientSettings(Environment environment, URI uri) {
         return settingsBuilder()
                 .put("network.server", false)
                 .put("node.client", true)
@@ -182,7 +181,41 @@ public class KnapsackHelper {
                 .put("client.transport.ignore_cluster_name", false)
                 .put("client.transport.ping_timeout", "30s")
                 .put("client.transport.nodes_sampler_interval", "30s")
+                .put("path.plugins", ".dontexist") // this disables site plugins
+                .classLoader(getClassLoader(environment)) // this disables jvm plugins
                 .build();
+    }
+
+    /**
+     * Filter out all jvm plugins except our dependency
+     * @param environment the environment
+     * @return a custom class loader with our dependencies
+     */
+    private static ClassLoader getClassLoader(Environment environment) {
+        File[] pluginDirs = environment.pluginsFile().listFiles();
+        URIClassLoader classLoader = new URIClassLoader();
+        if (pluginDirs == null) {
+            return classLoader;
+        }
+        for (File pluginDir : pluginDirs) {
+            File[] plugin = pluginDir.listFiles();
+            if (plugin != null) {
+                for (File file : plugin) {
+                    // hack: add only support plugin (our dependency)
+                    if (file.getName().toLowerCase().endsWith(".jar")
+                            && file.getName().toLowerCase().contains("elasticsearch-support")) {
+                        classLoader.addURI(file.toURI());
+                    }
+                }
+            }
+        }
+        File[] libs = new File(environment.homeFile() + "/lib").listFiles();
+        if (libs != null) {
+            for (File file : libs) {
+                classLoader.addURI(file.toURI());
+            }
+        }
+        return classLoader;
     }
 
 }

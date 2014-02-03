@@ -25,10 +25,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
@@ -75,21 +77,28 @@ public class RestExportAction extends BaseRestHandler {
 
     private final ClusterName clusterName;
 
+    private final Environment environment;
+
     private final KnapsackHelper knapsackHelper;
 
     private final SettingsFilter settingsFilter;
 
+    private EsThreadPoolExecutor executor;
+
     @Inject
     public RestExportAction(Settings settings,
+                            Environment environment,
                             Client client,
                             RestController controller,
                             SettingsFilter settingsFilter,
                             ClusterService clusterService,
                             ClusterName clusterName) {
         super(settings, client);
-        this.settingsFilter = settingsFilter;
+        this.environment = environment;
         this.clusterName = clusterName;
+        this.settingsFilter = settingsFilter;
         this.knapsackHelper = new KnapsackHelper(client, clusterService);
+        this.executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
 
         controller.registerHandler(POST, "/_export", this);
         controller.registerHandler(POST, "/{index}/_export", this);
@@ -100,6 +109,7 @@ public class RestExportAction extends BaseRestHandler {
         controller.registerHandler(POST, "/{index}/{type}/_export/{mode}", this);
 
         controller.registerHandler(GET, "/_export/state", new RestKnapsackExportState());
+        controller.registerHandler(POST, "/_export/abort", new RestKnapsackExportAbort());
     }
 
     @Override
@@ -110,9 +120,7 @@ public class RestExportAction extends BaseRestHandler {
             if (copy) {
                 final URI destination = KnapsackHelper.getAddress(client, clusterName, request.param("host"), request.paramAsInt("port", 0),
                         request.param("cluster"));
-                EsExecutors.daemonThreadFactory(settings, "knapsack-export-[" + destination + "]")
-                        .newThread(new ExportThread(request, destination))
-                        .start();
+                executor.execute(new ExportThread(request, destination));
                 builder.startObject()
                         .field("running", true)
                         .field("mode", request.param("mode") != null ? request.param("mode") : "export")
@@ -130,9 +138,7 @@ public class RestExportAction extends BaseRestHandler {
                 final Session<KnapsackPacket> session = connection.createSession();
                 session.open(Session.Mode.WRITE);
                 if (session.isOpen()) {
-                    EsExecutors.daemonThreadFactory(settings, "knapsack-export-[" + connection.getURI() + "]")
-                            .newThread(new ExportThread(request, connection, session))
-                            .start();
+                    executor.execute(new ExportThread(request, connection, session));
                     builder.startObject()
                             .field("running", true)
                             .field("mode", request.param("mode") != null ? request.param("mode") : "export")
@@ -179,7 +185,8 @@ public class RestExportAction extends BaseRestHandler {
             this.destination = destination;
         }
 
-        ExportThread(RestRequest request, Connection<Session<KnapsackPacket>> connection, Session<KnapsackPacket> session) {
+        ExportThread(RestRequest request, Connection<Session<KnapsackPacket>> connection,
+                     Session<KnapsackPacket> session) {
             this.request = request;
             this.connection = connection;
             this.session = session;
@@ -187,7 +194,6 @@ public class RestExportAction extends BaseRestHandler {
 
         @Override
         public void run() {
-            this.bulkClient = new BulkClient();
             logger.info("params = {}", request.params());
             this.timeout = request.paramAsTime("timeout", TimeValue.timeValueSeconds(30L));
             final int maxActionsPerBulkRequest = request.paramAsInt("maxActionsPerBulkRequest", 1000);
@@ -207,17 +213,20 @@ public class RestExportAction extends BaseRestHandler {
                     .setCopy(copy)
                     .setS3(s3);
             try {
-                logger.info("starting export: {}", status);
+                logger.info("start of export: {}", status);
                 knapsackHelper.addExport(status);
+                this.bulkClient = new BulkClient();
                 Map<String,Set<String>> indices = newHashMap();
                 for (String s : Strings.commaDelimitedListToSet(request.param("index", "_all"))) {
                     indices.put(s, Strings.commaDelimitedListToSet(request.param("type")));
                 }
                 if (copy) {
+                    Settings settings = KnapsackHelper.clientSettings(environment, destination);
+                    logger.info("client settings classloader = " + settings.getClassLoader());
                     bulkClient.flushInterval(TimeValue.timeValueSeconds(5))
                             .maxActionsPerBulkRequest(maxActionsPerBulkRequest)
                             .maxConcurrentBulkRequests(maxBulkConcurrency)
-                            .newClient(destination, KnapsackHelper.clientSettings(destination));
+                            .newClient(destination, settings);
                     logger.info("waiting for healthy cluster...");
                     bulkClient.waitForCluster(ClusterHealthStatus.YELLOW, timeout);
                     logger.info("... cluster is ready");
@@ -383,7 +392,7 @@ public class RestExportAction extends BaseRestHandler {
                     session.write(new ObjectPacket().name(path));
                     session.close();
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.error(e.getMessage(), e);
             } finally {
                 try {
@@ -486,6 +495,33 @@ public class RestExportAction extends BaseRestHandler {
                 }
                 builder.endArray()
                         .endObject();
+                channel.sendResponse(new XContentRestResponse(request, OK, builder));
+            } catch (IOException ioe) {
+                try {
+                    channel.sendResponse(new XContentThrowableRestResponse(request, ioe));
+                } catch (IOException e) {
+                    logger.error("unable to send response to client");
+                }
+            }
+        }
+    }
+
+    private class RestKnapsackExportAbort implements RestHandler {
+
+        @Override
+        public void handleRequest(RestRequest request, RestChannel channel) {
+            try {
+                XContentBuilder builder = restContentBuilder(request);
+                builder.startObject()
+                        .field("exports")
+                        .startArray();
+                for (KnapsackStatus export : knapsackHelper.getExports()) {
+                    export.toXContent(builder, EMPTY_PARAMS);
+                }
+                builder.endArray()
+                        .endObject();
+                executor.shutdownNow();
+                executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
                 channel.sendResponse(new XContentRestResponse(request, OK, builder));
             } catch (IOException ioe) {
                 try {

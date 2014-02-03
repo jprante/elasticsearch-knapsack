@@ -11,12 +11,12 @@ public class KnapsackPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return "knapsack";
+        return "knapsack-" + Build.getInstance().getVersion();
     }
 
     @Override
     public String description() {
-        return "Knapsack plugin";
+        return "Knapsack plugin for import/export";
     }
 
     public void onModule(RestModule module) {
