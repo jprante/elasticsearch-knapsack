@@ -1,0 +1,105 @@
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    <a name="line.1"></a>
+<FONT color="green">002</FONT>    package org.xbib.classloader;<a name="line.2"></a>
+<FONT color="green">003</FONT>    <a name="line.3"></a>
+<FONT color="green">004</FONT>    import java.net.URL;<a name="line.4"></a>
+<FONT color="green">005</FONT>    import java.util.Enumeration;<a name="line.5"></a>
+<FONT color="green">006</FONT>    <a name="line.6"></a>
+<FONT color="green">007</FONT>    /**<a name="line.7"></a>
+<FONT color="green">008</FONT>     * Abstraction of resource searching policy. Given resource name, the resource<a name="line.8"></a>
+<FONT color="green">009</FONT>     * finder performs implementation-specific lookup, and, if it is able to locate<a name="line.9"></a>
+<FONT color="green">010</FONT>     * the resource, returns the {@link AbstractResourceHandle handle(s)} or URL(s)<a name="line.10"></a>
+<FONT color="green">011</FONT>     * of it.<a name="line.11"></a>
+<FONT color="green">012</FONT>     */<a name="line.12"></a>
+<FONT color="green">013</FONT>    public interface ResourceFinder {<a name="line.13"></a>
+<FONT color="green">014</FONT>    <a name="line.14"></a>
+<FONT color="green">015</FONT>        /**<a name="line.15"></a>
+<FONT color="green">016</FONT>         * Find the resource by name and return URL of it if found.<a name="line.16"></a>
+<FONT color="green">017</FONT>         *<a name="line.17"></a>
+<FONT color="green">018</FONT>         * @param name the resource name<a name="line.18"></a>
+<FONT color="green">019</FONT>         * @return resource URL or null if resource was not found<a name="line.19"></a>
+<FONT color="green">020</FONT>         */<a name="line.20"></a>
+<FONT color="green">021</FONT>        URL findResource(String name);<a name="line.21"></a>
+<FONT color="green">022</FONT>    <a name="line.22"></a>
+<FONT color="green">023</FONT>        /**<a name="line.23"></a>
+<FONT color="green">024</FONT>         * Find all resources with given name and return enumeration of their URLs.<a name="line.24"></a>
+<FONT color="green">025</FONT>         *<a name="line.25"></a>
+<FONT color="green">026</FONT>         * @param name the resource name<a name="line.26"></a>
+<FONT color="green">027</FONT>         * @return enumeration of resource URLs (possibly empty).<a name="line.27"></a>
+<FONT color="green">028</FONT>         */<a name="line.28"></a>
+<FONT color="green">029</FONT>        Enumeration&lt;URL&gt; findResources(String name);<a name="line.29"></a>
+<FONT color="green">030</FONT>    <a name="line.30"></a>
+<FONT color="green">031</FONT>        /**<a name="line.31"></a>
+<FONT color="green">032</FONT>         * Get the resource by name and, if found, open connection to it and return<a name="line.32"></a>
+<FONT color="green">033</FONT>         * the {@link AbstractResourceHandle handle} of it.<a name="line.33"></a>
+<FONT color="green">034</FONT>         *<a name="line.34"></a>
+<FONT color="green">035</FONT>         * @param name the resource name<a name="line.35"></a>
+<FONT color="green">036</FONT>         * @return resource handle or null if resource was not found<a name="line.36"></a>
+<FONT color="green">037</FONT>         */<a name="line.37"></a>
+<FONT color="green">038</FONT>        ResourceHandle getResource(String name);<a name="line.38"></a>
+<FONT color="green">039</FONT>    }<a name="line.39"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>
