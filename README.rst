@@ -18,10 +18,6 @@ Installation
 
 .. image:: https://travis-ci.org/jprante/elasticsearch-knapsack.png
 
-Prerequisites::
-
-  Elasticsearch 0.90+
-
 =============  =================  =================  ===========================================================
 ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
