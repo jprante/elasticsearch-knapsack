@@ -21,12 +21,14 @@ Installation
 =============  =================  =================  ===========================================================
 ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
-0.90.9         0.90.9.1           Jan 9, 2014        ./bin/plugin --install knapsack --url http://bit.ly/1e81hwh
-0.90.9         0.90.9.1 (S3)      Jan 9, 2014        ./bin/plugin --install knapsack --url http://bit.ly/K8QwOJ
-0.90.10        0.90.10.1          Jan 14, 2014       ./bin/plugin --install knapsack --url http://bit.ly/1j5rOy2
-0.90.10        0.90.10.1 (S3)     Jan 14, 2014       ./bin/plugin --install knapsack --url http://bit.ly/1d3kYkp
-1.0.0.RC2      1.0.0.RC2.1        Feb 3, 2014        ./bin/plugin --install knapsack --url http://bit.ly/1dYWcSR
-1.0.0.RC2      1.0.0.RC2.1 (S3)   Feb 3, 2014        ./bin/plugin --install knapsack --url http://bit.ly/1bohsVv
+0.20.6         0.20.6.1           Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1fX0oFU
+0.20.6         0.20.6.1 (S3)      Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1e0qzIB
+0.90.9         0.90.9.1           Jan 9, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1e81hwh
+0.90.9         0.90.9.1 (S3)      Jan 9, 2014        ./bin/plugin -install knapsack -url http://bit.ly/K8QwOJ
+0.90.10        0.90.10.1          Jan 14, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1j5rOy2
+0.90.10        0.90.10.1 (S3)     Jan 14, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1d3kYkp
+1.0.0.RC2      1.0.0.RC2.1        Feb 3, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1dYWcSR
+1.0.0.RC2      1.0.0.RC2.1 (S3)   Feb 3, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1bohsVv
 =============  =================  =================  ===========================================================
 
 The S3 version includes Amazon AWS API support, it can optionally transfer archives to S3.
