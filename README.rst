@@ -21,6 +21,8 @@ Installation
 =============  =================  =================  ===========================================================
 ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
+0.19.11        0.19.11.2          Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1jbhMfb
+0.19.11        0.19.11.2 (S3)     Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1fEbPUD
 0.20.6         0.20.6.1           Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1fX0oFU
 0.20.6         0.20.6.1 (S3)      Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1e0qzIB
 0.90.9         0.90.9.1           Jan 9, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1e81hwh
