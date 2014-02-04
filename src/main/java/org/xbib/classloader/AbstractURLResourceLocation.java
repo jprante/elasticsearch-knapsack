@@ -1,7 +1,5 @@
 
-package org.xbib.classloader.url;
-
-import org.xbib.classloader.ResourceLocation;
+package org.xbib.classloader;
 
 import java.net.URL;
 

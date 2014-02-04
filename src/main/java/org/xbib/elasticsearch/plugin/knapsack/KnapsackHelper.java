@@ -8,6 +8,8 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.ImmutableList.Builder;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -21,6 +23,8 @@ import org.xbib.io.URIUtil;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
@@ -30,6 +34,8 @@ import static org.elasticsearch.common.xcontent.XContentParser.Token.END_ARRAY;
 import static org.elasticsearch.common.xcontent.XContentType.JSON;
 
 public class KnapsackHelper {
+
+    private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackHelper.class.getSimpleName());
 
     public static final String EXPORT_STATE_SETTING_NAME = "plugin.knapsack.export.state";
 
@@ -125,7 +131,7 @@ public class KnapsackHelper {
 
     private void updateSetting(String name, String value) {
         client.admin().cluster().prepareUpdateSettings()
-                .setTransientSettings(ImmutableSettings.builder()
+                .setTransientSettings(ImmutableSettings.settingsBuilder()
                         .put(getSettings())
                         .put(name, value)
                         .build())
@@ -187,32 +193,18 @@ public class KnapsackHelper {
     }
 
     /**
-     * Filter out all jvm plugins except our dependency
+     * Filter out all jvm plugins
      * @param environment the environment
      * @return a custom class loader with our dependencies
      */
     private static ClassLoader getClassLoader(Environment environment) {
-        File[] pluginDirs = environment.pluginsFile().listFiles();
         URIClassLoader classLoader = new URIClassLoader();
-        if (pluginDirs == null) {
-            return classLoader;
-        }
-        for (File pluginDir : pluginDirs) {
-            File[] plugin = pluginDir.listFiles();
-            if (plugin != null) {
-                for (File file : plugin) {
-                    // hack: add only support plugin (our dependency)
-                    if (file.getName().toLowerCase().endsWith(".jar")
-                            && file.getName().toLowerCase().contains("elasticsearch-support")) {
-                        classLoader.addURI(file.toURI());
-                    }
-                }
-            }
-        }
         File[] libs = new File(environment.homeFile() + "/lib").listFiles();
         if (libs != null) {
             for (File file : libs) {
-                classLoader.addURI(file.toURI());
+                if (file.getName().toLowerCase().endsWith(".jar")) {
+                    classLoader.addURI(file.toURI());
+                }
             }
         }
         return classLoader;

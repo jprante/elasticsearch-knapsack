@@ -3,7 +3,7 @@ package org.xbib.classloader.jar;
 
 import org.xbib.classloader.AbstractResourceHandle;
 import org.xbib.classloader.ResourceHandle;
-import org.xbib.classloader.url.AbstractURLResourceLocation;
+import org.xbib.classloader.AbstractURLResourceLocation;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,7 +37,7 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
                 is = new FileInputStream(cacheFile);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 byte[] buffer = new byte[2048];
-                int bytesRead = -1;
+                int bytesRead;
                 while ((bytesRead = is.read(buffer)) != -1) {
                     baos.write(buffer, 0, bytesRead);
                 }
@@ -55,28 +55,26 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
             JarEntry jarEntry = jarFile.getJarEntry(resourceName);
             if (jarEntry != null) {
                 try {
-                    URL url = new URL(getCodeSource(), resourceName);
                     return new JarResourceHandle(jarFile, jarEntry, getCodeSource());
                 } catch (MalformedURLException e) {
-                    // ignore
+                   e.printStackTrace();
                 }
             }
         } else {
             try {
                 final JarInputStream is = new JarInputStream(new ByteArrayInputStream(this.content));
-                JarEntry jarEntry = null;
+                JarEntry jarEntry;
                 while ((jarEntry = is.getNextJarEntry()) != null) {
                     if (jarEntry.getName().equals(resourceName)) {
                         try {
-                            URL url = new URL(getCodeSource(), resourceName);
                             return new JarEntryResourceHandle(jarEntry, is);
-                        } catch (MalformedURLException e) {
-                            // skip
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }
             } catch (IOException e) {
-                // ignore
+               e.printStackTrace();
             }
         }
         return null;
@@ -90,6 +88,7 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
                 JarInputStream is = new JarInputStream(new ByteArrayInputStream(this.content));
                 return is.getManifest();
             } catch (IOException e) {
+                e.printStackTrace();
             }
         }
         return null;
@@ -98,11 +97,9 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
     @Override
     public void close() {
         if (jarFile != null) {
-            if (jarFile != null) {
-                try {
-                    jarFile.close();
-                } catch (Exception ignored) {
-                }
+            try {
+                jarFile.close();
+            } catch (Exception ignored) {
             }
         }
     }

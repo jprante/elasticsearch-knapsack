@@ -1,6 +1,7 @@
 
 package org.xbib.elasticsearch.action;
 
+import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
@@ -10,6 +11,7 @@ import org.elasticsearch.action.search.SearchOperationThreading;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.IgnoreIndices;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterService;
@@ -19,7 +21,6 @@ import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.ImmutableSet;
-import org.elasticsearch.common.hppc.cursors.ObjectCursor;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
@@ -32,6 +33,8 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
@@ -39,9 +42,12 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
-import org.elasticsearch.rest.action.search.RestSearchAction;
+import org.elasticsearch.rest.action.support.RestActions;
+import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;
@@ -57,10 +63,12 @@ import java.net.URI;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.common.collect.Maps.newHashMap;
 import static org.elasticsearch.common.collect.Sets.newHashSet;
+import static org.elasticsearch.common.unit.TimeValue.parseTimeValue;
 import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -98,7 +106,8 @@ public class RestExportAction extends BaseRestHandler {
         this.clusterName = clusterName;
         this.settingsFilter = settingsFilter;
         this.knapsackHelper = new KnapsackHelper(client, clusterService);
-        this.executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
+        this.executor = EsExecutors.newScalingExecutorService(0, 10, 7L, TimeUnit.DAYS,
+                EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
 
         controller.registerHandler(POST, "/_export", this);
         controller.registerHandler(POST, "/{index}/_export", this);
@@ -296,7 +305,7 @@ public class RestExportAction extends BaseRestHandler {
                 SearchRequest searchRequest;
                 // override size = 10 default
                 request.params().put("size", request.param("maxActionsPerBulkRequest", "1000"));
-                searchRequest = RestSearchAction.parseSearchRequest(request);
+                searchRequest = parseSearchRequest(request);
                 searchRequest.listenerThreaded(false);
                 SearchOperationThreading operationThreading =
                         SearchOperationThreading.fromString(request.param("operation_threading"), null);
@@ -432,9 +441,9 @@ public class RestExportAction extends BaseRestHandler {
     private Map<String, String> getSettings(String... index) throws IOException {
         Map<String, String> settings = newHashMap();
         ClusterStateRequestBuilder request = client.admin().cluster().prepareState()
-                .setRoutingTable(true)
-                .setNodes(true)
-                .setIndices(index);
+                .setFilterRoutingTable(true)
+                .setFilterNodes(true)
+                .setFilterIndices(index);
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().metaData();
         if (!metaData.getIndices().isEmpty()) {
@@ -456,17 +465,17 @@ public class RestExportAction extends BaseRestHandler {
     private Map<String, String> getMapping(String index, Set<String> types) throws IOException {
         Map<String, String> mappings = newHashMap();
         ClusterStateRequestBuilder request = client.admin().cluster().prepareState()
-                .setRoutingTable(true)
-                .setNodes(true);
+                .setFilterRoutingTable(true)
+                .setFilterNodes(true);
         if (!"_all".equals(index)) {
-            request.setIndices(index);
+            request.setFilterIndices(index);
         }
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().getMetaData();
         if (!metaData.getIndices().isEmpty()) {
             for (IndexMetaData indexMetaData : metaData) {
-                for (ObjectCursor<MappingMetaData> c : indexMetaData.getMappings().values()) {
-                    MappingMetaData mappingMetaData = c.value;
+                for (Map.Entry<String,MappingMetaData> c : indexMetaData.getMappings().entrySet()) {
+                    MappingMetaData mappingMetaData = c.getValue();
                     if (types == null || types.isEmpty() || types.contains(mappingMetaData.type())) {
                         final XContentBuilder builder = jsonBuilder();
                         builder.startObject();
@@ -521,7 +530,8 @@ public class RestExportAction extends BaseRestHandler {
                 builder.endArray()
                         .endObject();
                 executor.shutdownNow();
-                executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
+                executor = EsExecutors.newScalingExecutorService(0, 10, 7L, TimeUnit.DAYS,
+                        EsExecutors.daemonThreadFactory(settings, "knapsack-export"));
                 channel.sendResponse(new XContentRestResponse(request, OK, builder));
             } catch (IOException ioe) {
                 try {
@@ -533,4 +543,168 @@ public class RestExportAction extends BaseRestHandler {
         }
     }
 
+
+    private SearchRequest parseSearchRequest(RestRequest request) {
+        String[] indices = RestActions.splitIndices(request.param("index"));
+        SearchRequest searchRequest = new SearchRequest(indices);
+        // get the content, and put it in the body
+        if (request.hasContent()) {
+            searchRequest.source(request.content(), request.contentUnsafe());
+        } else {
+            String source = request.param("source");
+            if (source != null) {
+                searchRequest.source(source);
+            }
+        }
+        // add extra source based on the request parameters
+        searchRequest.extraSource(parseSearchSource(request));
+
+        searchRequest.searchType(request.param("search_type"));
+
+        String scroll = request.param("scroll");
+        if (scroll != null) {
+            searchRequest.scroll(new Scroll(parseTimeValue(scroll, null)));
+        }
+
+        searchRequest.types(RestActions.splitTypes(request.param("type")));
+        searchRequest.queryHint(request.param("query_hint"));
+        searchRequest.routing(request.param("routing"));
+        searchRequest.preference(request.param("preference"));
+        if (request.hasParam("ignore_indices")) {
+            searchRequest.ignoreIndices(IgnoreIndices.fromString(request.param("ignore_indices")));
+        }
+
+        return searchRequest;
+    }
+
+    private SearchSourceBuilder parseSearchSource(RestRequest request) {
+        SearchSourceBuilder searchSourceBuilder = null;
+        String queryString = request.param("q");
+        if (queryString != null) {
+            QueryStringQueryBuilder queryBuilder = QueryBuilders.queryString(queryString);
+            queryBuilder.defaultField(request.param("df"));
+            queryBuilder.analyzer(request.param("analyzer"));
+            queryBuilder.analyzeWildcard(request.paramAsBoolean("analyze_wildcard", false));
+            queryBuilder.lowercaseExpandedTerms(request.paramAsBoolean("lowercase_expanded_terms", true));
+            queryBuilder.lenient(request.paramAsBooleanOptional("lenient", null));
+            String defaultOperator = request.param("default_operator");
+            if (defaultOperator != null) {
+                if ("OR".equals(defaultOperator)) {
+                    queryBuilder.defaultOperator(QueryStringQueryBuilder.Operator.OR);
+                } else if ("AND".equals(defaultOperator)) {
+                    queryBuilder.defaultOperator(QueryStringQueryBuilder.Operator.AND);
+                } else {
+                    throw new ElasticSearchIllegalArgumentException("Unsupported defaultOperator [" + defaultOperator + "], can either be [OR] or [AND]");
+                }
+            }
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.query(queryBuilder);
+        }
+
+        int from = request.paramAsInt("from", -1);
+        if (from != -1) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.from(from);
+        }
+        int size = request.paramAsInt("size", -1);
+        if (size != -1) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.size(size);
+        }
+
+        if (request.hasParam("explain")) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.explain(request.paramAsBooleanOptional("explain", null));
+        }
+        if (request.hasParam("version")) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.version(request.paramAsBooleanOptional("version", null));
+        }
+        if (request.hasParam("timeout")) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.timeout(request.paramAsTime("timeout", null));
+        }
+
+        String sField = request.param("fields");
+        if (sField != null) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            if (!Strings.hasText(sField)) {
+                searchSourceBuilder.noFields();
+            } else {
+                String[] sFields = Strings.splitStringByCommaToArray(sField);
+                if (sFields != null) {
+                    for (String field : sFields) {
+                        searchSourceBuilder.field(field);
+                    }
+                }
+            }
+        }
+
+        String sSorts = request.param("sort");
+        if (sSorts != null) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            String[] sorts = Strings.splitStringByCommaToArray(sSorts);
+            for (String sort : sorts) {
+                int delimiter = sort.lastIndexOf(":");
+                if (delimiter != -1) {
+                    String sortField = sort.substring(0, delimiter);
+                    String reverse = sort.substring(delimiter + 1);
+                    if ("asc".equals(reverse)) {
+                        searchSourceBuilder.sort(sortField, SortOrder.ASC);
+                    } else if ("desc".equals(reverse)) {
+                        searchSourceBuilder.sort(sortField, SortOrder.DESC);
+                    }
+                } else {
+                    searchSourceBuilder.sort(sort);
+                }
+            }
+        }
+
+        String sIndicesBoost = request.param("indices_boost");
+        if (sIndicesBoost != null) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            String[] indicesBoost = Strings.splitStringByCommaToArray(sIndicesBoost);
+            for (String indexBoost : indicesBoost) {
+                int divisor = indexBoost.indexOf(',');
+                if (divisor == -1) {
+                    throw new ElasticSearchIllegalArgumentException("Illegal index boost [" + indexBoost + "], no ','");
+                }
+                String indexName = indexBoost.substring(0, divisor);
+                String sBoost = indexBoost.substring(divisor + 1);
+                try {
+                    searchSourceBuilder.indexBoost(indexName, Float.parseFloat(sBoost));
+                } catch (NumberFormatException e) {
+                    throw new ElasticSearchIllegalArgumentException("Illegal index boost [" + indexBoost + "], boost not a float number");
+                }
+            }
+        }
+
+        String sStats = request.param("stats");
+        if (sStats != null) {
+            if (searchSourceBuilder == null) {
+                searchSourceBuilder = new SearchSourceBuilder();
+            }
+            searchSourceBuilder.stats(Strings.splitStringByCommaToArray(sStats));
+        }
+
+        return searchSourceBuilder;
+    }
 }

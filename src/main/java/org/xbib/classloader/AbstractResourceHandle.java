@@ -19,6 +19,7 @@ public abstract class AbstractResourceHandle implements ResourceHandle {
                 try {
                     in.close();
                 } catch (Exception ignored) {
+                    // ignore
                 }
             }
         }
