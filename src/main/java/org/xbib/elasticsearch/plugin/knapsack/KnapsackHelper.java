@@ -8,16 +8,23 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.ImmutableList.Builder;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.env.Environment;
+import org.xbib.classloader.uri.URIClassLoader;
 import org.xbib.io.URIUtil;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
@@ -27,6 +34,8 @@ import static org.elasticsearch.common.xcontent.XContentParser.Token.END_ARRAY;
 import static org.elasticsearch.common.xcontent.XContentType.JSON;
 
 public class KnapsackHelper {
+
+    private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackHelper.class.getSimpleName());
 
     public static final String EXPORT_STATE_SETTING_NAME = "plugin.knapsack.export.state";
 
@@ -169,7 +178,7 @@ public class KnapsackHelper {
         return URI.create("es://" + host + ":" + port + "?es.cluster.name=" + cluster);
     }
 
-    public static Settings clientSettings(URI uri) {
+    public static Settings clientSettings(Environment environment, URI uri) {
         return settingsBuilder()
                 .put("network.server", false)
                 .put("node.client", true)
@@ -178,7 +187,27 @@ public class KnapsackHelper {
                 .put("client.transport.ignore_cluster_name", false)
                 .put("client.transport.ping_timeout", "30s")
                 .put("client.transport.nodes_sampler_interval", "30s")
+                .put("path.plugins", ".dontexist") // this disables site plugins
+                .classLoader(getClassLoader(environment)) // this disables jvm plugins
                 .build();
+    }
+
+    /**
+     * Filter out all jvm plugins
+     * @param environment the environment
+     * @return a custom class loader with our dependencies
+     */
+    private static ClassLoader getClassLoader(Environment environment) {
+        URIClassLoader classLoader = new URIClassLoader();
+        File[] libs = new File(environment.homeFile() + "/lib").listFiles();
+        if (libs != null) {
+            for (File file : libs) {
+                if (file.getName().toLowerCase().endsWith(".jar")) {
+                    classLoader.addURI(file.toURI());
+                }
+            }
+        }
+        return classLoader;
     }
 
 }

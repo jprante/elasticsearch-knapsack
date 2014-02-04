@@ -29,6 +29,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryStringQueryBuilder;
@@ -81,18 +82,22 @@ public class RestExportAction extends BaseRestHandler {
 
     private final ClusterName clusterName;
 
+    private final Environment environment;
+
     private final KnapsackHelper knapsackHelper;
 
     private final SettingsFilter settingsFilter;
 
     @Inject
     public RestExportAction(Settings settings,
+                            Environment environment,
                             Client client,
                             RestController controller,
                             SettingsFilter settingsFilter,
                             ClusterService clusterService,
                             ClusterName clusterName) {
         super(settings, client);
+        this.environment = environment;
         this.settingsFilter = settingsFilter;
         this.clusterName = clusterName;
         this.knapsackHelper = new KnapsackHelper(client, clusterService);
@@ -220,10 +225,11 @@ public class RestExportAction extends BaseRestHandler {
                     indices.put(s, Strings.commaDelimitedListToSet(request.param("type")));
                 }
                 if (copy) {
+                    Settings settings = KnapsackHelper.clientSettings(environment, destination);
                     bulkClient.flushInterval(TimeValue.timeValueSeconds(5))
                             .maxActionsPerBulkRequest(maxActionsPerBulkRequest)
                             .maxConcurrentBulkRequests(maxBulkConcurrency)
-                            .newClient(destination, KnapsackHelper.clientSettings(destination));
+                            .newClient(destination, settings);
                     logger.info("waiting for healthy cluster...");
                     bulkClient.waitForCluster(ClusterHealthStatus.YELLOW, timeout);
                     logger.info("... cluster is ready");
@@ -555,9 +561,7 @@ public class RestExportAction extends BaseRestHandler {
                     throw new ElasticSearchIllegalArgumentException("Unsupported defaultOperator [" + defaultOperator + "], can either be [OR] or [AND]");
                 }
             }
-            if (searchSourceBuilder == null) {
-                searchSourceBuilder = new SearchSourceBuilder();
-            }
+            searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.query(queryBuilder);
         }
 
