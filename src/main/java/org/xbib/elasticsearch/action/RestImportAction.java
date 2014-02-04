@@ -1,7 +1,6 @@
 
 package org.xbib.elasticsearch.action;
 
-import org.elasticsearch.ElasticSearchIllegalStateException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -31,6 +30,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
 
+import org.xbib.elasticsearch.plugin.knapsack.KnapsackException;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;
@@ -83,7 +83,7 @@ public class RestImportAction extends BaseRestHandler {
         this.environment = environment;
         this.clusterName = clusterName;
         this.knapsackHelper = new KnapsackHelper(client, clusterService);
-        this.executor = EsExecutors.newScalingExecutorService(0, 10, 7L, TimeUnit.DAYS,
+        this.executor = EsExecutors.newScaling(0, 10, 7L, TimeUnit.DAYS,
                         EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
 
         controller.registerHandler(POST, "/_import", this);
@@ -227,7 +227,7 @@ public class RestImportAction extends BaseRestHandler {
                     }
                     String[] entry = KnapsackPacket.decodeName(packet.name());
                     if (entry.length < 2) {
-                        throw new ElasticSearchIllegalStateException("archive entry too short, can't import");
+                        throw new KnapsackException("archive entry too short, can't import");
                     }
                     String index = entry[0];
                     String type = entry[1];
@@ -311,7 +311,7 @@ public class RestImportAction extends BaseRestHandler {
             String entryName = packets.values().iterator().next().name();
             String[] entry = KnapsackPacket.decodeName(entryName);
             if (entry.length < 3) {
-                throw new ElasticSearchIllegalStateException("entry too short: " + entryName);
+                throw new KnapsackException("entry too short: " + entryName);
             }
             String index = entry[0];
             String type = entry[1];
@@ -324,7 +324,7 @@ public class RestImportAction extends BaseRestHandler {
                     try {
                         CreateIndexResponse response = bulkClient.client().admin().indices()
                                 .create(createIndexRequest).actionGet();
-                        if (!response.getAcknowledged()) {
+                        if (!response.isAcknowledged()) {
                             logger.warn("index creation was not acknowledged");
                         }
                     } catch (IndexAlreadyExistsException e) {
@@ -425,7 +425,7 @@ public class RestImportAction extends BaseRestHandler {
                 }
                 builder.endArray().endObject();
                 executor.shutdownNow();
-                executor = EsExecutors.newScalingExecutorService(0,10, 7L, TimeUnit.DAYS,
+                executor = EsExecutors.newScaling(0,10, 7L, TimeUnit.DAYS,
                        EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
                 channel.sendResponse(new XContentRestResponse(request, OK, builder));
             } catch (IOException ioe) {

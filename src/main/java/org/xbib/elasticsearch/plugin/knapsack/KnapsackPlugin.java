@@ -25,8 +25,8 @@ public class KnapsackPlugin extends AbstractPlugin {
     }
 
     public void onModule(ClusterDynamicSettingsModule module) {
-        module.addDynamicSetting(KnapsackHelper.EXPORT_STATE_SETTING_NAME);
-        module.addDynamicSetting(KnapsackHelper.IMPORT_STATE_SETTING_NAME);
+        module.addDynamicSettings(KnapsackHelper.EXPORT_STATE_SETTING_NAME);
+        module.addDynamicSettings(KnapsackHelper.IMPORT_STATE_SETTING_NAME);
     }
 
 }
