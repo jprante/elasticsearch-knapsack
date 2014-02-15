@@ -513,7 +513,7 @@ public class RestExportAction extends BaseRestHandler {
         SearchRequest searchRequest = new SearchRequest(indices);
         // get the content, and put it in the body
         if (request.hasContent()) {
-            searchRequest.source(request.contentAsString());
+            searchRequest.source(request.content().toBytes());
         } else {
             String source = request.param("source");
             if (source != null) {
