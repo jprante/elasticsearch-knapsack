@@ -18,7 +18,6 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.ImmutableSet;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -411,10 +410,8 @@ public class RestExportAction extends BaseRestHandler {
                 logger.warn("no map defined");
                 return newHashMap();
             }
-            BytesArray ref = new BytesArray(s);
             try {
-                byte[] b = ref.hasArray() ? ref.array() : ref.toBytes();
-                XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(b, 0, b.length);
+                XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(s);
                 return parser.mapAndClose();
             } catch (IOException e) {
                 logger.warn("parse error while reading map", e);
@@ -516,7 +513,7 @@ public class RestExportAction extends BaseRestHandler {
         SearchRequest searchRequest = new SearchRequest(indices);
         // get the content, and put it in the body
         if (request.hasContent()) {
-            searchRequest.source(request.content(), request.contentUnsafe());
+            searchRequest.source(request.contentAsString());
         } else {
             String source = request.param("source");
             if (source != null) {
