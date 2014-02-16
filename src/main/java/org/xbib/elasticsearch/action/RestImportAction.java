@@ -11,6 +11,7 @@ import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.Streams;
+import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
@@ -84,7 +85,7 @@ public class RestImportAction extends BaseRestHandler {
         this.clusterName = clusterName;
         this.knapsackHelper = new KnapsackHelper(client, clusterService);
         this.executor = EsExecutors.newScaling(0, 10, 7L, TimeUnit.DAYS,
-                        EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
+                EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
 
         controller.registerHandler(POST, "/_import", this);
         controller.registerHandler(POST, "/{index}/_import", this);
@@ -156,6 +157,8 @@ public class RestImportAction extends BaseRestHandler {
         private final RestRequest request;
 
         private final Map<String, CreateIndexRequest> indexRequestMap = newHashMap();
+
+        private final Map<String, String> indexReplicaMap = newHashMap();
 
         private final Connection<Session<Packet<String>>> connection;
 
@@ -253,7 +256,16 @@ public class RestImportAction extends BaseRestHandler {
                                 createIndexRequest = createIndexRequest(index);
                                 indexRequestMap.put(index, createIndexRequest);
                             }
-                            createIndexRequest.settings(settingsStr);
+                            ImmutableSettings.Builder indexSettingsBuilder = ImmutableSettings.settingsBuilder()
+                                    .loadFromSource(settingsStr);
+                            indexReplicaMap.put(index, indexSettingsBuilder.get("index.number_of_replicas"));
+                            // get settings, but overwrite replica, and disable refresh for faster bulk
+                            Settings indexSettings = indexSettingsBuilder
+                                    .put("index.refresh_interval", -1)
+                                    .put("index.number_of_replicas", 0)
+                                    .build();
+                            logger.info("index {}: effective settings {}", index, indexSettings.getAsMap());
+                            createIndexRequest.settings(indexSettings);
                         }
                     }
                     else if ("_mapping".equals(id)) {
@@ -294,7 +306,19 @@ public class RestImportAction extends BaseRestHandler {
                 }
                 logger.info("end of import: {}", status);
                 session.close();
-                bulkClient.refresh().shutdown();
+                for (String index : indexReplicaMap.keySet()) {
+                    try {
+                        bulkClient.setIndex(index);
+                        logger.info("setting refresh rate for index {}", index);
+                        bulkClient.update("index.refresh_interval", 1);
+                        Integer replica = Integer.parseInt(indexReplicaMap.get(index));
+                        logger.info("setting replica level {} for index {}", replica, index);
+                        bulkClient.update("index.number_of_replicas", replica);
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                    }
+                }
+                bulkClient.shutdown();
                 bulkClient = null;
             } catch (Throwable e) {
                 logger.error(e.getMessage(), e);
@@ -425,8 +449,8 @@ public class RestImportAction extends BaseRestHandler {
                 }
                 builder.endArray().endObject();
                 executor.shutdownNow();
-                executor = EsExecutors.newScaling(0,10, 7L, TimeUnit.DAYS,
-                       EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
+                executor = EsExecutors.newScaling(0, 10, 7L, TimeUnit.DAYS,
+                        EsExecutors.daemonThreadFactory(settings, "knapsack-import"));
                 channel.sendResponse(new XContentRestResponse(request, OK, builder));
             } catch (IOException ioe) {
                 try {

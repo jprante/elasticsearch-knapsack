@@ -11,7 +11,9 @@ public class KnapsackPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return "knapsack-" + Build.getInstance().getVersion();
+        return "knapsack-" +
+                Build.getInstance().getVersion() + "-" +
+                Build.getInstance().getShortHash();
     }
 
     @Override
