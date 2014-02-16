@@ -21,14 +21,16 @@ Installation
 =============  =================  =================  ===========================================================
 ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
-0.19.11        0.19.11.2          Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1jbhMfb
-0.19.11        0.19.11.2 (+S3)    Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1fEbPUD
-0.20.6         0.20.6.1           Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1fX0oFU
-0.20.6         0.20.6.1 (+S3)     Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1e0qzIB
-0.90.11        0.90.11.1          Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1frmNKM
-0.90.11        0.90.11.1 (+S3)    Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1doLNjm
-1.0.0.RC2      1.0.0.RC2.2        Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1bmSlzk
-1.0.0.RC2      1.0.0.RC2.2 (+S3)  Feb 4, 2014        ./bin/plugin -install knapsack -url http://bit.ly/1bZtEZK
+0.19.8         0.19.8.1           Feb 15, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1f1hk1c
+0.19.8         0.19.8.1 (+S3)     Feb 15, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1dxiqQJ
+0.19.11        0.19.11.3          Feb 15, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1gmHPwY
+0.19.11        0.19.11.3 (+S3)    Feb 15, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1lTRgFF
+0.20.6         0.20.6.2           Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1gPILs5
+0.20.6         0.20.6.2 (+S3)     Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1mlvRJh
+0.90.11        0.90.11.2          Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1mlzYoB
+0.90.11        0.90.11.2 (+S3)    Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1j1yuuS
+1.0.0          1.0.0.1            Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1bBRaBO
+1.0.0          1.0.0.1 (+S3)      Feb 16, 2014       ./bin/plugin -install knapsack -url http://bit.ly/1cMFCX3
 =============  =================  =================  ===========================================================
 
 The S3 version includes Amazon AWS API support, it can optionally transfer archives to S3.

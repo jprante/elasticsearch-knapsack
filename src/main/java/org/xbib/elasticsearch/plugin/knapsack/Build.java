@@ -1,12 +1,8 @@
 
 package org.xbib.elasticsearch.plugin.knapsack;
 
-import org.xbib.elasticsearch.plugin.support.SupportPlugin;
-
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringReader;
 import java.net.URL;
 import java.util.Enumeration;
@@ -24,8 +20,8 @@ public class Build {
         String date = "NA";
 
         try {
-            String pluginName = SupportPlugin.class.getName();
-            Enumeration<URL> e = SupportPlugin.class.getClassLoader().getResources("/es-plugin.properties");
+            String pluginName = KnapsackPlugin.class.getName();
+            Enumeration<URL> e = KnapsackPlugin.class.getClassLoader().getResources("es-plugin.properties");
             while (e.hasMoreElements()) {
                 URL url = e.nextElement();
                 InputStream in = url.openStream();
