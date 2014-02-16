@@ -5,6 +5,7 @@ import org.xbib.io.Packet;
 import org.xbib.io.URIUtil;
 
 import java.io.File;
+import java.util.StringTokenizer;
 
 public class KnapsackPacket implements Packet<String> {
 
@@ -56,10 +57,24 @@ public class KnapsackPacket implements Packet<String> {
     }
 
     public static String[] decodeName(String component) {
-        String[] components = component.split(File.separator);
+        String[] components = split(component, File.separator);
         for (int i = 0; i < components.length; i++) {
             components[i] = URIUtil.decode(components[i] != null ? components[i] : "", URIUtil.UTF8);
         }
         return components;
+    }
+
+    /**
+     * Split "str" into tokens by delimiters and optionally remove white spaces
+     * from the splitted tokens.
+     */
+    private static String[] split(String str, String delims) {
+        StringTokenizer tokenizer = new StringTokenizer(str, delims);
+        int n = tokenizer.countTokens();
+        String[] list = new String[n];
+        for (int i = 0; i < n; i++) {
+            list[i] = tokenizer.nextToken();
+        }
+        return list;
     }
 }
