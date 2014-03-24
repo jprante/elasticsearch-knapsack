@@ -118,7 +118,7 @@ You can configure an archive path with the parameter `path`
 
     curl -XPOST 'localhost:9200/test/_export?path=/tmp/myarchive.zip'
 
-If ELasticsearch can not write an archive to the path, an error message will appear
+If Elasticsearch can not write an archive to the path, an error message will appear
 and no export will take place.
 
 Renaming indexes and index types
@@ -214,7 +214,7 @@ You can import the file with::
    curl -XPOST 'localhost:9200/test/test/_import'
 
 Knapsack does not delete or overwrite data by default.
-But ou can use the parameter `createIndex` with the value `false` to allow indexing to indexes that exist.
+But you can use the parameter `createIndex` with the value `false` to allow indexing to indexes that exist.
 
 When importing, you can map your indexes or index/types to your favorite ones.
 
@@ -308,7 +308,7 @@ Knapsack is very simple and works without locks or snapshots. This means, if Ela
 allowed to write to the part of your data in the export while it runs, you may lose data in the export.
 So it is up to you to organize the safe export and import with this plugin.
 
-If you want a snapshot/restore feature, please use the standard napshot/restore in the upcoming
+If you want a snapshot/restore feature, please use the standard snapshot/restore in the upcoming
 Elasticsearch 1.0 release.
 
 Credits
