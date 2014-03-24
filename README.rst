@@ -308,7 +308,7 @@ Knapsack is very simple and works without locks or snapshots. This means, if Ela
 allowed to write to the part of your data in the export while it runs, you may lose data in the export.
 So it is up to you to organize the safe export and import with this plugin.
 
-If you want a snapshot/restore feature, please use the standard napshot/restore in the upcoming
+If you want a snapshot/restore feature, please use the standard snapshot/restore in the upcoming
 Elasticsearch 1.0 release.
 
 Credits
