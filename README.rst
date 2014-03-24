@@ -118,7 +118,7 @@ You can configure an archive path with the parameter `path`
 
     curl -XPOST 'localhost:9200/test/_export?path=/tmp/myarchive.zip'
 
-If ELasticsearch can not write an archive to the path, an error message will appear
+If Elasticsearch can not write an archive to the path, an error message will appear
 and no export will take place.
 
 Renaming indexes and index types
@@ -214,7 +214,7 @@ You can import the file with::
    curl -XPOST 'localhost:9200/test/test/_import'
 
 Knapsack does not delete or overwrite data by default.
-But ou can use the parameter `createIndex` with the value `false` to allow indexing to indexes that exist.
+But you can use the parameter `createIndex` with the value `false` to allow indexing to indexes that exist.
 
 When importing, you can map your indexes or index/types to your favorite ones.
 
