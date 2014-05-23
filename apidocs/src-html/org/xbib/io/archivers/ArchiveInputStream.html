@@ -1,106 +1,111 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.archivers;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import java.io.IOException;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import java.io.InputStream;<a name="line.5"></a>
-<FONT color="green">006</FONT>    <a name="line.6"></a>
-<FONT color="green">007</FONT>    /**<a name="line.7"></a>
-<FONT color="green">008</FONT>     * Archive input streams &lt;b&gt;MUST&lt;/b&gt; override the<a name="line.8"></a>
-<FONT color="green">009</FONT>     * {@link #read(byte[], int, int)} - or {@link #read()} -<a name="line.9"></a>
-<FONT color="green">010</FONT>     * method so that reading from the stream generates EOF for the end of<a name="line.10"></a>
-<FONT color="green">011</FONT>     * data in each entry as well as at the end of the file proper.<a name="line.11"></a>
-<FONT color="green">012</FONT>     * &lt;p/&gt;<a name="line.12"></a>
-<FONT color="green">013</FONT>     * The {@link #getNextEntry()} method is used to reset the input stream<a name="line.13"></a>
-<FONT color="green">014</FONT>     * ready for reading the data from the next entry.<a name="line.14"></a>
-<FONT color="green">015</FONT>     * &lt;p/&gt;<a name="line.15"></a>
-<FONT color="green">016</FONT>     * The input stream classes must also implement a method with the signature:<a name="line.16"></a>
-<FONT color="green">017</FONT>     * &lt;pre&gt;<a name="line.17"></a>
-<FONT color="green">018</FONT>     * public static boolean matches(byte[] signature, int length)<a name="line.18"></a>
-<FONT color="green">019</FONT>     * &lt;/pre&gt;<a name="line.19"></a>
-<FONT color="green">020</FONT>     * which is used by the {@link ArchiveFactory} to autodetect<a name="line.20"></a>
-<FONT color="green">021</FONT>     * the archive type from the first few bytes of a stream.<a name="line.21"></a>
-<FONT color="green">022</FONT>     */<a name="line.22"></a>
-<FONT color="green">023</FONT>    public abstract class ArchiveInputStream extends InputStream {<a name="line.23"></a>
-<FONT color="green">024</FONT>    <a name="line.24"></a>
-<FONT color="green">025</FONT>        private byte[] SINGLE = new byte[1];<a name="line.25"></a>
-<FONT color="green">026</FONT>        private static final int BYTE_MASK = 0xFF;<a name="line.26"></a>
-<FONT color="green">027</FONT>    <a name="line.27"></a>
-<FONT color="green">028</FONT>        /**<a name="line.28"></a>
-<FONT color="green">029</FONT>         * holds the number of bytes read in this stream<a name="line.29"></a>
-<FONT color="green">030</FONT>         */<a name="line.30"></a>
-<FONT color="green">031</FONT>        private long bytesRead = 0;<a name="line.31"></a>
-<FONT color="green">032</FONT>    <a name="line.32"></a>
-<FONT color="green">033</FONT>        /**<a name="line.33"></a>
-<FONT color="green">034</FONT>         * Returns the next Archive Entry in this Stream.<a name="line.34"></a>
-<FONT color="green">035</FONT>         *<a name="line.35"></a>
-<FONT color="green">036</FONT>         * @return the next entry,<a name="line.36"></a>
-<FONT color="green">037</FONT>         * or {@code null} if there are no more entries<a name="line.37"></a>
-<FONT color="green">038</FONT>         * @throws java.io.IOException if the next entry could not be read<a name="line.38"></a>
-<FONT color="green">039</FONT>         */<a name="line.39"></a>
-<FONT color="green">040</FONT>        public abstract ArchiveEntry getNextEntry() throws IOException;<a name="line.40"></a>
-<FONT color="green">041</FONT>    <a name="line.41"></a>
-<FONT color="green">042</FONT>        /**<a name="line.42"></a>
-<FONT color="green">043</FONT>         * Reads a byte of data. This method will block until enough input is<a name="line.43"></a>
-<FONT color="green">044</FONT>         * available.<a name="line.44"></a>
-<FONT color="green">045</FONT>         * &lt;p/&gt;<a name="line.45"></a>
-<FONT color="green">046</FONT>         * Simply calls the {@link #read(byte[], int, int)} method.<a name="line.46"></a>
-<FONT color="green">047</FONT>         * &lt;p/&gt;<a name="line.47"></a>
-<FONT color="green">048</FONT>         * MUST be overridden if the {@link #read(byte[], int, int)} method<a name="line.48"></a>
-<FONT color="green">049</FONT>         * is not overridden; may be overridden otherwise.<a name="line.49"></a>
-<FONT color="green">050</FONT>         *<a name="line.50"></a>
-<FONT color="green">051</FONT>         * @return the byte read, or -1 if end of input is reached<a name="line.51"></a>
-<FONT color="green">052</FONT>         * @throws java.io.IOException if an I/O error has occurred<a name="line.52"></a>
-<FONT color="green">053</FONT>         */<a name="line.53"></a>
-<FONT color="green">054</FONT>        @Override<a name="line.54"></a>
-<FONT color="green">055</FONT>        public int read() throws IOException {<a name="line.55"></a>
-<FONT color="green">056</FONT>            int num = read(SINGLE, 0, 1);<a name="line.56"></a>
-<FONT color="green">057</FONT>            return num == -1 ? -1 : SINGLE[0] &amp; BYTE_MASK;<a name="line.57"></a>
-<FONT color="green">058</FONT>        }<a name="line.58"></a>
-<FONT color="green">059</FONT>    <a name="line.59"></a>
-<FONT color="green">060</FONT>        /**<a name="line.60"></a>
-<FONT color="green">061</FONT>         * Increments the counter of already read bytes.<a name="line.61"></a>
-<FONT color="green">062</FONT>         * Doesn't increment if the EOF has been hit (read == -1)<a name="line.62"></a>
-<FONT color="green">063</FONT>         *<a name="line.63"></a>
-<FONT color="green">064</FONT>         * @param read the number of bytes read<a name="line.64"></a>
-<FONT color="green">065</FONT>         */<a name="line.65"></a>
-<FONT color="green">066</FONT>        protected void count(int read) {<a name="line.66"></a>
-<FONT color="green">067</FONT>            count((long) read);<a name="line.67"></a>
-<FONT color="green">068</FONT>        }<a name="line.68"></a>
-<FONT color="green">069</FONT>    <a name="line.69"></a>
-<FONT color="green">070</FONT>        /**<a name="line.70"></a>
-<FONT color="green">071</FONT>         * Increments the counter of already read bytes.<a name="line.71"></a>
-<FONT color="green">072</FONT>         * Doesn't increment if the EOF has been hit (read == -1)<a name="line.72"></a>
-<FONT color="green">073</FONT>         *<a name="line.73"></a>
-<FONT color="green">074</FONT>         * @param read the number of bytes read<a name="line.74"></a>
-<FONT color="green">075</FONT>         */<a name="line.75"></a>
-<FONT color="green">076</FONT>        protected void count(long read) {<a name="line.76"></a>
-<FONT color="green">077</FONT>            if (read != -1) {<a name="line.77"></a>
-<FONT color="green">078</FONT>                bytesRead = bytesRead + read;<a name="line.78"></a>
-<FONT color="green">079</FONT>            }<a name="line.79"></a>
-<FONT color="green">080</FONT>        }<a name="line.80"></a>
-<FONT color="green">081</FONT>    <a name="line.81"></a>
-<FONT color="green">082</FONT>        /**<a name="line.82"></a>
-<FONT color="green">083</FONT>         * Decrements the counter of already read bytes.<a name="line.83"></a>
-<FONT color="green">084</FONT>         *<a name="line.84"></a>
-<FONT color="green">085</FONT>         * @param pushedBack the number of bytes pushed back.<a name="line.85"></a>
-<FONT color="green">086</FONT>         */<a name="line.86"></a>
-<FONT color="green">087</FONT>        protected void pushedBackBytes(long pushedBack) {<a name="line.87"></a>
-<FONT color="green">088</FONT>            bytesRead -= pushedBack;<a name="line.88"></a>
-<FONT color="green">089</FONT>        }<a name="line.89"></a>
-<FONT color="green">090</FONT>    <a name="line.90"></a>
-<FONT color="green">091</FONT>        /**<a name="line.91"></a>
-<FONT color="green">092</FONT>         * Returns the current number of bytes read from this stream.<a name="line.92"></a>
-<FONT color="green">093</FONT>         *<a name="line.93"></a>
-<FONT color="green">094</FONT>         * @return the number of read bytes<a name="line.94"></a>
-<FONT color="green">095</FONT>         */<a name="line.95"></a>
-<FONT color="green">096</FONT>        public long getBytesRead() {<a name="line.96"></a>
-<FONT color="green">097</FONT>            return bytesRead;<a name="line.97"></a>
-<FONT color="green">098</FONT>        }<a name="line.98"></a>
-<FONT color="green">099</FONT>    <a name="line.99"></a>
-<FONT color="green">100</FONT>    }<a name="line.100"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.io.IOException;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.io.InputStream;<a name="line.5"></a>
+<span class="sourceLineNo">006</span><a name="line.6"></a>
+<span class="sourceLineNo">007</span>/**<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * Archive input streams &lt;b&gt;MUST&lt;/b&gt; override the<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * {@link #read(byte[], int, int)} - or {@link #read()} -<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * method so that reading from the stream generates EOF for the end of<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * data in each entry as well as at the end of the file proper.<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * &lt;p/&gt;<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * The {@link #getNextEntry()} method is used to reset the input stream<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * ready for reading the data from the next entry.<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * &lt;p/&gt;<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * The input stream classes must also implement a method with the signature:<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * &lt;pre&gt;<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * public static boolean matches(byte[] signature, int length)<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * &lt;/pre&gt;<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * which is used by the {@link ArchiveFactory} to autodetect<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * the archive type from the first few bytes of a stream.<a name="line.21"></a>
+<span class="sourceLineNo">022</span> */<a name="line.22"></a>
+<span class="sourceLineNo">023</span>public abstract class ArchiveInputStream extends InputStream {<a name="line.23"></a>
+<span class="sourceLineNo">024</span><a name="line.24"></a>
+<span class="sourceLineNo">025</span>    private byte[] SINGLE = new byte[1];<a name="line.25"></a>
+<span class="sourceLineNo">026</span>    private static final int BYTE_MASK = 0xFF;<a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>    /**<a name="line.28"></a>
+<span class="sourceLineNo">029</span>     * holds the number of bytes read in this stream<a name="line.29"></a>
+<span class="sourceLineNo">030</span>     */<a name="line.30"></a>
+<span class="sourceLineNo">031</span>    private long bytesRead = 0;<a name="line.31"></a>
+<span class="sourceLineNo">032</span><a name="line.32"></a>
+<span class="sourceLineNo">033</span>    /**<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     * Returns the next Archive Entry in this Stream.<a name="line.34"></a>
+<span class="sourceLineNo">035</span>     *<a name="line.35"></a>
+<span class="sourceLineNo">036</span>     * @return the next entry,<a name="line.36"></a>
+<span class="sourceLineNo">037</span>     * or {@code null} if there are no more entries<a name="line.37"></a>
+<span class="sourceLineNo">038</span>     * @throws java.io.IOException if the next entry could not be read<a name="line.38"></a>
+<span class="sourceLineNo">039</span>     */<a name="line.39"></a>
+<span class="sourceLineNo">040</span>    public abstract ArchiveEntry getNextEntry() throws IOException;<a name="line.40"></a>
+<span class="sourceLineNo">041</span><a name="line.41"></a>
+<span class="sourceLineNo">042</span>    /**<a name="line.42"></a>
+<span class="sourceLineNo">043</span>     * Reads a byte of data. This method will block until enough input is<a name="line.43"></a>
+<span class="sourceLineNo">044</span>     * available.<a name="line.44"></a>
+<span class="sourceLineNo">045</span>     * &lt;p/&gt;<a name="line.45"></a>
+<span class="sourceLineNo">046</span>     * Simply calls the {@link #read(byte[], int, int)} method.<a name="line.46"></a>
+<span class="sourceLineNo">047</span>     * &lt;p/&gt;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>     * MUST be overridden if the {@link #read(byte[], int, int)} method<a name="line.48"></a>
+<span class="sourceLineNo">049</span>     * is not overridden; may be overridden otherwise.<a name="line.49"></a>
+<span class="sourceLineNo">050</span>     *<a name="line.50"></a>
+<span class="sourceLineNo">051</span>     * @return the byte read, or -1 if end of input is reached<a name="line.51"></a>
+<span class="sourceLineNo">052</span>     * @throws java.io.IOException if an I/O error has occurred<a name="line.52"></a>
+<span class="sourceLineNo">053</span>     */<a name="line.53"></a>
+<span class="sourceLineNo">054</span>    @Override<a name="line.54"></a>
+<span class="sourceLineNo">055</span>    public int read() throws IOException {<a name="line.55"></a>
+<span class="sourceLineNo">056</span>        int num = read(SINGLE, 0, 1);<a name="line.56"></a>
+<span class="sourceLineNo">057</span>        return num == -1 ? -1 : SINGLE[0] &amp; BYTE_MASK;<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    }<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span>    /**<a name="line.60"></a>
+<span class="sourceLineNo">061</span>     * Increments the counter of already read bytes.<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     * Doesn't increment if the EOF has been hit (read == -1)<a name="line.62"></a>
+<span class="sourceLineNo">063</span>     *<a name="line.63"></a>
+<span class="sourceLineNo">064</span>     * @param read the number of bytes read<a name="line.64"></a>
+<span class="sourceLineNo">065</span>     */<a name="line.65"></a>
+<span class="sourceLineNo">066</span>    protected void count(int read) {<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        count((long) read);<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    }<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>    /**<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * Increments the counter of already read bytes.<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     * Doesn't increment if the EOF has been hit (read == -1)<a name="line.72"></a>
+<span class="sourceLineNo">073</span>     *<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * @param read the number of bytes read<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     */<a name="line.75"></a>
+<span class="sourceLineNo">076</span>    protected void count(long read) {<a name="line.76"></a>
+<span class="sourceLineNo">077</span>        if (read != -1) {<a name="line.77"></a>
+<span class="sourceLineNo">078</span>            bytesRead = bytesRead + read;<a name="line.78"></a>
+<span class="sourceLineNo">079</span>        }<a name="line.79"></a>
+<span class="sourceLineNo">080</span>    }<a name="line.80"></a>
+<span class="sourceLineNo">081</span><a name="line.81"></a>
+<span class="sourceLineNo">082</span>    /**<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     * Decrements the counter of already read bytes.<a name="line.83"></a>
+<span class="sourceLineNo">084</span>     *<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * @param pushedBack the number of bytes pushed back.<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     */<a name="line.86"></a>
+<span class="sourceLineNo">087</span>    protected void pushedBackBytes(long pushedBack) {<a name="line.87"></a>
+<span class="sourceLineNo">088</span>        bytesRead -= pushedBack;<a name="line.88"></a>
+<span class="sourceLineNo">089</span>    }<a name="line.89"></a>
+<span class="sourceLineNo">090</span><a name="line.90"></a>
+<span class="sourceLineNo">091</span>    /**<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     * Returns the current number of bytes read from this stream.<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     *<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     * @return the number of read bytes<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     */<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    public long getBytesRead() {<a name="line.96"></a>
+<span class="sourceLineNo">097</span>        return bytesRead;<a name="line.97"></a>
+<span class="sourceLineNo">098</span>    }<a name="line.98"></a>
+<span class="sourceLineNo">099</span><a name="line.99"></a>
+<span class="sourceLineNo">100</span>}<a name="line.100"></a>
 
 
 
@@ -161,6 +166,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

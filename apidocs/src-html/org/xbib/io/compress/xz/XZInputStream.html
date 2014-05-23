@@ -1,288 +1,293 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.xz;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.4"></a>
-<FONT color="green">005</FONT>    <a name="line.5"></a>
-<FONT color="green">006</FONT>    import java.io.DataInputStream;<a name="line.6"></a>
-<FONT color="green">007</FONT>    import java.io.IOException;<a name="line.7"></a>
-<FONT color="green">008</FONT>    import java.io.InputStream;<a name="line.8"></a>
-<FONT color="green">009</FONT>    <a name="line.9"></a>
-<FONT color="green">010</FONT>    /**<a name="line.10"></a>
-<FONT color="green">011</FONT>     * Decompresses a .xz file in streamed mode (no seeking).<a name="line.11"></a>
-<FONT color="green">012</FONT>     * &lt;p/&gt;<a name="line.12"></a>
-<FONT color="green">013</FONT>     * Use this to decompress regular standalone .xz files. This reads from<a name="line.13"></a>
-<FONT color="green">014</FONT>     * its input stream until the end of the input or until an error occurs.<a name="line.14"></a>
-<FONT color="green">015</FONT>     * This supports decompressing concatenated .xz files.<a name="line.15"></a>
-<FONT color="green">016</FONT>     * &lt;p/&gt;<a name="line.16"></a>
-<FONT color="green">017</FONT>     * &lt;h4&gt;Typical use cases&lt;/h4&gt;<a name="line.17"></a>
-<FONT color="green">018</FONT>     * &lt;p/&gt;<a name="line.18"></a>
-<FONT color="green">019</FONT>     * Getting an input stream to decompress a .xz file:<a name="line.19"></a>
-<FONT color="green">020</FONT>     * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.20"></a>
-<FONT color="green">021</FONT>     * InputStream infile = new FileInputStream("foo.xz");<a name="line.21"></a>
-<FONT color="green">022</FONT>     * XZInputStream inxz = new XZInputStream(infile);<a name="line.22"></a>
-<FONT color="green">023</FONT>     * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.23"></a>
-<FONT color="green">024</FONT>     * &lt;p/&gt;<a name="line.24"></a>
-<FONT color="green">025</FONT>     * It's important to keep in mind that decompressor memory usage depends<a name="line.25"></a>
-<FONT color="green">026</FONT>     * on the settings used to compress the file. The worst-case memory usage<a name="line.26"></a>
-<FONT color="green">027</FONT>     * of XZInputStream is currently 1.5&amp;nbsp;GiB. Still, very few files will<a name="line.27"></a>
-<FONT color="green">028</FONT>     * require more than about 65&amp;nbsp;MiB because that's how much decompressing<a name="line.28"></a>
-<FONT color="green">029</FONT>     * a file created with the highest preset level will need, and only a few<a name="line.29"></a>
-<FONT color="green">030</FONT>     * people use settings other than the predefined presets.<a name="line.30"></a>
-<FONT color="green">031</FONT>     * &lt;p/&gt;<a name="line.31"></a>
-<FONT color="green">032</FONT>     * It is possible to specify a memory usage limit for<a name="line.32"></a>
-<FONT color="green">033</FONT>     * &lt;code&gt;XZInputStream&lt;/code&gt;. If decompression requires more memory than<a name="line.33"></a>
-<FONT color="green">034</FONT>     * the specified limit, MemoryLimitException will be thrown when reading<a name="line.34"></a>
-<FONT color="green">035</FONT>     * from the stream. For example, the following sets the memory usage limit<a name="line.35"></a>
-<FONT color="green">036</FONT>     * to 100&amp;nbsp;MiB:<a name="line.36"></a>
-<FONT color="green">037</FONT>     * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.37"></a>
-<FONT color="green">038</FONT>     * InputStream infile = new FileInputStream("foo.xz");<a name="line.38"></a>
-<FONT color="green">039</FONT>     * XZInputStream inxz = new XZInputStream(infile, 100 * 1024);<a name="line.39"></a>
-<FONT color="green">040</FONT>     * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.40"></a>
-<FONT color="green">041</FONT>     * &lt;p/&gt;<a name="line.41"></a>
-<FONT color="green">042</FONT>     * &lt;h4&gt;When uncompressed size is known beforehand&lt;/h4&gt;<a name="line.42"></a>
-<FONT color="green">043</FONT>     * &lt;p/&gt;<a name="line.43"></a>
-<FONT color="green">044</FONT>     * If you are decompressing complete files and your application knows<a name="line.44"></a>
-<FONT color="green">045</FONT>     * exactly how much uncompressed data there should be, it is good to try<a name="line.45"></a>
-<FONT color="green">046</FONT>     * reading one more byte by calling &lt;code&gt;read()&lt;/code&gt; and checking<a name="line.46"></a>
-<FONT color="green">047</FONT>     * that it returns &lt;code&gt;-1&lt;/code&gt;. This way the decompressor will parse the<a name="line.47"></a>
-<FONT color="green">048</FONT>     * file footers and verify the integrity checks, giving the caller more<a name="line.48"></a>
-<FONT color="green">049</FONT>     * confidence that the uncompressed data is valid. (This advice seems to<a name="line.49"></a>
-<FONT color="green">050</FONT>     * apply to &lt;code&gt;java.util.zip.GZIPInputStream&lt;/code&gt; too.)<a name="line.50"></a>
-<FONT color="green">051</FONT>     *<a name="line.51"></a>
-<FONT color="green">052</FONT>     * @see SingleXZInputStream<a name="line.52"></a>
-<FONT color="green">053</FONT>     */<a name="line.53"></a>
-<FONT color="green">054</FONT>    public class XZInputStream extends InputStream {<a name="line.54"></a>
-<FONT color="green">055</FONT>        private final int memoryLimit;<a name="line.55"></a>
-<FONT color="green">056</FONT>        private InputStream in;<a name="line.56"></a>
-<FONT color="green">057</FONT>        private SingleXZInputStream xzIn;<a name="line.57"></a>
-<FONT color="green">058</FONT>        private boolean endReached = false;<a name="line.58"></a>
-<FONT color="green">059</FONT>        private IOException exception = null;<a name="line.59"></a>
-<FONT color="green">060</FONT>    <a name="line.60"></a>
-<FONT color="green">061</FONT>        /**<a name="line.61"></a>
-<FONT color="green">062</FONT>         * Creates a new XZ decompressor without a memory usage limit.<a name="line.62"></a>
-<FONT color="green">063</FONT>         * &lt;p/&gt;<a name="line.63"></a>
-<FONT color="green">064</FONT>         * This constructor reads and parses the XZ Stream Header (12 bytes)<a name="line.64"></a>
-<FONT color="green">065</FONT>         * from &lt;code&gt;in&lt;/code&gt;. The header of the first Block is not read<a name="line.65"></a>
-<FONT color="green">066</FONT>         * until &lt;code&gt;read&lt;/code&gt; is called.<a name="line.66"></a>
-<FONT color="green">067</FONT>         *<a name="line.67"></a>
-<FONT color="green">068</FONT>         * @param in input stream from which XZ-compressed<a name="line.68"></a>
-<FONT color="green">069</FONT>         *           data is read<a name="line.69"></a>
-<FONT color="green">070</FONT>         * @throws XZFormatException           input is not in the XZ format<a name="line.70"></a>
-<FONT color="green">071</FONT>         * @throws CorruptedInputException     XZ header CRC32 doesn't match<a name="line.71"></a>
-<FONT color="green">072</FONT>         * @throws UnsupportedOptionsException XZ header is valid but specifies options<a name="line.72"></a>
-<FONT color="green">073</FONT>         *                                     not supported by this implementation<a name="line.73"></a>
-<FONT color="green">074</FONT>         * @throws java.io.EOFException        less than 12 bytes of input was available<a name="line.74"></a>
-<FONT color="green">075</FONT>         *                                     from &lt;code&gt;in&lt;/code&gt;<a name="line.75"></a>
-<FONT color="green">076</FONT>         * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.76"></a>
-<FONT color="green">077</FONT>         */<a name="line.77"></a>
-<FONT color="green">078</FONT>        public XZInputStream(InputStream in) throws IOException {<a name="line.78"></a>
-<FONT color="green">079</FONT>            this(in, -1);<a name="line.79"></a>
-<FONT color="green">080</FONT>        }<a name="line.80"></a>
-<FONT color="green">081</FONT>    <a name="line.81"></a>
-<FONT color="green">082</FONT>        /**<a name="line.82"></a>
-<FONT color="green">083</FONT>         * Creates a new XZ decompressor with an optional memory usage limit.<a name="line.83"></a>
-<FONT color="green">084</FONT>         * &lt;p/&gt;<a name="line.84"></a>
-<FONT color="green">085</FONT>         * This is identical to &lt;code&gt;XZInputStream(InputStream)&lt;/code&gt; except<a name="line.85"></a>
-<FONT color="green">086</FONT>         * that this takes also the &lt;code&gt;memoryLimit&lt;/code&gt; argument.<a name="line.86"></a>
-<FONT color="green">087</FONT>         *<a name="line.87"></a>
-<FONT color="green">088</FONT>         * @param in          input stream from which XZ-compressed<a name="line.88"></a>
-<FONT color="green">089</FONT>         *                    data is read<a name="line.89"></a>
-<FONT color="green">090</FONT>         * @param memoryLimit memory usage limit in kibibytes (KiB)<a name="line.90"></a>
-<FONT color="green">091</FONT>         *                    or &lt;code&gt;-1&lt;/code&gt; to impose no<a name="line.91"></a>
-<FONT color="green">092</FONT>         *                    memory usage limit<a name="line.92"></a>
-<FONT color="green">093</FONT>         * @throws XZFormatException           input is not in the XZ format<a name="line.93"></a>
-<FONT color="green">094</FONT>         * @throws CorruptedInputException     XZ header CRC32 doesn't match<a name="line.94"></a>
-<FONT color="green">095</FONT>         * @throws UnsupportedOptionsException XZ header is valid but specifies options<a name="line.95"></a>
-<FONT color="green">096</FONT>         *                                     not supported by this implementation<a name="line.96"></a>
-<FONT color="green">097</FONT>         * @throws java.io.EOFException        less than 12 bytes of input was available<a name="line.97"></a>
-<FONT color="green">098</FONT>         *                                     from &lt;code&gt;in&lt;/code&gt;<a name="line.98"></a>
-<FONT color="green">099</FONT>         * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.99"></a>
-<FONT color="green">100</FONT>         */<a name="line.100"></a>
-<FONT color="green">101</FONT>        public XZInputStream(InputStream in, int memoryLimit) throws IOException {<a name="line.101"></a>
-<FONT color="green">102</FONT>            this.in = in;<a name="line.102"></a>
-<FONT color="green">103</FONT>            this.memoryLimit = memoryLimit;<a name="line.103"></a>
-<FONT color="green">104</FONT>            this.xzIn = new SingleXZInputStream(in, memoryLimit);<a name="line.104"></a>
-<FONT color="green">105</FONT>        }<a name="line.105"></a>
-<FONT color="green">106</FONT>    <a name="line.106"></a>
-<FONT color="green">107</FONT>        /**<a name="line.107"></a>
-<FONT color="green">108</FONT>         * Decompresses the next byte from this input stream.<a name="line.108"></a>
-<FONT color="green">109</FONT>         * &lt;p/&gt;<a name="line.109"></a>
-<FONT color="green">110</FONT>         * Reading lots of data with &lt;code&gt;read()&lt;/code&gt; from this input stream<a name="line.110"></a>
-<FONT color="green">111</FONT>         * may be inefficient. Wrap it in {@link java.io.BufferedInputStream}<a name="line.111"></a>
-<FONT color="green">112</FONT>         * if you need to read lots of data one byte at a time.<a name="line.112"></a>
-<FONT color="green">113</FONT>         *<a name="line.113"></a>
-<FONT color="green">114</FONT>         * @return the next decompressed byte, or &lt;code&gt;-1&lt;/code&gt;<a name="line.114"></a>
-<FONT color="green">115</FONT>         * to indicate the end of the compressed stream<a name="line.115"></a>
-<FONT color="green">116</FONT>         * @throws CorruptedInputException<a name="line.116"></a>
-<FONT color="green">117</FONT>         * @throws UnsupportedOptionsException<a name="line.117"></a>
-<FONT color="green">118</FONT>         * @throws MemoryLimitException<a name="line.118"></a>
-<FONT color="green">119</FONT>         * @throws XZIOException               if the stream has been closed<a name="line.119"></a>
-<FONT color="green">120</FONT>         * @throws java.io.EOFException        compressed input is truncated or corrupt<a name="line.120"></a>
-<FONT color="green">121</FONT>         * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.121"></a>
-<FONT color="green">122</FONT>         */<a name="line.122"></a>
-<FONT color="green">123</FONT>        public int read() throws IOException {<a name="line.123"></a>
-<FONT color="green">124</FONT>            byte[] buf = new byte[1];<a name="line.124"></a>
-<FONT color="green">125</FONT>            return read(buf, 0, 1) == -1 ? -1 : (buf[0] &amp; 0xFF);<a name="line.125"></a>
-<FONT color="green">126</FONT>        }<a name="line.126"></a>
-<FONT color="green">127</FONT>    <a name="line.127"></a>
-<FONT color="green">128</FONT>        /**<a name="line.128"></a>
-<FONT color="green">129</FONT>         * Decompresses into an array of bytes.<a name="line.129"></a>
-<FONT color="green">130</FONT>         * &lt;p/&gt;<a name="line.130"></a>
-<FONT color="green">131</FONT>         * If &lt;code&gt;len&lt;/code&gt; is zero, no bytes are read and &lt;code&gt;0&lt;/code&gt;<a name="line.131"></a>
-<FONT color="green">132</FONT>         * is returned. Otherwise this will try to decompress &lt;code&gt;len&lt;/code&gt;<a name="line.132"></a>
-<FONT color="green">133</FONT>         * bytes of uncompressed data. Less than &lt;code&gt;len&lt;/code&gt; bytes may<a name="line.133"></a>
-<FONT color="green">134</FONT>         * be read only in the following situations:<a name="line.134"></a>
-<FONT color="green">135</FONT>         * &lt;ul&gt;<a name="line.135"></a>
-<FONT color="green">136</FONT>         * &lt;li&gt;The end of the compressed data was reached successfully.&lt;/li&gt;<a name="line.136"></a>
-<FONT color="green">137</FONT>         * &lt;li&gt;An error is detected after at least one but less &lt;code&gt;len&lt;/code&gt;<a name="line.137"></a>
-<FONT color="green">138</FONT>         * bytes have already been successfully decompressed.<a name="line.138"></a>
-<FONT color="green">139</FONT>         * The next call with non-zero &lt;code&gt;len&lt;/code&gt; will immediately<a name="line.139"></a>
-<FONT color="green">140</FONT>         * throw the pending exception.&lt;/li&gt;<a name="line.140"></a>
-<FONT color="green">141</FONT>         * &lt;li&gt;An exception is thrown.&lt;/li&gt;<a name="line.141"></a>
-<FONT color="green">142</FONT>         * &lt;/ul&gt;<a name="line.142"></a>
-<FONT color="green">143</FONT>         *<a name="line.143"></a>
-<FONT color="green">144</FONT>         * @param buf target buffer for uncompressed data<a name="line.144"></a>
-<FONT color="green">145</FONT>         * @param off start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.145"></a>
-<FONT color="green">146</FONT>         * @param len maximum number of uncompressed bytes to read<a name="line.146"></a>
-<FONT color="green">147</FONT>         * @return number of bytes read, or &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.147"></a>
-<FONT color="green">148</FONT>         * the end of the compressed stream<a name="line.148"></a>
-<FONT color="green">149</FONT>         * @throws CorruptedInputException<a name="line.149"></a>
-<FONT color="green">150</FONT>         * @throws UnsupportedOptionsException<a name="line.150"></a>
-<FONT color="green">151</FONT>         * @throws MemoryLimitException<a name="line.151"></a>
-<FONT color="green">152</FONT>         * @throws XZIOException               if the stream has been closed<a name="line.152"></a>
-<FONT color="green">153</FONT>         * @throws java.io.EOFException        compressed input is truncated or corrupt<a name="line.153"></a>
-<FONT color="green">154</FONT>         * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.154"></a>
-<FONT color="green">155</FONT>         */<a name="line.155"></a>
-<FONT color="green">156</FONT>        public int read(byte[] buf, int off, int len) throws IOException {<a name="line.156"></a>
-<FONT color="green">157</FONT>            if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length) {<a name="line.157"></a>
-<FONT color="green">158</FONT>                throw new IndexOutOfBoundsException();<a name="line.158"></a>
-<FONT color="green">159</FONT>            }<a name="line.159"></a>
-<FONT color="green">160</FONT>    <a name="line.160"></a>
-<FONT color="green">161</FONT>            if (len == 0) {<a name="line.161"></a>
-<FONT color="green">162</FONT>                return 0;<a name="line.162"></a>
-<FONT color="green">163</FONT>            }<a name="line.163"></a>
-<FONT color="green">164</FONT>    <a name="line.164"></a>
-<FONT color="green">165</FONT>            if (in == null) {<a name="line.165"></a>
-<FONT color="green">166</FONT>                throw new XZIOException("Stream closed");<a name="line.166"></a>
-<FONT color="green">167</FONT>            }<a name="line.167"></a>
-<FONT color="green">168</FONT>    <a name="line.168"></a>
-<FONT color="green">169</FONT>            if (exception != null) {<a name="line.169"></a>
-<FONT color="green">170</FONT>                throw exception;<a name="line.170"></a>
-<FONT color="green">171</FONT>            }<a name="line.171"></a>
-<FONT color="green">172</FONT>    <a name="line.172"></a>
-<FONT color="green">173</FONT>            if (endReached) {<a name="line.173"></a>
-<FONT color="green">174</FONT>                return -1;<a name="line.174"></a>
-<FONT color="green">175</FONT>            }<a name="line.175"></a>
-<FONT color="green">176</FONT>    <a name="line.176"></a>
-<FONT color="green">177</FONT>            int size = 0;<a name="line.177"></a>
-<FONT color="green">178</FONT>    <a name="line.178"></a>
-<FONT color="green">179</FONT>            try {<a name="line.179"></a>
-<FONT color="green">180</FONT>                while (len &gt; 0) {<a name="line.180"></a>
-<FONT color="green">181</FONT>                    if (xzIn == null) {<a name="line.181"></a>
-<FONT color="green">182</FONT>                        prepareNextStream();<a name="line.182"></a>
-<FONT color="green">183</FONT>                        if (endReached) {<a name="line.183"></a>
-<FONT color="green">184</FONT>                            return size == 0 ? -1 : size;<a name="line.184"></a>
-<FONT color="green">185</FONT>                        }<a name="line.185"></a>
-<FONT color="green">186</FONT>                    }<a name="line.186"></a>
-<FONT color="green">187</FONT>    <a name="line.187"></a>
-<FONT color="green">188</FONT>                    int ret = xzIn.read(buf, off, len);<a name="line.188"></a>
-<FONT color="green">189</FONT>    <a name="line.189"></a>
-<FONT color="green">190</FONT>                    if (ret &gt; 0) {<a name="line.190"></a>
-<FONT color="green">191</FONT>                        size += ret;<a name="line.191"></a>
-<FONT color="green">192</FONT>                        off += ret;<a name="line.192"></a>
-<FONT color="green">193</FONT>                        len -= ret;<a name="line.193"></a>
-<FONT color="green">194</FONT>                    } else if (ret == -1) {<a name="line.194"></a>
-<FONT color="green">195</FONT>                        xzIn = null;<a name="line.195"></a>
-<FONT color="green">196</FONT>                    }<a name="line.196"></a>
-<FONT color="green">197</FONT>                }<a name="line.197"></a>
-<FONT color="green">198</FONT>            } catch (IOException e) {<a name="line.198"></a>
-<FONT color="green">199</FONT>                exception = e;<a name="line.199"></a>
-<FONT color="green">200</FONT>                if (size == 0) {<a name="line.200"></a>
-<FONT color="green">201</FONT>                    throw e;<a name="line.201"></a>
-<FONT color="green">202</FONT>                }<a name="line.202"></a>
-<FONT color="green">203</FONT>            }<a name="line.203"></a>
-<FONT color="green">204</FONT>    <a name="line.204"></a>
-<FONT color="green">205</FONT>            return size;<a name="line.205"></a>
-<FONT color="green">206</FONT>        }<a name="line.206"></a>
-<FONT color="green">207</FONT>    <a name="line.207"></a>
-<FONT color="green">208</FONT>        private void prepareNextStream() throws IOException {<a name="line.208"></a>
-<FONT color="green">209</FONT>            DataInputStream inData = new DataInputStream(in);<a name="line.209"></a>
-<FONT color="green">210</FONT>            byte[] buf = new byte[DecoderUtil.STREAM_HEADER_SIZE];<a name="line.210"></a>
-<FONT color="green">211</FONT>    <a name="line.211"></a>
-<FONT color="green">212</FONT>            // The size of Stream Padding must be a multiple of four bytes,<a name="line.212"></a>
-<FONT color="green">213</FONT>            // all bytes zero.<a name="line.213"></a>
-<FONT color="green">214</FONT>            do {<a name="line.214"></a>
-<FONT color="green">215</FONT>                // First try to read one byte to see if we have reached the end<a name="line.215"></a>
-<FONT color="green">216</FONT>                // of the file.<a name="line.216"></a>
-<FONT color="green">217</FONT>                int ret = inData.read(buf, 0, 1);<a name="line.217"></a>
-<FONT color="green">218</FONT>                if (ret == -1) {<a name="line.218"></a>
-<FONT color="green">219</FONT>                    endReached = true;<a name="line.219"></a>
-<FONT color="green">220</FONT>                    return;<a name="line.220"></a>
-<FONT color="green">221</FONT>                }<a name="line.221"></a>
-<FONT color="green">222</FONT>    <a name="line.222"></a>
-<FONT color="green">223</FONT>                // Since we got one byte of input, there must be at least<a name="line.223"></a>
-<FONT color="green">224</FONT>                // three more available in a valid file.<a name="line.224"></a>
-<FONT color="green">225</FONT>                inData.readFully(buf, 1, 3);<a name="line.225"></a>
-<FONT color="green">226</FONT>    <a name="line.226"></a>
-<FONT color="green">227</FONT>            } while (buf[0] == 0 &amp;&amp; buf[1] == 0 &amp;&amp; buf[2] == 0 &amp;&amp; buf[3] == 0);<a name="line.227"></a>
-<FONT color="green">228</FONT>    <a name="line.228"></a>
-<FONT color="green">229</FONT>            // Not all bytes are zero. In a valid Stream it indicates the<a name="line.229"></a>
-<FONT color="green">230</FONT>            // beginning of the next Stream. Read the rest of the Stream Header<a name="line.230"></a>
-<FONT color="green">231</FONT>            // and initialize the XZ decoder.<a name="line.231"></a>
-<FONT color="green">232</FONT>            inData.readFully(buf, 4, DecoderUtil.STREAM_HEADER_SIZE - 4);<a name="line.232"></a>
-<FONT color="green">233</FONT>    <a name="line.233"></a>
-<FONT color="green">234</FONT>            try {<a name="line.234"></a>
-<FONT color="green">235</FONT>                xzIn = new SingleXZInputStream(in, memoryLimit, buf);<a name="line.235"></a>
-<FONT color="green">236</FONT>            } catch (XZFormatException e) {<a name="line.236"></a>
-<FONT color="green">237</FONT>                // Since this isn't the first .xz Stream, it is more<a name="line.237"></a>
-<FONT color="green">238</FONT>                // logical to tell that the data is corrupt.<a name="line.238"></a>
-<FONT color="green">239</FONT>                throw new CorruptedInputException(<a name="line.239"></a>
-<FONT color="green">240</FONT>                        "Garbage after a valid XZ Stream");<a name="line.240"></a>
-<FONT color="green">241</FONT>            }<a name="line.241"></a>
-<FONT color="green">242</FONT>        }<a name="line.242"></a>
-<FONT color="green">243</FONT>    <a name="line.243"></a>
-<FONT color="green">244</FONT>        /**<a name="line.244"></a>
-<FONT color="green">245</FONT>         * Returns the number of uncompressed bytes that can be read<a name="line.245"></a>
-<FONT color="green">246</FONT>         * without blocking. The value is returned with an assumption<a name="line.246"></a>
-<FONT color="green">247</FONT>         * that the compressed input data will be valid. If the compressed<a name="line.247"></a>
-<FONT color="green">248</FONT>         * data is corrupt, &lt;code&gt;CorruptedInputException&lt;/code&gt; may get<a name="line.248"></a>
-<FONT color="green">249</FONT>         * thrown before the number of bytes claimed to be available have<a name="line.249"></a>
-<FONT color="green">250</FONT>         * been read from this input stream.<a name="line.250"></a>
-<FONT color="green">251</FONT>         *<a name="line.251"></a>
-<FONT color="green">252</FONT>         * @return the number of uncompressed bytes that can be read<a name="line.252"></a>
-<FONT color="green">253</FONT>         * without blocking<a name="line.253"></a>
-<FONT color="green">254</FONT>         */<a name="line.254"></a>
-<FONT color="green">255</FONT>        public int available() throws IOException {<a name="line.255"></a>
-<FONT color="green">256</FONT>            if (in == null) {<a name="line.256"></a>
-<FONT color="green">257</FONT>                throw new XZIOException("Stream closed");<a name="line.257"></a>
-<FONT color="green">258</FONT>            }<a name="line.258"></a>
-<FONT color="green">259</FONT>    <a name="line.259"></a>
-<FONT color="green">260</FONT>            if (exception != null) {<a name="line.260"></a>
-<FONT color="green">261</FONT>                throw exception;<a name="line.261"></a>
-<FONT color="green">262</FONT>            }<a name="line.262"></a>
-<FONT color="green">263</FONT>    <a name="line.263"></a>
-<FONT color="green">264</FONT>            return xzIn == null ? 0 : xzIn.available();<a name="line.264"></a>
-<FONT color="green">265</FONT>        }<a name="line.265"></a>
-<FONT color="green">266</FONT>    <a name="line.266"></a>
-<FONT color="green">267</FONT>        /**<a name="line.267"></a>
-<FONT color="green">268</FONT>         * Closes the stream and calls &lt;code&gt;in.close()&lt;/code&gt;.<a name="line.268"></a>
-<FONT color="green">269</FONT>         * If the stream was already closed, this does nothing.<a name="line.269"></a>
-<FONT color="green">270</FONT>         *<a name="line.270"></a>
-<FONT color="green">271</FONT>         * @throws java.io.IOException if thrown by &lt;code&gt;in.close()&lt;/code&gt;<a name="line.271"></a>
-<FONT color="green">272</FONT>         */<a name="line.272"></a>
-<FONT color="green">273</FONT>        public void close() throws IOException {<a name="line.273"></a>
-<FONT color="green">274</FONT>            if (in != null) {<a name="line.274"></a>
-<FONT color="green">275</FONT>                try {<a name="line.275"></a>
-<FONT color="green">276</FONT>                    in.close();<a name="line.276"></a>
-<FONT color="green">277</FONT>                } finally {<a name="line.277"></a>
-<FONT color="green">278</FONT>                    in = null;<a name="line.278"></a>
-<FONT color="green">279</FONT>                }<a name="line.279"></a>
-<FONT color="green">280</FONT>            }<a name="line.280"></a>
-<FONT color="green">281</FONT>        }<a name="line.281"></a>
-<FONT color="green">282</FONT>    }<a name="line.282"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.DataInputStream;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.IOException;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.InputStream;<a name="line.8"></a>
+<span class="sourceLineNo">009</span><a name="line.9"></a>
+<span class="sourceLineNo">010</span>/**<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * Decompresses a .xz file in streamed mode (no seeking).<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * &lt;p/&gt;<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * Use this to decompress regular standalone .xz files. This reads from<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * its input stream until the end of the input or until an error occurs.<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * This supports decompressing concatenated .xz files.<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * &lt;p/&gt;<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * &lt;h4&gt;Typical use cases&lt;/h4&gt;<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * &lt;p/&gt;<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * Getting an input stream to decompress a .xz file:<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * InputStream infile = new FileInputStream("foo.xz");<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * XZInputStream inxz = new XZInputStream(infile);<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.23"></a>
+<span class="sourceLineNo">024</span> * &lt;p/&gt;<a name="line.24"></a>
+<span class="sourceLineNo">025</span> * It's important to keep in mind that decompressor memory usage depends<a name="line.25"></a>
+<span class="sourceLineNo">026</span> * on the settings used to compress the file. The worst-case memory usage<a name="line.26"></a>
+<span class="sourceLineNo">027</span> * of XZInputStream is currently 1.5&amp;nbsp;GiB. Still, very few files will<a name="line.27"></a>
+<span class="sourceLineNo">028</span> * require more than about 65&amp;nbsp;MiB because that's how much decompressing<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * a file created with the highest preset level will need, and only a few<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * people use settings other than the predefined presets.<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * &lt;p/&gt;<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * It is possible to specify a memory usage limit for<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * &lt;code&gt;XZInputStream&lt;/code&gt;. If decompression requires more memory than<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * the specified limit, MemoryLimitException will be thrown when reading<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * from the stream. For example, the following sets the memory usage limit<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * to 100&amp;nbsp;MiB:<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * &lt;p&gt;&lt;blockquote&gt;&lt;pre&gt;<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * InputStream infile = new FileInputStream("foo.xz");<a name="line.38"></a>
+<span class="sourceLineNo">039</span> * XZInputStream inxz = new XZInputStream(infile, 100 * 1024);<a name="line.39"></a>
+<span class="sourceLineNo">040</span> * &lt;/pre&gt;&lt;/blockquote&gt;<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * &lt;p/&gt;<a name="line.41"></a>
+<span class="sourceLineNo">042</span> * &lt;h4&gt;When uncompressed size is known beforehand&lt;/h4&gt;<a name="line.42"></a>
+<span class="sourceLineNo">043</span> * &lt;p/&gt;<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * If you are decompressing complete files and your application knows<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * exactly how much uncompressed data there should be, it is good to try<a name="line.45"></a>
+<span class="sourceLineNo">046</span> * reading one more byte by calling &lt;code&gt;read()&lt;/code&gt; and checking<a name="line.46"></a>
+<span class="sourceLineNo">047</span> * that it returns &lt;code&gt;-1&lt;/code&gt;. This way the decompressor will parse the<a name="line.47"></a>
+<span class="sourceLineNo">048</span> * file footers and verify the integrity checks, giving the caller more<a name="line.48"></a>
+<span class="sourceLineNo">049</span> * confidence that the uncompressed data is valid. (This advice seems to<a name="line.49"></a>
+<span class="sourceLineNo">050</span> * apply to &lt;code&gt;java.util.zip.GZIPInputStream&lt;/code&gt; too.)<a name="line.50"></a>
+<span class="sourceLineNo">051</span> *<a name="line.51"></a>
+<span class="sourceLineNo">052</span> * @see SingleXZInputStream<a name="line.52"></a>
+<span class="sourceLineNo">053</span> */<a name="line.53"></a>
+<span class="sourceLineNo">054</span>public class XZInputStream extends InputStream {<a name="line.54"></a>
+<span class="sourceLineNo">055</span>    private final int memoryLimit;<a name="line.55"></a>
+<span class="sourceLineNo">056</span>    private InputStream in;<a name="line.56"></a>
+<span class="sourceLineNo">057</span>    private SingleXZInputStream xzIn;<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    private boolean endReached = false;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>    private IOException exception = null;<a name="line.59"></a>
+<span class="sourceLineNo">060</span><a name="line.60"></a>
+<span class="sourceLineNo">061</span>    /**<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     * Creates a new XZ decompressor without a memory usage limit.<a name="line.62"></a>
+<span class="sourceLineNo">063</span>     * &lt;p/&gt;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>     * This constructor reads and parses the XZ Stream Header (12 bytes)<a name="line.64"></a>
+<span class="sourceLineNo">065</span>     * from &lt;code&gt;in&lt;/code&gt;. The header of the first Block is not read<a name="line.65"></a>
+<span class="sourceLineNo">066</span>     * until &lt;code&gt;read&lt;/code&gt; is called.<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     *<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * @param in input stream from which XZ-compressed<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     *           data is read<a name="line.69"></a>
+<span class="sourceLineNo">070</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * @throws CorruptedInputException     XZ header CRC32 doesn't match<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     * @throws UnsupportedOptionsException XZ header is valid but specifies options<a name="line.72"></a>
+<span class="sourceLineNo">073</span>     *                                     not supported by this implementation<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * @throws java.io.EOFException        less than 12 bytes of input was available<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     *                                     from &lt;code&gt;in&lt;/code&gt;<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     */<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    public XZInputStream(InputStream in) throws IOException {<a name="line.78"></a>
+<span class="sourceLineNo">079</span>        this(in, -1);<a name="line.79"></a>
+<span class="sourceLineNo">080</span>    }<a name="line.80"></a>
+<span class="sourceLineNo">081</span><a name="line.81"></a>
+<span class="sourceLineNo">082</span>    /**<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     * Creates a new XZ decompressor with an optional memory usage limit.<a name="line.83"></a>
+<span class="sourceLineNo">084</span>     * &lt;p/&gt;<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * This is identical to &lt;code&gt;XZInputStream(InputStream)&lt;/code&gt; except<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     * that this takes also the &lt;code&gt;memoryLimit&lt;/code&gt; argument.<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     *<a name="line.87"></a>
+<span class="sourceLineNo">088</span>     * @param in          input stream from which XZ-compressed<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     *                    data is read<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     * @param memoryLimit memory usage limit in kibibytes (KiB)<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     *                    or &lt;code&gt;-1&lt;/code&gt; to impose no<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     *                    memory usage limit<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     * @throws CorruptedInputException     XZ header CRC32 doesn't match<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     * @throws UnsupportedOptionsException XZ header is valid but specifies options<a name="line.95"></a>
+<span class="sourceLineNo">096</span>     *                                     not supported by this implementation<a name="line.96"></a>
+<span class="sourceLineNo">097</span>     * @throws java.io.EOFException        less than 12 bytes of input was available<a name="line.97"></a>
+<span class="sourceLineNo">098</span>     *                                     from &lt;code&gt;in&lt;/code&gt;<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     */<a name="line.100"></a>
+<span class="sourceLineNo">101</span>    public XZInputStream(InputStream in, int memoryLimit) throws IOException {<a name="line.101"></a>
+<span class="sourceLineNo">102</span>        this.in = in;<a name="line.102"></a>
+<span class="sourceLineNo">103</span>        this.memoryLimit = memoryLimit;<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        this.xzIn = new SingleXZInputStream(in, memoryLimit);<a name="line.104"></a>
+<span class="sourceLineNo">105</span>    }<a name="line.105"></a>
+<span class="sourceLineNo">106</span><a name="line.106"></a>
+<span class="sourceLineNo">107</span>    /**<a name="line.107"></a>
+<span class="sourceLineNo">108</span>     * Decompresses the next byte from this input stream.<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * &lt;p/&gt;<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     * Reading lots of data with &lt;code&gt;read()&lt;/code&gt; from this input stream<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     * may be inefficient. Wrap it in {@link java.io.BufferedInputStream}<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     * if you need to read lots of data one byte at a time.<a name="line.112"></a>
+<span class="sourceLineNo">113</span>     *<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * @return the next decompressed byte, or &lt;code&gt;-1&lt;/code&gt;<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     * to indicate the end of the compressed stream<a name="line.115"></a>
+<span class="sourceLineNo">116</span>     * @throws CorruptedInputException<a name="line.116"></a>
+<span class="sourceLineNo">117</span>     * @throws UnsupportedOptionsException<a name="line.117"></a>
+<span class="sourceLineNo">118</span>     * @throws MemoryLimitException<a name="line.118"></a>
+<span class="sourceLineNo">119</span>     * @throws XZIOException               if the stream has been closed<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     * @throws java.io.EOFException        compressed input is truncated or corrupt<a name="line.120"></a>
+<span class="sourceLineNo">121</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.121"></a>
+<span class="sourceLineNo">122</span>     */<a name="line.122"></a>
+<span class="sourceLineNo">123</span>    public int read() throws IOException {<a name="line.123"></a>
+<span class="sourceLineNo">124</span>        byte[] buf = new byte[1];<a name="line.124"></a>
+<span class="sourceLineNo">125</span>        return read(buf, 0, 1) == -1 ? -1 : (buf[0] &amp; 0xFF);<a name="line.125"></a>
+<span class="sourceLineNo">126</span>    }<a name="line.126"></a>
+<span class="sourceLineNo">127</span><a name="line.127"></a>
+<span class="sourceLineNo">128</span>    /**<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     * Decompresses into an array of bytes.<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     * &lt;p/&gt;<a name="line.130"></a>
+<span class="sourceLineNo">131</span>     * If &lt;code&gt;len&lt;/code&gt; is zero, no bytes are read and &lt;code&gt;0&lt;/code&gt;<a name="line.131"></a>
+<span class="sourceLineNo">132</span>     * is returned. Otherwise this will try to decompress &lt;code&gt;len&lt;/code&gt;<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     * bytes of uncompressed data. Less than &lt;code&gt;len&lt;/code&gt; bytes may<a name="line.133"></a>
+<span class="sourceLineNo">134</span>     * be read only in the following situations:<a name="line.134"></a>
+<span class="sourceLineNo">135</span>     * &lt;ul&gt;<a name="line.135"></a>
+<span class="sourceLineNo">136</span>     * &lt;li&gt;The end of the compressed data was reached successfully.&lt;/li&gt;<a name="line.136"></a>
+<span class="sourceLineNo">137</span>     * &lt;li&gt;An error is detected after at least one but less &lt;code&gt;len&lt;/code&gt;<a name="line.137"></a>
+<span class="sourceLineNo">138</span>     * bytes have already been successfully decompressed.<a name="line.138"></a>
+<span class="sourceLineNo">139</span>     * The next call with non-zero &lt;code&gt;len&lt;/code&gt; will immediately<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * throw the pending exception.&lt;/li&gt;<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     * &lt;li&gt;An exception is thrown.&lt;/li&gt;<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     * &lt;/ul&gt;<a name="line.142"></a>
+<span class="sourceLineNo">143</span>     *<a name="line.143"></a>
+<span class="sourceLineNo">144</span>     * @param buf target buffer for uncompressed data<a name="line.144"></a>
+<span class="sourceLineNo">145</span>     * @param off start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.145"></a>
+<span class="sourceLineNo">146</span>     * @param len maximum number of uncompressed bytes to read<a name="line.146"></a>
+<span class="sourceLineNo">147</span>     * @return number of bytes read, or &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.147"></a>
+<span class="sourceLineNo">148</span>     * the end of the compressed stream<a name="line.148"></a>
+<span class="sourceLineNo">149</span>     * @throws CorruptedInputException<a name="line.149"></a>
+<span class="sourceLineNo">150</span>     * @throws UnsupportedOptionsException<a name="line.150"></a>
+<span class="sourceLineNo">151</span>     * @throws MemoryLimitException<a name="line.151"></a>
+<span class="sourceLineNo">152</span>     * @throws XZIOException               if the stream has been closed<a name="line.152"></a>
+<span class="sourceLineNo">153</span>     * @throws java.io.EOFException        compressed input is truncated or corrupt<a name="line.153"></a>
+<span class="sourceLineNo">154</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.154"></a>
+<span class="sourceLineNo">155</span>     */<a name="line.155"></a>
+<span class="sourceLineNo">156</span>    public int read(byte[] buf, int off, int len) throws IOException {<a name="line.156"></a>
+<span class="sourceLineNo">157</span>        if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length) {<a name="line.157"></a>
+<span class="sourceLineNo">158</span>            throw new IndexOutOfBoundsException();<a name="line.158"></a>
+<span class="sourceLineNo">159</span>        }<a name="line.159"></a>
+<span class="sourceLineNo">160</span><a name="line.160"></a>
+<span class="sourceLineNo">161</span>        if (len == 0) {<a name="line.161"></a>
+<span class="sourceLineNo">162</span>            return 0;<a name="line.162"></a>
+<span class="sourceLineNo">163</span>        }<a name="line.163"></a>
+<span class="sourceLineNo">164</span><a name="line.164"></a>
+<span class="sourceLineNo">165</span>        if (in == null) {<a name="line.165"></a>
+<span class="sourceLineNo">166</span>            throw new XZIOException("Stream closed");<a name="line.166"></a>
+<span class="sourceLineNo">167</span>        }<a name="line.167"></a>
+<span class="sourceLineNo">168</span><a name="line.168"></a>
+<span class="sourceLineNo">169</span>        if (exception != null) {<a name="line.169"></a>
+<span class="sourceLineNo">170</span>            throw exception;<a name="line.170"></a>
+<span class="sourceLineNo">171</span>        }<a name="line.171"></a>
+<span class="sourceLineNo">172</span><a name="line.172"></a>
+<span class="sourceLineNo">173</span>        if (endReached) {<a name="line.173"></a>
+<span class="sourceLineNo">174</span>            return -1;<a name="line.174"></a>
+<span class="sourceLineNo">175</span>        }<a name="line.175"></a>
+<span class="sourceLineNo">176</span><a name="line.176"></a>
+<span class="sourceLineNo">177</span>        int size = 0;<a name="line.177"></a>
+<span class="sourceLineNo">178</span><a name="line.178"></a>
+<span class="sourceLineNo">179</span>        try {<a name="line.179"></a>
+<span class="sourceLineNo">180</span>            while (len &gt; 0) {<a name="line.180"></a>
+<span class="sourceLineNo">181</span>                if (xzIn == null) {<a name="line.181"></a>
+<span class="sourceLineNo">182</span>                    prepareNextStream();<a name="line.182"></a>
+<span class="sourceLineNo">183</span>                    if (endReached) {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>                        return size == 0 ? -1 : size;<a name="line.184"></a>
+<span class="sourceLineNo">185</span>                    }<a name="line.185"></a>
+<span class="sourceLineNo">186</span>                }<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>                int ret = xzIn.read(buf, off, len);<a name="line.188"></a>
+<span class="sourceLineNo">189</span><a name="line.189"></a>
+<span class="sourceLineNo">190</span>                if (ret &gt; 0) {<a name="line.190"></a>
+<span class="sourceLineNo">191</span>                    size += ret;<a name="line.191"></a>
+<span class="sourceLineNo">192</span>                    off += ret;<a name="line.192"></a>
+<span class="sourceLineNo">193</span>                    len -= ret;<a name="line.193"></a>
+<span class="sourceLineNo">194</span>                } else if (ret == -1) {<a name="line.194"></a>
+<span class="sourceLineNo">195</span>                    xzIn = null;<a name="line.195"></a>
+<span class="sourceLineNo">196</span>                }<a name="line.196"></a>
+<span class="sourceLineNo">197</span>            }<a name="line.197"></a>
+<span class="sourceLineNo">198</span>        } catch (IOException e) {<a name="line.198"></a>
+<span class="sourceLineNo">199</span>            exception = e;<a name="line.199"></a>
+<span class="sourceLineNo">200</span>            if (size == 0) {<a name="line.200"></a>
+<span class="sourceLineNo">201</span>                throw e;<a name="line.201"></a>
+<span class="sourceLineNo">202</span>            }<a name="line.202"></a>
+<span class="sourceLineNo">203</span>        }<a name="line.203"></a>
+<span class="sourceLineNo">204</span><a name="line.204"></a>
+<span class="sourceLineNo">205</span>        return size;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    }<a name="line.206"></a>
+<span class="sourceLineNo">207</span><a name="line.207"></a>
+<span class="sourceLineNo">208</span>    private void prepareNextStream() throws IOException {<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        DataInputStream inData = new DataInputStream(in);<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        byte[] buf = new byte[DecoderUtil.STREAM_HEADER_SIZE];<a name="line.210"></a>
+<span class="sourceLineNo">211</span><a name="line.211"></a>
+<span class="sourceLineNo">212</span>        // The size of Stream Padding must be a multiple of four bytes,<a name="line.212"></a>
+<span class="sourceLineNo">213</span>        // all bytes zero.<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        do {<a name="line.214"></a>
+<span class="sourceLineNo">215</span>            // First try to read one byte to see if we have reached the end<a name="line.215"></a>
+<span class="sourceLineNo">216</span>            // of the file.<a name="line.216"></a>
+<span class="sourceLineNo">217</span>            int ret = inData.read(buf, 0, 1);<a name="line.217"></a>
+<span class="sourceLineNo">218</span>            if (ret == -1) {<a name="line.218"></a>
+<span class="sourceLineNo">219</span>                endReached = true;<a name="line.219"></a>
+<span class="sourceLineNo">220</span>                return;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>            }<a name="line.221"></a>
+<span class="sourceLineNo">222</span><a name="line.222"></a>
+<span class="sourceLineNo">223</span>            // Since we got one byte of input, there must be at least<a name="line.223"></a>
+<span class="sourceLineNo">224</span>            // three more available in a valid file.<a name="line.224"></a>
+<span class="sourceLineNo">225</span>            inData.readFully(buf, 1, 3);<a name="line.225"></a>
+<span class="sourceLineNo">226</span><a name="line.226"></a>
+<span class="sourceLineNo">227</span>        } while (buf[0] == 0 &amp;&amp; buf[1] == 0 &amp;&amp; buf[2] == 0 &amp;&amp; buf[3] == 0);<a name="line.227"></a>
+<span class="sourceLineNo">228</span><a name="line.228"></a>
+<span class="sourceLineNo">229</span>        // Not all bytes are zero. In a valid Stream it indicates the<a name="line.229"></a>
+<span class="sourceLineNo">230</span>        // beginning of the next Stream. Read the rest of the Stream Header<a name="line.230"></a>
+<span class="sourceLineNo">231</span>        // and initialize the XZ decoder.<a name="line.231"></a>
+<span class="sourceLineNo">232</span>        inData.readFully(buf, 4, DecoderUtil.STREAM_HEADER_SIZE - 4);<a name="line.232"></a>
+<span class="sourceLineNo">233</span><a name="line.233"></a>
+<span class="sourceLineNo">234</span>        try {<a name="line.234"></a>
+<span class="sourceLineNo">235</span>            xzIn = new SingleXZInputStream(in, memoryLimit, buf);<a name="line.235"></a>
+<span class="sourceLineNo">236</span>        } catch (XZFormatException e) {<a name="line.236"></a>
+<span class="sourceLineNo">237</span>            // Since this isn't the first .xz Stream, it is more<a name="line.237"></a>
+<span class="sourceLineNo">238</span>            // logical to tell that the data is corrupt.<a name="line.238"></a>
+<span class="sourceLineNo">239</span>            throw new CorruptedInputException(<a name="line.239"></a>
+<span class="sourceLineNo">240</span>                    "Garbage after a valid XZ Stream");<a name="line.240"></a>
+<span class="sourceLineNo">241</span>        }<a name="line.241"></a>
+<span class="sourceLineNo">242</span>    }<a name="line.242"></a>
+<span class="sourceLineNo">243</span><a name="line.243"></a>
+<span class="sourceLineNo">244</span>    /**<a name="line.244"></a>
+<span class="sourceLineNo">245</span>     * Returns the number of uncompressed bytes that can be read<a name="line.245"></a>
+<span class="sourceLineNo">246</span>     * without blocking. The value is returned with an assumption<a name="line.246"></a>
+<span class="sourceLineNo">247</span>     * that the compressed input data will be valid. If the compressed<a name="line.247"></a>
+<span class="sourceLineNo">248</span>     * data is corrupt, &lt;code&gt;CorruptedInputException&lt;/code&gt; may get<a name="line.248"></a>
+<span class="sourceLineNo">249</span>     * thrown before the number of bytes claimed to be available have<a name="line.249"></a>
+<span class="sourceLineNo">250</span>     * been read from this input stream.<a name="line.250"></a>
+<span class="sourceLineNo">251</span>     *<a name="line.251"></a>
+<span class="sourceLineNo">252</span>     * @return the number of uncompressed bytes that can be read<a name="line.252"></a>
+<span class="sourceLineNo">253</span>     * without blocking<a name="line.253"></a>
+<span class="sourceLineNo">254</span>     */<a name="line.254"></a>
+<span class="sourceLineNo">255</span>    public int available() throws IOException {<a name="line.255"></a>
+<span class="sourceLineNo">256</span>        if (in == null) {<a name="line.256"></a>
+<span class="sourceLineNo">257</span>            throw new XZIOException("Stream closed");<a name="line.257"></a>
+<span class="sourceLineNo">258</span>        }<a name="line.258"></a>
+<span class="sourceLineNo">259</span><a name="line.259"></a>
+<span class="sourceLineNo">260</span>        if (exception != null) {<a name="line.260"></a>
+<span class="sourceLineNo">261</span>            throw exception;<a name="line.261"></a>
+<span class="sourceLineNo">262</span>        }<a name="line.262"></a>
+<span class="sourceLineNo">263</span><a name="line.263"></a>
+<span class="sourceLineNo">264</span>        return xzIn == null ? 0 : xzIn.available();<a name="line.264"></a>
+<span class="sourceLineNo">265</span>    }<a name="line.265"></a>
+<span class="sourceLineNo">266</span><a name="line.266"></a>
+<span class="sourceLineNo">267</span>    /**<a name="line.267"></a>
+<span class="sourceLineNo">268</span>     * Closes the stream and calls &lt;code&gt;in.close()&lt;/code&gt;.<a name="line.268"></a>
+<span class="sourceLineNo">269</span>     * If the stream was already closed, this does nothing.<a name="line.269"></a>
+<span class="sourceLineNo">270</span>     *<a name="line.270"></a>
+<span class="sourceLineNo">271</span>     * @throws java.io.IOException if thrown by &lt;code&gt;in.close()&lt;/code&gt;<a name="line.271"></a>
+<span class="sourceLineNo">272</span>     */<a name="line.272"></a>
+<span class="sourceLineNo">273</span>    public void close() throws IOException {<a name="line.273"></a>
+<span class="sourceLineNo">274</span>        if (in != null) {<a name="line.274"></a>
+<span class="sourceLineNo">275</span>            try {<a name="line.275"></a>
+<span class="sourceLineNo">276</span>                in.close();<a name="line.276"></a>
+<span class="sourceLineNo">277</span>            } finally {<a name="line.277"></a>
+<span class="sourceLineNo">278</span>                in = null;<a name="line.278"></a>
+<span class="sourceLineNo">279</span>            }<a name="line.279"></a>
+<span class="sourceLineNo">280</span>        }<a name="line.280"></a>
+<span class="sourceLineNo">281</span>    }<a name="line.281"></a>
+<span class="sourceLineNo">282</span>}<a name="line.282"></a>
 
 
 
@@ -343,6 +348,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

@@ -1,86 +1,91 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.lzf;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import java.io.IOException;<a name="line.4"></a>
-<FONT color="green">005</FONT>    <a name="line.5"></a>
-<FONT color="green">006</FONT>    /**<a name="line.6"></a>
-<FONT color="green">007</FONT>     * Encoder that handles splitting of input into chunks to encode, calls<a name="line.7"></a>
-<FONT color="green">008</FONT>     * {@link ChunkEncoder} to compress individual chunks and combines resulting<a name="line.8"></a>
-<FONT color="green">009</FONT>     * chunks into contiguous output byte array.<a name="line.9"></a>
-<FONT color="green">010</FONT>     */<a name="line.10"></a>
-<FONT color="green">011</FONT>    public class LZFEncoder {<a name="line.11"></a>
-<FONT color="green">012</FONT>        // Static methods only, no point in instantiating<a name="line.12"></a>
-<FONT color="green">013</FONT>    <a name="line.13"></a>
-<FONT color="green">014</FONT>        private LZFEncoder() {<a name="line.14"></a>
-<FONT color="green">015</FONT>        }<a name="line.15"></a>
-<FONT color="green">016</FONT>    <a name="line.16"></a>
-<FONT color="green">017</FONT>        public static byte[] encode(byte[] data) throws IOException {<a name="line.17"></a>
-<FONT color="green">018</FONT>            return encode(data, data.length);<a name="line.18"></a>
-<FONT color="green">019</FONT>        }<a name="line.19"></a>
-<FONT color="green">020</FONT>    <a name="line.20"></a>
-<FONT color="green">021</FONT>        /**<a name="line.21"></a>
-<FONT color="green">022</FONT>         * Method for compressing given input data using LZF encoding and block<a name="line.22"></a>
-<FONT color="green">023</FONT>         * structure (compatible with lzf command line utility). Result consists of<a name="line.23"></a>
-<FONT color="green">024</FONT>         * a sequence of chunks.<a name="line.24"></a>
-<FONT color="green">025</FONT>         */<a name="line.25"></a>
-<FONT color="green">026</FONT>        public static byte[] encode(byte[] data, int length) throws IOException {<a name="line.26"></a>
-<FONT color="green">027</FONT>            return encode(data, 0, length);<a name="line.27"></a>
-<FONT color="green">028</FONT>        }<a name="line.28"></a>
-<FONT color="green">029</FONT>    <a name="line.29"></a>
-<FONT color="green">030</FONT>        /**<a name="line.30"></a>
-<FONT color="green">031</FONT>         * Method for compressing given input data using LZF encoding and block<a name="line.31"></a>
-<FONT color="green">032</FONT>         * structure (compatible with lzf command line utility). Result consists of<a name="line.32"></a>
-<FONT color="green">033</FONT>         * a sequence of chunks.<a name="line.33"></a>
-<FONT color="green">034</FONT>         */<a name="line.34"></a>
-<FONT color="green">035</FONT>        public static byte[] encode(byte[] data, int offset, int length) throws IOException {<a name="line.35"></a>
-<FONT color="green">036</FONT>            ChunkEncoder enc = new ChunkEncoder(length);<a name="line.36"></a>
-<FONT color="green">037</FONT>            byte[] result = encode(enc, data, offset, length);<a name="line.37"></a>
-<FONT color="green">038</FONT>            // important: may be able to reuse buffers<a name="line.38"></a>
-<FONT color="green">039</FONT>            enc.close();<a name="line.39"></a>
-<FONT color="green">040</FONT>            return result;<a name="line.40"></a>
-<FONT color="green">041</FONT>        }<a name="line.41"></a>
-<FONT color="green">042</FONT>    <a name="line.42"></a>
-<FONT color="green">043</FONT>        public static byte[] encode(ChunkEncoder enc, byte[] data, int length)<a name="line.43"></a>
-<FONT color="green">044</FONT>                throws IOException {<a name="line.44"></a>
-<FONT color="green">045</FONT>            return encode(enc, data, 0, length);<a name="line.45"></a>
-<FONT color="green">046</FONT>        }<a name="line.46"></a>
-<FONT color="green">047</FONT>    <a name="line.47"></a>
-<FONT color="green">048</FONT>        public static byte[] encode(ChunkEncoder enc, byte[] data, int offset, int length)<a name="line.48"></a>
-<FONT color="green">049</FONT>                throws IOException {<a name="line.49"></a>
-<FONT color="green">050</FONT>            int left = length;<a name="line.50"></a>
-<FONT color="green">051</FONT>            int chunkLen = Math.min(LZFChunk.MAX_CHUNK_LEN, left);<a name="line.51"></a>
-<FONT color="green">052</FONT>            LZFChunk first = enc.encodeChunk(data, offset, chunkLen);<a name="line.52"></a>
-<FONT color="green">053</FONT>            left -= chunkLen;<a name="line.53"></a>
-<FONT color="green">054</FONT>            // shortcut: if it all fit in, no need to coalesce:<a name="line.54"></a>
-<FONT color="green">055</FONT>            if (left &lt; 1) {<a name="line.55"></a>
-<FONT color="green">056</FONT>                return first.getData();<a name="line.56"></a>
-<FONT color="green">057</FONT>            }<a name="line.57"></a>
-<FONT color="green">058</FONT>            // otherwise need to get other chunks:<a name="line.58"></a>
-<FONT color="green">059</FONT>            int resultBytes = first.length();<a name="line.59"></a>
-<FONT color="green">060</FONT>            offset += chunkLen;<a name="line.60"></a>
-<FONT color="green">061</FONT>            LZFChunk last = first;<a name="line.61"></a>
-<FONT color="green">062</FONT>    <a name="line.62"></a>
-<FONT color="green">063</FONT>            do {<a name="line.63"></a>
-<FONT color="green">064</FONT>                chunkLen = Math.min(left, LZFChunk.MAX_CHUNK_LEN);<a name="line.64"></a>
-<FONT color="green">065</FONT>                LZFChunk chunk = enc.encodeChunk(data, offset, chunkLen);<a name="line.65"></a>
-<FONT color="green">066</FONT>                offset += chunkLen;<a name="line.66"></a>
-<FONT color="green">067</FONT>                left -= chunkLen;<a name="line.67"></a>
-<FONT color="green">068</FONT>                resultBytes += chunk.length();<a name="line.68"></a>
-<FONT color="green">069</FONT>                last.setNext(chunk);<a name="line.69"></a>
-<FONT color="green">070</FONT>                last = chunk;<a name="line.70"></a>
-<FONT color="green">071</FONT>            } while (left &gt; 0);<a name="line.71"></a>
-<FONT color="green">072</FONT>            // and then coalesce returns into single contiguous byte array<a name="line.72"></a>
-<FONT color="green">073</FONT>            byte[] result = new byte[resultBytes];<a name="line.73"></a>
-<FONT color="green">074</FONT>            int ptr = 0;<a name="line.74"></a>
-<FONT color="green">075</FONT>            for (; first != null; first = first.next()) {<a name="line.75"></a>
-<FONT color="green">076</FONT>                ptr = first.copyTo(result, ptr);<a name="line.76"></a>
-<FONT color="green">077</FONT>            }<a name="line.77"></a>
-<FONT color="green">078</FONT>            return result;<a name="line.78"></a>
-<FONT color="green">079</FONT>        }<a name="line.79"></a>
-<FONT color="green">080</FONT>    }<a name="line.80"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.lzf;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.io.IOException;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>/**<a name="line.6"></a>
+<span class="sourceLineNo">007</span> * Encoder that handles splitting of input into chunks to encode, calls<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * {@link ChunkEncoder} to compress individual chunks and combines resulting<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * chunks into contiguous output byte array.<a name="line.9"></a>
+<span class="sourceLineNo">010</span> */<a name="line.10"></a>
+<span class="sourceLineNo">011</span>public class LZFEncoder {<a name="line.11"></a>
+<span class="sourceLineNo">012</span>    // Static methods only, no point in instantiating<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>    private LZFEncoder() {<a name="line.14"></a>
+<span class="sourceLineNo">015</span>    }<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>    public static byte[] encode(byte[] data) throws IOException {<a name="line.17"></a>
+<span class="sourceLineNo">018</span>        return encode(data, data.length);<a name="line.18"></a>
+<span class="sourceLineNo">019</span>    }<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>    /**<a name="line.21"></a>
+<span class="sourceLineNo">022</span>     * Method for compressing given input data using LZF encoding and block<a name="line.22"></a>
+<span class="sourceLineNo">023</span>     * structure (compatible with lzf command line utility). Result consists of<a name="line.23"></a>
+<span class="sourceLineNo">024</span>     * a sequence of chunks.<a name="line.24"></a>
+<span class="sourceLineNo">025</span>     */<a name="line.25"></a>
+<span class="sourceLineNo">026</span>    public static byte[] encode(byte[] data, int length) throws IOException {<a name="line.26"></a>
+<span class="sourceLineNo">027</span>        return encode(data, 0, length);<a name="line.27"></a>
+<span class="sourceLineNo">028</span>    }<a name="line.28"></a>
+<span class="sourceLineNo">029</span><a name="line.29"></a>
+<span class="sourceLineNo">030</span>    /**<a name="line.30"></a>
+<span class="sourceLineNo">031</span>     * Method for compressing given input data using LZF encoding and block<a name="line.31"></a>
+<span class="sourceLineNo">032</span>     * structure (compatible with lzf command line utility). Result consists of<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     * a sequence of chunks.<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     */<a name="line.34"></a>
+<span class="sourceLineNo">035</span>    public static byte[] encode(byte[] data, int offset, int length) throws IOException {<a name="line.35"></a>
+<span class="sourceLineNo">036</span>        ChunkEncoder enc = new ChunkEncoder(length);<a name="line.36"></a>
+<span class="sourceLineNo">037</span>        byte[] result = encode(enc, data, offset, length);<a name="line.37"></a>
+<span class="sourceLineNo">038</span>        // important: may be able to reuse buffers<a name="line.38"></a>
+<span class="sourceLineNo">039</span>        enc.close();<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        return result;<a name="line.40"></a>
+<span class="sourceLineNo">041</span>    }<a name="line.41"></a>
+<span class="sourceLineNo">042</span><a name="line.42"></a>
+<span class="sourceLineNo">043</span>    public static byte[] encode(ChunkEncoder enc, byte[] data, int length)<a name="line.43"></a>
+<span class="sourceLineNo">044</span>            throws IOException {<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        return encode(enc, data, 0, length);<a name="line.45"></a>
+<span class="sourceLineNo">046</span>    }<a name="line.46"></a>
+<span class="sourceLineNo">047</span><a name="line.47"></a>
+<span class="sourceLineNo">048</span>    public static byte[] encode(ChunkEncoder enc, byte[] data, int offset, int length)<a name="line.48"></a>
+<span class="sourceLineNo">049</span>            throws IOException {<a name="line.49"></a>
+<span class="sourceLineNo">050</span>        int left = length;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        int chunkLen = Math.min(LZFChunk.MAX_CHUNK_LEN, left);<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        LZFChunk first = enc.encodeChunk(data, offset, chunkLen);<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        left -= chunkLen;<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        // shortcut: if it all fit in, no need to coalesce:<a name="line.54"></a>
+<span class="sourceLineNo">055</span>        if (left &lt; 1) {<a name="line.55"></a>
+<span class="sourceLineNo">056</span>            return first.getData();<a name="line.56"></a>
+<span class="sourceLineNo">057</span>        }<a name="line.57"></a>
+<span class="sourceLineNo">058</span>        // otherwise need to get other chunks:<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        int resultBytes = first.length();<a name="line.59"></a>
+<span class="sourceLineNo">060</span>        offset += chunkLen;<a name="line.60"></a>
+<span class="sourceLineNo">061</span>        LZFChunk last = first;<a name="line.61"></a>
+<span class="sourceLineNo">062</span><a name="line.62"></a>
+<span class="sourceLineNo">063</span>        do {<a name="line.63"></a>
+<span class="sourceLineNo">064</span>            chunkLen = Math.min(left, LZFChunk.MAX_CHUNK_LEN);<a name="line.64"></a>
+<span class="sourceLineNo">065</span>            LZFChunk chunk = enc.encodeChunk(data, offset, chunkLen);<a name="line.65"></a>
+<span class="sourceLineNo">066</span>            offset += chunkLen;<a name="line.66"></a>
+<span class="sourceLineNo">067</span>            left -= chunkLen;<a name="line.67"></a>
+<span class="sourceLineNo">068</span>            resultBytes += chunk.length();<a name="line.68"></a>
+<span class="sourceLineNo">069</span>            last.setNext(chunk);<a name="line.69"></a>
+<span class="sourceLineNo">070</span>            last = chunk;<a name="line.70"></a>
+<span class="sourceLineNo">071</span>        } while (left &gt; 0);<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        // and then coalesce returns into single contiguous byte array<a name="line.72"></a>
+<span class="sourceLineNo">073</span>        byte[] result = new byte[resultBytes];<a name="line.73"></a>
+<span class="sourceLineNo">074</span>        int ptr = 0;<a name="line.74"></a>
+<span class="sourceLineNo">075</span>        for (; first != null; first = first.next()) {<a name="line.75"></a>
+<span class="sourceLineNo">076</span>            ptr = first.copyTo(result, ptr);<a name="line.76"></a>
+<span class="sourceLineNo">077</span>        }<a name="line.77"></a>
+<span class="sourceLineNo">078</span>        return result;<a name="line.78"></a>
+<span class="sourceLineNo">079</span>    }<a name="line.79"></a>
+<span class="sourceLineNo">080</span>}<a name="line.80"></a>
 
 
 
@@ -141,6 +146,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

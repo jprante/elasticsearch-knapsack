@@ -1,1036 +1,1041 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.archivers.tar;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import org.xbib.io.archivers.ArchiveUtils;<a name="line.5"></a>
-<FONT color="green">006</FONT>    import org.xbib.io.archivers.zip.ZipEncoding;<a name="line.6"></a>
-<FONT color="green">007</FONT>    <a name="line.7"></a>
-<FONT color="green">008</FONT>    import java.io.File;<a name="line.8"></a>
-<FONT color="green">009</FONT>    import java.io.IOException;<a name="line.9"></a>
-<FONT color="green">010</FONT>    import java.util.Date;<a name="line.10"></a>
-<FONT color="green">011</FONT>    import java.util.Locale;<a name="line.11"></a>
-<FONT color="green">012</FONT>    <a name="line.12"></a>
-<FONT color="green">013</FONT>    /**<a name="line.13"></a>
-<FONT color="green">014</FONT>     * This class represents an entry in a Tar archive. It consists<a name="line.14"></a>
-<FONT color="green">015</FONT>     * of the entry's header, as well as the entry's File. Entries<a name="line.15"></a>
-<FONT color="green">016</FONT>     * can be instantiated in one of three ways, depending on how<a name="line.16"></a>
-<FONT color="green">017</FONT>     * they are to be used.<a name="line.17"></a>
-<FONT color="green">018</FONT>     * &lt;p/&gt;<a name="line.18"></a>
-<FONT color="green">019</FONT>     * TarEntries that are created from the header bytes read from<a name="line.19"></a>
-<FONT color="green">020</FONT>     * an archive are instantiated with the TarEntry( byte[] )<a name="line.20"></a>
-<FONT color="green">021</FONT>     * constructor. These entries will be used when extracting from<a name="line.21"></a>
-<FONT color="green">022</FONT>     * or listing the contents of an archive. These entries have their<a name="line.22"></a>
-<FONT color="green">023</FONT>     * header filled in using the header bytes. They also set the File<a name="line.23"></a>
-<FONT color="green">024</FONT>     * to null, since they reference an archive entry not a file.<a name="line.24"></a>
-<FONT color="green">025</FONT>     * &lt;p/&gt;<a name="line.25"></a>
-<FONT color="green">026</FONT>     * TarEntries that are created from Files that are to be written<a name="line.26"></a>
-<FONT color="green">027</FONT>     * into an archive are instantiated with the TarEntry( File )<a name="line.27"></a>
-<FONT color="green">028</FONT>     * constructor. These entries have their header filled in using<a name="line.28"></a>
-<FONT color="green">029</FONT>     * the File's information. They also keep a reference to the File<a name="line.29"></a>
-<FONT color="green">030</FONT>     * for convenience when writing entries.<a name="line.30"></a>
-<FONT color="green">031</FONT>     * &lt;p/&gt;<a name="line.31"></a>
-<FONT color="green">032</FONT>     * Finally, TarEntries can be constructed from nothing but a name.<a name="line.32"></a>
-<FONT color="green">033</FONT>     * This allows the programmer to construct the entry by hand, for<a name="line.33"></a>
-<FONT color="green">034</FONT>     * instance when only an InputStream is available for writing to<a name="line.34"></a>
-<FONT color="green">035</FONT>     * the archive, and the header information is constructed from<a name="line.35"></a>
-<FONT color="green">036</FONT>     * other information. In this case the header fields are set to<a name="line.36"></a>
-<FONT color="green">037</FONT>     * defaults and the File is set to null.<a name="line.37"></a>
-<FONT color="green">038</FONT>     * &lt;p/&gt;<a name="line.38"></a>
-<FONT color="green">039</FONT>     * &lt;p/&gt;<a name="line.39"></a>
-<FONT color="green">040</FONT>     * The C structure for a Tar Entry's header is:<a name="line.40"></a>
-<FONT color="green">041</FONT>     * &lt;pre&gt;<a name="line.41"></a>
-<FONT color="green">042</FONT>     * struct header {<a name="line.42"></a>
-<FONT color="green">043</FONT>     * char name[100];     // TarConstants.NAMELEN    - offset   0<a name="line.43"></a>
-<FONT color="green">044</FONT>     * char mode[8];       // TarConstants.MODELEN    - offset 100<a name="line.44"></a>
-<FONT color="green">045</FONT>     * char uid[8];        // TarConstants.UIDLEN     - offset 108<a name="line.45"></a>
-<FONT color="green">046</FONT>     * char gid[8];        // TarConstants.GIDLEN     - offset 116<a name="line.46"></a>
-<FONT color="green">047</FONT>     * char size[12];      // TarConstants.SIZELEN    - offset 124<a name="line.47"></a>
-<FONT color="green">048</FONT>     * char mtime[12];     // TarConstants.MODTIMELEN - offset 136<a name="line.48"></a>
-<FONT color="green">049</FONT>     * char chksum[8];     // TarConstants.CHKSUMLEN  - offset 148<a name="line.49"></a>
-<FONT color="green">050</FONT>     * char linkflag[1];   //                         - offset 156<a name="line.50"></a>
-<FONT color="green">051</FONT>     * char linkname[100]; // TarConstants.NAMELEN    - offset 157<a name="line.51"></a>
-<FONT color="green">052</FONT>     * The following fields are only present in new-style POSIX tar archives:<a name="line.52"></a>
-<FONT color="green">053</FONT>     * char magic[6];      // TarConstants.MAGICLEN   - offset 257<a name="line.53"></a>
-<FONT color="green">054</FONT>     * char version[2];    // TarConstants.VERSIONLEN - offset 263<a name="line.54"></a>
-<FONT color="green">055</FONT>     * char uname[32];     // TarConstants.UNAMELEN   - offset 265<a name="line.55"></a>
-<FONT color="green">056</FONT>     * char gname[32];     // TarConstants.GNAMELEN   - offset 297<a name="line.56"></a>
-<FONT color="green">057</FONT>     * char devmajor[8];   // TarConstants.DEVLEN     - offset 329<a name="line.57"></a>
-<FONT color="green">058</FONT>     * char devminor[8];   // TarConstants.DEVLEN     - offset 337<a name="line.58"></a>
-<FONT color="green">059</FONT>     * char prefix[155];   // TarConstants.PREFIXLEN  - offset 345<a name="line.59"></a>
-<FONT color="green">060</FONT>     * // Used if "name" field is not long enough to hold the path<a name="line.60"></a>
-<FONT color="green">061</FONT>     * char pad[12];       // NULs                    - offset 500<a name="line.61"></a>
-<FONT color="green">062</FONT>     * } header;<a name="line.62"></a>
-<FONT color="green">063</FONT>     * All unused bytes are set to null.<a name="line.63"></a>
-<FONT color="green">064</FONT>     * New-style GNU tar files are slightly different from the above.<a name="line.64"></a>
-<FONT color="green">065</FONT>     * For values of size larger than 077777777777L (11 7s)<a name="line.65"></a>
-<FONT color="green">066</FONT>     * or uid and gid larger than 07777777L (7 7s)<a name="line.66"></a>
-<FONT color="green">067</FONT>     * the sign bit of the first byte is set, and the rest of the<a name="line.67"></a>
-<FONT color="green">068</FONT>     * field is the binary representation of the number.<a name="line.68"></a>
-<FONT color="green">069</FONT>     * See TarUtils.parseOctalOrBinary.<a name="line.69"></a>
-<FONT color="green">070</FONT>     * &lt;/pre&gt;<a name="line.70"></a>
-<FONT color="green">071</FONT>     * &lt;p/&gt;<a name="line.71"></a>
-<FONT color="green">072</FONT>     * &lt;p/&gt;<a name="line.72"></a>
-<FONT color="green">073</FONT>     * The C structure for a old GNU Tar Entry's header is:<a name="line.73"></a>
-<FONT color="green">074</FONT>     * &lt;pre&gt;<a name="line.74"></a>
-<FONT color="green">075</FONT>     * struct oldgnu_header {<a name="line.75"></a>
-<FONT color="green">076</FONT>     * char unused_pad1[345]; // TarConstants.PAD1LEN_GNU       - offset 0<a name="line.76"></a>
-<FONT color="green">077</FONT>     * char atime[12];        // TarConstants.ATIMELEN_GNU      - offset 345<a name="line.77"></a>
-<FONT color="green">078</FONT>     * char ctime[12];        // TarConstants.CTIMELEN_GNU      - offset 357<a name="line.78"></a>
-<FONT color="green">079</FONT>     * char offset[12];       // TarConstants.OFFSETLEN_GNU     - offset 369<a name="line.79"></a>
-<FONT color="green">080</FONT>     * char longnames[4];     // TarConstants.LONGNAMESLEN_GNU  - offset 381<a name="line.80"></a>
-<FONT color="green">081</FONT>     * char unused_pad2;      // TarConstants.PAD2LEN_GNU       - offset 385<a name="line.81"></a>
-<FONT color="green">082</FONT>     * struct sparse sp[4];   // TarConstants.SPARSELEN_GNU     - offset 386<a name="line.82"></a>
-<FONT color="green">083</FONT>     * char isextended;       // TarConstants.ISEXTENDEDLEN_GNU - offset 482<a name="line.83"></a>
-<FONT color="green">084</FONT>     * char realsize[12];     // TarConstants.REALSIZELEN_GNU   - offset 483<a name="line.84"></a>
-<FONT color="green">085</FONT>     * char unused_pad[17];   // TarConstants.PAD3LEN_GNU       - offset 495<a name="line.85"></a>
-<FONT color="green">086</FONT>     * };<a name="line.86"></a>
-<FONT color="green">087</FONT>     * &lt;/pre&gt;<a name="line.87"></a>
-<FONT color="green">088</FONT>     * Whereas, "struct sparse" is:<a name="line.88"></a>
-<FONT color="green">089</FONT>     * &lt;pre&gt;<a name="line.89"></a>
-<FONT color="green">090</FONT>     * struct sparse {<a name="line.90"></a>
-<FONT color="green">091</FONT>     * char offset[12];   // offset 0<a name="line.91"></a>
-<FONT color="green">092</FONT>     * char numbytes[12]; // offset 12<a name="line.92"></a>
-<FONT color="green">093</FONT>     * };<a name="line.93"></a>
-<FONT color="green">094</FONT>     * &lt;/pre&gt;<a name="line.94"></a>
-<FONT color="green">095</FONT>     */<a name="line.95"></a>
-<FONT color="green">096</FONT>    <a name="line.96"></a>
-<FONT color="green">097</FONT>    public class TarArchiveEntry implements TarConstants, ArchiveEntry {<a name="line.97"></a>
-<FONT color="green">098</FONT>    <a name="line.98"></a>
-<FONT color="green">099</FONT>        /**<a name="line.99"></a>
-<FONT color="green">100</FONT>         * Maximum length of a user's name in the tar file<a name="line.100"></a>
-<FONT color="green">101</FONT>         */<a name="line.101"></a>
-<FONT color="green">102</FONT>        public static final int MAX_NAMELEN = 31;<a name="line.102"></a>
-<FONT color="green">103</FONT>    <a name="line.103"></a>
-<FONT color="green">104</FONT>        /**<a name="line.104"></a>
-<FONT color="green">105</FONT>         * Default permissions bits for directories<a name="line.105"></a>
-<FONT color="green">106</FONT>         */<a name="line.106"></a>
-<FONT color="green">107</FONT>        public static final int DEFAULT_DIR_MODE = 040755;<a name="line.107"></a>
-<FONT color="green">108</FONT>    <a name="line.108"></a>
-<FONT color="green">109</FONT>        /**<a name="line.109"></a>
-<FONT color="green">110</FONT>         * Default permissions bits for files<a name="line.110"></a>
-<FONT color="green">111</FONT>         */<a name="line.111"></a>
-<FONT color="green">112</FONT>        public static final int DEFAULT_FILE_MODE = 0100644;<a name="line.112"></a>
-<FONT color="green">113</FONT>    <a name="line.113"></a>
-<FONT color="green">114</FONT>        /**<a name="line.114"></a>
-<FONT color="green">115</FONT>         * Convert millis to seconds<a name="line.115"></a>
-<FONT color="green">116</FONT>         */<a name="line.116"></a>
-<FONT color="green">117</FONT>        public static final int MILLIS_PER_SECOND = 1000;<a name="line.117"></a>
-<FONT color="green">118</FONT>    <a name="line.118"></a>
-<FONT color="green">119</FONT>        /**<a name="line.119"></a>
-<FONT color="green">120</FONT>         * The entry's name.<a name="line.120"></a>
-<FONT color="green">121</FONT>         */<a name="line.121"></a>
-<FONT color="green">122</FONT>        private String name;<a name="line.122"></a>
-<FONT color="green">123</FONT>    <a name="line.123"></a>
-<FONT color="green">124</FONT>        /**<a name="line.124"></a>
-<FONT color="green">125</FONT>         * The entry's permission mode.<a name="line.125"></a>
-<FONT color="green">126</FONT>         */<a name="line.126"></a>
-<FONT color="green">127</FONT>        private int mode;<a name="line.127"></a>
-<FONT color="green">128</FONT>    <a name="line.128"></a>
-<FONT color="green">129</FONT>        /**<a name="line.129"></a>
-<FONT color="green">130</FONT>         * The entry's user id.<a name="line.130"></a>
-<FONT color="green">131</FONT>         */<a name="line.131"></a>
-<FONT color="green">132</FONT>        private int userId;<a name="line.132"></a>
-<FONT color="green">133</FONT>    <a name="line.133"></a>
-<FONT color="green">134</FONT>        /**<a name="line.134"></a>
-<FONT color="green">135</FONT>         * The entry's group id.<a name="line.135"></a>
-<FONT color="green">136</FONT>         */<a name="line.136"></a>
-<FONT color="green">137</FONT>        private int groupId;<a name="line.137"></a>
-<FONT color="green">138</FONT>    <a name="line.138"></a>
-<FONT color="green">139</FONT>        /**<a name="line.139"></a>
-<FONT color="green">140</FONT>         * The entry's size.<a name="line.140"></a>
-<FONT color="green">141</FONT>         */<a name="line.141"></a>
-<FONT color="green">142</FONT>        private long size;<a name="line.142"></a>
-<FONT color="green">143</FONT>    <a name="line.143"></a>
-<FONT color="green">144</FONT>        /**<a name="line.144"></a>
-<FONT color="green">145</FONT>         * The entry's modification time.<a name="line.145"></a>
-<FONT color="green">146</FONT>         */<a name="line.146"></a>
-<FONT color="green">147</FONT>        private long modTime;<a name="line.147"></a>
-<FONT color="green">148</FONT>    <a name="line.148"></a>
-<FONT color="green">149</FONT>        /**<a name="line.149"></a>
-<FONT color="green">150</FONT>         * The entry's link flag.<a name="line.150"></a>
-<FONT color="green">151</FONT>         */<a name="line.151"></a>
-<FONT color="green">152</FONT>        private byte linkFlag;<a name="line.152"></a>
-<FONT color="green">153</FONT>    <a name="line.153"></a>
-<FONT color="green">154</FONT>        /**<a name="line.154"></a>
-<FONT color="green">155</FONT>         * The entry's link name.<a name="line.155"></a>
-<FONT color="green">156</FONT>         */<a name="line.156"></a>
-<FONT color="green">157</FONT>        private String linkName;<a name="line.157"></a>
-<FONT color="green">158</FONT>    <a name="line.158"></a>
-<FONT color="green">159</FONT>        /**<a name="line.159"></a>
-<FONT color="green">160</FONT>         * The entry's magic tag.<a name="line.160"></a>
-<FONT color="green">161</FONT>         */<a name="line.161"></a>
-<FONT color="green">162</FONT>        private String magic;<a name="line.162"></a>
-<FONT color="green">163</FONT>        /**<a name="line.163"></a>
-<FONT color="green">164</FONT>         * The version of the format<a name="line.164"></a>
-<FONT color="green">165</FONT>         */<a name="line.165"></a>
-<FONT color="green">166</FONT>        private String version;<a name="line.166"></a>
-<FONT color="green">167</FONT>    <a name="line.167"></a>
-<FONT color="green">168</FONT>        /**<a name="line.168"></a>
-<FONT color="green">169</FONT>         * The entry's user name.<a name="line.169"></a>
-<FONT color="green">170</FONT>         */<a name="line.170"></a>
-<FONT color="green">171</FONT>        private String userName;<a name="line.171"></a>
-<FONT color="green">172</FONT>    <a name="line.172"></a>
-<FONT color="green">173</FONT>        /**<a name="line.173"></a>
-<FONT color="green">174</FONT>         * The entry's group name.<a name="line.174"></a>
-<FONT color="green">175</FONT>         */<a name="line.175"></a>
-<FONT color="green">176</FONT>        private String groupName;<a name="line.176"></a>
-<FONT color="green">177</FONT>    <a name="line.177"></a>
-<FONT color="green">178</FONT>        /**<a name="line.178"></a>
-<FONT color="green">179</FONT>         * The entry's major device number.<a name="line.179"></a>
-<FONT color="green">180</FONT>         */<a name="line.180"></a>
-<FONT color="green">181</FONT>        private int devMajor;<a name="line.181"></a>
-<FONT color="green">182</FONT>    <a name="line.182"></a>
-<FONT color="green">183</FONT>        /**<a name="line.183"></a>
-<FONT color="green">184</FONT>         * The entry's minor device number.<a name="line.184"></a>
-<FONT color="green">185</FONT>         */<a name="line.185"></a>
-<FONT color="green">186</FONT>        private int devMinor;<a name="line.186"></a>
-<FONT color="green">187</FONT>    <a name="line.187"></a>
-<FONT color="green">188</FONT>        /**<a name="line.188"></a>
-<FONT color="green">189</FONT>         * If an extension sparse header follows.<a name="line.189"></a>
-<FONT color="green">190</FONT>         */<a name="line.190"></a>
-<FONT color="green">191</FONT>        private boolean isExtended;<a name="line.191"></a>
-<FONT color="green">192</FONT>    <a name="line.192"></a>
-<FONT color="green">193</FONT>        /**<a name="line.193"></a>
-<FONT color="green">194</FONT>         * The entry's real size in case of a sparse file.<a name="line.194"></a>
-<FONT color="green">195</FONT>         */<a name="line.195"></a>
-<FONT color="green">196</FONT>        private long realSize;<a name="line.196"></a>
-<FONT color="green">197</FONT>    <a name="line.197"></a>
-<FONT color="green">198</FONT>        /**<a name="line.198"></a>
-<FONT color="green">199</FONT>         * The entry's file reference<a name="line.199"></a>
-<FONT color="green">200</FONT>         */<a name="line.200"></a>
-<FONT color="green">201</FONT>        private File file;<a name="line.201"></a>
-<FONT color="green">202</FONT>    <a name="line.202"></a>
-<FONT color="green">203</FONT>        /**<a name="line.203"></a>
-<FONT color="green">204</FONT>         * Construct an empty entry and prepares the header values.<a name="line.204"></a>
-<FONT color="green">205</FONT>         */<a name="line.205"></a>
-<FONT color="green">206</FONT>        public TarArchiveEntry() {<a name="line.206"></a>
-<FONT color="green">207</FONT>            this.magic = MAGIC_POSIX;<a name="line.207"></a>
-<FONT color="green">208</FONT>            this.version = VERSION_POSIX;<a name="line.208"></a>
-<FONT color="green">209</FONT>            this.name = "";<a name="line.209"></a>
-<FONT color="green">210</FONT>            this.linkName = "";<a name="line.210"></a>
-<FONT color="green">211</FONT>            String user = System.getProperty("user.name", "");<a name="line.211"></a>
-<FONT color="green">212</FONT>            if (user.length() &gt; MAX_NAMELEN) {<a name="line.212"></a>
-<FONT color="green">213</FONT>                user = user.substring(0, MAX_NAMELEN);<a name="line.213"></a>
-<FONT color="green">214</FONT>            }<a name="line.214"></a>
-<FONT color="green">215</FONT>            this.userId = 0;<a name="line.215"></a>
-<FONT color="green">216</FONT>            this.groupId = 0;<a name="line.216"></a>
-<FONT color="green">217</FONT>            this.userName = user;<a name="line.217"></a>
-<FONT color="green">218</FONT>            this.groupName = "";<a name="line.218"></a>
-<FONT color="green">219</FONT>            this.file = null;<a name="line.219"></a>
-<FONT color="green">220</FONT>        }<a name="line.220"></a>
-<FONT color="green">221</FONT>    <a name="line.221"></a>
-<FONT color="green">222</FONT>        /**<a name="line.222"></a>
-<FONT color="green">223</FONT>         * Construct an entry with only a name. This allows the programmer<a name="line.223"></a>
-<FONT color="green">224</FONT>         * to construct the entry's header "by hand". File is set to null.<a name="line.224"></a>
-<FONT color="green">225</FONT>         *<a name="line.225"></a>
-<FONT color="green">226</FONT>         * @param name the entry name<a name="line.226"></a>
-<FONT color="green">227</FONT>         */<a name="line.227"></a>
-<FONT color="green">228</FONT>        public TarArchiveEntry(String name) {<a name="line.228"></a>
-<FONT color="green">229</FONT>            this(name, false);<a name="line.229"></a>
-<FONT color="green">230</FONT>        }<a name="line.230"></a>
-<FONT color="green">231</FONT>    <a name="line.231"></a>
-<FONT color="green">232</FONT>        /**<a name="line.232"></a>
-<FONT color="green">233</FONT>         * Construct an entry with only a name. This allows the programmer<a name="line.233"></a>
-<FONT color="green">234</FONT>         * to construct the entry's header "by hand". File is set to null.<a name="line.234"></a>
-<FONT color="green">235</FONT>         *<a name="line.235"></a>
-<FONT color="green">236</FONT>         * @param name                   the entry name<a name="line.236"></a>
-<FONT color="green">237</FONT>         * @param preserveLeadingSlashes whether to allow leading slashes<a name="line.237"></a>
-<FONT color="green">238</FONT>         *                               in the name.<a name="line.238"></a>
-<FONT color="green">239</FONT>         */<a name="line.239"></a>
-<FONT color="green">240</FONT>        public TarArchiveEntry(String name, boolean preserveLeadingSlashes) {<a name="line.240"></a>
-<FONT color="green">241</FONT>            this();<a name="line.241"></a>
-<FONT color="green">242</FONT>    <a name="line.242"></a>
-<FONT color="green">243</FONT>            name = normalizeFileName(name, preserveLeadingSlashes);<a name="line.243"></a>
-<FONT color="green">244</FONT>            boolean isDir = name.endsWith("/");<a name="line.244"></a>
-<FONT color="green">245</FONT>    <a name="line.245"></a>
-<FONT color="green">246</FONT>            this.devMajor = 0;<a name="line.246"></a>
-<FONT color="green">247</FONT>            this.devMinor = 0;<a name="line.247"></a>
-<FONT color="green">248</FONT>            this.name = name;<a name="line.248"></a>
-<FONT color="green">249</FONT>            this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;<a name="line.249"></a>
-<FONT color="green">250</FONT>            this.linkFlag = isDir ? LF_DIR : LF_NORMAL;<a name="line.250"></a>
-<FONT color="green">251</FONT>            this.userId = 0;<a name="line.251"></a>
-<FONT color="green">252</FONT>            this.groupId = 0;<a name="line.252"></a>
-<FONT color="green">253</FONT>            this.size = 0;<a name="line.253"></a>
-<FONT color="green">254</FONT>            this.modTime = (new Date()).getTime() / MILLIS_PER_SECOND;<a name="line.254"></a>
-<FONT color="green">255</FONT>            this.linkName = "";<a name="line.255"></a>
-<FONT color="green">256</FONT>            this.userName = "";<a name="line.256"></a>
-<FONT color="green">257</FONT>            this.groupName = "";<a name="line.257"></a>
-<FONT color="green">258</FONT>        }<a name="line.258"></a>
-<FONT color="green">259</FONT>    <a name="line.259"></a>
-<FONT color="green">260</FONT>        /**<a name="line.260"></a>
-<FONT color="green">261</FONT>         * Construct an entry with a name and a link flag.<a name="line.261"></a>
-<FONT color="green">262</FONT>         *<a name="line.262"></a>
-<FONT color="green">263</FONT>         * @param name     the entry name<a name="line.263"></a>
-<FONT color="green">264</FONT>         * @param linkFlag the entry link flag.<a name="line.264"></a>
-<FONT color="green">265</FONT>         */<a name="line.265"></a>
-<FONT color="green">266</FONT>        public TarArchiveEntry(String name, byte linkFlag) {<a name="line.266"></a>
-<FONT color="green">267</FONT>            this(name);<a name="line.267"></a>
-<FONT color="green">268</FONT>            this.linkFlag = linkFlag;<a name="line.268"></a>
-<FONT color="green">269</FONT>            if (linkFlag == LF_GNUTYPE_LONGNAME) {<a name="line.269"></a>
-<FONT color="green">270</FONT>                magic = MAGIC_GNU;<a name="line.270"></a>
-<FONT color="green">271</FONT>                version = VERSION_GNU_SPACE;<a name="line.271"></a>
-<FONT color="green">272</FONT>            }<a name="line.272"></a>
-<FONT color="green">273</FONT>        }<a name="line.273"></a>
-<FONT color="green">274</FONT>    <a name="line.274"></a>
-<FONT color="green">275</FONT>        /**<a name="line.275"></a>
-<FONT color="green">276</FONT>         * Construct an entry for a file. File is set to file, and the<a name="line.276"></a>
-<FONT color="green">277</FONT>         * header is constructed from information from the file.<a name="line.277"></a>
-<FONT color="green">278</FONT>         * The name is set from the normalized file path.<a name="line.278"></a>
-<FONT color="green">279</FONT>         *<a name="line.279"></a>
-<FONT color="green">280</FONT>         * @param file The file that the entry represents.<a name="line.280"></a>
-<FONT color="green">281</FONT>         */<a name="line.281"></a>
-<FONT color="green">282</FONT>        public TarArchiveEntry(File file) {<a name="line.282"></a>
-<FONT color="green">283</FONT>            this(file, normalizeFileName(file.getPath(), false));<a name="line.283"></a>
-<FONT color="green">284</FONT>        }<a name="line.284"></a>
-<FONT color="green">285</FONT>    <a name="line.285"></a>
-<FONT color="green">286</FONT>        /**<a name="line.286"></a>
-<FONT color="green">287</FONT>         * Construct an entry for a file. File is set to file, and the<a name="line.287"></a>
-<FONT color="green">288</FONT>         * header is constructed from information from the file.<a name="line.288"></a>
-<FONT color="green">289</FONT>         *<a name="line.289"></a>
-<FONT color="green">290</FONT>         * @param file     The file that the entry represents.<a name="line.290"></a>
-<FONT color="green">291</FONT>         * @param fileName the name to be used for the entry.<a name="line.291"></a>
-<FONT color="green">292</FONT>         */<a name="line.292"></a>
-<FONT color="green">293</FONT>        public TarArchiveEntry(File file, String fileName) {<a name="line.293"></a>
-<FONT color="green">294</FONT>            this();<a name="line.294"></a>
-<FONT color="green">295</FONT>    <a name="line.295"></a>
-<FONT color="green">296</FONT>            this.file = file;<a name="line.296"></a>
-<FONT color="green">297</FONT>    <a name="line.297"></a>
-<FONT color="green">298</FONT>            this.linkName = "";<a name="line.298"></a>
-<FONT color="green">299</FONT>    <a name="line.299"></a>
-<FONT color="green">300</FONT>            if (file.isDirectory()) {<a name="line.300"></a>
-<FONT color="green">301</FONT>                this.mode = DEFAULT_DIR_MODE;<a name="line.301"></a>
-<FONT color="green">302</FONT>                this.linkFlag = LF_DIR;<a name="line.302"></a>
-<FONT color="green">303</FONT>    <a name="line.303"></a>
-<FONT color="green">304</FONT>                int nameLength = fileName.length();<a name="line.304"></a>
-<FONT color="green">305</FONT>                if (nameLength == 0 || fileName.charAt(nameLength - 1) != '/') {<a name="line.305"></a>
-<FONT color="green">306</FONT>                    this.name = fileName + "/";<a name="line.306"></a>
-<FONT color="green">307</FONT>                } else {<a name="line.307"></a>
-<FONT color="green">308</FONT>                    this.name = fileName;<a name="line.308"></a>
-<FONT color="green">309</FONT>                }<a name="line.309"></a>
-<FONT color="green">310</FONT>                this.size = 0;<a name="line.310"></a>
-<FONT color="green">311</FONT>            } else {<a name="line.311"></a>
-<FONT color="green">312</FONT>                this.mode = DEFAULT_FILE_MODE;<a name="line.312"></a>
-<FONT color="green">313</FONT>                this.linkFlag = LF_NORMAL;<a name="line.313"></a>
-<FONT color="green">314</FONT>                this.size = file.length();<a name="line.314"></a>
-<FONT color="green">315</FONT>                this.name = fileName;<a name="line.315"></a>
-<FONT color="green">316</FONT>            }<a name="line.316"></a>
-<FONT color="green">317</FONT>    <a name="line.317"></a>
-<FONT color="green">318</FONT>            this.modTime = file.lastModified() / MILLIS_PER_SECOND;<a name="line.318"></a>
-<FONT color="green">319</FONT>            this.devMajor = 0;<a name="line.319"></a>
-<FONT color="green">320</FONT>            this.devMinor = 0;<a name="line.320"></a>
-<FONT color="green">321</FONT>        }<a name="line.321"></a>
-<FONT color="green">322</FONT>    <a name="line.322"></a>
-<FONT color="green">323</FONT>        /**<a name="line.323"></a>
-<FONT color="green">324</FONT>         * Construct an entry from an archive's header bytes. File is set<a name="line.324"></a>
-<FONT color="green">325</FONT>         * to null.<a name="line.325"></a>
-<FONT color="green">326</FONT>         *<a name="line.326"></a>
-<FONT color="green">327</FONT>         * @param headerBuf The header bytes from a tar archive entry.<a name="line.327"></a>
-<FONT color="green">328</FONT>         * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.328"></a>
-<FONT color="green">329</FONT>         */<a name="line.329"></a>
-<FONT color="green">330</FONT>        public TarArchiveEntry(byte[] headerBuf) {<a name="line.330"></a>
-<FONT color="green">331</FONT>            this();<a name="line.331"></a>
-<FONT color="green">332</FONT>            parseTarHeader(headerBuf);<a name="line.332"></a>
-<FONT color="green">333</FONT>        }<a name="line.333"></a>
-<FONT color="green">334</FONT>    <a name="line.334"></a>
-<FONT color="green">335</FONT>        /**<a name="line.335"></a>
-<FONT color="green">336</FONT>         * Construct an entry from an archive's header bytes. File is set<a name="line.336"></a>
-<FONT color="green">337</FONT>         * to null.<a name="line.337"></a>
-<FONT color="green">338</FONT>         *<a name="line.338"></a>
-<FONT color="green">339</FONT>         * @param headerBuf The header bytes from a tar archive entry.<a name="line.339"></a>
-<FONT color="green">340</FONT>         * @param encoding  encoding to use for file names<a name="line.340"></a>
-<FONT color="green">341</FONT>         * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.341"></a>
-<FONT color="green">342</FONT>         */<a name="line.342"></a>
-<FONT color="green">343</FONT>        public TarArchiveEntry(byte[] headerBuf, ZipEncoding encoding)<a name="line.343"></a>
-<FONT color="green">344</FONT>                throws IOException {<a name="line.344"></a>
-<FONT color="green">345</FONT>            this();<a name="line.345"></a>
-<FONT color="green">346</FONT>            parseTarHeader(headerBuf, encoding);<a name="line.346"></a>
-<FONT color="green">347</FONT>        }<a name="line.347"></a>
-<FONT color="green">348</FONT>    <a name="line.348"></a>
-<FONT color="green">349</FONT>        /**<a name="line.349"></a>
-<FONT color="green">350</FONT>         * Determine if the two entries are equal. Equality is determined<a name="line.350"></a>
-<FONT color="green">351</FONT>         * by the header names being equal.<a name="line.351"></a>
-<FONT color="green">352</FONT>         *<a name="line.352"></a>
-<FONT color="green">353</FONT>         * @param it Entry to be checked for equality.<a name="line.353"></a>
-<FONT color="green">354</FONT>         * @return True if the entries are equal.<a name="line.354"></a>
-<FONT color="green">355</FONT>         */<a name="line.355"></a>
-<FONT color="green">356</FONT>        public boolean equals(TarArchiveEntry it) {<a name="line.356"></a>
-<FONT color="green">357</FONT>            return getName().equals(it.getName());<a name="line.357"></a>
-<FONT color="green">358</FONT>        }<a name="line.358"></a>
-<FONT color="green">359</FONT>    <a name="line.359"></a>
-<FONT color="green">360</FONT>        /**<a name="line.360"></a>
-<FONT color="green">361</FONT>         * Determine if the two entries are equal. Equality is determined<a name="line.361"></a>
-<FONT color="green">362</FONT>         * by the header names being equal.<a name="line.362"></a>
-<FONT color="green">363</FONT>         *<a name="line.363"></a>
-<FONT color="green">364</FONT>         * @param it Entry to be checked for equality.<a name="line.364"></a>
-<FONT color="green">365</FONT>         * @return True if the entries are equal.<a name="line.365"></a>
-<FONT color="green">366</FONT>         */<a name="line.366"></a>
-<FONT color="green">367</FONT>        @Override<a name="line.367"></a>
-<FONT color="green">368</FONT>        public boolean equals(Object it) {<a name="line.368"></a>
-<FONT color="green">369</FONT>            if (it == null || getClass() != it.getClass()) {<a name="line.369"></a>
-<FONT color="green">370</FONT>                return false;<a name="line.370"></a>
-<FONT color="green">371</FONT>            }<a name="line.371"></a>
-<FONT color="green">372</FONT>            return equals((TarArchiveEntry) it);<a name="line.372"></a>
-<FONT color="green">373</FONT>        }<a name="line.373"></a>
-<FONT color="green">374</FONT>    <a name="line.374"></a>
-<FONT color="green">375</FONT>        /**<a name="line.375"></a>
-<FONT color="green">376</FONT>         * Hashcodes are based on entry names.<a name="line.376"></a>
-<FONT color="green">377</FONT>         *<a name="line.377"></a>
-<FONT color="green">378</FONT>         * @return the entry hashcode<a name="line.378"></a>
-<FONT color="green">379</FONT>         */<a name="line.379"></a>
-<FONT color="green">380</FONT>        @Override<a name="line.380"></a>
-<FONT color="green">381</FONT>        public int hashCode() {<a name="line.381"></a>
-<FONT color="green">382</FONT>            return getName().hashCode();<a name="line.382"></a>
-<FONT color="green">383</FONT>        }<a name="line.383"></a>
-<FONT color="green">384</FONT>    <a name="line.384"></a>
-<FONT color="green">385</FONT>        /**<a name="line.385"></a>
-<FONT color="green">386</FONT>         * Determine if the given entry is a descendant of this entry.<a name="line.386"></a>
-<FONT color="green">387</FONT>         * Descendancy is determined by the name of the descendant<a name="line.387"></a>
-<FONT color="green">388</FONT>         * starting with this entry's name.<a name="line.388"></a>
-<FONT color="green">389</FONT>         *<a name="line.389"></a>
-<FONT color="green">390</FONT>         * @param desc Entry to be checked as a descendent of this.<a name="line.390"></a>
-<FONT color="green">391</FONT>         * @return True if entry is a descendant of this.<a name="line.391"></a>
-<FONT color="green">392</FONT>         */<a name="line.392"></a>
-<FONT color="green">393</FONT>        public boolean isDescendent(TarArchiveEntry desc) {<a name="line.393"></a>
-<FONT color="green">394</FONT>            return desc.getName().startsWith(getName());<a name="line.394"></a>
-<FONT color="green">395</FONT>        }<a name="line.395"></a>
-<FONT color="green">396</FONT>    <a name="line.396"></a>
-<FONT color="green">397</FONT>        /**<a name="line.397"></a>
-<FONT color="green">398</FONT>         * Get this entry's name.<a name="line.398"></a>
-<FONT color="green">399</FONT>         *<a name="line.399"></a>
-<FONT color="green">400</FONT>         * @return This entry's name.<a name="line.400"></a>
-<FONT color="green">401</FONT>         */<a name="line.401"></a>
-<FONT color="green">402</FONT>        public String getName() {<a name="line.402"></a>
-<FONT color="green">403</FONT>            return name;<a name="line.403"></a>
-<FONT color="green">404</FONT>        }<a name="line.404"></a>
-<FONT color="green">405</FONT>    <a name="line.405"></a>
-<FONT color="green">406</FONT>        /**<a name="line.406"></a>
-<FONT color="green">407</FONT>         * Set this entry's name.<a name="line.407"></a>
-<FONT color="green">408</FONT>         *<a name="line.408"></a>
-<FONT color="green">409</FONT>         * @param name This entry's new name.<a name="line.409"></a>
-<FONT color="green">410</FONT>         */<a name="line.410"></a>
-<FONT color="green">411</FONT>        public TarArchiveEntry setName(String name) {<a name="line.411"></a>
-<FONT color="green">412</FONT>            this.name = normalizeFileName(name, false);<a name="line.412"></a>
-<FONT color="green">413</FONT>            boolean isDir = name.endsWith("/");<a name="line.413"></a>
-<FONT color="green">414</FONT>            this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;<a name="line.414"></a>
-<FONT color="green">415</FONT>            this.linkFlag = isDir ? LF_DIR : LF_NORMAL;<a name="line.415"></a>
-<FONT color="green">416</FONT>            return this;<a name="line.416"></a>
-<FONT color="green">417</FONT>        }<a name="line.417"></a>
-<FONT color="green">418</FONT>    <a name="line.418"></a>
-<FONT color="green">419</FONT>        /**<a name="line.419"></a>
-<FONT color="green">420</FONT>         * Set the mode for this entry<a name="line.420"></a>
-<FONT color="green">421</FONT>         *<a name="line.421"></a>
-<FONT color="green">422</FONT>         * @param mode the mode for this entry<a name="line.422"></a>
-<FONT color="green">423</FONT>         */<a name="line.423"></a>
-<FONT color="green">424</FONT>        public void setMode(int mode) {<a name="line.424"></a>
-<FONT color="green">425</FONT>            this.mode = mode;<a name="line.425"></a>
-<FONT color="green">426</FONT>        }<a name="line.426"></a>
-<FONT color="green">427</FONT>    <a name="line.427"></a>
-<FONT color="green">428</FONT>        /**<a name="line.428"></a>
-<FONT color="green">429</FONT>         * Get this entry's link name.<a name="line.429"></a>
-<FONT color="green">430</FONT>         *<a name="line.430"></a>
-<FONT color="green">431</FONT>         * @return This entry's link name.<a name="line.431"></a>
-<FONT color="green">432</FONT>         */<a name="line.432"></a>
-<FONT color="green">433</FONT>        public String getLinkName() {<a name="line.433"></a>
-<FONT color="green">434</FONT>            return linkName;<a name="line.434"></a>
-<FONT color="green">435</FONT>        }<a name="line.435"></a>
-<FONT color="green">436</FONT>    <a name="line.436"></a>
-<FONT color="green">437</FONT>        /**<a name="line.437"></a>
-<FONT color="green">438</FONT>         * Set this entry's link name.<a name="line.438"></a>
-<FONT color="green">439</FONT>         *<a name="line.439"></a>
-<FONT color="green">440</FONT>         * @param link the link name to use.<a name="line.440"></a>
-<FONT color="green">441</FONT>         */<a name="line.441"></a>
-<FONT color="green">442</FONT>        public void setLinkName(String link) {<a name="line.442"></a>
-<FONT color="green">443</FONT>            this.linkName = link;<a name="line.443"></a>
-<FONT color="green">444</FONT>        }<a name="line.444"></a>
-<FONT color="green">445</FONT>    <a name="line.445"></a>
-<FONT color="green">446</FONT>        /**<a name="line.446"></a>
-<FONT color="green">447</FONT>         * Get this entry's user id.<a name="line.447"></a>
-<FONT color="green">448</FONT>         *<a name="line.448"></a>
-<FONT color="green">449</FONT>         * @return This entry's user id.<a name="line.449"></a>
-<FONT color="green">450</FONT>         */<a name="line.450"></a>
-<FONT color="green">451</FONT>        public int getUserId() {<a name="line.451"></a>
-<FONT color="green">452</FONT>            return userId;<a name="line.452"></a>
-<FONT color="green">453</FONT>        }<a name="line.453"></a>
-<FONT color="green">454</FONT>    <a name="line.454"></a>
-<FONT color="green">455</FONT>        /**<a name="line.455"></a>
-<FONT color="green">456</FONT>         * Set this entry's user id.<a name="line.456"></a>
-<FONT color="green">457</FONT>         *<a name="line.457"></a>
-<FONT color="green">458</FONT>         * @param userId This entry's new user id.<a name="line.458"></a>
-<FONT color="green">459</FONT>         */<a name="line.459"></a>
-<FONT color="green">460</FONT>        public void setUserId(int userId) {<a name="line.460"></a>
-<FONT color="green">461</FONT>            this.userId = userId;<a name="line.461"></a>
-<FONT color="green">462</FONT>        }<a name="line.462"></a>
-<FONT color="green">463</FONT>    <a name="line.463"></a>
-<FONT color="green">464</FONT>        /**<a name="line.464"></a>
-<FONT color="green">465</FONT>         * Get this entry's group id.<a name="line.465"></a>
-<FONT color="green">466</FONT>         *<a name="line.466"></a>
-<FONT color="green">467</FONT>         * @return This entry's group id.<a name="line.467"></a>
-<FONT color="green">468</FONT>         */<a name="line.468"></a>
-<FONT color="green">469</FONT>        public int getGroupId() {<a name="line.469"></a>
-<FONT color="green">470</FONT>            return groupId;<a name="line.470"></a>
-<FONT color="green">471</FONT>        }<a name="line.471"></a>
-<FONT color="green">472</FONT>    <a name="line.472"></a>
-<FONT color="green">473</FONT>        /**<a name="line.473"></a>
-<FONT color="green">474</FONT>         * Set this entry's group id.<a name="line.474"></a>
-<FONT color="green">475</FONT>         *<a name="line.475"></a>
-<FONT color="green">476</FONT>         * @param groupId This entry's new group id.<a name="line.476"></a>
-<FONT color="green">477</FONT>         */<a name="line.477"></a>
-<FONT color="green">478</FONT>        public void setGroupId(int groupId) {<a name="line.478"></a>
-<FONT color="green">479</FONT>            this.groupId = groupId;<a name="line.479"></a>
-<FONT color="green">480</FONT>        }<a name="line.480"></a>
-<FONT color="green">481</FONT>    <a name="line.481"></a>
-<FONT color="green">482</FONT>        /**<a name="line.482"></a>
-<FONT color="green">483</FONT>         * Get this entry's user name.<a name="line.483"></a>
-<FONT color="green">484</FONT>         *<a name="line.484"></a>
-<FONT color="green">485</FONT>         * @return This entry's user name.<a name="line.485"></a>
-<FONT color="green">486</FONT>         */<a name="line.486"></a>
-<FONT color="green">487</FONT>        public String getUserName() {<a name="line.487"></a>
-<FONT color="green">488</FONT>            return userName;<a name="line.488"></a>
-<FONT color="green">489</FONT>        }<a name="line.489"></a>
-<FONT color="green">490</FONT>    <a name="line.490"></a>
-<FONT color="green">491</FONT>        /**<a name="line.491"></a>
-<FONT color="green">492</FONT>         * Set this entry's user name.<a name="line.492"></a>
-<FONT color="green">493</FONT>         *<a name="line.493"></a>
-<FONT color="green">494</FONT>         * @param userName This entry's new user name.<a name="line.494"></a>
-<FONT color="green">495</FONT>         */<a name="line.495"></a>
-<FONT color="green">496</FONT>        public void setUserName(String userName) {<a name="line.496"></a>
-<FONT color="green">497</FONT>            this.userName = userName;<a name="line.497"></a>
-<FONT color="green">498</FONT>        }<a name="line.498"></a>
-<FONT color="green">499</FONT>    <a name="line.499"></a>
-<FONT color="green">500</FONT>        /**<a name="line.500"></a>
-<FONT color="green">501</FONT>         * Get this entry's group name.<a name="line.501"></a>
-<FONT color="green">502</FONT>         *<a name="line.502"></a>
-<FONT color="green">503</FONT>         * @return This entry's group name.<a name="line.503"></a>
-<FONT color="green">504</FONT>         */<a name="line.504"></a>
-<FONT color="green">505</FONT>        public String getGroupName() {<a name="line.505"></a>
-<FONT color="green">506</FONT>            return groupName;<a name="line.506"></a>
-<FONT color="green">507</FONT>        }<a name="line.507"></a>
-<FONT color="green">508</FONT>    <a name="line.508"></a>
-<FONT color="green">509</FONT>        /**<a name="line.509"></a>
-<FONT color="green">510</FONT>         * Set this entry's group name.<a name="line.510"></a>
-<FONT color="green">511</FONT>         *<a name="line.511"></a>
-<FONT color="green">512</FONT>         * @param groupName This entry's new group name.<a name="line.512"></a>
-<FONT color="green">513</FONT>         */<a name="line.513"></a>
-<FONT color="green">514</FONT>        public void setGroupName(String groupName) {<a name="line.514"></a>
-<FONT color="green">515</FONT>            this.groupName = groupName;<a name="line.515"></a>
-<FONT color="green">516</FONT>        }<a name="line.516"></a>
-<FONT color="green">517</FONT>    <a name="line.517"></a>
-<FONT color="green">518</FONT>        /**<a name="line.518"></a>
-<FONT color="green">519</FONT>         * Convenience method to set this entry's group and user ids.<a name="line.519"></a>
-<FONT color="green">520</FONT>         *<a name="line.520"></a>
-<FONT color="green">521</FONT>         * @param userId  This entry's new user id.<a name="line.521"></a>
-<FONT color="green">522</FONT>         * @param groupId This entry's new group id.<a name="line.522"></a>
-<FONT color="green">523</FONT>         */<a name="line.523"></a>
-<FONT color="green">524</FONT>        public void setIds(int userId, int groupId) {<a name="line.524"></a>
-<FONT color="green">525</FONT>            setUserId(userId);<a name="line.525"></a>
-<FONT color="green">526</FONT>            setGroupId(groupId);<a name="line.526"></a>
-<FONT color="green">527</FONT>        }<a name="line.527"></a>
-<FONT color="green">528</FONT>    <a name="line.528"></a>
-<FONT color="green">529</FONT>        /**<a name="line.529"></a>
-<FONT color="green">530</FONT>         * Convenience method to set this entry's group and user names.<a name="line.530"></a>
-<FONT color="green">531</FONT>         *<a name="line.531"></a>
-<FONT color="green">532</FONT>         * @param userName  This entry's new user name.<a name="line.532"></a>
-<FONT color="green">533</FONT>         * @param groupName This entry's new group name.<a name="line.533"></a>
-<FONT color="green">534</FONT>         */<a name="line.534"></a>
-<FONT color="green">535</FONT>        public void setNames(String userName, String groupName) {<a name="line.535"></a>
-<FONT color="green">536</FONT>            setUserName(userName);<a name="line.536"></a>
-<FONT color="green">537</FONT>            setGroupName(groupName);<a name="line.537"></a>
-<FONT color="green">538</FONT>        }<a name="line.538"></a>
-<FONT color="green">539</FONT>    <a name="line.539"></a>
-<FONT color="green">540</FONT>        /**<a name="line.540"></a>
-<FONT color="green">541</FONT>         * Set this entry's modification time. The parameter passed<a name="line.541"></a>
-<FONT color="green">542</FONT>         * to this method is in "Java time".<a name="line.542"></a>
-<FONT color="green">543</FONT>         *<a name="line.543"></a>
-<FONT color="green">544</FONT>         * @param date This entry's new modification time.<a name="line.544"></a>
-<FONT color="green">545</FONT>         */<a name="line.545"></a>
-<FONT color="green">546</FONT>        public TarArchiveEntry setLastModified(Date date) {<a name="line.546"></a>
-<FONT color="green">547</FONT>            modTime = date.getTime() / MILLIS_PER_SECOND;<a name="line.547"></a>
-<FONT color="green">548</FONT>            return this;<a name="line.548"></a>
-<FONT color="green">549</FONT>        }<a name="line.549"></a>
-<FONT color="green">550</FONT>    <a name="line.550"></a>
-<FONT color="green">551</FONT>        public Date getLastModified() {<a name="line.551"></a>
-<FONT color="green">552</FONT>            return new Date(modTime * MILLIS_PER_SECOND);<a name="line.552"></a>
-<FONT color="green">553</FONT>        }<a name="line.553"></a>
-<FONT color="green">554</FONT>    <a name="line.554"></a>
-<FONT color="green">555</FONT>        /**<a name="line.555"></a>
-<FONT color="green">556</FONT>         * Get this entry's file.<a name="line.556"></a>
-<FONT color="green">557</FONT>         *<a name="line.557"></a>
-<FONT color="green">558</FONT>         * @return This entry's file.<a name="line.558"></a>
-<FONT color="green">559</FONT>         */<a name="line.559"></a>
-<FONT color="green">560</FONT>        public File getFile() {<a name="line.560"></a>
-<FONT color="green">561</FONT>            return file;<a name="line.561"></a>
-<FONT color="green">562</FONT>        }<a name="line.562"></a>
-<FONT color="green">563</FONT>    <a name="line.563"></a>
-<FONT color="green">564</FONT>        /**<a name="line.564"></a>
-<FONT color="green">565</FONT>         * Get this entry's mode.<a name="line.565"></a>
-<FONT color="green">566</FONT>         *<a name="line.566"></a>
-<FONT color="green">567</FONT>         * @return This entry's mode.<a name="line.567"></a>
-<FONT color="green">568</FONT>         */<a name="line.568"></a>
-<FONT color="green">569</FONT>        public int getMode() {<a name="line.569"></a>
-<FONT color="green">570</FONT>            return mode;<a name="line.570"></a>
-<FONT color="green">571</FONT>        }<a name="line.571"></a>
-<FONT color="green">572</FONT>    <a name="line.572"></a>
-<FONT color="green">573</FONT>        /**<a name="line.573"></a>
-<FONT color="green">574</FONT>         * Get this entry's file size.<a name="line.574"></a>
-<FONT color="green">575</FONT>         *<a name="line.575"></a>
-<FONT color="green">576</FONT>         * @return This entry's file size.<a name="line.576"></a>
-<FONT color="green">577</FONT>         */<a name="line.577"></a>
-<FONT color="green">578</FONT>        public long getEntrySize() {<a name="line.578"></a>
-<FONT color="green">579</FONT>            return size;<a name="line.579"></a>
-<FONT color="green">580</FONT>        }<a name="line.580"></a>
-<FONT color="green">581</FONT>    <a name="line.581"></a>
-<FONT color="green">582</FONT>        /**<a name="line.582"></a>
-<FONT color="green">583</FONT>         * Set this entry's file size.<a name="line.583"></a>
-<FONT color="green">584</FONT>         *<a name="line.584"></a>
-<FONT color="green">585</FONT>         * @param size This entry's new file size.<a name="line.585"></a>
-<FONT color="green">586</FONT>         * @throws IllegalArgumentException if the size is &amp;lt; 0.<a name="line.586"></a>
-<FONT color="green">587</FONT>         */<a name="line.587"></a>
-<FONT color="green">588</FONT>        public TarArchiveEntry setEntrySize(long size) {<a name="line.588"></a>
-<FONT color="green">589</FONT>            if (size &lt; 0) {<a name="line.589"></a>
-<FONT color="green">590</FONT>                throw new IllegalArgumentException("Size is out of range: " + size);<a name="line.590"></a>
-<FONT color="green">591</FONT>            }<a name="line.591"></a>
-<FONT color="green">592</FONT>            this.size = size;<a name="line.592"></a>
-<FONT color="green">593</FONT>            return this;<a name="line.593"></a>
-<FONT color="green">594</FONT>        }<a name="line.594"></a>
-<FONT color="green">595</FONT>    <a name="line.595"></a>
-<FONT color="green">596</FONT>        /**<a name="line.596"></a>
-<FONT color="green">597</FONT>         * Get this entry's major device number.<a name="line.597"></a>
-<FONT color="green">598</FONT>         *<a name="line.598"></a>
-<FONT color="green">599</FONT>         * @return This entry's major device number.<a name="line.599"></a>
-<FONT color="green">600</FONT>         */<a name="line.600"></a>
-<FONT color="green">601</FONT>        public int getDevMajor() {<a name="line.601"></a>
-<FONT color="green">602</FONT>            return devMajor;<a name="line.602"></a>
-<FONT color="green">603</FONT>        }<a name="line.603"></a>
-<FONT color="green">604</FONT>    <a name="line.604"></a>
-<FONT color="green">605</FONT>        /**<a name="line.605"></a>
-<FONT color="green">606</FONT>         * Set this entry's major device number.<a name="line.606"></a>
-<FONT color="green">607</FONT>         *<a name="line.607"></a>
-<FONT color="green">608</FONT>         * @param devNo This entry's major device number.<a name="line.608"></a>
-<FONT color="green">609</FONT>         * @throws IllegalArgumentException if the devNo is &amp;lt; 0.<a name="line.609"></a>
-<FONT color="green">610</FONT>         */<a name="line.610"></a>
-<FONT color="green">611</FONT>        public void setDevMajor(int devNo) {<a name="line.611"></a>
-<FONT color="green">612</FONT>            if (devNo &lt; 0) {<a name="line.612"></a>
-<FONT color="green">613</FONT>                throw new IllegalArgumentException("Major device number is out of "<a name="line.613"></a>
-<FONT color="green">614</FONT>                        + "range: " + devNo);<a name="line.614"></a>
-<FONT color="green">615</FONT>            }<a name="line.615"></a>
-<FONT color="green">616</FONT>            this.devMajor = devNo;<a name="line.616"></a>
-<FONT color="green">617</FONT>        }<a name="line.617"></a>
-<FONT color="green">618</FONT>    <a name="line.618"></a>
-<FONT color="green">619</FONT>        /**<a name="line.619"></a>
-<FONT color="green">620</FONT>         * Get this entry's minor device number.<a name="line.620"></a>
-<FONT color="green">621</FONT>         *<a name="line.621"></a>
-<FONT color="green">622</FONT>         * @return This entry's minor device number.<a name="line.622"></a>
-<FONT color="green">623</FONT>         */<a name="line.623"></a>
-<FONT color="green">624</FONT>        public int getDevMinor() {<a name="line.624"></a>
-<FONT color="green">625</FONT>            return devMinor;<a name="line.625"></a>
-<FONT color="green">626</FONT>        }<a name="line.626"></a>
-<FONT color="green">627</FONT>    <a name="line.627"></a>
-<FONT color="green">628</FONT>        /**<a name="line.628"></a>
-<FONT color="green">629</FONT>         * Set this entry's minor device number.<a name="line.629"></a>
-<FONT color="green">630</FONT>         *<a name="line.630"></a>
-<FONT color="green">631</FONT>         * @param devNo This entry's minor device number.<a name="line.631"></a>
-<FONT color="green">632</FONT>         * @throws IllegalArgumentException if the devNo is &amp;lt; 0.<a name="line.632"></a>
-<FONT color="green">633</FONT>         */<a name="line.633"></a>
-<FONT color="green">634</FONT>        public void setDevMinor(int devNo) {<a name="line.634"></a>
-<FONT color="green">635</FONT>            if (devNo &lt; 0) {<a name="line.635"></a>
-<FONT color="green">636</FONT>                throw new IllegalArgumentException("Minor device number is out of "<a name="line.636"></a>
-<FONT color="green">637</FONT>                        + "range: " + devNo);<a name="line.637"></a>
-<FONT color="green">638</FONT>            }<a name="line.638"></a>
-<FONT color="green">639</FONT>            this.devMinor = devNo;<a name="line.639"></a>
-<FONT color="green">640</FONT>        }<a name="line.640"></a>
-<FONT color="green">641</FONT>    <a name="line.641"></a>
-<FONT color="green">642</FONT>        /**<a name="line.642"></a>
-<FONT color="green">643</FONT>         * Indicates in case of a sparse file if an extension sparse header<a name="line.643"></a>
-<FONT color="green">644</FONT>         * follows.<a name="line.644"></a>
-<FONT color="green">645</FONT>         *<a name="line.645"></a>
-<FONT color="green">646</FONT>         * @return true if an extension sparse header follows.<a name="line.646"></a>
-<FONT color="green">647</FONT>         */<a name="line.647"></a>
-<FONT color="green">648</FONT>        public boolean isExtended() {<a name="line.648"></a>
-<FONT color="green">649</FONT>            return isExtended;<a name="line.649"></a>
-<FONT color="green">650</FONT>        }<a name="line.650"></a>
-<FONT color="green">651</FONT>    <a name="line.651"></a>
-<FONT color="green">652</FONT>        /**<a name="line.652"></a>
-<FONT color="green">653</FONT>         * Get this entry's real file size in case of a sparse file.<a name="line.653"></a>
-<FONT color="green">654</FONT>         *<a name="line.654"></a>
-<FONT color="green">655</FONT>         * @return This entry's real file size.<a name="line.655"></a>
-<FONT color="green">656</FONT>         */<a name="line.656"></a>
-<FONT color="green">657</FONT>        public long getRealSize() {<a name="line.657"></a>
-<FONT color="green">658</FONT>            return realSize;<a name="line.658"></a>
-<FONT color="green">659</FONT>        }<a name="line.659"></a>
-<FONT color="green">660</FONT>    <a name="line.660"></a>
-<FONT color="green">661</FONT>        /**<a name="line.661"></a>
-<FONT color="green">662</FONT>         * Indicate if this entry is a GNU sparse block<a name="line.662"></a>
-<FONT color="green">663</FONT>         *<a name="line.663"></a>
-<FONT color="green">664</FONT>         * @return true if this is a sparse extension provided by GNU tar<a name="line.664"></a>
-<FONT color="green">665</FONT>         */<a name="line.665"></a>
-<FONT color="green">666</FONT>        public boolean isGNUSparse() {<a name="line.666"></a>
-<FONT color="green">667</FONT>            return linkFlag == LF_GNUTYPE_SPARSE;<a name="line.667"></a>
-<FONT color="green">668</FONT>        }<a name="line.668"></a>
-<FONT color="green">669</FONT>    <a name="line.669"></a>
-<FONT color="green">670</FONT>        /**<a name="line.670"></a>
-<FONT color="green">671</FONT>         * Indicate if this entry is a GNU long name block<a name="line.671"></a>
-<FONT color="green">672</FONT>         *<a name="line.672"></a>
-<FONT color="green">673</FONT>         * @return true if this is a long name extension provided by GNU tar<a name="line.673"></a>
-<FONT color="green">674</FONT>         */<a name="line.674"></a>
-<FONT color="green">675</FONT>        public boolean isGNULongNameEntry() {<a name="line.675"></a>
-<FONT color="green">676</FONT>            return linkFlag == LF_GNUTYPE_LONGNAME<a name="line.676"></a>
-<FONT color="green">677</FONT>                    &amp;&amp; name.toString().equals(GNU_LONGLINK);<a name="line.677"></a>
-<FONT color="green">678</FONT>        }<a name="line.678"></a>
-<FONT color="green">679</FONT>    <a name="line.679"></a>
-<FONT color="green">680</FONT>        /**<a name="line.680"></a>
-<FONT color="green">681</FONT>         * Check if this is a Pax header.<a name="line.681"></a>
-<FONT color="green">682</FONT>         *<a name="line.682"></a>
-<FONT color="green">683</FONT>         * @return {@code true} if this is a Pax header.<a name="line.683"></a>
-<FONT color="green">684</FONT>         */<a name="line.684"></a>
-<FONT color="green">685</FONT>        public boolean isPaxHeader() {<a name="line.685"></a>
-<FONT color="green">686</FONT>            return linkFlag == LF_PAX_EXTENDED_HEADER_LC<a name="line.686"></a>
-<FONT color="green">687</FONT>                    || linkFlag == LF_PAX_EXTENDED_HEADER_UC;<a name="line.687"></a>
-<FONT color="green">688</FONT>        }<a name="line.688"></a>
-<FONT color="green">689</FONT>    <a name="line.689"></a>
-<FONT color="green">690</FONT>        /**<a name="line.690"></a>
-<FONT color="green">691</FONT>         * Check if this is a Pax header.<a name="line.691"></a>
-<FONT color="green">692</FONT>         *<a name="line.692"></a>
-<FONT color="green">693</FONT>         * @return {@code true} if this is a Pax header.<a name="line.693"></a>
-<FONT color="green">694</FONT>         */<a name="line.694"></a>
-<FONT color="green">695</FONT>        public boolean isGlobalPaxHeader() {<a name="line.695"></a>
-<FONT color="green">696</FONT>            return linkFlag == LF_PAX_GLOBAL_EXTENDED_HEADER;<a name="line.696"></a>
-<FONT color="green">697</FONT>        }<a name="line.697"></a>
-<FONT color="green">698</FONT>    <a name="line.698"></a>
-<FONT color="green">699</FONT>        /**<a name="line.699"></a>
-<FONT color="green">700</FONT>         * Return whether or not this entry represents a directory.<a name="line.700"></a>
-<FONT color="green">701</FONT>         *<a name="line.701"></a>
-<FONT color="green">702</FONT>         * @return True if this entry is a directory.<a name="line.702"></a>
-<FONT color="green">703</FONT>         */<a name="line.703"></a>
-<FONT color="green">704</FONT>        public boolean isDirectory() {<a name="line.704"></a>
-<FONT color="green">705</FONT>            if (file != null) {<a name="line.705"></a>
-<FONT color="green">706</FONT>                return file.isDirectory();<a name="line.706"></a>
-<FONT color="green">707</FONT>            }<a name="line.707"></a>
-<FONT color="green">708</FONT>    <a name="line.708"></a>
-<FONT color="green">709</FONT>            if (linkFlag == LF_DIR) {<a name="line.709"></a>
-<FONT color="green">710</FONT>                return true;<a name="line.710"></a>
-<FONT color="green">711</FONT>            }<a name="line.711"></a>
-<FONT color="green">712</FONT>    <a name="line.712"></a>
-<FONT color="green">713</FONT>            if (getName().endsWith("/")) {<a name="line.713"></a>
-<FONT color="green">714</FONT>                return true;<a name="line.714"></a>
-<FONT color="green">715</FONT>            }<a name="line.715"></a>
-<FONT color="green">716</FONT>    <a name="line.716"></a>
-<FONT color="green">717</FONT>            return false;<a name="line.717"></a>
-<FONT color="green">718</FONT>        }<a name="line.718"></a>
-<FONT color="green">719</FONT>    <a name="line.719"></a>
-<FONT color="green">720</FONT>        /**<a name="line.720"></a>
-<FONT color="green">721</FONT>         * Check if this is a "normal file"<a name="line.721"></a>
-<FONT color="green">722</FONT>         */<a name="line.722"></a>
-<FONT color="green">723</FONT>        public boolean isFile() {<a name="line.723"></a>
-<FONT color="green">724</FONT>            if (file != null) {<a name="line.724"></a>
-<FONT color="green">725</FONT>                return file.isFile();<a name="line.725"></a>
-<FONT color="green">726</FONT>            }<a name="line.726"></a>
-<FONT color="green">727</FONT>            return linkFlag == LF_OLDNORM || linkFlag == LF_NORMAL || !getName().endsWith("/");<a name="line.727"></a>
-<FONT color="green">728</FONT>        }<a name="line.728"></a>
-<FONT color="green">729</FONT>    <a name="line.729"></a>
-<FONT color="green">730</FONT>        /**<a name="line.730"></a>
-<FONT color="green">731</FONT>         * Check if this is a symbolic link entry.<a name="line.731"></a>
-<FONT color="green">732</FONT>         */<a name="line.732"></a>
-<FONT color="green">733</FONT>        public boolean isSymbolicLink() {<a name="line.733"></a>
-<FONT color="green">734</FONT>            return linkFlag == LF_SYMLINK;<a name="line.734"></a>
-<FONT color="green">735</FONT>        }<a name="line.735"></a>
-<FONT color="green">736</FONT>    <a name="line.736"></a>
-<FONT color="green">737</FONT>        /**<a name="line.737"></a>
-<FONT color="green">738</FONT>         * Check if this is a link entry.<a name="line.738"></a>
-<FONT color="green">739</FONT>         */<a name="line.739"></a>
-<FONT color="green">740</FONT>        public boolean isLink() {<a name="line.740"></a>
-<FONT color="green">741</FONT>            return linkFlag == LF_LINK;<a name="line.741"></a>
-<FONT color="green">742</FONT>        }<a name="line.742"></a>
-<FONT color="green">743</FONT>    <a name="line.743"></a>
-<FONT color="green">744</FONT>        /**<a name="line.744"></a>
-<FONT color="green">745</FONT>         * Check if this is a character device entry.<a name="line.745"></a>
-<FONT color="green">746</FONT>         */<a name="line.746"></a>
-<FONT color="green">747</FONT>        public boolean isCharacterDevice() {<a name="line.747"></a>
-<FONT color="green">748</FONT>            return linkFlag == LF_CHR;<a name="line.748"></a>
-<FONT color="green">749</FONT>        }<a name="line.749"></a>
-<FONT color="green">750</FONT>    <a name="line.750"></a>
-<FONT color="green">751</FONT>        /**<a name="line.751"></a>
-<FONT color="green">752</FONT>         * Check if this is a block device entry.<a name="line.752"></a>
-<FONT color="green">753</FONT>         */<a name="line.753"></a>
-<FONT color="green">754</FONT>        public boolean isBlockDevice() {<a name="line.754"></a>
-<FONT color="green">755</FONT>            return linkFlag == LF_BLK;<a name="line.755"></a>
-<FONT color="green">756</FONT>        }<a name="line.756"></a>
-<FONT color="green">757</FONT>    <a name="line.757"></a>
-<FONT color="green">758</FONT>        /**<a name="line.758"></a>
-<FONT color="green">759</FONT>         * Check if this is a FIFO (pipe) entry.<a name="line.759"></a>
-<FONT color="green">760</FONT>         */<a name="line.760"></a>
-<FONT color="green">761</FONT>        public boolean isFIFO() {<a name="line.761"></a>
-<FONT color="green">762</FONT>            return linkFlag == LF_FIFO;<a name="line.762"></a>
-<FONT color="green">763</FONT>        }<a name="line.763"></a>
-<FONT color="green">764</FONT>    <a name="line.764"></a>
-<FONT color="green">765</FONT>        /**<a name="line.765"></a>
-<FONT color="green">766</FONT>         * If this entry represents a file, and the file is a directory, return<a name="line.766"></a>
-<FONT color="green">767</FONT>         * an array of TarEntries for this entry's children.<a name="line.767"></a>
-<FONT color="green">768</FONT>         *<a name="line.768"></a>
-<FONT color="green">769</FONT>         * @return An array of TarEntry's for this entry's children.<a name="line.769"></a>
-<FONT color="green">770</FONT>         */<a name="line.770"></a>
-<FONT color="green">771</FONT>        public TarArchiveEntry[] getDirectoryEntries() {<a name="line.771"></a>
-<FONT color="green">772</FONT>            if (file == null || !file.isDirectory()) {<a name="line.772"></a>
-<FONT color="green">773</FONT>                return new TarArchiveEntry[0];<a name="line.773"></a>
-<FONT color="green">774</FONT>            }<a name="line.774"></a>
-<FONT color="green">775</FONT>    <a name="line.775"></a>
-<FONT color="green">776</FONT>            String[] list = file.list();<a name="line.776"></a>
-<FONT color="green">777</FONT>            TarArchiveEntry[] result = new TarArchiveEntry[list.length];<a name="line.777"></a>
-<FONT color="green">778</FONT>    <a name="line.778"></a>
-<FONT color="green">779</FONT>            for (int i = 0; i &lt; list.length; ++i) {<a name="line.779"></a>
-<FONT color="green">780</FONT>                result[i] = new TarArchiveEntry(new File(file, list[i]));<a name="line.780"></a>
-<FONT color="green">781</FONT>            }<a name="line.781"></a>
-<FONT color="green">782</FONT>    <a name="line.782"></a>
-<FONT color="green">783</FONT>            return result;<a name="line.783"></a>
-<FONT color="green">784</FONT>        }<a name="line.784"></a>
-<FONT color="green">785</FONT>    <a name="line.785"></a>
-<FONT color="green">786</FONT>        /**<a name="line.786"></a>
-<FONT color="green">787</FONT>         * Write an entry's header information to a header buffer.<a name="line.787"></a>
-<FONT color="green">788</FONT>         * &lt;p/&gt;<a name="line.788"></a>
-<FONT color="green">789</FONT>         * &lt;p&gt;This method does not use the star/GNU tar/BSD tar extensions.&lt;/p&gt;<a name="line.789"></a>
-<FONT color="green">790</FONT>         *<a name="line.790"></a>
-<FONT color="green">791</FONT>         * @param outbuf The tar entry header buffer to fill in.<a name="line.791"></a>
-<FONT color="green">792</FONT>         */<a name="line.792"></a>
-<FONT color="green">793</FONT>        public void writeEntryHeader(byte[] outbuf) {<a name="line.793"></a>
-<FONT color="green">794</FONT>            try {<a name="line.794"></a>
-<FONT color="green">795</FONT>                writeEntryHeader(outbuf, TarUtils.DEFAULT_ENCODING, false);<a name="line.795"></a>
-<FONT color="green">796</FONT>            } catch (IOException ex) {<a name="line.796"></a>
-<FONT color="green">797</FONT>                try {<a name="line.797"></a>
-<FONT color="green">798</FONT>                    writeEntryHeader(outbuf, TarUtils.FALLBACK_ENCODING, false);<a name="line.798"></a>
-<FONT color="green">799</FONT>                } catch (IOException ex2) {<a name="line.799"></a>
-<FONT color="green">800</FONT>                    // impossible<a name="line.800"></a>
-<FONT color="green">801</FONT>                    throw new RuntimeException(ex2);<a name="line.801"></a>
-<FONT color="green">802</FONT>                }<a name="line.802"></a>
-<FONT color="green">803</FONT>            }<a name="line.803"></a>
-<FONT color="green">804</FONT>        }<a name="line.804"></a>
-<FONT color="green">805</FONT>    <a name="line.805"></a>
-<FONT color="green">806</FONT>        /**<a name="line.806"></a>
-<FONT color="green">807</FONT>         * Write an entry's header information to a header buffer.<a name="line.807"></a>
-<FONT color="green">808</FONT>         *<a name="line.808"></a>
-<FONT color="green">809</FONT>         * @param outbuf   The tar entry header buffer to fill in.<a name="line.809"></a>
-<FONT color="green">810</FONT>         * @param encoding encoding to use when writing the file name.<a name="line.810"></a>
-<FONT color="green">811</FONT>         * @param starMode whether to use the star/GNU tar/BSD tar<a name="line.811"></a>
-<FONT color="green">812</FONT>         *                 extension for numeric fields if their value doesn't fit in the<a name="line.812"></a>
-<FONT color="green">813</FONT>         *                 maximum size of standard tar archives<a name="line.813"></a>
-<FONT color="green">814</FONT>         */<a name="line.814"></a>
-<FONT color="green">815</FONT>        public void writeEntryHeader(byte[] outbuf, ZipEncoding encoding,<a name="line.815"></a>
-<FONT color="green">816</FONT>                                     boolean starMode) throws IOException {<a name="line.816"></a>
-<FONT color="green">817</FONT>            int offset = 0;<a name="line.817"></a>
-<FONT color="green">818</FONT>    <a name="line.818"></a>
-<FONT color="green">819</FONT>            offset = TarUtils.formatNameBytes(name, outbuf, offset, NAMELEN,<a name="line.819"></a>
-<FONT color="green">820</FONT>                    encoding);<a name="line.820"></a>
-<FONT color="green">821</FONT>            offset = writeEntryHeaderField(mode, outbuf, offset, MODELEN, starMode);<a name="line.821"></a>
-<FONT color="green">822</FONT>            offset = writeEntryHeaderField(userId, outbuf, offset, UIDLEN,<a name="line.822"></a>
-<FONT color="green">823</FONT>                    starMode);<a name="line.823"></a>
-<FONT color="green">824</FONT>            offset = writeEntryHeaderField(groupId, outbuf, offset, GIDLEN,<a name="line.824"></a>
-<FONT color="green">825</FONT>                    starMode);<a name="line.825"></a>
-<FONT color="green">826</FONT>            offset = writeEntryHeaderField(size, outbuf, offset, SIZELEN, starMode);<a name="line.826"></a>
-<FONT color="green">827</FONT>            offset = writeEntryHeaderField(modTime, outbuf, offset, MODTIMELEN,<a name="line.827"></a>
-<FONT color="green">828</FONT>                    starMode);<a name="line.828"></a>
-<FONT color="green">829</FONT>    <a name="line.829"></a>
-<FONT color="green">830</FONT>            int csOffset = offset;<a name="line.830"></a>
-<FONT color="green">831</FONT>    <a name="line.831"></a>
-<FONT color="green">832</FONT>            for (int c = 0; c &lt; CHKSUMLEN; ++c) {<a name="line.832"></a>
-<FONT color="green">833</FONT>                outbuf[offset++] = (byte) ' ';<a name="line.833"></a>
-<FONT color="green">834</FONT>            }<a name="line.834"></a>
-<FONT color="green">835</FONT>    <a name="line.835"></a>
-<FONT color="green">836</FONT>            outbuf[offset++] = linkFlag;<a name="line.836"></a>
-<FONT color="green">837</FONT>            offset = TarUtils.formatNameBytes(linkName, outbuf, offset, NAMELEN,<a name="line.837"></a>
-<FONT color="green">838</FONT>                    encoding);<a name="line.838"></a>
-<FONT color="green">839</FONT>            offset = TarUtils.formatNameBytes(magic, outbuf, offset, MAGICLEN);<a name="line.839"></a>
-<FONT color="green">840</FONT>            offset = TarUtils.formatNameBytes(version, outbuf, offset, VERSIONLEN);<a name="line.840"></a>
-<FONT color="green">841</FONT>            offset = TarUtils.formatNameBytes(userName, outbuf, offset, UNAMELEN,<a name="line.841"></a>
-<FONT color="green">842</FONT>                    encoding);<a name="line.842"></a>
-<FONT color="green">843</FONT>            offset = TarUtils.formatNameBytes(groupName, outbuf, offset, GNAMELEN,<a name="line.843"></a>
-<FONT color="green">844</FONT>                    encoding);<a name="line.844"></a>
-<FONT color="green">845</FONT>            offset = writeEntryHeaderField(devMajor, outbuf, offset, DEVLEN,<a name="line.845"></a>
-<FONT color="green">846</FONT>                    starMode);<a name="line.846"></a>
-<FONT color="green">847</FONT>            offset = writeEntryHeaderField(devMinor, outbuf, offset, DEVLEN,<a name="line.847"></a>
-<FONT color="green">848</FONT>                    starMode);<a name="line.848"></a>
-<FONT color="green">849</FONT>    <a name="line.849"></a>
-<FONT color="green">850</FONT>            while (offset &lt; outbuf.length) {<a name="line.850"></a>
-<FONT color="green">851</FONT>                outbuf[offset++] = 0;<a name="line.851"></a>
-<FONT color="green">852</FONT>            }<a name="line.852"></a>
-<FONT color="green">853</FONT>    <a name="line.853"></a>
-<FONT color="green">854</FONT>            long chk = TarUtils.computeCheckSum(outbuf);<a name="line.854"></a>
-<FONT color="green">855</FONT>    <a name="line.855"></a>
-<FONT color="green">856</FONT>            TarUtils.formatCheckSumOctalBytes(chk, outbuf, csOffset, CHKSUMLEN);<a name="line.856"></a>
-<FONT color="green">857</FONT>        }<a name="line.857"></a>
-<FONT color="green">858</FONT>    <a name="line.858"></a>
-<FONT color="green">859</FONT>        private int writeEntryHeaderField(long value, byte[] outbuf, int offset,<a name="line.859"></a>
-<FONT color="green">860</FONT>                                          int length, boolean starMode) {<a name="line.860"></a>
-<FONT color="green">861</FONT>            if (!starMode &amp;&amp; (value &lt; 0<a name="line.861"></a>
-<FONT color="green">862</FONT>                    || value &gt;= (1l &lt;&lt; (3 * (length - 1))))) {<a name="line.862"></a>
-<FONT color="green">863</FONT>                // value doesn't fit into field when written as octal<a name="line.863"></a>
-<FONT color="green">864</FONT>                // number, will be written to PAX header or causes an<a name="line.864"></a>
-<FONT color="green">865</FONT>                // error<a name="line.865"></a>
-<FONT color="green">866</FONT>                return TarUtils.formatLongOctalBytes(0, outbuf, offset, length);<a name="line.866"></a>
-<FONT color="green">867</FONT>            }<a name="line.867"></a>
-<FONT color="green">868</FONT>            return TarUtils.formatLongOctalOrBinaryBytes(value, outbuf, offset,<a name="line.868"></a>
-<FONT color="green">869</FONT>                    length);<a name="line.869"></a>
-<FONT color="green">870</FONT>        }<a name="line.870"></a>
-<FONT color="green">871</FONT>    <a name="line.871"></a>
-<FONT color="green">872</FONT>        /**<a name="line.872"></a>
-<FONT color="green">873</FONT>         * Parse an entry's header information from a header buffer.<a name="line.873"></a>
-<FONT color="green">874</FONT>         *<a name="line.874"></a>
-<FONT color="green">875</FONT>         * @param header The tar entry header buffer to get information from.<a name="line.875"></a>
-<FONT color="green">876</FONT>         * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.876"></a>
-<FONT color="green">877</FONT>         */<a name="line.877"></a>
-<FONT color="green">878</FONT>        public void parseTarHeader(byte[] header) {<a name="line.878"></a>
-<FONT color="green">879</FONT>            try {<a name="line.879"></a>
-<FONT color="green">880</FONT>                parseTarHeader(header, TarUtils.DEFAULT_ENCODING);<a name="line.880"></a>
-<FONT color="green">881</FONT>            } catch (IOException ex) {<a name="line.881"></a>
-<FONT color="green">882</FONT>                try {<a name="line.882"></a>
-<FONT color="green">883</FONT>                    parseTarHeader(header, TarUtils.DEFAULT_ENCODING, true);<a name="line.883"></a>
-<FONT color="green">884</FONT>                } catch (IOException ex2) {<a name="line.884"></a>
-<FONT color="green">885</FONT>                    // not really possible<a name="line.885"></a>
-<FONT color="green">886</FONT>                    throw new RuntimeException(ex2);<a name="line.886"></a>
-<FONT color="green">887</FONT>                }<a name="line.887"></a>
-<FONT color="green">888</FONT>            }<a name="line.888"></a>
-<FONT color="green">889</FONT>        }<a name="line.889"></a>
-<FONT color="green">890</FONT>    <a name="line.890"></a>
-<FONT color="green">891</FONT>        /**<a name="line.891"></a>
-<FONT color="green">892</FONT>         * Parse an entry's header information from a header buffer.<a name="line.892"></a>
-<FONT color="green">893</FONT>         *<a name="line.893"></a>
-<FONT color="green">894</FONT>         * @param header   The tar entry header buffer to get information from.<a name="line.894"></a>
-<FONT color="green">895</FONT>         * @param encoding encoding to use for file names<a name="line.895"></a>
-<FONT color="green">896</FONT>         * @throws IllegalArgumentException if any of the numeric fields<a name="line.896"></a>
-<FONT color="green">897</FONT>         *                                  have an invalid format<a name="line.897"></a>
-<FONT color="green">898</FONT>         */<a name="line.898"></a>
-<FONT color="green">899</FONT>        public void parseTarHeader(byte[] header, ZipEncoding encoding)<a name="line.899"></a>
-<FONT color="green">900</FONT>                throws IOException {<a name="line.900"></a>
-<FONT color="green">901</FONT>            parseTarHeader(header, encoding, false);<a name="line.901"></a>
-<FONT color="green">902</FONT>        }<a name="line.902"></a>
-<FONT color="green">903</FONT>    <a name="line.903"></a>
-<FONT color="green">904</FONT>        private void parseTarHeader(byte[] header, ZipEncoding encoding,<a name="line.904"></a>
-<FONT color="green">905</FONT>                                    final boolean oldStyle)<a name="line.905"></a>
-<FONT color="green">906</FONT>                throws IOException {<a name="line.906"></a>
-<FONT color="green">907</FONT>            int offset = 0;<a name="line.907"></a>
-<FONT color="green">908</FONT>    <a name="line.908"></a>
-<FONT color="green">909</FONT>            name = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)<a name="line.909"></a>
-<FONT color="green">910</FONT>                    : TarUtils.parseName(header, offset, NAMELEN, encoding);<a name="line.910"></a>
-<FONT color="green">911</FONT>            offset += NAMELEN;<a name="line.911"></a>
-<FONT color="green">912</FONT>            mode = (int) TarUtils.parseOctalOrBinary(header, offset, MODELEN);<a name="line.912"></a>
-<FONT color="green">913</FONT>            offset += MODELEN;<a name="line.913"></a>
-<FONT color="green">914</FONT>            userId = (int) TarUtils.parseOctalOrBinary(header, offset, UIDLEN);<a name="line.914"></a>
-<FONT color="green">915</FONT>            offset += UIDLEN;<a name="line.915"></a>
-<FONT color="green">916</FONT>            groupId = (int) TarUtils.parseOctalOrBinary(header, offset, GIDLEN);<a name="line.916"></a>
-<FONT color="green">917</FONT>            offset += GIDLEN;<a name="line.917"></a>
-<FONT color="green">918</FONT>            size = TarUtils.parseOctalOrBinary(header, offset, SIZELEN);<a name="line.918"></a>
-<FONT color="green">919</FONT>            offset += SIZELEN;<a name="line.919"></a>
-<FONT color="green">920</FONT>            modTime = TarUtils.parseOctalOrBinary(header, offset, MODTIMELEN);<a name="line.920"></a>
-<FONT color="green">921</FONT>            offset += MODTIMELEN;<a name="line.921"></a>
-<FONT color="green">922</FONT>            offset += CHKSUMLEN;<a name="line.922"></a>
-<FONT color="green">923</FONT>            linkFlag = header[offset++];<a name="line.923"></a>
-<FONT color="green">924</FONT>            linkName = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)<a name="line.924"></a>
-<FONT color="green">925</FONT>                    : TarUtils.parseName(header, offset, NAMELEN, encoding);<a name="line.925"></a>
-<FONT color="green">926</FONT>            offset += NAMELEN;<a name="line.926"></a>
-<FONT color="green">927</FONT>            magic = TarUtils.parseName(header, offset, MAGICLEN);<a name="line.927"></a>
-<FONT color="green">928</FONT>            offset += MAGICLEN;<a name="line.928"></a>
-<FONT color="green">929</FONT>            version = TarUtils.parseName(header, offset, VERSIONLEN);<a name="line.929"></a>
-<FONT color="green">930</FONT>            offset += VERSIONLEN;<a name="line.930"></a>
-<FONT color="green">931</FONT>            userName = oldStyle ? TarUtils.parseName(header, offset, UNAMELEN)<a name="line.931"></a>
-<FONT color="green">932</FONT>                    : TarUtils.parseName(header, offset, UNAMELEN, encoding);<a name="line.932"></a>
-<FONT color="green">933</FONT>            offset += UNAMELEN;<a name="line.933"></a>
-<FONT color="green">934</FONT>            groupName = oldStyle ? TarUtils.parseName(header, offset, GNAMELEN)<a name="line.934"></a>
-<FONT color="green">935</FONT>                    : TarUtils.parseName(header, offset, GNAMELEN, encoding);<a name="line.935"></a>
-<FONT color="green">936</FONT>            offset += GNAMELEN;<a name="line.936"></a>
-<FONT color="green">937</FONT>            devMajor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);<a name="line.937"></a>
-<FONT color="green">938</FONT>            offset += DEVLEN;<a name="line.938"></a>
-<FONT color="green">939</FONT>            devMinor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);<a name="line.939"></a>
-<FONT color="green">940</FONT>            offset += DEVLEN;<a name="line.940"></a>
-<FONT color="green">941</FONT>    <a name="line.941"></a>
-<FONT color="green">942</FONT>            int type = evaluateType(header);<a name="line.942"></a>
-<FONT color="green">943</FONT>            switch (type) {<a name="line.943"></a>
-<FONT color="green">944</FONT>                case FORMAT_OLDGNU: {<a name="line.944"></a>
-<FONT color="green">945</FONT>                    offset += ATIMELEN_GNU;<a name="line.945"></a>
-<FONT color="green">946</FONT>                    offset += CTIMELEN_GNU;<a name="line.946"></a>
-<FONT color="green">947</FONT>                    offset += OFFSETLEN_GNU;<a name="line.947"></a>
-<FONT color="green">948</FONT>                    offset += LONGNAMESLEN_GNU;<a name="line.948"></a>
-<FONT color="green">949</FONT>                    offset += PAD2LEN_GNU;<a name="line.949"></a>
-<FONT color="green">950</FONT>                    offset += SPARSELEN_GNU;<a name="line.950"></a>
-<FONT color="green">951</FONT>                    isExtended = TarUtils.parseBoolean(header, offset);<a name="line.951"></a>
-<FONT color="green">952</FONT>                    offset += ISEXTENDEDLEN_GNU;<a name="line.952"></a>
-<FONT color="green">953</FONT>                    realSize = TarUtils.parseOctal(header, offset, REALSIZELEN_GNU);<a name="line.953"></a>
-<FONT color="green">954</FONT>                    offset += REALSIZELEN_GNU;<a name="line.954"></a>
-<FONT color="green">955</FONT>                    break;<a name="line.955"></a>
-<FONT color="green">956</FONT>                }<a name="line.956"></a>
-<FONT color="green">957</FONT>                case FORMAT_POSIX:<a name="line.957"></a>
-<FONT color="green">958</FONT>                default: {<a name="line.958"></a>
-<FONT color="green">959</FONT>                    String prefix = oldStyle<a name="line.959"></a>
-<FONT color="green">960</FONT>                            ? TarUtils.parseName(header, offset, PREFIXLEN)<a name="line.960"></a>
-<FONT color="green">961</FONT>                            : TarUtils.parseName(header, offset, PREFIXLEN, encoding);<a name="line.961"></a>
-<FONT color="green">962</FONT>                    // SunOS tar -E does not add / to directory names, so fix<a name="line.962"></a>
-<FONT color="green">963</FONT>                    // up to be consistent<a name="line.963"></a>
-<FONT color="green">964</FONT>                    if (isDirectory() &amp;&amp; !name.endsWith("/")) {<a name="line.964"></a>
-<FONT color="green">965</FONT>                        name = name + "/";<a name="line.965"></a>
-<FONT color="green">966</FONT>                    }<a name="line.966"></a>
-<FONT color="green">967</FONT>                    if (prefix.length() &gt; 0) {<a name="line.967"></a>
-<FONT color="green">968</FONT>                        name = prefix + "/" + name;<a name="line.968"></a>
-<FONT color="green">969</FONT>                    }<a name="line.969"></a>
-<FONT color="green">970</FONT>                }<a name="line.970"></a>
-<FONT color="green">971</FONT>            }<a name="line.971"></a>
-<FONT color="green">972</FONT>        }<a name="line.972"></a>
-<FONT color="green">973</FONT>    <a name="line.973"></a>
-<FONT color="green">974</FONT>        /**<a name="line.974"></a>
-<FONT color="green">975</FONT>         * Strips Windows' drive letter as well as any leading slashes,<a name="line.975"></a>
-<FONT color="green">976</FONT>         * turns path separators into forward slahes.<a name="line.976"></a>
-<FONT color="green">977</FONT>         */<a name="line.977"></a>
-<FONT color="green">978</FONT>        private static String normalizeFileName(String fileName,<a name="line.978"></a>
-<FONT color="green">979</FONT>                                                boolean preserveLeadingSlashes) {<a name="line.979"></a>
-<FONT color="green">980</FONT>            String osname = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);<a name="line.980"></a>
-<FONT color="green">981</FONT>    <a name="line.981"></a>
-<FONT color="green">982</FONT>            // Strip off drive letters!<a name="line.982"></a>
-<FONT color="green">983</FONT>            // REVIEW Would a better check be "(File.separator == '\')"?<a name="line.983"></a>
-<FONT color="green">984</FONT>    <a name="line.984"></a>
-<FONT color="green">985</FONT>            if (osname.startsWith("windows")) {<a name="line.985"></a>
-<FONT color="green">986</FONT>                if (fileName.length() &gt; 2) {<a name="line.986"></a>
-<FONT color="green">987</FONT>                    char ch1 = fileName.charAt(0);<a name="line.987"></a>
-<FONT color="green">988</FONT>                    char ch2 = fileName.charAt(1);<a name="line.988"></a>
-<FONT color="green">989</FONT>    <a name="line.989"></a>
-<FONT color="green">990</FONT>                    if (ch2 == ':'<a name="line.990"></a>
-<FONT color="green">991</FONT>                            &amp;&amp; ((ch1 &gt;= 'a' &amp;&amp; ch1 &lt;= 'z')<a name="line.991"></a>
-<FONT color="green">992</FONT>                            || (ch1 &gt;= 'A' &amp;&amp; ch1 &lt;= 'Z'))) {<a name="line.992"></a>
-<FONT color="green">993</FONT>                        fileName = fileName.substring(2);<a name="line.993"></a>
-<FONT color="green">994</FONT>                    }<a name="line.994"></a>
-<FONT color="green">995</FONT>                }<a name="line.995"></a>
-<FONT color="green">996</FONT>            } else if (osname.indexOf("netware") &gt; -1) {<a name="line.996"></a>
-<FONT color="green">997</FONT>                int colon = fileName.indexOf(':');<a name="line.997"></a>
-<FONT color="green">998</FONT>                if (colon != -1) {<a name="line.998"></a>
-<FONT color="green">999</FONT>                    fileName = fileName.substring(colon + 1);<a name="line.999"></a>
-<FONT color="green">1000</FONT>                }<a name="line.1000"></a>
-<FONT color="green">1001</FONT>            }<a name="line.1001"></a>
-<FONT color="green">1002</FONT>    <a name="line.1002"></a>
-<FONT color="green">1003</FONT>            fileName = fileName.replace(File.separatorChar, '/');<a name="line.1003"></a>
-<FONT color="green">1004</FONT>    <a name="line.1004"></a>
-<FONT color="green">1005</FONT>            // No absolute pathnames<a name="line.1005"></a>
-<FONT color="green">1006</FONT>            // Windows (and Posix?) paths can start with "\\NetworkDrive\",<a name="line.1006"></a>
-<FONT color="green">1007</FONT>            // so we loop on starting /'s.<a name="line.1007"></a>
-<FONT color="green">1008</FONT>            while (!preserveLeadingSlashes &amp;&amp; fileName.startsWith("/")) {<a name="line.1008"></a>
-<FONT color="green">1009</FONT>                fileName = fileName.substring(1);<a name="line.1009"></a>
-<FONT color="green">1010</FONT>            }<a name="line.1010"></a>
-<FONT color="green">1011</FONT>            return fileName;<a name="line.1011"></a>
-<FONT color="green">1012</FONT>        }<a name="line.1012"></a>
-<FONT color="green">1013</FONT>    <a name="line.1013"></a>
-<FONT color="green">1014</FONT>        /**<a name="line.1014"></a>
-<FONT color="green">1015</FONT>         * Evaluate an entry's header format from a header buffer.<a name="line.1015"></a>
-<FONT color="green">1016</FONT>         *<a name="line.1016"></a>
-<FONT color="green">1017</FONT>         * @param header The tar entry header buffer to evaluate the format for.<a name="line.1017"></a>
-<FONT color="green">1018</FONT>         * @return format type<a name="line.1018"></a>
-<FONT color="green">1019</FONT>         */<a name="line.1019"></a>
-<FONT color="green">1020</FONT>        private int evaluateType(byte[] header) {<a name="line.1020"></a>
-<FONT color="green">1021</FONT>            if (ArchiveUtils.matchAsciiBuffer(MAGIC_GNU, header, MAGIC_OFFSET, MAGICLEN)) {<a name="line.1021"></a>
-<FONT color="green">1022</FONT>                return FORMAT_OLDGNU;<a name="line.1022"></a>
-<FONT color="green">1023</FONT>            }<a name="line.1023"></a>
-<FONT color="green">1024</FONT>            if (ArchiveUtils.matchAsciiBuffer(MAGIC_POSIX, header, MAGIC_OFFSET, MAGICLEN)) {<a name="line.1024"></a>
-<FONT color="green">1025</FONT>                return FORMAT_POSIX;<a name="line.1025"></a>
-<FONT color="green">1026</FONT>            }<a name="line.1026"></a>
-<FONT color="green">1027</FONT>            return 0;<a name="line.1027"></a>
-<FONT color="green">1028</FONT>        }<a name="line.1028"></a>
-<FONT color="green">1029</FONT>    }<a name="line.1029"></a>
-<FONT color="green">1030</FONT>    <a name="line.1030"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers.tar;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.archivers.ArchiveUtils;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.xbib.io.archivers.zip.ZipEncoding;<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.File;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.IOException;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.util.Date;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.util.Locale;<a name="line.11"></a>
+<span class="sourceLineNo">012</span><a name="line.12"></a>
+<span class="sourceLineNo">013</span>/**<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * This class represents an entry in a Tar archive. It consists<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * of the entry's header, as well as the entry's File. Entries<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * can be instantiated in one of three ways, depending on how<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * they are to be used.<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * &lt;p/&gt;<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * TarEntries that are created from the header bytes read from<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * an archive are instantiated with the TarEntry( byte[] )<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * constructor. These entries will be used when extracting from<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * or listing the contents of an archive. These entries have their<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * header filled in using the header bytes. They also set the File<a name="line.23"></a>
+<span class="sourceLineNo">024</span> * to null, since they reference an archive entry not a file.<a name="line.24"></a>
+<span class="sourceLineNo">025</span> * &lt;p/&gt;<a name="line.25"></a>
+<span class="sourceLineNo">026</span> * TarEntries that are created from Files that are to be written<a name="line.26"></a>
+<span class="sourceLineNo">027</span> * into an archive are instantiated with the TarEntry( File )<a name="line.27"></a>
+<span class="sourceLineNo">028</span> * constructor. These entries have their header filled in using<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * the File's information. They also keep a reference to the File<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * for convenience when writing entries.<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * &lt;p/&gt;<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * Finally, TarEntries can be constructed from nothing but a name.<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * This allows the programmer to construct the entry by hand, for<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * instance when only an InputStream is available for writing to<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * the archive, and the header information is constructed from<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * other information. In this case the header fields are set to<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * defaults and the File is set to null.<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * &lt;p/&gt;<a name="line.38"></a>
+<span class="sourceLineNo">039</span> * &lt;p/&gt;<a name="line.39"></a>
+<span class="sourceLineNo">040</span> * The C structure for a Tar Entry's header is:<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * &lt;pre&gt;<a name="line.41"></a>
+<span class="sourceLineNo">042</span> * struct header {<a name="line.42"></a>
+<span class="sourceLineNo">043</span> * char name[100];     // TarConstants.NAMELEN    - offset   0<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * char mode[8];       // TarConstants.MODELEN    - offset 100<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * char uid[8];        // TarConstants.UIDLEN     - offset 108<a name="line.45"></a>
+<span class="sourceLineNo">046</span> * char gid[8];        // TarConstants.GIDLEN     - offset 116<a name="line.46"></a>
+<span class="sourceLineNo">047</span> * char size[12];      // TarConstants.SIZELEN    - offset 124<a name="line.47"></a>
+<span class="sourceLineNo">048</span> * char mtime[12];     // TarConstants.MODTIMELEN - offset 136<a name="line.48"></a>
+<span class="sourceLineNo">049</span> * char chksum[8];     // TarConstants.CHKSUMLEN  - offset 148<a name="line.49"></a>
+<span class="sourceLineNo">050</span> * char linkflag[1];   //                         - offset 156<a name="line.50"></a>
+<span class="sourceLineNo">051</span> * char linkname[100]; // TarConstants.NAMELEN    - offset 157<a name="line.51"></a>
+<span class="sourceLineNo">052</span> * The following fields are only present in new-style POSIX tar archives:<a name="line.52"></a>
+<span class="sourceLineNo">053</span> * char magic[6];      // TarConstants.MAGICLEN   - offset 257<a name="line.53"></a>
+<span class="sourceLineNo">054</span> * char version[2];    // TarConstants.VERSIONLEN - offset 263<a name="line.54"></a>
+<span class="sourceLineNo">055</span> * char uname[32];     // TarConstants.UNAMELEN   - offset 265<a name="line.55"></a>
+<span class="sourceLineNo">056</span> * char gname[32];     // TarConstants.GNAMELEN   - offset 297<a name="line.56"></a>
+<span class="sourceLineNo">057</span> * char devmajor[8];   // TarConstants.DEVLEN     - offset 329<a name="line.57"></a>
+<span class="sourceLineNo">058</span> * char devminor[8];   // TarConstants.DEVLEN     - offset 337<a name="line.58"></a>
+<span class="sourceLineNo">059</span> * char prefix[155];   // TarConstants.PREFIXLEN  - offset 345<a name="line.59"></a>
+<span class="sourceLineNo">060</span> * // Used if "name" field is not long enough to hold the path<a name="line.60"></a>
+<span class="sourceLineNo">061</span> * char pad[12];       // NULs                    - offset 500<a name="line.61"></a>
+<span class="sourceLineNo">062</span> * } header;<a name="line.62"></a>
+<span class="sourceLineNo">063</span> * All unused bytes are set to null.<a name="line.63"></a>
+<span class="sourceLineNo">064</span> * New-style GNU tar files are slightly different from the above.<a name="line.64"></a>
+<span class="sourceLineNo">065</span> * For values of size larger than 077777777777L (11 7s)<a name="line.65"></a>
+<span class="sourceLineNo">066</span> * or uid and gid larger than 07777777L (7 7s)<a name="line.66"></a>
+<span class="sourceLineNo">067</span> * the sign bit of the first byte is set, and the rest of the<a name="line.67"></a>
+<span class="sourceLineNo">068</span> * field is the binary representation of the number.<a name="line.68"></a>
+<span class="sourceLineNo">069</span> * See TarUtils.parseOctalOrBinary.<a name="line.69"></a>
+<span class="sourceLineNo">070</span> * &lt;/pre&gt;<a name="line.70"></a>
+<span class="sourceLineNo">071</span> * &lt;p/&gt;<a name="line.71"></a>
+<span class="sourceLineNo">072</span> * &lt;p/&gt;<a name="line.72"></a>
+<span class="sourceLineNo">073</span> * The C structure for a old GNU Tar Entry's header is:<a name="line.73"></a>
+<span class="sourceLineNo">074</span> * &lt;pre&gt;<a name="line.74"></a>
+<span class="sourceLineNo">075</span> * struct oldgnu_header {<a name="line.75"></a>
+<span class="sourceLineNo">076</span> * char unused_pad1[345]; // TarConstants.PAD1LEN_GNU       - offset 0<a name="line.76"></a>
+<span class="sourceLineNo">077</span> * char atime[12];        // TarConstants.ATIMELEN_GNU      - offset 345<a name="line.77"></a>
+<span class="sourceLineNo">078</span> * char ctime[12];        // TarConstants.CTIMELEN_GNU      - offset 357<a name="line.78"></a>
+<span class="sourceLineNo">079</span> * char offset[12];       // TarConstants.OFFSETLEN_GNU     - offset 369<a name="line.79"></a>
+<span class="sourceLineNo">080</span> * char longnames[4];     // TarConstants.LONGNAMESLEN_GNU  - offset 381<a name="line.80"></a>
+<span class="sourceLineNo">081</span> * char unused_pad2;      // TarConstants.PAD2LEN_GNU       - offset 385<a name="line.81"></a>
+<span class="sourceLineNo">082</span> * struct sparse sp[4];   // TarConstants.SPARSELEN_GNU     - offset 386<a name="line.82"></a>
+<span class="sourceLineNo">083</span> * char isextended;       // TarConstants.ISEXTENDEDLEN_GNU - offset 482<a name="line.83"></a>
+<span class="sourceLineNo">084</span> * char realsize[12];     // TarConstants.REALSIZELEN_GNU   - offset 483<a name="line.84"></a>
+<span class="sourceLineNo">085</span> * char unused_pad[17];   // TarConstants.PAD3LEN_GNU       - offset 495<a name="line.85"></a>
+<span class="sourceLineNo">086</span> * };<a name="line.86"></a>
+<span class="sourceLineNo">087</span> * &lt;/pre&gt;<a name="line.87"></a>
+<span class="sourceLineNo">088</span> * Whereas, "struct sparse" is:<a name="line.88"></a>
+<span class="sourceLineNo">089</span> * &lt;pre&gt;<a name="line.89"></a>
+<span class="sourceLineNo">090</span> * struct sparse {<a name="line.90"></a>
+<span class="sourceLineNo">091</span> * char offset[12];   // offset 0<a name="line.91"></a>
+<span class="sourceLineNo">092</span> * char numbytes[12]; // offset 12<a name="line.92"></a>
+<span class="sourceLineNo">093</span> * };<a name="line.93"></a>
+<span class="sourceLineNo">094</span> * &lt;/pre&gt;<a name="line.94"></a>
+<span class="sourceLineNo">095</span> */<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>public class TarArchiveEntry implements TarConstants, ArchiveEntry {<a name="line.97"></a>
+<span class="sourceLineNo">098</span><a name="line.98"></a>
+<span class="sourceLineNo">099</span>    /**<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     * Maximum length of a user's name in the tar file<a name="line.100"></a>
+<span class="sourceLineNo">101</span>     */<a name="line.101"></a>
+<span class="sourceLineNo">102</span>    public static final int MAX_NAMELEN = 31;<a name="line.102"></a>
+<span class="sourceLineNo">103</span><a name="line.103"></a>
+<span class="sourceLineNo">104</span>    /**<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     * Default permissions bits for directories<a name="line.105"></a>
+<span class="sourceLineNo">106</span>     */<a name="line.106"></a>
+<span class="sourceLineNo">107</span>    public static final int DEFAULT_DIR_MODE = 040755;<a name="line.107"></a>
+<span class="sourceLineNo">108</span><a name="line.108"></a>
+<span class="sourceLineNo">109</span>    /**<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     * Default permissions bits for files<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     */<a name="line.111"></a>
+<span class="sourceLineNo">112</span>    public static final int DEFAULT_FILE_MODE = 0100644;<a name="line.112"></a>
+<span class="sourceLineNo">113</span><a name="line.113"></a>
+<span class="sourceLineNo">114</span>    /**<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     * Convert millis to seconds<a name="line.115"></a>
+<span class="sourceLineNo">116</span>     */<a name="line.116"></a>
+<span class="sourceLineNo">117</span>    public static final int MILLIS_PER_SECOND = 1000;<a name="line.117"></a>
+<span class="sourceLineNo">118</span><a name="line.118"></a>
+<span class="sourceLineNo">119</span>    /**<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     * The entry's name.<a name="line.120"></a>
+<span class="sourceLineNo">121</span>     */<a name="line.121"></a>
+<span class="sourceLineNo">122</span>    private String name;<a name="line.122"></a>
+<span class="sourceLineNo">123</span><a name="line.123"></a>
+<span class="sourceLineNo">124</span>    /**<a name="line.124"></a>
+<span class="sourceLineNo">125</span>     * The entry's permission mode.<a name="line.125"></a>
+<span class="sourceLineNo">126</span>     */<a name="line.126"></a>
+<span class="sourceLineNo">127</span>    private int mode;<a name="line.127"></a>
+<span class="sourceLineNo">128</span><a name="line.128"></a>
+<span class="sourceLineNo">129</span>    /**<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     * The entry's user id.<a name="line.130"></a>
+<span class="sourceLineNo">131</span>     */<a name="line.131"></a>
+<span class="sourceLineNo">132</span>    private int userId;<a name="line.132"></a>
+<span class="sourceLineNo">133</span><a name="line.133"></a>
+<span class="sourceLineNo">134</span>    /**<a name="line.134"></a>
+<span class="sourceLineNo">135</span>     * The entry's group id.<a name="line.135"></a>
+<span class="sourceLineNo">136</span>     */<a name="line.136"></a>
+<span class="sourceLineNo">137</span>    private int groupId;<a name="line.137"></a>
+<span class="sourceLineNo">138</span><a name="line.138"></a>
+<span class="sourceLineNo">139</span>    /**<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * The entry's size.<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     */<a name="line.141"></a>
+<span class="sourceLineNo">142</span>    private long size;<a name="line.142"></a>
+<span class="sourceLineNo">143</span><a name="line.143"></a>
+<span class="sourceLineNo">144</span>    /**<a name="line.144"></a>
+<span class="sourceLineNo">145</span>     * The entry's modification time.<a name="line.145"></a>
+<span class="sourceLineNo">146</span>     */<a name="line.146"></a>
+<span class="sourceLineNo">147</span>    private long modTime;<a name="line.147"></a>
+<span class="sourceLineNo">148</span><a name="line.148"></a>
+<span class="sourceLineNo">149</span>    /**<a name="line.149"></a>
+<span class="sourceLineNo">150</span>     * The entry's link flag.<a name="line.150"></a>
+<span class="sourceLineNo">151</span>     */<a name="line.151"></a>
+<span class="sourceLineNo">152</span>    private byte linkFlag;<a name="line.152"></a>
+<span class="sourceLineNo">153</span><a name="line.153"></a>
+<span class="sourceLineNo">154</span>    /**<a name="line.154"></a>
+<span class="sourceLineNo">155</span>     * The entry's link name.<a name="line.155"></a>
+<span class="sourceLineNo">156</span>     */<a name="line.156"></a>
+<span class="sourceLineNo">157</span>    private String linkName;<a name="line.157"></a>
+<span class="sourceLineNo">158</span><a name="line.158"></a>
+<span class="sourceLineNo">159</span>    /**<a name="line.159"></a>
+<span class="sourceLineNo">160</span>     * The entry's magic tag.<a name="line.160"></a>
+<span class="sourceLineNo">161</span>     */<a name="line.161"></a>
+<span class="sourceLineNo">162</span>    private String magic;<a name="line.162"></a>
+<span class="sourceLineNo">163</span>    /**<a name="line.163"></a>
+<span class="sourceLineNo">164</span>     * The version of the format<a name="line.164"></a>
+<span class="sourceLineNo">165</span>     */<a name="line.165"></a>
+<span class="sourceLineNo">166</span>    private String version;<a name="line.166"></a>
+<span class="sourceLineNo">167</span><a name="line.167"></a>
+<span class="sourceLineNo">168</span>    /**<a name="line.168"></a>
+<span class="sourceLineNo">169</span>     * The entry's user name.<a name="line.169"></a>
+<span class="sourceLineNo">170</span>     */<a name="line.170"></a>
+<span class="sourceLineNo">171</span>    private String userName;<a name="line.171"></a>
+<span class="sourceLineNo">172</span><a name="line.172"></a>
+<span class="sourceLineNo">173</span>    /**<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     * The entry's group name.<a name="line.174"></a>
+<span class="sourceLineNo">175</span>     */<a name="line.175"></a>
+<span class="sourceLineNo">176</span>    private String groupName;<a name="line.176"></a>
+<span class="sourceLineNo">177</span><a name="line.177"></a>
+<span class="sourceLineNo">178</span>    /**<a name="line.178"></a>
+<span class="sourceLineNo">179</span>     * The entry's major device number.<a name="line.179"></a>
+<span class="sourceLineNo">180</span>     */<a name="line.180"></a>
+<span class="sourceLineNo">181</span>    private int devMajor;<a name="line.181"></a>
+<span class="sourceLineNo">182</span><a name="line.182"></a>
+<span class="sourceLineNo">183</span>    /**<a name="line.183"></a>
+<span class="sourceLineNo">184</span>     * The entry's minor device number.<a name="line.184"></a>
+<span class="sourceLineNo">185</span>     */<a name="line.185"></a>
+<span class="sourceLineNo">186</span>    private int devMinor;<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>    /**<a name="line.188"></a>
+<span class="sourceLineNo">189</span>     * If an extension sparse header follows.<a name="line.189"></a>
+<span class="sourceLineNo">190</span>     */<a name="line.190"></a>
+<span class="sourceLineNo">191</span>    private boolean isExtended;<a name="line.191"></a>
+<span class="sourceLineNo">192</span><a name="line.192"></a>
+<span class="sourceLineNo">193</span>    /**<a name="line.193"></a>
+<span class="sourceLineNo">194</span>     * The entry's real size in case of a sparse file.<a name="line.194"></a>
+<span class="sourceLineNo">195</span>     */<a name="line.195"></a>
+<span class="sourceLineNo">196</span>    private long realSize;<a name="line.196"></a>
+<span class="sourceLineNo">197</span><a name="line.197"></a>
+<span class="sourceLineNo">198</span>    /**<a name="line.198"></a>
+<span class="sourceLineNo">199</span>     * The entry's file reference<a name="line.199"></a>
+<span class="sourceLineNo">200</span>     */<a name="line.200"></a>
+<span class="sourceLineNo">201</span>    private File file;<a name="line.201"></a>
+<span class="sourceLineNo">202</span><a name="line.202"></a>
+<span class="sourceLineNo">203</span>    /**<a name="line.203"></a>
+<span class="sourceLineNo">204</span>     * Construct an empty entry and prepares the header values.<a name="line.204"></a>
+<span class="sourceLineNo">205</span>     */<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    public TarArchiveEntry() {<a name="line.206"></a>
+<span class="sourceLineNo">207</span>        this.magic = MAGIC_POSIX;<a name="line.207"></a>
+<span class="sourceLineNo">208</span>        this.version = VERSION_POSIX;<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        this.name = "";<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        this.linkName = "";<a name="line.210"></a>
+<span class="sourceLineNo">211</span>        String user = System.getProperty("user.name", "");<a name="line.211"></a>
+<span class="sourceLineNo">212</span>        if (user.length() &gt; MAX_NAMELEN) {<a name="line.212"></a>
+<span class="sourceLineNo">213</span>            user = user.substring(0, MAX_NAMELEN);<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        }<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        this.userId = 0;<a name="line.215"></a>
+<span class="sourceLineNo">216</span>        this.groupId = 0;<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        this.userName = user;<a name="line.217"></a>
+<span class="sourceLineNo">218</span>        this.groupName = "";<a name="line.218"></a>
+<span class="sourceLineNo">219</span>        this.file = null;<a name="line.219"></a>
+<span class="sourceLineNo">220</span>    }<a name="line.220"></a>
+<span class="sourceLineNo">221</span><a name="line.221"></a>
+<span class="sourceLineNo">222</span>    /**<a name="line.222"></a>
+<span class="sourceLineNo">223</span>     * Construct an entry with only a name. This allows the programmer<a name="line.223"></a>
+<span class="sourceLineNo">224</span>     * to construct the entry's header "by hand". File is set to null.<a name="line.224"></a>
+<span class="sourceLineNo">225</span>     *<a name="line.225"></a>
+<span class="sourceLineNo">226</span>     * @param name the entry name<a name="line.226"></a>
+<span class="sourceLineNo">227</span>     */<a name="line.227"></a>
+<span class="sourceLineNo">228</span>    public TarArchiveEntry(String name) {<a name="line.228"></a>
+<span class="sourceLineNo">229</span>        this(name, false);<a name="line.229"></a>
+<span class="sourceLineNo">230</span>    }<a name="line.230"></a>
+<span class="sourceLineNo">231</span><a name="line.231"></a>
+<span class="sourceLineNo">232</span>    /**<a name="line.232"></a>
+<span class="sourceLineNo">233</span>     * Construct an entry with only a name. This allows the programmer<a name="line.233"></a>
+<span class="sourceLineNo">234</span>     * to construct the entry's header "by hand". File is set to null.<a name="line.234"></a>
+<span class="sourceLineNo">235</span>     *<a name="line.235"></a>
+<span class="sourceLineNo">236</span>     * @param name                   the entry name<a name="line.236"></a>
+<span class="sourceLineNo">237</span>     * @param preserveLeadingSlashes whether to allow leading slashes<a name="line.237"></a>
+<span class="sourceLineNo">238</span>     *                               in the name.<a name="line.238"></a>
+<span class="sourceLineNo">239</span>     */<a name="line.239"></a>
+<span class="sourceLineNo">240</span>    public TarArchiveEntry(String name, boolean preserveLeadingSlashes) {<a name="line.240"></a>
+<span class="sourceLineNo">241</span>        this();<a name="line.241"></a>
+<span class="sourceLineNo">242</span><a name="line.242"></a>
+<span class="sourceLineNo">243</span>        name = normalizeFileName(name, preserveLeadingSlashes);<a name="line.243"></a>
+<span class="sourceLineNo">244</span>        boolean isDir = name.endsWith("/");<a name="line.244"></a>
+<span class="sourceLineNo">245</span><a name="line.245"></a>
+<span class="sourceLineNo">246</span>        this.devMajor = 0;<a name="line.246"></a>
+<span class="sourceLineNo">247</span>        this.devMinor = 0;<a name="line.247"></a>
+<span class="sourceLineNo">248</span>        this.name = name;<a name="line.248"></a>
+<span class="sourceLineNo">249</span>        this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;<a name="line.249"></a>
+<span class="sourceLineNo">250</span>        this.linkFlag = isDir ? LF_DIR : LF_NORMAL;<a name="line.250"></a>
+<span class="sourceLineNo">251</span>        this.userId = 0;<a name="line.251"></a>
+<span class="sourceLineNo">252</span>        this.groupId = 0;<a name="line.252"></a>
+<span class="sourceLineNo">253</span>        this.size = 0;<a name="line.253"></a>
+<span class="sourceLineNo">254</span>        this.modTime = (new Date()).getTime() / MILLIS_PER_SECOND;<a name="line.254"></a>
+<span class="sourceLineNo">255</span>        this.linkName = "";<a name="line.255"></a>
+<span class="sourceLineNo">256</span>        this.userName = "";<a name="line.256"></a>
+<span class="sourceLineNo">257</span>        this.groupName = "";<a name="line.257"></a>
+<span class="sourceLineNo">258</span>    }<a name="line.258"></a>
+<span class="sourceLineNo">259</span><a name="line.259"></a>
+<span class="sourceLineNo">260</span>    /**<a name="line.260"></a>
+<span class="sourceLineNo">261</span>     * Construct an entry with a name and a link flag.<a name="line.261"></a>
+<span class="sourceLineNo">262</span>     *<a name="line.262"></a>
+<span class="sourceLineNo">263</span>     * @param name     the entry name<a name="line.263"></a>
+<span class="sourceLineNo">264</span>     * @param linkFlag the entry link flag.<a name="line.264"></a>
+<span class="sourceLineNo">265</span>     */<a name="line.265"></a>
+<span class="sourceLineNo">266</span>    public TarArchiveEntry(String name, byte linkFlag) {<a name="line.266"></a>
+<span class="sourceLineNo">267</span>        this(name);<a name="line.267"></a>
+<span class="sourceLineNo">268</span>        this.linkFlag = linkFlag;<a name="line.268"></a>
+<span class="sourceLineNo">269</span>        if (linkFlag == LF_GNUTYPE_LONGNAME) {<a name="line.269"></a>
+<span class="sourceLineNo">270</span>            magic = MAGIC_GNU;<a name="line.270"></a>
+<span class="sourceLineNo">271</span>            version = VERSION_GNU_SPACE;<a name="line.271"></a>
+<span class="sourceLineNo">272</span>        }<a name="line.272"></a>
+<span class="sourceLineNo">273</span>    }<a name="line.273"></a>
+<span class="sourceLineNo">274</span><a name="line.274"></a>
+<span class="sourceLineNo">275</span>    /**<a name="line.275"></a>
+<span class="sourceLineNo">276</span>     * Construct an entry for a file. File is set to file, and the<a name="line.276"></a>
+<span class="sourceLineNo">277</span>     * header is constructed from information from the file.<a name="line.277"></a>
+<span class="sourceLineNo">278</span>     * The name is set from the normalized file path.<a name="line.278"></a>
+<span class="sourceLineNo">279</span>     *<a name="line.279"></a>
+<span class="sourceLineNo">280</span>     * @param file The file that the entry represents.<a name="line.280"></a>
+<span class="sourceLineNo">281</span>     */<a name="line.281"></a>
+<span class="sourceLineNo">282</span>    public TarArchiveEntry(File file) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>        this(file, normalizeFileName(file.getPath(), false));<a name="line.283"></a>
+<span class="sourceLineNo">284</span>    }<a name="line.284"></a>
+<span class="sourceLineNo">285</span><a name="line.285"></a>
+<span class="sourceLineNo">286</span>    /**<a name="line.286"></a>
+<span class="sourceLineNo">287</span>     * Construct an entry for a file. File is set to file, and the<a name="line.287"></a>
+<span class="sourceLineNo">288</span>     * header is constructed from information from the file.<a name="line.288"></a>
+<span class="sourceLineNo">289</span>     *<a name="line.289"></a>
+<span class="sourceLineNo">290</span>     * @param file     The file that the entry represents.<a name="line.290"></a>
+<span class="sourceLineNo">291</span>     * @param fileName the name to be used for the entry.<a name="line.291"></a>
+<span class="sourceLineNo">292</span>     */<a name="line.292"></a>
+<span class="sourceLineNo">293</span>    public TarArchiveEntry(File file, String fileName) {<a name="line.293"></a>
+<span class="sourceLineNo">294</span>        this();<a name="line.294"></a>
+<span class="sourceLineNo">295</span><a name="line.295"></a>
+<span class="sourceLineNo">296</span>        this.file = file;<a name="line.296"></a>
+<span class="sourceLineNo">297</span><a name="line.297"></a>
+<span class="sourceLineNo">298</span>        this.linkName = "";<a name="line.298"></a>
+<span class="sourceLineNo">299</span><a name="line.299"></a>
+<span class="sourceLineNo">300</span>        if (file.isDirectory()) {<a name="line.300"></a>
+<span class="sourceLineNo">301</span>            this.mode = DEFAULT_DIR_MODE;<a name="line.301"></a>
+<span class="sourceLineNo">302</span>            this.linkFlag = LF_DIR;<a name="line.302"></a>
+<span class="sourceLineNo">303</span><a name="line.303"></a>
+<span class="sourceLineNo">304</span>            int nameLength = fileName.length();<a name="line.304"></a>
+<span class="sourceLineNo">305</span>            if (nameLength == 0 || fileName.charAt(nameLength - 1) != '/') {<a name="line.305"></a>
+<span class="sourceLineNo">306</span>                this.name = fileName + "/";<a name="line.306"></a>
+<span class="sourceLineNo">307</span>            } else {<a name="line.307"></a>
+<span class="sourceLineNo">308</span>                this.name = fileName;<a name="line.308"></a>
+<span class="sourceLineNo">309</span>            }<a name="line.309"></a>
+<span class="sourceLineNo">310</span>            this.size = 0;<a name="line.310"></a>
+<span class="sourceLineNo">311</span>        } else {<a name="line.311"></a>
+<span class="sourceLineNo">312</span>            this.mode = DEFAULT_FILE_MODE;<a name="line.312"></a>
+<span class="sourceLineNo">313</span>            this.linkFlag = LF_NORMAL;<a name="line.313"></a>
+<span class="sourceLineNo">314</span>            this.size = file.length();<a name="line.314"></a>
+<span class="sourceLineNo">315</span>            this.name = fileName;<a name="line.315"></a>
+<span class="sourceLineNo">316</span>        }<a name="line.316"></a>
+<span class="sourceLineNo">317</span><a name="line.317"></a>
+<span class="sourceLineNo">318</span>        this.modTime = file.lastModified() / MILLIS_PER_SECOND;<a name="line.318"></a>
+<span class="sourceLineNo">319</span>        this.devMajor = 0;<a name="line.319"></a>
+<span class="sourceLineNo">320</span>        this.devMinor = 0;<a name="line.320"></a>
+<span class="sourceLineNo">321</span>    }<a name="line.321"></a>
+<span class="sourceLineNo">322</span><a name="line.322"></a>
+<span class="sourceLineNo">323</span>    /**<a name="line.323"></a>
+<span class="sourceLineNo">324</span>     * Construct an entry from an archive's header bytes. File is set<a name="line.324"></a>
+<span class="sourceLineNo">325</span>     * to null.<a name="line.325"></a>
+<span class="sourceLineNo">326</span>     *<a name="line.326"></a>
+<span class="sourceLineNo">327</span>     * @param headerBuf The header bytes from a tar archive entry.<a name="line.327"></a>
+<span class="sourceLineNo">328</span>     * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     */<a name="line.329"></a>
+<span class="sourceLineNo">330</span>    public TarArchiveEntry(byte[] headerBuf) {<a name="line.330"></a>
+<span class="sourceLineNo">331</span>        this();<a name="line.331"></a>
+<span class="sourceLineNo">332</span>        parseTarHeader(headerBuf);<a name="line.332"></a>
+<span class="sourceLineNo">333</span>    }<a name="line.333"></a>
+<span class="sourceLineNo">334</span><a name="line.334"></a>
+<span class="sourceLineNo">335</span>    /**<a name="line.335"></a>
+<span class="sourceLineNo">336</span>     * Construct an entry from an archive's header bytes. File is set<a name="line.336"></a>
+<span class="sourceLineNo">337</span>     * to null.<a name="line.337"></a>
+<span class="sourceLineNo">338</span>     *<a name="line.338"></a>
+<span class="sourceLineNo">339</span>     * @param headerBuf The header bytes from a tar archive entry.<a name="line.339"></a>
+<span class="sourceLineNo">340</span>     * @param encoding  encoding to use for file names<a name="line.340"></a>
+<span class="sourceLineNo">341</span>     * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     */<a name="line.342"></a>
+<span class="sourceLineNo">343</span>    public TarArchiveEntry(byte[] headerBuf, ZipEncoding encoding)<a name="line.343"></a>
+<span class="sourceLineNo">344</span>            throws IOException {<a name="line.344"></a>
+<span class="sourceLineNo">345</span>        this();<a name="line.345"></a>
+<span class="sourceLineNo">346</span>        parseTarHeader(headerBuf, encoding);<a name="line.346"></a>
+<span class="sourceLineNo">347</span>    }<a name="line.347"></a>
+<span class="sourceLineNo">348</span><a name="line.348"></a>
+<span class="sourceLineNo">349</span>    /**<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     * Determine if the two entries are equal. Equality is determined<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     * by the header names being equal.<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     *<a name="line.352"></a>
+<span class="sourceLineNo">353</span>     * @param it Entry to be checked for equality.<a name="line.353"></a>
+<span class="sourceLineNo">354</span>     * @return True if the entries are equal.<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     */<a name="line.355"></a>
+<span class="sourceLineNo">356</span>    public boolean equals(TarArchiveEntry it) {<a name="line.356"></a>
+<span class="sourceLineNo">357</span>        return getName().equals(it.getName());<a name="line.357"></a>
+<span class="sourceLineNo">358</span>    }<a name="line.358"></a>
+<span class="sourceLineNo">359</span><a name="line.359"></a>
+<span class="sourceLineNo">360</span>    /**<a name="line.360"></a>
+<span class="sourceLineNo">361</span>     * Determine if the two entries are equal. Equality is determined<a name="line.361"></a>
+<span class="sourceLineNo">362</span>     * by the header names being equal.<a name="line.362"></a>
+<span class="sourceLineNo">363</span>     *<a name="line.363"></a>
+<span class="sourceLineNo">364</span>     * @param it Entry to be checked for equality.<a name="line.364"></a>
+<span class="sourceLineNo">365</span>     * @return True if the entries are equal.<a name="line.365"></a>
+<span class="sourceLineNo">366</span>     */<a name="line.366"></a>
+<span class="sourceLineNo">367</span>    @Override<a name="line.367"></a>
+<span class="sourceLineNo">368</span>    public boolean equals(Object it) {<a name="line.368"></a>
+<span class="sourceLineNo">369</span>        if (it == null || getClass() != it.getClass()) {<a name="line.369"></a>
+<span class="sourceLineNo">370</span>            return false;<a name="line.370"></a>
+<span class="sourceLineNo">371</span>        }<a name="line.371"></a>
+<span class="sourceLineNo">372</span>        return equals((TarArchiveEntry) it);<a name="line.372"></a>
+<span class="sourceLineNo">373</span>    }<a name="line.373"></a>
+<span class="sourceLineNo">374</span><a name="line.374"></a>
+<span class="sourceLineNo">375</span>    /**<a name="line.375"></a>
+<span class="sourceLineNo">376</span>     * Hashcodes are based on entry names.<a name="line.376"></a>
+<span class="sourceLineNo">377</span>     *<a name="line.377"></a>
+<span class="sourceLineNo">378</span>     * @return the entry hashcode<a name="line.378"></a>
+<span class="sourceLineNo">379</span>     */<a name="line.379"></a>
+<span class="sourceLineNo">380</span>    @Override<a name="line.380"></a>
+<span class="sourceLineNo">381</span>    public int hashCode() {<a name="line.381"></a>
+<span class="sourceLineNo">382</span>        return getName().hashCode();<a name="line.382"></a>
+<span class="sourceLineNo">383</span>    }<a name="line.383"></a>
+<span class="sourceLineNo">384</span><a name="line.384"></a>
+<span class="sourceLineNo">385</span>    /**<a name="line.385"></a>
+<span class="sourceLineNo">386</span>     * Determine if the given entry is a descendant of this entry.<a name="line.386"></a>
+<span class="sourceLineNo">387</span>     * Descendancy is determined by the name of the descendant<a name="line.387"></a>
+<span class="sourceLineNo">388</span>     * starting with this entry's name.<a name="line.388"></a>
+<span class="sourceLineNo">389</span>     *<a name="line.389"></a>
+<span class="sourceLineNo">390</span>     * @param desc Entry to be checked as a descendent of this.<a name="line.390"></a>
+<span class="sourceLineNo">391</span>     * @return True if entry is a descendant of this.<a name="line.391"></a>
+<span class="sourceLineNo">392</span>     */<a name="line.392"></a>
+<span class="sourceLineNo">393</span>    public boolean isDescendent(TarArchiveEntry desc) {<a name="line.393"></a>
+<span class="sourceLineNo">394</span>        return desc.getName().startsWith(getName());<a name="line.394"></a>
+<span class="sourceLineNo">395</span>    }<a name="line.395"></a>
+<span class="sourceLineNo">396</span><a name="line.396"></a>
+<span class="sourceLineNo">397</span>    /**<a name="line.397"></a>
+<span class="sourceLineNo">398</span>     * Get this entry's name.<a name="line.398"></a>
+<span class="sourceLineNo">399</span>     *<a name="line.399"></a>
+<span class="sourceLineNo">400</span>     * @return This entry's name.<a name="line.400"></a>
+<span class="sourceLineNo">401</span>     */<a name="line.401"></a>
+<span class="sourceLineNo">402</span>    public String getName() {<a name="line.402"></a>
+<span class="sourceLineNo">403</span>        return name;<a name="line.403"></a>
+<span class="sourceLineNo">404</span>    }<a name="line.404"></a>
+<span class="sourceLineNo">405</span><a name="line.405"></a>
+<span class="sourceLineNo">406</span>    /**<a name="line.406"></a>
+<span class="sourceLineNo">407</span>     * Set this entry's name.<a name="line.407"></a>
+<span class="sourceLineNo">408</span>     *<a name="line.408"></a>
+<span class="sourceLineNo">409</span>     * @param name This entry's new name.<a name="line.409"></a>
+<span class="sourceLineNo">410</span>     */<a name="line.410"></a>
+<span class="sourceLineNo">411</span>    public TarArchiveEntry setName(String name) {<a name="line.411"></a>
+<span class="sourceLineNo">412</span>        this.name = normalizeFileName(name, false);<a name="line.412"></a>
+<span class="sourceLineNo">413</span>        boolean isDir = name.endsWith("/");<a name="line.413"></a>
+<span class="sourceLineNo">414</span>        this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;<a name="line.414"></a>
+<span class="sourceLineNo">415</span>        this.linkFlag = isDir ? LF_DIR : LF_NORMAL;<a name="line.415"></a>
+<span class="sourceLineNo">416</span>        return this;<a name="line.416"></a>
+<span class="sourceLineNo">417</span>    }<a name="line.417"></a>
+<span class="sourceLineNo">418</span><a name="line.418"></a>
+<span class="sourceLineNo">419</span>    /**<a name="line.419"></a>
+<span class="sourceLineNo">420</span>     * Set the mode for this entry<a name="line.420"></a>
+<span class="sourceLineNo">421</span>     *<a name="line.421"></a>
+<span class="sourceLineNo">422</span>     * @param mode the mode for this entry<a name="line.422"></a>
+<span class="sourceLineNo">423</span>     */<a name="line.423"></a>
+<span class="sourceLineNo">424</span>    public void setMode(int mode) {<a name="line.424"></a>
+<span class="sourceLineNo">425</span>        this.mode = mode;<a name="line.425"></a>
+<span class="sourceLineNo">426</span>    }<a name="line.426"></a>
+<span class="sourceLineNo">427</span><a name="line.427"></a>
+<span class="sourceLineNo">428</span>    /**<a name="line.428"></a>
+<span class="sourceLineNo">429</span>     * Get this entry's link name.<a name="line.429"></a>
+<span class="sourceLineNo">430</span>     *<a name="line.430"></a>
+<span class="sourceLineNo">431</span>     * @return This entry's link name.<a name="line.431"></a>
+<span class="sourceLineNo">432</span>     */<a name="line.432"></a>
+<span class="sourceLineNo">433</span>    public String getLinkName() {<a name="line.433"></a>
+<span class="sourceLineNo">434</span>        return linkName;<a name="line.434"></a>
+<span class="sourceLineNo">435</span>    }<a name="line.435"></a>
+<span class="sourceLineNo">436</span><a name="line.436"></a>
+<span class="sourceLineNo">437</span>    /**<a name="line.437"></a>
+<span class="sourceLineNo">438</span>     * Set this entry's link name.<a name="line.438"></a>
+<span class="sourceLineNo">439</span>     *<a name="line.439"></a>
+<span class="sourceLineNo">440</span>     * @param link the link name to use.<a name="line.440"></a>
+<span class="sourceLineNo">441</span>     */<a name="line.441"></a>
+<span class="sourceLineNo">442</span>    public void setLinkName(String link) {<a name="line.442"></a>
+<span class="sourceLineNo">443</span>        this.linkName = link;<a name="line.443"></a>
+<span class="sourceLineNo">444</span>    }<a name="line.444"></a>
+<span class="sourceLineNo">445</span><a name="line.445"></a>
+<span class="sourceLineNo">446</span>    /**<a name="line.446"></a>
+<span class="sourceLineNo">447</span>     * Get this entry's user id.<a name="line.447"></a>
+<span class="sourceLineNo">448</span>     *<a name="line.448"></a>
+<span class="sourceLineNo">449</span>     * @return This entry's user id.<a name="line.449"></a>
+<span class="sourceLineNo">450</span>     */<a name="line.450"></a>
+<span class="sourceLineNo">451</span>    public int getUserId() {<a name="line.451"></a>
+<span class="sourceLineNo">452</span>        return userId;<a name="line.452"></a>
+<span class="sourceLineNo">453</span>    }<a name="line.453"></a>
+<span class="sourceLineNo">454</span><a name="line.454"></a>
+<span class="sourceLineNo">455</span>    /**<a name="line.455"></a>
+<span class="sourceLineNo">456</span>     * Set this entry's user id.<a name="line.456"></a>
+<span class="sourceLineNo">457</span>     *<a name="line.457"></a>
+<span class="sourceLineNo">458</span>     * @param userId This entry's new user id.<a name="line.458"></a>
+<span class="sourceLineNo">459</span>     */<a name="line.459"></a>
+<span class="sourceLineNo">460</span>    public void setUserId(int userId) {<a name="line.460"></a>
+<span class="sourceLineNo">461</span>        this.userId = userId;<a name="line.461"></a>
+<span class="sourceLineNo">462</span>    }<a name="line.462"></a>
+<span class="sourceLineNo">463</span><a name="line.463"></a>
+<span class="sourceLineNo">464</span>    /**<a name="line.464"></a>
+<span class="sourceLineNo">465</span>     * Get this entry's group id.<a name="line.465"></a>
+<span class="sourceLineNo">466</span>     *<a name="line.466"></a>
+<span class="sourceLineNo">467</span>     * @return This entry's group id.<a name="line.467"></a>
+<span class="sourceLineNo">468</span>     */<a name="line.468"></a>
+<span class="sourceLineNo">469</span>    public int getGroupId() {<a name="line.469"></a>
+<span class="sourceLineNo">470</span>        return groupId;<a name="line.470"></a>
+<span class="sourceLineNo">471</span>    }<a name="line.471"></a>
+<span class="sourceLineNo">472</span><a name="line.472"></a>
+<span class="sourceLineNo">473</span>    /**<a name="line.473"></a>
+<span class="sourceLineNo">474</span>     * Set this entry's group id.<a name="line.474"></a>
+<span class="sourceLineNo">475</span>     *<a name="line.475"></a>
+<span class="sourceLineNo">476</span>     * @param groupId This entry's new group id.<a name="line.476"></a>
+<span class="sourceLineNo">477</span>     */<a name="line.477"></a>
+<span class="sourceLineNo">478</span>    public void setGroupId(int groupId) {<a name="line.478"></a>
+<span class="sourceLineNo">479</span>        this.groupId = groupId;<a name="line.479"></a>
+<span class="sourceLineNo">480</span>    }<a name="line.480"></a>
+<span class="sourceLineNo">481</span><a name="line.481"></a>
+<span class="sourceLineNo">482</span>    /**<a name="line.482"></a>
+<span class="sourceLineNo">483</span>     * Get this entry's user name.<a name="line.483"></a>
+<span class="sourceLineNo">484</span>     *<a name="line.484"></a>
+<span class="sourceLineNo">485</span>     * @return This entry's user name.<a name="line.485"></a>
+<span class="sourceLineNo">486</span>     */<a name="line.486"></a>
+<span class="sourceLineNo">487</span>    public String getUserName() {<a name="line.487"></a>
+<span class="sourceLineNo">488</span>        return userName;<a name="line.488"></a>
+<span class="sourceLineNo">489</span>    }<a name="line.489"></a>
+<span class="sourceLineNo">490</span><a name="line.490"></a>
+<span class="sourceLineNo">491</span>    /**<a name="line.491"></a>
+<span class="sourceLineNo">492</span>     * Set this entry's user name.<a name="line.492"></a>
+<span class="sourceLineNo">493</span>     *<a name="line.493"></a>
+<span class="sourceLineNo">494</span>     * @param userName This entry's new user name.<a name="line.494"></a>
+<span class="sourceLineNo">495</span>     */<a name="line.495"></a>
+<span class="sourceLineNo">496</span>    public void setUserName(String userName) {<a name="line.496"></a>
+<span class="sourceLineNo">497</span>        this.userName = userName;<a name="line.497"></a>
+<span class="sourceLineNo">498</span>    }<a name="line.498"></a>
+<span class="sourceLineNo">499</span><a name="line.499"></a>
+<span class="sourceLineNo">500</span>    /**<a name="line.500"></a>
+<span class="sourceLineNo">501</span>     * Get this entry's group name.<a name="line.501"></a>
+<span class="sourceLineNo">502</span>     *<a name="line.502"></a>
+<span class="sourceLineNo">503</span>     * @return This entry's group name.<a name="line.503"></a>
+<span class="sourceLineNo">504</span>     */<a name="line.504"></a>
+<span class="sourceLineNo">505</span>    public String getGroupName() {<a name="line.505"></a>
+<span class="sourceLineNo">506</span>        return groupName;<a name="line.506"></a>
+<span class="sourceLineNo">507</span>    }<a name="line.507"></a>
+<span class="sourceLineNo">508</span><a name="line.508"></a>
+<span class="sourceLineNo">509</span>    /**<a name="line.509"></a>
+<span class="sourceLineNo">510</span>     * Set this entry's group name.<a name="line.510"></a>
+<span class="sourceLineNo">511</span>     *<a name="line.511"></a>
+<span class="sourceLineNo">512</span>     * @param groupName This entry's new group name.<a name="line.512"></a>
+<span class="sourceLineNo">513</span>     */<a name="line.513"></a>
+<span class="sourceLineNo">514</span>    public void setGroupName(String groupName) {<a name="line.514"></a>
+<span class="sourceLineNo">515</span>        this.groupName = groupName;<a name="line.515"></a>
+<span class="sourceLineNo">516</span>    }<a name="line.516"></a>
+<span class="sourceLineNo">517</span><a name="line.517"></a>
+<span class="sourceLineNo">518</span>    /**<a name="line.518"></a>
+<span class="sourceLineNo">519</span>     * Convenience method to set this entry's group and user ids.<a name="line.519"></a>
+<span class="sourceLineNo">520</span>     *<a name="line.520"></a>
+<span class="sourceLineNo">521</span>     * @param userId  This entry's new user id.<a name="line.521"></a>
+<span class="sourceLineNo">522</span>     * @param groupId This entry's new group id.<a name="line.522"></a>
+<span class="sourceLineNo">523</span>     */<a name="line.523"></a>
+<span class="sourceLineNo">524</span>    public void setIds(int userId, int groupId) {<a name="line.524"></a>
+<span class="sourceLineNo">525</span>        setUserId(userId);<a name="line.525"></a>
+<span class="sourceLineNo">526</span>        setGroupId(groupId);<a name="line.526"></a>
+<span class="sourceLineNo">527</span>    }<a name="line.527"></a>
+<span class="sourceLineNo">528</span><a name="line.528"></a>
+<span class="sourceLineNo">529</span>    /**<a name="line.529"></a>
+<span class="sourceLineNo">530</span>     * Convenience method to set this entry's group and user names.<a name="line.530"></a>
+<span class="sourceLineNo">531</span>     *<a name="line.531"></a>
+<span class="sourceLineNo">532</span>     * @param userName  This entry's new user name.<a name="line.532"></a>
+<span class="sourceLineNo">533</span>     * @param groupName This entry's new group name.<a name="line.533"></a>
+<span class="sourceLineNo">534</span>     */<a name="line.534"></a>
+<span class="sourceLineNo">535</span>    public void setNames(String userName, String groupName) {<a name="line.535"></a>
+<span class="sourceLineNo">536</span>        setUserName(userName);<a name="line.536"></a>
+<span class="sourceLineNo">537</span>        setGroupName(groupName);<a name="line.537"></a>
+<span class="sourceLineNo">538</span>    }<a name="line.538"></a>
+<span class="sourceLineNo">539</span><a name="line.539"></a>
+<span class="sourceLineNo">540</span>    /**<a name="line.540"></a>
+<span class="sourceLineNo">541</span>     * Set this entry's modification time. The parameter passed<a name="line.541"></a>
+<span class="sourceLineNo">542</span>     * to this method is in "Java time".<a name="line.542"></a>
+<span class="sourceLineNo">543</span>     *<a name="line.543"></a>
+<span class="sourceLineNo">544</span>     * @param date This entry's new modification time.<a name="line.544"></a>
+<span class="sourceLineNo">545</span>     */<a name="line.545"></a>
+<span class="sourceLineNo">546</span>    public TarArchiveEntry setLastModified(Date date) {<a name="line.546"></a>
+<span class="sourceLineNo">547</span>        modTime = date.getTime() / MILLIS_PER_SECOND;<a name="line.547"></a>
+<span class="sourceLineNo">548</span>        return this;<a name="line.548"></a>
+<span class="sourceLineNo">549</span>    }<a name="line.549"></a>
+<span class="sourceLineNo">550</span><a name="line.550"></a>
+<span class="sourceLineNo">551</span>    public Date getLastModified() {<a name="line.551"></a>
+<span class="sourceLineNo">552</span>        return new Date(modTime * MILLIS_PER_SECOND);<a name="line.552"></a>
+<span class="sourceLineNo">553</span>    }<a name="line.553"></a>
+<span class="sourceLineNo">554</span><a name="line.554"></a>
+<span class="sourceLineNo">555</span>    /**<a name="line.555"></a>
+<span class="sourceLineNo">556</span>     * Get this entry's file.<a name="line.556"></a>
+<span class="sourceLineNo">557</span>     *<a name="line.557"></a>
+<span class="sourceLineNo">558</span>     * @return This entry's file.<a name="line.558"></a>
+<span class="sourceLineNo">559</span>     */<a name="line.559"></a>
+<span class="sourceLineNo">560</span>    public File getFile() {<a name="line.560"></a>
+<span class="sourceLineNo">561</span>        return file;<a name="line.561"></a>
+<span class="sourceLineNo">562</span>    }<a name="line.562"></a>
+<span class="sourceLineNo">563</span><a name="line.563"></a>
+<span class="sourceLineNo">564</span>    /**<a name="line.564"></a>
+<span class="sourceLineNo">565</span>     * Get this entry's mode.<a name="line.565"></a>
+<span class="sourceLineNo">566</span>     *<a name="line.566"></a>
+<span class="sourceLineNo">567</span>     * @return This entry's mode.<a name="line.567"></a>
+<span class="sourceLineNo">568</span>     */<a name="line.568"></a>
+<span class="sourceLineNo">569</span>    public int getMode() {<a name="line.569"></a>
+<span class="sourceLineNo">570</span>        return mode;<a name="line.570"></a>
+<span class="sourceLineNo">571</span>    }<a name="line.571"></a>
+<span class="sourceLineNo">572</span><a name="line.572"></a>
+<span class="sourceLineNo">573</span>    /**<a name="line.573"></a>
+<span class="sourceLineNo">574</span>     * Get this entry's file size.<a name="line.574"></a>
+<span class="sourceLineNo">575</span>     *<a name="line.575"></a>
+<span class="sourceLineNo">576</span>     * @return This entry's file size.<a name="line.576"></a>
+<span class="sourceLineNo">577</span>     */<a name="line.577"></a>
+<span class="sourceLineNo">578</span>    public long getEntrySize() {<a name="line.578"></a>
+<span class="sourceLineNo">579</span>        return size;<a name="line.579"></a>
+<span class="sourceLineNo">580</span>    }<a name="line.580"></a>
+<span class="sourceLineNo">581</span><a name="line.581"></a>
+<span class="sourceLineNo">582</span>    /**<a name="line.582"></a>
+<span class="sourceLineNo">583</span>     * Set this entry's file size.<a name="line.583"></a>
+<span class="sourceLineNo">584</span>     *<a name="line.584"></a>
+<span class="sourceLineNo">585</span>     * @param size This entry's new file size.<a name="line.585"></a>
+<span class="sourceLineNo">586</span>     * @throws IllegalArgumentException if the size is &amp;lt; 0.<a name="line.586"></a>
+<span class="sourceLineNo">587</span>     */<a name="line.587"></a>
+<span class="sourceLineNo">588</span>    public TarArchiveEntry setEntrySize(long size) {<a name="line.588"></a>
+<span class="sourceLineNo">589</span>        if (size &lt; 0) {<a name="line.589"></a>
+<span class="sourceLineNo">590</span>            throw new IllegalArgumentException("Size is out of range: " + size);<a name="line.590"></a>
+<span class="sourceLineNo">591</span>        }<a name="line.591"></a>
+<span class="sourceLineNo">592</span>        this.size = size;<a name="line.592"></a>
+<span class="sourceLineNo">593</span>        return this;<a name="line.593"></a>
+<span class="sourceLineNo">594</span>    }<a name="line.594"></a>
+<span class="sourceLineNo">595</span><a name="line.595"></a>
+<span class="sourceLineNo">596</span>    /**<a name="line.596"></a>
+<span class="sourceLineNo">597</span>     * Get this entry's major device number.<a name="line.597"></a>
+<span class="sourceLineNo">598</span>     *<a name="line.598"></a>
+<span class="sourceLineNo">599</span>     * @return This entry's major device number.<a name="line.599"></a>
+<span class="sourceLineNo">600</span>     */<a name="line.600"></a>
+<span class="sourceLineNo">601</span>    public int getDevMajor() {<a name="line.601"></a>
+<span class="sourceLineNo">602</span>        return devMajor;<a name="line.602"></a>
+<span class="sourceLineNo">603</span>    }<a name="line.603"></a>
+<span class="sourceLineNo">604</span><a name="line.604"></a>
+<span class="sourceLineNo">605</span>    /**<a name="line.605"></a>
+<span class="sourceLineNo">606</span>     * Set this entry's major device number.<a name="line.606"></a>
+<span class="sourceLineNo">607</span>     *<a name="line.607"></a>
+<span class="sourceLineNo">608</span>     * @param devNo This entry's major device number.<a name="line.608"></a>
+<span class="sourceLineNo">609</span>     * @throws IllegalArgumentException if the devNo is &amp;lt; 0.<a name="line.609"></a>
+<span class="sourceLineNo">610</span>     */<a name="line.610"></a>
+<span class="sourceLineNo">611</span>    public void setDevMajor(int devNo) {<a name="line.611"></a>
+<span class="sourceLineNo">612</span>        if (devNo &lt; 0) {<a name="line.612"></a>
+<span class="sourceLineNo">613</span>            throw new IllegalArgumentException("Major device number is out of "<a name="line.613"></a>
+<span class="sourceLineNo">614</span>                    + "range: " + devNo);<a name="line.614"></a>
+<span class="sourceLineNo">615</span>        }<a name="line.615"></a>
+<span class="sourceLineNo">616</span>        this.devMajor = devNo;<a name="line.616"></a>
+<span class="sourceLineNo">617</span>    }<a name="line.617"></a>
+<span class="sourceLineNo">618</span><a name="line.618"></a>
+<span class="sourceLineNo">619</span>    /**<a name="line.619"></a>
+<span class="sourceLineNo">620</span>     * Get this entry's minor device number.<a name="line.620"></a>
+<span class="sourceLineNo">621</span>     *<a name="line.621"></a>
+<span class="sourceLineNo">622</span>     * @return This entry's minor device number.<a name="line.622"></a>
+<span class="sourceLineNo">623</span>     */<a name="line.623"></a>
+<span class="sourceLineNo">624</span>    public int getDevMinor() {<a name="line.624"></a>
+<span class="sourceLineNo">625</span>        return devMinor;<a name="line.625"></a>
+<span class="sourceLineNo">626</span>    }<a name="line.626"></a>
+<span class="sourceLineNo">627</span><a name="line.627"></a>
+<span class="sourceLineNo">628</span>    /**<a name="line.628"></a>
+<span class="sourceLineNo">629</span>     * Set this entry's minor device number.<a name="line.629"></a>
+<span class="sourceLineNo">630</span>     *<a name="line.630"></a>
+<span class="sourceLineNo">631</span>     * @param devNo This entry's minor device number.<a name="line.631"></a>
+<span class="sourceLineNo">632</span>     * @throws IllegalArgumentException if the devNo is &amp;lt; 0.<a name="line.632"></a>
+<span class="sourceLineNo">633</span>     */<a name="line.633"></a>
+<span class="sourceLineNo">634</span>    public void setDevMinor(int devNo) {<a name="line.634"></a>
+<span class="sourceLineNo">635</span>        if (devNo &lt; 0) {<a name="line.635"></a>
+<span class="sourceLineNo">636</span>            throw new IllegalArgumentException("Minor device number is out of "<a name="line.636"></a>
+<span class="sourceLineNo">637</span>                    + "range: " + devNo);<a name="line.637"></a>
+<span class="sourceLineNo">638</span>        }<a name="line.638"></a>
+<span class="sourceLineNo">639</span>        this.devMinor = devNo;<a name="line.639"></a>
+<span class="sourceLineNo">640</span>    }<a name="line.640"></a>
+<span class="sourceLineNo">641</span><a name="line.641"></a>
+<span class="sourceLineNo">642</span>    /**<a name="line.642"></a>
+<span class="sourceLineNo">643</span>     * Indicates in case of a sparse file if an extension sparse header<a name="line.643"></a>
+<span class="sourceLineNo">644</span>     * follows.<a name="line.644"></a>
+<span class="sourceLineNo">645</span>     *<a name="line.645"></a>
+<span class="sourceLineNo">646</span>     * @return true if an extension sparse header follows.<a name="line.646"></a>
+<span class="sourceLineNo">647</span>     */<a name="line.647"></a>
+<span class="sourceLineNo">648</span>    public boolean isExtended() {<a name="line.648"></a>
+<span class="sourceLineNo">649</span>        return isExtended;<a name="line.649"></a>
+<span class="sourceLineNo">650</span>    }<a name="line.650"></a>
+<span class="sourceLineNo">651</span><a name="line.651"></a>
+<span class="sourceLineNo">652</span>    /**<a name="line.652"></a>
+<span class="sourceLineNo">653</span>     * Get this entry's real file size in case of a sparse file.<a name="line.653"></a>
+<span class="sourceLineNo">654</span>     *<a name="line.654"></a>
+<span class="sourceLineNo">655</span>     * @return This entry's real file size.<a name="line.655"></a>
+<span class="sourceLineNo">656</span>     */<a name="line.656"></a>
+<span class="sourceLineNo">657</span>    public long getRealSize() {<a name="line.657"></a>
+<span class="sourceLineNo">658</span>        return realSize;<a name="line.658"></a>
+<span class="sourceLineNo">659</span>    }<a name="line.659"></a>
+<span class="sourceLineNo">660</span><a name="line.660"></a>
+<span class="sourceLineNo">661</span>    /**<a name="line.661"></a>
+<span class="sourceLineNo">662</span>     * Indicate if this entry is a GNU sparse block<a name="line.662"></a>
+<span class="sourceLineNo">663</span>     *<a name="line.663"></a>
+<span class="sourceLineNo">664</span>     * @return true if this is a sparse extension provided by GNU tar<a name="line.664"></a>
+<span class="sourceLineNo">665</span>     */<a name="line.665"></a>
+<span class="sourceLineNo">666</span>    public boolean isGNUSparse() {<a name="line.666"></a>
+<span class="sourceLineNo">667</span>        return linkFlag == LF_GNUTYPE_SPARSE;<a name="line.667"></a>
+<span class="sourceLineNo">668</span>    }<a name="line.668"></a>
+<span class="sourceLineNo">669</span><a name="line.669"></a>
+<span class="sourceLineNo">670</span>    /**<a name="line.670"></a>
+<span class="sourceLineNo">671</span>     * Indicate if this entry is a GNU long name block<a name="line.671"></a>
+<span class="sourceLineNo">672</span>     *<a name="line.672"></a>
+<span class="sourceLineNo">673</span>     * @return true if this is a long name extension provided by GNU tar<a name="line.673"></a>
+<span class="sourceLineNo">674</span>     */<a name="line.674"></a>
+<span class="sourceLineNo">675</span>    public boolean isGNULongNameEntry() {<a name="line.675"></a>
+<span class="sourceLineNo">676</span>        return linkFlag == LF_GNUTYPE_LONGNAME<a name="line.676"></a>
+<span class="sourceLineNo">677</span>                &amp;&amp; name.toString().equals(GNU_LONGLINK);<a name="line.677"></a>
+<span class="sourceLineNo">678</span>    }<a name="line.678"></a>
+<span class="sourceLineNo">679</span><a name="line.679"></a>
+<span class="sourceLineNo">680</span>    /**<a name="line.680"></a>
+<span class="sourceLineNo">681</span>     * Check if this is a Pax header.<a name="line.681"></a>
+<span class="sourceLineNo">682</span>     *<a name="line.682"></a>
+<span class="sourceLineNo">683</span>     * @return {@code true} if this is a Pax header.<a name="line.683"></a>
+<span class="sourceLineNo">684</span>     */<a name="line.684"></a>
+<span class="sourceLineNo">685</span>    public boolean isPaxHeader() {<a name="line.685"></a>
+<span class="sourceLineNo">686</span>        return linkFlag == LF_PAX_EXTENDED_HEADER_LC<a name="line.686"></a>
+<span class="sourceLineNo">687</span>                || linkFlag == LF_PAX_EXTENDED_HEADER_UC;<a name="line.687"></a>
+<span class="sourceLineNo">688</span>    }<a name="line.688"></a>
+<span class="sourceLineNo">689</span><a name="line.689"></a>
+<span class="sourceLineNo">690</span>    /**<a name="line.690"></a>
+<span class="sourceLineNo">691</span>     * Check if this is a Pax header.<a name="line.691"></a>
+<span class="sourceLineNo">692</span>     *<a name="line.692"></a>
+<span class="sourceLineNo">693</span>     * @return {@code true} if this is a Pax header.<a name="line.693"></a>
+<span class="sourceLineNo">694</span>     */<a name="line.694"></a>
+<span class="sourceLineNo">695</span>    public boolean isGlobalPaxHeader() {<a name="line.695"></a>
+<span class="sourceLineNo">696</span>        return linkFlag == LF_PAX_GLOBAL_EXTENDED_HEADER;<a name="line.696"></a>
+<span class="sourceLineNo">697</span>    }<a name="line.697"></a>
+<span class="sourceLineNo">698</span><a name="line.698"></a>
+<span class="sourceLineNo">699</span>    /**<a name="line.699"></a>
+<span class="sourceLineNo">700</span>     * Return whether or not this entry represents a directory.<a name="line.700"></a>
+<span class="sourceLineNo">701</span>     *<a name="line.701"></a>
+<span class="sourceLineNo">702</span>     * @return True if this entry is a directory.<a name="line.702"></a>
+<span class="sourceLineNo">703</span>     */<a name="line.703"></a>
+<span class="sourceLineNo">704</span>    public boolean isDirectory() {<a name="line.704"></a>
+<span class="sourceLineNo">705</span>        if (file != null) {<a name="line.705"></a>
+<span class="sourceLineNo">706</span>            return file.isDirectory();<a name="line.706"></a>
+<span class="sourceLineNo">707</span>        }<a name="line.707"></a>
+<span class="sourceLineNo">708</span><a name="line.708"></a>
+<span class="sourceLineNo">709</span>        if (linkFlag == LF_DIR) {<a name="line.709"></a>
+<span class="sourceLineNo">710</span>            return true;<a name="line.710"></a>
+<span class="sourceLineNo">711</span>        }<a name="line.711"></a>
+<span class="sourceLineNo">712</span><a name="line.712"></a>
+<span class="sourceLineNo">713</span>        if (getName().endsWith("/")) {<a name="line.713"></a>
+<span class="sourceLineNo">714</span>            return true;<a name="line.714"></a>
+<span class="sourceLineNo">715</span>        }<a name="line.715"></a>
+<span class="sourceLineNo">716</span><a name="line.716"></a>
+<span class="sourceLineNo">717</span>        return false;<a name="line.717"></a>
+<span class="sourceLineNo">718</span>    }<a name="line.718"></a>
+<span class="sourceLineNo">719</span><a name="line.719"></a>
+<span class="sourceLineNo">720</span>    /**<a name="line.720"></a>
+<span class="sourceLineNo">721</span>     * Check if this is a "normal file"<a name="line.721"></a>
+<span class="sourceLineNo">722</span>     */<a name="line.722"></a>
+<span class="sourceLineNo">723</span>    public boolean isFile() {<a name="line.723"></a>
+<span class="sourceLineNo">724</span>        if (file != null) {<a name="line.724"></a>
+<span class="sourceLineNo">725</span>            return file.isFile();<a name="line.725"></a>
+<span class="sourceLineNo">726</span>        }<a name="line.726"></a>
+<span class="sourceLineNo">727</span>        return linkFlag == LF_OLDNORM || linkFlag == LF_NORMAL || !getName().endsWith("/");<a name="line.727"></a>
+<span class="sourceLineNo">728</span>    }<a name="line.728"></a>
+<span class="sourceLineNo">729</span><a name="line.729"></a>
+<span class="sourceLineNo">730</span>    /**<a name="line.730"></a>
+<span class="sourceLineNo">731</span>     * Check if this is a symbolic link entry.<a name="line.731"></a>
+<span class="sourceLineNo">732</span>     */<a name="line.732"></a>
+<span class="sourceLineNo">733</span>    public boolean isSymbolicLink() {<a name="line.733"></a>
+<span class="sourceLineNo">734</span>        return linkFlag == LF_SYMLINK;<a name="line.734"></a>
+<span class="sourceLineNo">735</span>    }<a name="line.735"></a>
+<span class="sourceLineNo">736</span><a name="line.736"></a>
+<span class="sourceLineNo">737</span>    /**<a name="line.737"></a>
+<span class="sourceLineNo">738</span>     * Check if this is a link entry.<a name="line.738"></a>
+<span class="sourceLineNo">739</span>     */<a name="line.739"></a>
+<span class="sourceLineNo">740</span>    public boolean isLink() {<a name="line.740"></a>
+<span class="sourceLineNo">741</span>        return linkFlag == LF_LINK;<a name="line.741"></a>
+<span class="sourceLineNo">742</span>    }<a name="line.742"></a>
+<span class="sourceLineNo">743</span><a name="line.743"></a>
+<span class="sourceLineNo">744</span>    /**<a name="line.744"></a>
+<span class="sourceLineNo">745</span>     * Check if this is a character device entry.<a name="line.745"></a>
+<span class="sourceLineNo">746</span>     */<a name="line.746"></a>
+<span class="sourceLineNo">747</span>    public boolean isCharacterDevice() {<a name="line.747"></a>
+<span class="sourceLineNo">748</span>        return linkFlag == LF_CHR;<a name="line.748"></a>
+<span class="sourceLineNo">749</span>    }<a name="line.749"></a>
+<span class="sourceLineNo">750</span><a name="line.750"></a>
+<span class="sourceLineNo">751</span>    /**<a name="line.751"></a>
+<span class="sourceLineNo">752</span>     * Check if this is a block device entry.<a name="line.752"></a>
+<span class="sourceLineNo">753</span>     */<a name="line.753"></a>
+<span class="sourceLineNo">754</span>    public boolean isBlockDevice() {<a name="line.754"></a>
+<span class="sourceLineNo">755</span>        return linkFlag == LF_BLK;<a name="line.755"></a>
+<span class="sourceLineNo">756</span>    }<a name="line.756"></a>
+<span class="sourceLineNo">757</span><a name="line.757"></a>
+<span class="sourceLineNo">758</span>    /**<a name="line.758"></a>
+<span class="sourceLineNo">759</span>     * Check if this is a FIFO (pipe) entry.<a name="line.759"></a>
+<span class="sourceLineNo">760</span>     */<a name="line.760"></a>
+<span class="sourceLineNo">761</span>    public boolean isFIFO() {<a name="line.761"></a>
+<span class="sourceLineNo">762</span>        return linkFlag == LF_FIFO;<a name="line.762"></a>
+<span class="sourceLineNo">763</span>    }<a name="line.763"></a>
+<span class="sourceLineNo">764</span><a name="line.764"></a>
+<span class="sourceLineNo">765</span>    /**<a name="line.765"></a>
+<span class="sourceLineNo">766</span>     * If this entry represents a file, and the file is a directory, return<a name="line.766"></a>
+<span class="sourceLineNo">767</span>     * an array of TarEntries for this entry's children.<a name="line.767"></a>
+<span class="sourceLineNo">768</span>     *<a name="line.768"></a>
+<span class="sourceLineNo">769</span>     * @return An array of TarEntry's for this entry's children.<a name="line.769"></a>
+<span class="sourceLineNo">770</span>     */<a name="line.770"></a>
+<span class="sourceLineNo">771</span>    public TarArchiveEntry[] getDirectoryEntries() {<a name="line.771"></a>
+<span class="sourceLineNo">772</span>        if (file == null || !file.isDirectory()) {<a name="line.772"></a>
+<span class="sourceLineNo">773</span>            return new TarArchiveEntry[0];<a name="line.773"></a>
+<span class="sourceLineNo">774</span>        }<a name="line.774"></a>
+<span class="sourceLineNo">775</span><a name="line.775"></a>
+<span class="sourceLineNo">776</span>        String[] list = file.list();<a name="line.776"></a>
+<span class="sourceLineNo">777</span>        TarArchiveEntry[] result = new TarArchiveEntry[list.length];<a name="line.777"></a>
+<span class="sourceLineNo">778</span><a name="line.778"></a>
+<span class="sourceLineNo">779</span>        for (int i = 0; i &lt; list.length; ++i) {<a name="line.779"></a>
+<span class="sourceLineNo">780</span>            result[i] = new TarArchiveEntry(new File(file, list[i]));<a name="line.780"></a>
+<span class="sourceLineNo">781</span>        }<a name="line.781"></a>
+<span class="sourceLineNo">782</span><a name="line.782"></a>
+<span class="sourceLineNo">783</span>        return result;<a name="line.783"></a>
+<span class="sourceLineNo">784</span>    }<a name="line.784"></a>
+<span class="sourceLineNo">785</span><a name="line.785"></a>
+<span class="sourceLineNo">786</span>    /**<a name="line.786"></a>
+<span class="sourceLineNo">787</span>     * Write an entry's header information to a header buffer.<a name="line.787"></a>
+<span class="sourceLineNo">788</span>     * &lt;p/&gt;<a name="line.788"></a>
+<span class="sourceLineNo">789</span>     * &lt;p&gt;This method does not use the star/GNU tar/BSD tar extensions.&lt;/p&gt;<a name="line.789"></a>
+<span class="sourceLineNo">790</span>     *<a name="line.790"></a>
+<span class="sourceLineNo">791</span>     * @param outbuf The tar entry header buffer to fill in.<a name="line.791"></a>
+<span class="sourceLineNo">792</span>     */<a name="line.792"></a>
+<span class="sourceLineNo">793</span>    public void writeEntryHeader(byte[] outbuf) {<a name="line.793"></a>
+<span class="sourceLineNo">794</span>        try {<a name="line.794"></a>
+<span class="sourceLineNo">795</span>            writeEntryHeader(outbuf, TarUtils.DEFAULT_ENCODING, false);<a name="line.795"></a>
+<span class="sourceLineNo">796</span>        } catch (IOException ex) {<a name="line.796"></a>
+<span class="sourceLineNo">797</span>            try {<a name="line.797"></a>
+<span class="sourceLineNo">798</span>                writeEntryHeader(outbuf, TarUtils.FALLBACK_ENCODING, false);<a name="line.798"></a>
+<span class="sourceLineNo">799</span>            } catch (IOException ex2) {<a name="line.799"></a>
+<span class="sourceLineNo">800</span>                // impossible<a name="line.800"></a>
+<span class="sourceLineNo">801</span>                throw new RuntimeException(ex2);<a name="line.801"></a>
+<span class="sourceLineNo">802</span>            }<a name="line.802"></a>
+<span class="sourceLineNo">803</span>        }<a name="line.803"></a>
+<span class="sourceLineNo">804</span>    }<a name="line.804"></a>
+<span class="sourceLineNo">805</span><a name="line.805"></a>
+<span class="sourceLineNo">806</span>    /**<a name="line.806"></a>
+<span class="sourceLineNo">807</span>     * Write an entry's header information to a header buffer.<a name="line.807"></a>
+<span class="sourceLineNo">808</span>     *<a name="line.808"></a>
+<span class="sourceLineNo">809</span>     * @param outbuf   The tar entry header buffer to fill in.<a name="line.809"></a>
+<span class="sourceLineNo">810</span>     * @param encoding encoding to use when writing the file name.<a name="line.810"></a>
+<span class="sourceLineNo">811</span>     * @param starMode whether to use the star/GNU tar/BSD tar<a name="line.811"></a>
+<span class="sourceLineNo">812</span>     *                 extension for numeric fields if their value doesn't fit in the<a name="line.812"></a>
+<span class="sourceLineNo">813</span>     *                 maximum size of standard tar archives<a name="line.813"></a>
+<span class="sourceLineNo">814</span>     */<a name="line.814"></a>
+<span class="sourceLineNo">815</span>    public void writeEntryHeader(byte[] outbuf, ZipEncoding encoding,<a name="line.815"></a>
+<span class="sourceLineNo">816</span>                                 boolean starMode) throws IOException {<a name="line.816"></a>
+<span class="sourceLineNo">817</span>        int offset = 0;<a name="line.817"></a>
+<span class="sourceLineNo">818</span><a name="line.818"></a>
+<span class="sourceLineNo">819</span>        offset = TarUtils.formatNameBytes(name, outbuf, offset, NAMELEN,<a name="line.819"></a>
+<span class="sourceLineNo">820</span>                encoding);<a name="line.820"></a>
+<span class="sourceLineNo">821</span>        offset = writeEntryHeaderField(mode, outbuf, offset, MODELEN, starMode);<a name="line.821"></a>
+<span class="sourceLineNo">822</span>        offset = writeEntryHeaderField(userId, outbuf, offset, UIDLEN,<a name="line.822"></a>
+<span class="sourceLineNo">823</span>                starMode);<a name="line.823"></a>
+<span class="sourceLineNo">824</span>        offset = writeEntryHeaderField(groupId, outbuf, offset, GIDLEN,<a name="line.824"></a>
+<span class="sourceLineNo">825</span>                starMode);<a name="line.825"></a>
+<span class="sourceLineNo">826</span>        offset = writeEntryHeaderField(size, outbuf, offset, SIZELEN, starMode);<a name="line.826"></a>
+<span class="sourceLineNo">827</span>        offset = writeEntryHeaderField(modTime, outbuf, offset, MODTIMELEN,<a name="line.827"></a>
+<span class="sourceLineNo">828</span>                starMode);<a name="line.828"></a>
+<span class="sourceLineNo">829</span><a name="line.829"></a>
+<span class="sourceLineNo">830</span>        int csOffset = offset;<a name="line.830"></a>
+<span class="sourceLineNo">831</span><a name="line.831"></a>
+<span class="sourceLineNo">832</span>        for (int c = 0; c &lt; CHKSUMLEN; ++c) {<a name="line.832"></a>
+<span class="sourceLineNo">833</span>            outbuf[offset++] = (byte) ' ';<a name="line.833"></a>
+<span class="sourceLineNo">834</span>        }<a name="line.834"></a>
+<span class="sourceLineNo">835</span><a name="line.835"></a>
+<span class="sourceLineNo">836</span>        outbuf[offset++] = linkFlag;<a name="line.836"></a>
+<span class="sourceLineNo">837</span>        offset = TarUtils.formatNameBytes(linkName, outbuf, offset, NAMELEN,<a name="line.837"></a>
+<span class="sourceLineNo">838</span>                encoding);<a name="line.838"></a>
+<span class="sourceLineNo">839</span>        offset = TarUtils.formatNameBytes(magic, outbuf, offset, MAGICLEN);<a name="line.839"></a>
+<span class="sourceLineNo">840</span>        offset = TarUtils.formatNameBytes(version, outbuf, offset, VERSIONLEN);<a name="line.840"></a>
+<span class="sourceLineNo">841</span>        offset = TarUtils.formatNameBytes(userName, outbuf, offset, UNAMELEN,<a name="line.841"></a>
+<span class="sourceLineNo">842</span>                encoding);<a name="line.842"></a>
+<span class="sourceLineNo">843</span>        offset = TarUtils.formatNameBytes(groupName, outbuf, offset, GNAMELEN,<a name="line.843"></a>
+<span class="sourceLineNo">844</span>                encoding);<a name="line.844"></a>
+<span class="sourceLineNo">845</span>        offset = writeEntryHeaderField(devMajor, outbuf, offset, DEVLEN,<a name="line.845"></a>
+<span class="sourceLineNo">846</span>                starMode);<a name="line.846"></a>
+<span class="sourceLineNo">847</span>        offset = writeEntryHeaderField(devMinor, outbuf, offset, DEVLEN,<a name="line.847"></a>
+<span class="sourceLineNo">848</span>                starMode);<a name="line.848"></a>
+<span class="sourceLineNo">849</span><a name="line.849"></a>
+<span class="sourceLineNo">850</span>        while (offset &lt; outbuf.length) {<a name="line.850"></a>
+<span class="sourceLineNo">851</span>            outbuf[offset++] = 0;<a name="line.851"></a>
+<span class="sourceLineNo">852</span>        }<a name="line.852"></a>
+<span class="sourceLineNo">853</span><a name="line.853"></a>
+<span class="sourceLineNo">854</span>        long chk = TarUtils.computeCheckSum(outbuf);<a name="line.854"></a>
+<span class="sourceLineNo">855</span><a name="line.855"></a>
+<span class="sourceLineNo">856</span>        TarUtils.formatCheckSumOctalBytes(chk, outbuf, csOffset, CHKSUMLEN);<a name="line.856"></a>
+<span class="sourceLineNo">857</span>    }<a name="line.857"></a>
+<span class="sourceLineNo">858</span><a name="line.858"></a>
+<span class="sourceLineNo">859</span>    private int writeEntryHeaderField(long value, byte[] outbuf, int offset,<a name="line.859"></a>
+<span class="sourceLineNo">860</span>                                      int length, boolean starMode) {<a name="line.860"></a>
+<span class="sourceLineNo">861</span>        if (!starMode &amp;&amp; (value &lt; 0<a name="line.861"></a>
+<span class="sourceLineNo">862</span>                || value &gt;= (1l &lt;&lt; (3 * (length - 1))))) {<a name="line.862"></a>
+<span class="sourceLineNo">863</span>            // value doesn't fit into field when written as octal<a name="line.863"></a>
+<span class="sourceLineNo">864</span>            // number, will be written to PAX header or causes an<a name="line.864"></a>
+<span class="sourceLineNo">865</span>            // error<a name="line.865"></a>
+<span class="sourceLineNo">866</span>            return TarUtils.formatLongOctalBytes(0, outbuf, offset, length);<a name="line.866"></a>
+<span class="sourceLineNo">867</span>        }<a name="line.867"></a>
+<span class="sourceLineNo">868</span>        return TarUtils.formatLongOctalOrBinaryBytes(value, outbuf, offset,<a name="line.868"></a>
+<span class="sourceLineNo">869</span>                length);<a name="line.869"></a>
+<span class="sourceLineNo">870</span>    }<a name="line.870"></a>
+<span class="sourceLineNo">871</span><a name="line.871"></a>
+<span class="sourceLineNo">872</span>    /**<a name="line.872"></a>
+<span class="sourceLineNo">873</span>     * Parse an entry's header information from a header buffer.<a name="line.873"></a>
+<span class="sourceLineNo">874</span>     *<a name="line.874"></a>
+<span class="sourceLineNo">875</span>     * @param header The tar entry header buffer to get information from.<a name="line.875"></a>
+<span class="sourceLineNo">876</span>     * @throws IllegalArgumentException if any of the numeric fields have an invalid format<a name="line.876"></a>
+<span class="sourceLineNo">877</span>     */<a name="line.877"></a>
+<span class="sourceLineNo">878</span>    public void parseTarHeader(byte[] header) {<a name="line.878"></a>
+<span class="sourceLineNo">879</span>        try {<a name="line.879"></a>
+<span class="sourceLineNo">880</span>            parseTarHeader(header, TarUtils.DEFAULT_ENCODING);<a name="line.880"></a>
+<span class="sourceLineNo">881</span>        } catch (IOException ex) {<a name="line.881"></a>
+<span class="sourceLineNo">882</span>            try {<a name="line.882"></a>
+<span class="sourceLineNo">883</span>                parseTarHeader(header, TarUtils.DEFAULT_ENCODING, true);<a name="line.883"></a>
+<span class="sourceLineNo">884</span>            } catch (IOException ex2) {<a name="line.884"></a>
+<span class="sourceLineNo">885</span>                // not really possible<a name="line.885"></a>
+<span class="sourceLineNo">886</span>                throw new RuntimeException(ex2);<a name="line.886"></a>
+<span class="sourceLineNo">887</span>            }<a name="line.887"></a>
+<span class="sourceLineNo">888</span>        }<a name="line.888"></a>
+<span class="sourceLineNo">889</span>    }<a name="line.889"></a>
+<span class="sourceLineNo">890</span><a name="line.890"></a>
+<span class="sourceLineNo">891</span>    /**<a name="line.891"></a>
+<span class="sourceLineNo">892</span>     * Parse an entry's header information from a header buffer.<a name="line.892"></a>
+<span class="sourceLineNo">893</span>     *<a name="line.893"></a>
+<span class="sourceLineNo">894</span>     * @param header   The tar entry header buffer to get information from.<a name="line.894"></a>
+<span class="sourceLineNo">895</span>     * @param encoding encoding to use for file names<a name="line.895"></a>
+<span class="sourceLineNo">896</span>     * @throws IllegalArgumentException if any of the numeric fields<a name="line.896"></a>
+<span class="sourceLineNo">897</span>     *                                  have an invalid format<a name="line.897"></a>
+<span class="sourceLineNo">898</span>     */<a name="line.898"></a>
+<span class="sourceLineNo">899</span>    public void parseTarHeader(byte[] header, ZipEncoding encoding)<a name="line.899"></a>
+<span class="sourceLineNo">900</span>            throws IOException {<a name="line.900"></a>
+<span class="sourceLineNo">901</span>        parseTarHeader(header, encoding, false);<a name="line.901"></a>
+<span class="sourceLineNo">902</span>    }<a name="line.902"></a>
+<span class="sourceLineNo">903</span><a name="line.903"></a>
+<span class="sourceLineNo">904</span>    private void parseTarHeader(byte[] header, ZipEncoding encoding,<a name="line.904"></a>
+<span class="sourceLineNo">905</span>                                final boolean oldStyle)<a name="line.905"></a>
+<span class="sourceLineNo">906</span>            throws IOException {<a name="line.906"></a>
+<span class="sourceLineNo">907</span>        int offset = 0;<a name="line.907"></a>
+<span class="sourceLineNo">908</span><a name="line.908"></a>
+<span class="sourceLineNo">909</span>        name = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)<a name="line.909"></a>
+<span class="sourceLineNo">910</span>                : TarUtils.parseName(header, offset, NAMELEN, encoding);<a name="line.910"></a>
+<span class="sourceLineNo">911</span>        offset += NAMELEN;<a name="line.911"></a>
+<span class="sourceLineNo">912</span>        mode = (int) TarUtils.parseOctalOrBinary(header, offset, MODELEN);<a name="line.912"></a>
+<span class="sourceLineNo">913</span>        offset += MODELEN;<a name="line.913"></a>
+<span class="sourceLineNo">914</span>        userId = (int) TarUtils.parseOctalOrBinary(header, offset, UIDLEN);<a name="line.914"></a>
+<span class="sourceLineNo">915</span>        offset += UIDLEN;<a name="line.915"></a>
+<span class="sourceLineNo">916</span>        groupId = (int) TarUtils.parseOctalOrBinary(header, offset, GIDLEN);<a name="line.916"></a>
+<span class="sourceLineNo">917</span>        offset += GIDLEN;<a name="line.917"></a>
+<span class="sourceLineNo">918</span>        size = TarUtils.parseOctalOrBinary(header, offset, SIZELEN);<a name="line.918"></a>
+<span class="sourceLineNo">919</span>        offset += SIZELEN;<a name="line.919"></a>
+<span class="sourceLineNo">920</span>        modTime = TarUtils.parseOctalOrBinary(header, offset, MODTIMELEN);<a name="line.920"></a>
+<span class="sourceLineNo">921</span>        offset += MODTIMELEN;<a name="line.921"></a>
+<span class="sourceLineNo">922</span>        offset += CHKSUMLEN;<a name="line.922"></a>
+<span class="sourceLineNo">923</span>        linkFlag = header[offset++];<a name="line.923"></a>
+<span class="sourceLineNo">924</span>        linkName = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)<a name="line.924"></a>
+<span class="sourceLineNo">925</span>                : TarUtils.parseName(header, offset, NAMELEN, encoding);<a name="line.925"></a>
+<span class="sourceLineNo">926</span>        offset += NAMELEN;<a name="line.926"></a>
+<span class="sourceLineNo">927</span>        magic = TarUtils.parseName(header, offset, MAGICLEN);<a name="line.927"></a>
+<span class="sourceLineNo">928</span>        offset += MAGICLEN;<a name="line.928"></a>
+<span class="sourceLineNo">929</span>        version = TarUtils.parseName(header, offset, VERSIONLEN);<a name="line.929"></a>
+<span class="sourceLineNo">930</span>        offset += VERSIONLEN;<a name="line.930"></a>
+<span class="sourceLineNo">931</span>        userName = oldStyle ? TarUtils.parseName(header, offset, UNAMELEN)<a name="line.931"></a>
+<span class="sourceLineNo">932</span>                : TarUtils.parseName(header, offset, UNAMELEN, encoding);<a name="line.932"></a>
+<span class="sourceLineNo">933</span>        offset += UNAMELEN;<a name="line.933"></a>
+<span class="sourceLineNo">934</span>        groupName = oldStyle ? TarUtils.parseName(header, offset, GNAMELEN)<a name="line.934"></a>
+<span class="sourceLineNo">935</span>                : TarUtils.parseName(header, offset, GNAMELEN, encoding);<a name="line.935"></a>
+<span class="sourceLineNo">936</span>        offset += GNAMELEN;<a name="line.936"></a>
+<span class="sourceLineNo">937</span>        devMajor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);<a name="line.937"></a>
+<span class="sourceLineNo">938</span>        offset += DEVLEN;<a name="line.938"></a>
+<span class="sourceLineNo">939</span>        devMinor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);<a name="line.939"></a>
+<span class="sourceLineNo">940</span>        offset += DEVLEN;<a name="line.940"></a>
+<span class="sourceLineNo">941</span><a name="line.941"></a>
+<span class="sourceLineNo">942</span>        int type = evaluateType(header);<a name="line.942"></a>
+<span class="sourceLineNo">943</span>        switch (type) {<a name="line.943"></a>
+<span class="sourceLineNo">944</span>            case FORMAT_OLDGNU: {<a name="line.944"></a>
+<span class="sourceLineNo">945</span>                offset += ATIMELEN_GNU;<a name="line.945"></a>
+<span class="sourceLineNo">946</span>                offset += CTIMELEN_GNU;<a name="line.946"></a>
+<span class="sourceLineNo">947</span>                offset += OFFSETLEN_GNU;<a name="line.947"></a>
+<span class="sourceLineNo">948</span>                offset += LONGNAMESLEN_GNU;<a name="line.948"></a>
+<span class="sourceLineNo">949</span>                offset += PAD2LEN_GNU;<a name="line.949"></a>
+<span class="sourceLineNo">950</span>                offset += SPARSELEN_GNU;<a name="line.950"></a>
+<span class="sourceLineNo">951</span>                isExtended = TarUtils.parseBoolean(header, offset);<a name="line.951"></a>
+<span class="sourceLineNo">952</span>                offset += ISEXTENDEDLEN_GNU;<a name="line.952"></a>
+<span class="sourceLineNo">953</span>                realSize = TarUtils.parseOctal(header, offset, REALSIZELEN_GNU);<a name="line.953"></a>
+<span class="sourceLineNo">954</span>                offset += REALSIZELEN_GNU;<a name="line.954"></a>
+<span class="sourceLineNo">955</span>                break;<a name="line.955"></a>
+<span class="sourceLineNo">956</span>            }<a name="line.956"></a>
+<span class="sourceLineNo">957</span>            case FORMAT_POSIX:<a name="line.957"></a>
+<span class="sourceLineNo">958</span>            default: {<a name="line.958"></a>
+<span class="sourceLineNo">959</span>                String prefix = oldStyle<a name="line.959"></a>
+<span class="sourceLineNo">960</span>                        ? TarUtils.parseName(header, offset, PREFIXLEN)<a name="line.960"></a>
+<span class="sourceLineNo">961</span>                        : TarUtils.parseName(header, offset, PREFIXLEN, encoding);<a name="line.961"></a>
+<span class="sourceLineNo">962</span>                // SunOS tar -E does not add / to directory names, so fix<a name="line.962"></a>
+<span class="sourceLineNo">963</span>                // up to be consistent<a name="line.963"></a>
+<span class="sourceLineNo">964</span>                if (isDirectory() &amp;&amp; !name.endsWith("/")) {<a name="line.964"></a>
+<span class="sourceLineNo">965</span>                    name = name + "/";<a name="line.965"></a>
+<span class="sourceLineNo">966</span>                }<a name="line.966"></a>
+<span class="sourceLineNo">967</span>                if (prefix.length() &gt; 0) {<a name="line.967"></a>
+<span class="sourceLineNo">968</span>                    name = prefix + "/" + name;<a name="line.968"></a>
+<span class="sourceLineNo">969</span>                }<a name="line.969"></a>
+<span class="sourceLineNo">970</span>            }<a name="line.970"></a>
+<span class="sourceLineNo">971</span>        }<a name="line.971"></a>
+<span class="sourceLineNo">972</span>    }<a name="line.972"></a>
+<span class="sourceLineNo">973</span><a name="line.973"></a>
+<span class="sourceLineNo">974</span>    /**<a name="line.974"></a>
+<span class="sourceLineNo">975</span>     * Strips Windows' drive letter as well as any leading slashes,<a name="line.975"></a>
+<span class="sourceLineNo">976</span>     * turns path separators into forward slahes.<a name="line.976"></a>
+<span class="sourceLineNo">977</span>     */<a name="line.977"></a>
+<span class="sourceLineNo">978</span>    private static String normalizeFileName(String fileName,<a name="line.978"></a>
+<span class="sourceLineNo">979</span>                                            boolean preserveLeadingSlashes) {<a name="line.979"></a>
+<span class="sourceLineNo">980</span>        String osname = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);<a name="line.980"></a>
+<span class="sourceLineNo">981</span><a name="line.981"></a>
+<span class="sourceLineNo">982</span>        // Strip off drive letters!<a name="line.982"></a>
+<span class="sourceLineNo">983</span>        // REVIEW Would a better check be "(File.separator == '\')"?<a name="line.983"></a>
+<span class="sourceLineNo">984</span><a name="line.984"></a>
+<span class="sourceLineNo">985</span>        if (osname.startsWith("windows")) {<a name="line.985"></a>
+<span class="sourceLineNo">986</span>            if (fileName.length() &gt; 2) {<a name="line.986"></a>
+<span class="sourceLineNo">987</span>                char ch1 = fileName.charAt(0);<a name="line.987"></a>
+<span class="sourceLineNo">988</span>                char ch2 = fileName.charAt(1);<a name="line.988"></a>
+<span class="sourceLineNo">989</span><a name="line.989"></a>
+<span class="sourceLineNo">990</span>                if (ch2 == ':'<a name="line.990"></a>
+<span class="sourceLineNo">991</span>                        &amp;&amp; ((ch1 &gt;= 'a' &amp;&amp; ch1 &lt;= 'z')<a name="line.991"></a>
+<span class="sourceLineNo">992</span>                        || (ch1 &gt;= 'A' &amp;&amp; ch1 &lt;= 'Z'))) {<a name="line.992"></a>
+<span class="sourceLineNo">993</span>                    fileName = fileName.substring(2);<a name="line.993"></a>
+<span class="sourceLineNo">994</span>                }<a name="line.994"></a>
+<span class="sourceLineNo">995</span>            }<a name="line.995"></a>
+<span class="sourceLineNo">996</span>        } else if (osname.indexOf("netware") &gt; -1) {<a name="line.996"></a>
+<span class="sourceLineNo">997</span>            int colon = fileName.indexOf(':');<a name="line.997"></a>
+<span class="sourceLineNo">998</span>            if (colon != -1) {<a name="line.998"></a>
+<span class="sourceLineNo">999</span>                fileName = fileName.substring(colon + 1);<a name="line.999"></a>
+<span class="sourceLineNo">1000</span>            }<a name="line.1000"></a>
+<span class="sourceLineNo">1001</span>        }<a name="line.1001"></a>
+<span class="sourceLineNo">1002</span><a name="line.1002"></a>
+<span class="sourceLineNo">1003</span>        fileName = fileName.replace(File.separatorChar, '/');<a name="line.1003"></a>
+<span class="sourceLineNo">1004</span><a name="line.1004"></a>
+<span class="sourceLineNo">1005</span>        // No absolute pathnames<a name="line.1005"></a>
+<span class="sourceLineNo">1006</span>        // Windows (and Posix?) paths can start with "\\NetworkDrive\",<a name="line.1006"></a>
+<span class="sourceLineNo">1007</span>        // so we loop on starting /'s.<a name="line.1007"></a>
+<span class="sourceLineNo">1008</span>        while (!preserveLeadingSlashes &amp;&amp; fileName.startsWith("/")) {<a name="line.1008"></a>
+<span class="sourceLineNo">1009</span>            fileName = fileName.substring(1);<a name="line.1009"></a>
+<span class="sourceLineNo">1010</span>        }<a name="line.1010"></a>
+<span class="sourceLineNo">1011</span>        return fileName;<a name="line.1011"></a>
+<span class="sourceLineNo">1012</span>    }<a name="line.1012"></a>
+<span class="sourceLineNo">1013</span><a name="line.1013"></a>
+<span class="sourceLineNo">1014</span>    /**<a name="line.1014"></a>
+<span class="sourceLineNo">1015</span>     * Evaluate an entry's header format from a header buffer.<a name="line.1015"></a>
+<span class="sourceLineNo">1016</span>     *<a name="line.1016"></a>
+<span class="sourceLineNo">1017</span>     * @param header The tar entry header buffer to evaluate the format for.<a name="line.1017"></a>
+<span class="sourceLineNo">1018</span>     * @return format type<a name="line.1018"></a>
+<span class="sourceLineNo">1019</span>     */<a name="line.1019"></a>
+<span class="sourceLineNo">1020</span>    private int evaluateType(byte[] header) {<a name="line.1020"></a>
+<span class="sourceLineNo">1021</span>        if (ArchiveUtils.matchAsciiBuffer(MAGIC_GNU, header, MAGIC_OFFSET, MAGICLEN)) {<a name="line.1021"></a>
+<span class="sourceLineNo">1022</span>            return FORMAT_OLDGNU;<a name="line.1022"></a>
+<span class="sourceLineNo">1023</span>        }<a name="line.1023"></a>
+<span class="sourceLineNo">1024</span>        if (ArchiveUtils.matchAsciiBuffer(MAGIC_POSIX, header, MAGIC_OFFSET, MAGICLEN)) {<a name="line.1024"></a>
+<span class="sourceLineNo">1025</span>            return FORMAT_POSIX;<a name="line.1025"></a>
+<span class="sourceLineNo">1026</span>        }<a name="line.1026"></a>
+<span class="sourceLineNo">1027</span>        return 0;<a name="line.1027"></a>
+<span class="sourceLineNo">1028</span>    }<a name="line.1028"></a>
+<span class="sourceLineNo">1029</span>}<a name="line.1029"></a>
+<span class="sourceLineNo">1030</span><a name="line.1030"></a>
 
 
 
@@ -1091,6 +1096,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

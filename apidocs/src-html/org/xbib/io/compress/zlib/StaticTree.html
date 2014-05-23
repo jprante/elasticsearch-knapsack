@@ -1,127 +1,132 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    public class StaticTree {<a name="line.4"></a>
-<FONT color="green">005</FONT>    <a name="line.5"></a>
-<FONT color="green">006</FONT>        private static final int MAX_BITS = 15;<a name="line.6"></a>
-<FONT color="green">007</FONT>        private static final int BL_CODES = 19;<a name="line.7"></a>
-<FONT color="green">008</FONT>        private static final int D_CODES = 30;<a name="line.8"></a>
-<FONT color="green">009</FONT>        private static final int LITERALS = 256;<a name="line.9"></a>
-<FONT color="green">010</FONT>        private static final int LENGTH_CODES = 29;<a name="line.10"></a>
-<FONT color="green">011</FONT>        private static final int L_CODES = (LITERALS + 1 + LENGTH_CODES);<a name="line.11"></a>
-<FONT color="green">012</FONT>        // Bit length codes must not exceed MAX_BL_BITS bits<a name="line.12"></a>
-<FONT color="green">013</FONT>        private static final int MAX_BL_BITS = 7;<a name="line.13"></a>
-<FONT color="green">014</FONT>        protected static final short[] STATIC_LTREE = {<a name="line.14"></a>
-<FONT color="green">015</FONT>                12, 8, 140, 8, 76, 8, 204, 8, 44, 8,<a name="line.15"></a>
-<FONT color="green">016</FONT>                172, 8, 108, 8, 236, 8, 28, 8, 156, 8,<a name="line.16"></a>
-<FONT color="green">017</FONT>                92, 8, 220, 8, 60, 8, 188, 8, 124, 8,<a name="line.17"></a>
-<FONT color="green">018</FONT>                252, 8, 2, 8, 130, 8, 66, 8, 194, 8,<a name="line.18"></a>
-<FONT color="green">019</FONT>                34, 8, 162, 8, 98, 8, 226, 8, 18, 8,<a name="line.19"></a>
-<FONT color="green">020</FONT>                146, 8, 82, 8, 210, 8, 50, 8, 178, 8,<a name="line.20"></a>
-<FONT color="green">021</FONT>                114, 8, 242, 8, 10, 8, 138, 8, 74, 8,<a name="line.21"></a>
-<FONT color="green">022</FONT>                202, 8, 42, 8, 170, 8, 106, 8, 234, 8,<a name="line.22"></a>
-<FONT color="green">023</FONT>                26, 8, 154, 8, 90, 8, 218, 8, 58, 8,<a name="line.23"></a>
-<FONT color="green">024</FONT>                186, 8, 122, 8, 250, 8, 6, 8, 134, 8,<a name="line.24"></a>
-<FONT color="green">025</FONT>                70, 8, 198, 8, 38, 8, 166, 8, 102, 8,<a name="line.25"></a>
-<FONT color="green">026</FONT>                230, 8, 22, 8, 150, 8, 86, 8, 214, 8,<a name="line.26"></a>
-<FONT color="green">027</FONT>                54, 8, 182, 8, 118, 8, 246, 8, 14, 8,<a name="line.27"></a>
-<FONT color="green">028</FONT>                142, 8, 78, 8, 206, 8, 46, 8, 174, 8,<a name="line.28"></a>
-<FONT color="green">029</FONT>                110, 8, 238, 8, 30, 8, 158, 8, 94, 8,<a name="line.29"></a>
-<FONT color="green">030</FONT>                222, 8, 62, 8, 190, 8, 126, 8, 254, 8,<a name="line.30"></a>
-<FONT color="green">031</FONT>                1, 8, 129, 8, 65, 8, 193, 8, 33, 8,<a name="line.31"></a>
-<FONT color="green">032</FONT>                161, 8, 97, 8, 225, 8, 17, 8, 145, 8,<a name="line.32"></a>
-<FONT color="green">033</FONT>                81, 8, 209, 8, 49, 8, 177, 8, 113, 8,<a name="line.33"></a>
-<FONT color="green">034</FONT>                241, 8, 9, 8, 137, 8, 73, 8, 201, 8,<a name="line.34"></a>
-<FONT color="green">035</FONT>                41, 8, 169, 8, 105, 8, 233, 8, 25, 8,<a name="line.35"></a>
-<FONT color="green">036</FONT>                153, 8, 89, 8, 217, 8, 57, 8, 185, 8,<a name="line.36"></a>
-<FONT color="green">037</FONT>                121, 8, 249, 8, 5, 8, 133, 8, 69, 8,<a name="line.37"></a>
-<FONT color="green">038</FONT>                197, 8, 37, 8, 165, 8, 101, 8, 229, 8,<a name="line.38"></a>
-<FONT color="green">039</FONT>                21, 8, 149, 8, 85, 8, 213, 8, 53, 8,<a name="line.39"></a>
-<FONT color="green">040</FONT>                181, 8, 117, 8, 245, 8, 13, 8, 141, 8,<a name="line.40"></a>
-<FONT color="green">041</FONT>                77, 8, 205, 8, 45, 8, 173, 8, 109, 8,<a name="line.41"></a>
-<FONT color="green">042</FONT>                237, 8, 29, 8, 157, 8, 93, 8, 221, 8,<a name="line.42"></a>
-<FONT color="green">043</FONT>                61, 8, 189, 8, 125, 8, 253, 8, 19, 9,<a name="line.43"></a>
-<FONT color="green">044</FONT>                275, 9, 147, 9, 403, 9, 83, 9, 339, 9,<a name="line.44"></a>
-<FONT color="green">045</FONT>                211, 9, 467, 9, 51, 9, 307, 9, 179, 9,<a name="line.45"></a>
-<FONT color="green">046</FONT>                435, 9, 115, 9, 371, 9, 243, 9, 499, 9,<a name="line.46"></a>
-<FONT color="green">047</FONT>                11, 9, 267, 9, 139, 9, 395, 9, 75, 9,<a name="line.47"></a>
-<FONT color="green">048</FONT>                331, 9, 203, 9, 459, 9, 43, 9, 299, 9,<a name="line.48"></a>
-<FONT color="green">049</FONT>                171, 9, 427, 9, 107, 9, 363, 9, 235, 9,<a name="line.49"></a>
-<FONT color="green">050</FONT>                491, 9, 27, 9, 283, 9, 155, 9, 411, 9,<a name="line.50"></a>
-<FONT color="green">051</FONT>                91, 9, 347, 9, 219, 9, 475, 9, 59, 9,<a name="line.51"></a>
-<FONT color="green">052</FONT>                315, 9, 187, 9, 443, 9, 123, 9, 379, 9,<a name="line.52"></a>
-<FONT color="green">053</FONT>                251, 9, 507, 9, 7, 9, 263, 9, 135, 9,<a name="line.53"></a>
-<FONT color="green">054</FONT>                391, 9, 71, 9, 327, 9, 199, 9, 455, 9,<a name="line.54"></a>
-<FONT color="green">055</FONT>                39, 9, 295, 9, 167, 9, 423, 9, 103, 9,<a name="line.55"></a>
-<FONT color="green">056</FONT>                359, 9, 231, 9, 487, 9, 23, 9, 279, 9,<a name="line.56"></a>
-<FONT color="green">057</FONT>                151, 9, 407, 9, 87, 9, 343, 9, 215, 9,<a name="line.57"></a>
-<FONT color="green">058</FONT>                471, 9, 55, 9, 311, 9, 183, 9, 439, 9,<a name="line.58"></a>
-<FONT color="green">059</FONT>                119, 9, 375, 9, 247, 9, 503, 9, 15, 9,<a name="line.59"></a>
-<FONT color="green">060</FONT>                271, 9, 143, 9, 399, 9, 79, 9, 335, 9,<a name="line.60"></a>
-<FONT color="green">061</FONT>                207, 9, 463, 9, 47, 9, 303, 9, 175, 9,<a name="line.61"></a>
-<FONT color="green">062</FONT>                431, 9, 111, 9, 367, 9, 239, 9, 495, 9,<a name="line.62"></a>
-<FONT color="green">063</FONT>                31, 9, 287, 9, 159, 9, 415, 9, 95, 9,<a name="line.63"></a>
-<FONT color="green">064</FONT>                351, 9, 223, 9, 479, 9, 63, 9, 319, 9,<a name="line.64"></a>
-<FONT color="green">065</FONT>                191, 9, 447, 9, 127, 9, 383, 9, 255, 9,<a name="line.65"></a>
-<FONT color="green">066</FONT>                511, 9, 0, 7, 64, 7, 32, 7, 96, 7,<a name="line.66"></a>
-<FONT color="green">067</FONT>                16, 7, 80, 7, 48, 7, 112, 7, 8, 7,<a name="line.67"></a>
-<FONT color="green">068</FONT>                72, 7, 40, 7, 104, 7, 24, 7, 88, 7,<a name="line.68"></a>
-<FONT color="green">069</FONT>                56, 7, 120, 7, 4, 7, 68, 7, 36, 7,<a name="line.69"></a>
-<FONT color="green">070</FONT>                100, 7, 20, 7, 84, 7, 52, 7, 116, 7,<a name="line.70"></a>
-<FONT color="green">071</FONT>                3, 8, 131, 8, 67, 8, 195, 8, 35, 8,<a name="line.71"></a>
-<FONT color="green">072</FONT>                163, 8, 99, 8, 227, 8<a name="line.72"></a>
-<FONT color="green">073</FONT>        };<a name="line.73"></a>
-<FONT color="green">074</FONT>        protected static final short[] STATIC_DTREE = {<a name="line.74"></a>
-<FONT color="green">075</FONT>                0, 5, 16, 5, 8, 5, 24, 5, 4, 5,<a name="line.75"></a>
-<FONT color="green">076</FONT>                20, 5, 12, 5, 28, 5, 2, 5, 18, 5,<a name="line.76"></a>
-<FONT color="green">077</FONT>                10, 5, 26, 5, 6, 5, 22, 5, 14, 5,<a name="line.77"></a>
-<FONT color="green">078</FONT>                30, 5, 1, 5, 17, 5, 9, 5, 25, 5,<a name="line.78"></a>
-<FONT color="green">079</FONT>                5, 5, 21, 5, 13, 5, 29, 5, 3, 5,<a name="line.79"></a>
-<FONT color="green">080</FONT>                19, 5, 11, 5, 27, 5, 7, 5, 23, 5<a name="line.80"></a>
-<FONT color="green">081</FONT>        };<a name="line.81"></a>
-<FONT color="green">082</FONT>        private final static StaticTree LDESC_TREE =<a name="line.82"></a>
-<FONT color="green">083</FONT>                new StaticTree(STATIC_LTREE, Tree.EXTRA_LBITS,<a name="line.83"></a>
-<FONT color="green">084</FONT>                        LITERALS + 1, L_CODES, MAX_BITS);<a name="line.84"></a>
-<FONT color="green">085</FONT>        private final static StaticTree DDESC_TREE =<a name="line.85"></a>
-<FONT color="green">086</FONT>                new StaticTree(STATIC_DTREE, Tree.EXTRA_DBITS,<a name="line.86"></a>
-<FONT color="green">087</FONT>                        0, D_CODES, MAX_BITS);<a name="line.87"></a>
-<FONT color="green">088</FONT>        private final static StaticTree BLDESC_TREE =<a name="line.88"></a>
-<FONT color="green">089</FONT>                new StaticTree(null, Tree.EXTRA_BLBITS,<a name="line.89"></a>
-<FONT color="green">090</FONT>                        0, BL_CODES, MAX_BL_BITS);<a name="line.90"></a>
-<FONT color="green">091</FONT>        protected short[] statictree;     // static tree or null<a name="line.91"></a>
-<FONT color="green">092</FONT>        protected int[] extrabits;        // extra bits for each code or null<a name="line.92"></a>
-<FONT color="green">093</FONT>        protected int extrabase;          // base index for extra_bits<a name="line.93"></a>
-<FONT color="green">094</FONT>        protected int elems;               // max number of elements in the tree<a name="line.94"></a>
-<FONT color="green">095</FONT>        protected int maxlength;          // max bit length for the codes<a name="line.95"></a>
-<FONT color="green">096</FONT>    <a name="line.96"></a>
-<FONT color="green">097</FONT>        public StaticTree(short[] statictree,<a name="line.97"></a>
-<FONT color="green">098</FONT>                          int[] extrabits,<a name="line.98"></a>
-<FONT color="green">099</FONT>                          int extrabase,<a name="line.99"></a>
-<FONT color="green">100</FONT>                          int elems,<a name="line.100"></a>
-<FONT color="green">101</FONT>                          int maxlength) {<a name="line.101"></a>
-<FONT color="green">102</FONT>            this.statictree = statictree;<a name="line.102"></a>
-<FONT color="green">103</FONT>            this.extrabits = extrabits;<a name="line.103"></a>
-<FONT color="green">104</FONT>            this.extrabase = extrabase;<a name="line.104"></a>
-<FONT color="green">105</FONT>            this.elems = elems;<a name="line.105"></a>
-<FONT color="green">106</FONT>            this.maxlength = maxlength;<a name="line.106"></a>
-<FONT color="green">107</FONT>        }<a name="line.107"></a>
-<FONT color="green">108</FONT>    <a name="line.108"></a>
-<FONT color="green">109</FONT>        protected static StaticTree getLDesc() {<a name="line.109"></a>
-<FONT color="green">110</FONT>            return LDESC_TREE;<a name="line.110"></a>
-<FONT color="green">111</FONT>        }<a name="line.111"></a>
-<FONT color="green">112</FONT>    <a name="line.112"></a>
-<FONT color="green">113</FONT>        protected static StaticTree getDDesc() {<a name="line.113"></a>
-<FONT color="green">114</FONT>            return DDESC_TREE;<a name="line.114"></a>
-<FONT color="green">115</FONT>        }<a name="line.115"></a>
-<FONT color="green">116</FONT>    <a name="line.116"></a>
-<FONT color="green">117</FONT>        protected static StaticTree getBLDesc() {<a name="line.117"></a>
-<FONT color="green">118</FONT>            return BLDESC_TREE;<a name="line.118"></a>
-<FONT color="green">119</FONT>        }<a name="line.119"></a>
-<FONT color="green">120</FONT>    <a name="line.120"></a>
-<FONT color="green">121</FONT>    }<a name="line.121"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>public class StaticTree {<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>    private static final int MAX_BITS = 15;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>    private static final int BL_CODES = 19;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>    private static final int D_CODES = 30;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>    private static final int LITERALS = 256;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>    private static final int LENGTH_CODES = 29;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>    private static final int L_CODES = (LITERALS + 1 + LENGTH_CODES);<a name="line.11"></a>
+<span class="sourceLineNo">012</span>    // Bit length codes must not exceed MAX_BL_BITS bits<a name="line.12"></a>
+<span class="sourceLineNo">013</span>    private static final int MAX_BL_BITS = 7;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>    protected static final short[] STATIC_LTREE = {<a name="line.14"></a>
+<span class="sourceLineNo">015</span>            12, 8, 140, 8, 76, 8, 204, 8, 44, 8,<a name="line.15"></a>
+<span class="sourceLineNo">016</span>            172, 8, 108, 8, 236, 8, 28, 8, 156, 8,<a name="line.16"></a>
+<span class="sourceLineNo">017</span>            92, 8, 220, 8, 60, 8, 188, 8, 124, 8,<a name="line.17"></a>
+<span class="sourceLineNo">018</span>            252, 8, 2, 8, 130, 8, 66, 8, 194, 8,<a name="line.18"></a>
+<span class="sourceLineNo">019</span>            34, 8, 162, 8, 98, 8, 226, 8, 18, 8,<a name="line.19"></a>
+<span class="sourceLineNo">020</span>            146, 8, 82, 8, 210, 8, 50, 8, 178, 8,<a name="line.20"></a>
+<span class="sourceLineNo">021</span>            114, 8, 242, 8, 10, 8, 138, 8, 74, 8,<a name="line.21"></a>
+<span class="sourceLineNo">022</span>            202, 8, 42, 8, 170, 8, 106, 8, 234, 8,<a name="line.22"></a>
+<span class="sourceLineNo">023</span>            26, 8, 154, 8, 90, 8, 218, 8, 58, 8,<a name="line.23"></a>
+<span class="sourceLineNo">024</span>            186, 8, 122, 8, 250, 8, 6, 8, 134, 8,<a name="line.24"></a>
+<span class="sourceLineNo">025</span>            70, 8, 198, 8, 38, 8, 166, 8, 102, 8,<a name="line.25"></a>
+<span class="sourceLineNo">026</span>            230, 8, 22, 8, 150, 8, 86, 8, 214, 8,<a name="line.26"></a>
+<span class="sourceLineNo">027</span>            54, 8, 182, 8, 118, 8, 246, 8, 14, 8,<a name="line.27"></a>
+<span class="sourceLineNo">028</span>            142, 8, 78, 8, 206, 8, 46, 8, 174, 8,<a name="line.28"></a>
+<span class="sourceLineNo">029</span>            110, 8, 238, 8, 30, 8, 158, 8, 94, 8,<a name="line.29"></a>
+<span class="sourceLineNo">030</span>            222, 8, 62, 8, 190, 8, 126, 8, 254, 8,<a name="line.30"></a>
+<span class="sourceLineNo">031</span>            1, 8, 129, 8, 65, 8, 193, 8, 33, 8,<a name="line.31"></a>
+<span class="sourceLineNo">032</span>            161, 8, 97, 8, 225, 8, 17, 8, 145, 8,<a name="line.32"></a>
+<span class="sourceLineNo">033</span>            81, 8, 209, 8, 49, 8, 177, 8, 113, 8,<a name="line.33"></a>
+<span class="sourceLineNo">034</span>            241, 8, 9, 8, 137, 8, 73, 8, 201, 8,<a name="line.34"></a>
+<span class="sourceLineNo">035</span>            41, 8, 169, 8, 105, 8, 233, 8, 25, 8,<a name="line.35"></a>
+<span class="sourceLineNo">036</span>            153, 8, 89, 8, 217, 8, 57, 8, 185, 8,<a name="line.36"></a>
+<span class="sourceLineNo">037</span>            121, 8, 249, 8, 5, 8, 133, 8, 69, 8,<a name="line.37"></a>
+<span class="sourceLineNo">038</span>            197, 8, 37, 8, 165, 8, 101, 8, 229, 8,<a name="line.38"></a>
+<span class="sourceLineNo">039</span>            21, 8, 149, 8, 85, 8, 213, 8, 53, 8,<a name="line.39"></a>
+<span class="sourceLineNo">040</span>            181, 8, 117, 8, 245, 8, 13, 8, 141, 8,<a name="line.40"></a>
+<span class="sourceLineNo">041</span>            77, 8, 205, 8, 45, 8, 173, 8, 109, 8,<a name="line.41"></a>
+<span class="sourceLineNo">042</span>            237, 8, 29, 8, 157, 8, 93, 8, 221, 8,<a name="line.42"></a>
+<span class="sourceLineNo">043</span>            61, 8, 189, 8, 125, 8, 253, 8, 19, 9,<a name="line.43"></a>
+<span class="sourceLineNo">044</span>            275, 9, 147, 9, 403, 9, 83, 9, 339, 9,<a name="line.44"></a>
+<span class="sourceLineNo">045</span>            211, 9, 467, 9, 51, 9, 307, 9, 179, 9,<a name="line.45"></a>
+<span class="sourceLineNo">046</span>            435, 9, 115, 9, 371, 9, 243, 9, 499, 9,<a name="line.46"></a>
+<span class="sourceLineNo">047</span>            11, 9, 267, 9, 139, 9, 395, 9, 75, 9,<a name="line.47"></a>
+<span class="sourceLineNo">048</span>            331, 9, 203, 9, 459, 9, 43, 9, 299, 9,<a name="line.48"></a>
+<span class="sourceLineNo">049</span>            171, 9, 427, 9, 107, 9, 363, 9, 235, 9,<a name="line.49"></a>
+<span class="sourceLineNo">050</span>            491, 9, 27, 9, 283, 9, 155, 9, 411, 9,<a name="line.50"></a>
+<span class="sourceLineNo">051</span>            91, 9, 347, 9, 219, 9, 475, 9, 59, 9,<a name="line.51"></a>
+<span class="sourceLineNo">052</span>            315, 9, 187, 9, 443, 9, 123, 9, 379, 9,<a name="line.52"></a>
+<span class="sourceLineNo">053</span>            251, 9, 507, 9, 7, 9, 263, 9, 135, 9,<a name="line.53"></a>
+<span class="sourceLineNo">054</span>            391, 9, 71, 9, 327, 9, 199, 9, 455, 9,<a name="line.54"></a>
+<span class="sourceLineNo">055</span>            39, 9, 295, 9, 167, 9, 423, 9, 103, 9,<a name="line.55"></a>
+<span class="sourceLineNo">056</span>            359, 9, 231, 9, 487, 9, 23, 9, 279, 9,<a name="line.56"></a>
+<span class="sourceLineNo">057</span>            151, 9, 407, 9, 87, 9, 343, 9, 215, 9,<a name="line.57"></a>
+<span class="sourceLineNo">058</span>            471, 9, 55, 9, 311, 9, 183, 9, 439, 9,<a name="line.58"></a>
+<span class="sourceLineNo">059</span>            119, 9, 375, 9, 247, 9, 503, 9, 15, 9,<a name="line.59"></a>
+<span class="sourceLineNo">060</span>            271, 9, 143, 9, 399, 9, 79, 9, 335, 9,<a name="line.60"></a>
+<span class="sourceLineNo">061</span>            207, 9, 463, 9, 47, 9, 303, 9, 175, 9,<a name="line.61"></a>
+<span class="sourceLineNo">062</span>            431, 9, 111, 9, 367, 9, 239, 9, 495, 9,<a name="line.62"></a>
+<span class="sourceLineNo">063</span>            31, 9, 287, 9, 159, 9, 415, 9, 95, 9,<a name="line.63"></a>
+<span class="sourceLineNo">064</span>            351, 9, 223, 9, 479, 9, 63, 9, 319, 9,<a name="line.64"></a>
+<span class="sourceLineNo">065</span>            191, 9, 447, 9, 127, 9, 383, 9, 255, 9,<a name="line.65"></a>
+<span class="sourceLineNo">066</span>            511, 9, 0, 7, 64, 7, 32, 7, 96, 7,<a name="line.66"></a>
+<span class="sourceLineNo">067</span>            16, 7, 80, 7, 48, 7, 112, 7, 8, 7,<a name="line.67"></a>
+<span class="sourceLineNo">068</span>            72, 7, 40, 7, 104, 7, 24, 7, 88, 7,<a name="line.68"></a>
+<span class="sourceLineNo">069</span>            56, 7, 120, 7, 4, 7, 68, 7, 36, 7,<a name="line.69"></a>
+<span class="sourceLineNo">070</span>            100, 7, 20, 7, 84, 7, 52, 7, 116, 7,<a name="line.70"></a>
+<span class="sourceLineNo">071</span>            3, 8, 131, 8, 67, 8, 195, 8, 35, 8,<a name="line.71"></a>
+<span class="sourceLineNo">072</span>            163, 8, 99, 8, 227, 8<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    };<a name="line.73"></a>
+<span class="sourceLineNo">074</span>    protected static final short[] STATIC_DTREE = {<a name="line.74"></a>
+<span class="sourceLineNo">075</span>            0, 5, 16, 5, 8, 5, 24, 5, 4, 5,<a name="line.75"></a>
+<span class="sourceLineNo">076</span>            20, 5, 12, 5, 28, 5, 2, 5, 18, 5,<a name="line.76"></a>
+<span class="sourceLineNo">077</span>            10, 5, 26, 5, 6, 5, 22, 5, 14, 5,<a name="line.77"></a>
+<span class="sourceLineNo">078</span>            30, 5, 1, 5, 17, 5, 9, 5, 25, 5,<a name="line.78"></a>
+<span class="sourceLineNo">079</span>            5, 5, 21, 5, 13, 5, 29, 5, 3, 5,<a name="line.79"></a>
+<span class="sourceLineNo">080</span>            19, 5, 11, 5, 27, 5, 7, 5, 23, 5<a name="line.80"></a>
+<span class="sourceLineNo">081</span>    };<a name="line.81"></a>
+<span class="sourceLineNo">082</span>    private final static StaticTree LDESC_TREE =<a name="line.82"></a>
+<span class="sourceLineNo">083</span>            new StaticTree(STATIC_LTREE, Tree.EXTRA_LBITS,<a name="line.83"></a>
+<span class="sourceLineNo">084</span>                    LITERALS + 1, L_CODES, MAX_BITS);<a name="line.84"></a>
+<span class="sourceLineNo">085</span>    private final static StaticTree DDESC_TREE =<a name="line.85"></a>
+<span class="sourceLineNo">086</span>            new StaticTree(STATIC_DTREE, Tree.EXTRA_DBITS,<a name="line.86"></a>
+<span class="sourceLineNo">087</span>                    0, D_CODES, MAX_BITS);<a name="line.87"></a>
+<span class="sourceLineNo">088</span>    private final static StaticTree BLDESC_TREE =<a name="line.88"></a>
+<span class="sourceLineNo">089</span>            new StaticTree(null, Tree.EXTRA_BLBITS,<a name="line.89"></a>
+<span class="sourceLineNo">090</span>                    0, BL_CODES, MAX_BL_BITS);<a name="line.90"></a>
+<span class="sourceLineNo">091</span>    protected short[] statictree;     // static tree or null<a name="line.91"></a>
+<span class="sourceLineNo">092</span>    protected int[] extrabits;        // extra bits for each code or null<a name="line.92"></a>
+<span class="sourceLineNo">093</span>    protected int extrabase;          // base index for extra_bits<a name="line.93"></a>
+<span class="sourceLineNo">094</span>    protected int elems;               // max number of elements in the tree<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    protected int maxlength;          // max bit length for the codes<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>    public StaticTree(short[] statictree,<a name="line.97"></a>
+<span class="sourceLineNo">098</span>                      int[] extrabits,<a name="line.98"></a>
+<span class="sourceLineNo">099</span>                      int extrabase,<a name="line.99"></a>
+<span class="sourceLineNo">100</span>                      int elems,<a name="line.100"></a>
+<span class="sourceLineNo">101</span>                      int maxlength) {<a name="line.101"></a>
+<span class="sourceLineNo">102</span>        this.statictree = statictree;<a name="line.102"></a>
+<span class="sourceLineNo">103</span>        this.extrabits = extrabits;<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        this.extrabase = extrabase;<a name="line.104"></a>
+<span class="sourceLineNo">105</span>        this.elems = elems;<a name="line.105"></a>
+<span class="sourceLineNo">106</span>        this.maxlength = maxlength;<a name="line.106"></a>
+<span class="sourceLineNo">107</span>    }<a name="line.107"></a>
+<span class="sourceLineNo">108</span><a name="line.108"></a>
+<span class="sourceLineNo">109</span>    protected static StaticTree getLDesc() {<a name="line.109"></a>
+<span class="sourceLineNo">110</span>        return LDESC_TREE;<a name="line.110"></a>
+<span class="sourceLineNo">111</span>    }<a name="line.111"></a>
+<span class="sourceLineNo">112</span><a name="line.112"></a>
+<span class="sourceLineNo">113</span>    protected static StaticTree getDDesc() {<a name="line.113"></a>
+<span class="sourceLineNo">114</span>        return DDESC_TREE;<a name="line.114"></a>
+<span class="sourceLineNo">115</span>    }<a name="line.115"></a>
+<span class="sourceLineNo">116</span><a name="line.116"></a>
+<span class="sourceLineNo">117</span>    protected static StaticTree getBLDesc() {<a name="line.117"></a>
+<span class="sourceLineNo">118</span>        return BLDESC_TREE;<a name="line.118"></a>
+<span class="sourceLineNo">119</span>    }<a name="line.119"></a>
+<span class="sourceLineNo">120</span><a name="line.120"></a>
+<span class="sourceLineNo">121</span>}<a name="line.121"></a>
 
 
 
@@ -182,6 +187,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

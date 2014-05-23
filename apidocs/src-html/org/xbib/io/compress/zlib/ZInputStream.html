@@ -1,134 +1,139 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import java.io.FilterInputStream;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import java.io.IOException;<a name="line.5"></a>
-<FONT color="green">006</FONT>    import java.io.InputStream;<a name="line.6"></a>
-<FONT color="green">007</FONT>    <a name="line.7"></a>
-<FONT color="green">008</FONT>    public class ZInputStream extends FilterInputStream {<a name="line.8"></a>
-<FONT color="green">009</FONT>    <a name="line.9"></a>
-<FONT color="green">010</FONT>        protected ZStream z = new ZStream();<a name="line.10"></a>
-<FONT color="green">011</FONT>        protected int flush = ZConstants.Z_NO_FLUSH;<a name="line.11"></a>
-<FONT color="green">012</FONT>        protected byte[] buf;<a name="line.12"></a>
-<FONT color="green">013</FONT>        protected byte[] buf1 = new byte[1];<a name="line.13"></a>
-<FONT color="green">014</FONT>        protected boolean compress;<a name="line.14"></a>
-<FONT color="green">015</FONT>        private int bufsize;<a name="line.15"></a>
-<FONT color="green">016</FONT>    <a name="line.16"></a>
-<FONT color="green">017</FONT>        public ZInputStream(InputStream in) {<a name="line.17"></a>
-<FONT color="green">018</FONT>            this(in, false);<a name="line.18"></a>
-<FONT color="green">019</FONT>        }<a name="line.19"></a>
-<FONT color="green">020</FONT>    <a name="line.20"></a>
-<FONT color="green">021</FONT>        public ZInputStream(InputStream in, boolean nowrap) {<a name="line.21"></a>
-<FONT color="green">022</FONT>            super(in);<a name="line.22"></a>
-<FONT color="green">023</FONT>            this.bufsize = 512;<a name="line.23"></a>
-<FONT color="green">024</FONT>            this.buf = new byte[bufsize];<a name="line.24"></a>
-<FONT color="green">025</FONT>            z.inflateInit(nowrap);<a name="line.25"></a>
-<FONT color="green">026</FONT>            compress = false;<a name="line.26"></a>
-<FONT color="green">027</FONT>            z.nextin = buf;<a name="line.27"></a>
-<FONT color="green">028</FONT>            z.nextinindex = 0;<a name="line.28"></a>
-<FONT color="green">029</FONT>            z.availin = 0;<a name="line.29"></a>
-<FONT color="green">030</FONT>        }<a name="line.30"></a>
-<FONT color="green">031</FONT>    <a name="line.31"></a>
-<FONT color="green">032</FONT>        public ZInputStream(InputStream in, int bufsize) {<a name="line.32"></a>
-<FONT color="green">033</FONT>            super(in);<a name="line.33"></a>
-<FONT color="green">034</FONT>            this.bufsize = bufsize;<a name="line.34"></a>
-<FONT color="green">035</FONT>            this.buf = new byte[bufsize];<a name="line.35"></a>
-<FONT color="green">036</FONT>            z.inflateInit(false);<a name="line.36"></a>
-<FONT color="green">037</FONT>            compress = false;<a name="line.37"></a>
-<FONT color="green">038</FONT>            z.nextin = buf;<a name="line.38"></a>
-<FONT color="green">039</FONT>            z.nextinindex = 0;<a name="line.39"></a>
-<FONT color="green">040</FONT>            z.availin = 0;<a name="line.40"></a>
-<FONT color="green">041</FONT>        }<a name="line.41"></a>
-<FONT color="green">042</FONT>    <a name="line.42"></a>
-<FONT color="green">043</FONT>        public void level(int level) {<a name="line.43"></a>
-<FONT color="green">044</FONT>            z.deflateInit(level);<a name="line.44"></a>
-<FONT color="green">045</FONT>        }<a name="line.45"></a>
-<FONT color="green">046</FONT>    <a name="line.46"></a>
-<FONT color="green">047</FONT>        @Override<a name="line.47"></a>
-<FONT color="green">048</FONT>        public int read() throws IOException {<a name="line.48"></a>
-<FONT color="green">049</FONT>            if (read(buf1, 0, 1) == -1) {<a name="line.49"></a>
-<FONT color="green">050</FONT>                return (-1);<a name="line.50"></a>
-<FONT color="green">051</FONT>            }<a name="line.51"></a>
-<FONT color="green">052</FONT>            return (buf1[0] &amp; 0xFF);<a name="line.52"></a>
-<FONT color="green">053</FONT>        }<a name="line.53"></a>
-<FONT color="green">054</FONT>    <a name="line.54"></a>
-<FONT color="green">055</FONT>        private boolean nomoreinput = false;<a name="line.55"></a>
-<FONT color="green">056</FONT>    <a name="line.56"></a>
-<FONT color="green">057</FONT>        @Override<a name="line.57"></a>
-<FONT color="green">058</FONT>        public int read(byte[] b, int off, int len) throws IOException {<a name="line.58"></a>
-<FONT color="green">059</FONT>            if (len == 0) {<a name="line.59"></a>
-<FONT color="green">060</FONT>                return (0);<a name="line.60"></a>
-<FONT color="green">061</FONT>            }<a name="line.61"></a>
-<FONT color="green">062</FONT>            int err;<a name="line.62"></a>
-<FONT color="green">063</FONT>            z.nextout = b;<a name="line.63"></a>
-<FONT color="green">064</FONT>            z.nextoutindex = off;<a name="line.64"></a>
-<FONT color="green">065</FONT>            z.availout = len;<a name="line.65"></a>
-<FONT color="green">066</FONT>            do {<a name="line.66"></a>
-<FONT color="green">067</FONT>                if ((z.availin == 0) &amp;&amp; (!nomoreinput)) { // if buffer is empty and more input is avaiable, refill it<a name="line.67"></a>
-<FONT color="green">068</FONT>                    z.nextinindex = 0;<a name="line.68"></a>
-<FONT color="green">069</FONT>                    z.availin = in.read(buf, 0, bufsize);//(bufsize&lt;z.avail_out ? bufsize : z.avail_out));<a name="line.69"></a>
-<FONT color="green">070</FONT>                    if (z.availin == -1) {<a name="line.70"></a>
-<FONT color="green">071</FONT>                        z.availin = 0;<a name="line.71"></a>
-<FONT color="green">072</FONT>                        nomoreinput = true;<a name="line.72"></a>
-<FONT color="green">073</FONT>                    }<a name="line.73"></a>
-<FONT color="green">074</FONT>                }<a name="line.74"></a>
-<FONT color="green">075</FONT>                if (compress) {<a name="line.75"></a>
-<FONT color="green">076</FONT>                    err = z.deflate(flush);<a name="line.76"></a>
-<FONT color="green">077</FONT>                } else {<a name="line.77"></a>
-<FONT color="green">078</FONT>                    err = z.inflate(flush);<a name="line.78"></a>
-<FONT color="green">079</FONT>                }<a name="line.79"></a>
-<FONT color="green">080</FONT>                if (nomoreinput &amp;&amp; (err == ZConstants.Z_BUF_ERROR)) {<a name="line.80"></a>
-<FONT color="green">081</FONT>                    return (-1);<a name="line.81"></a>
-<FONT color="green">082</FONT>                }<a name="line.82"></a>
-<FONT color="green">083</FONT>                if (err != ZConstants.Z_OK &amp;&amp; err != ZConstants.Z_STREAM_END) {<a name="line.83"></a>
-<FONT color="green">084</FONT>                    throw new IOException((compress ? "de" : "in") + "flating: " + z.msg);<a name="line.84"></a>
-<FONT color="green">085</FONT>                }<a name="line.85"></a>
-<FONT color="green">086</FONT>                if ((nomoreinput || err == ZConstants.Z_STREAM_END) &amp;&amp; (z.availout == len)) {<a name="line.86"></a>
-<FONT color="green">087</FONT>                    return (-1);<a name="line.87"></a>
-<FONT color="green">088</FONT>                }<a name="line.88"></a>
-<FONT color="green">089</FONT>            } while (z.availout == len &amp;&amp; err == ZConstants.Z_OK);<a name="line.89"></a>
-<FONT color="green">090</FONT>            //System.err.print("("+(len-z.avail_out)+")");<a name="line.90"></a>
-<FONT color="green">091</FONT>            return (len - z.availout);<a name="line.91"></a>
-<FONT color="green">092</FONT>        }<a name="line.92"></a>
-<FONT color="green">093</FONT>    <a name="line.93"></a>
-<FONT color="green">094</FONT>        public long skip(long n) throws IOException {<a name="line.94"></a>
-<FONT color="green">095</FONT>            int len = 512;<a name="line.95"></a>
-<FONT color="green">096</FONT>            if (n &lt; len) {<a name="line.96"></a>
-<FONT color="green">097</FONT>                len = (int) n;<a name="line.97"></a>
-<FONT color="green">098</FONT>            }<a name="line.98"></a>
-<FONT color="green">099</FONT>            byte[] tmp = new byte[len];<a name="line.99"></a>
-<FONT color="green">100</FONT>            return ((long) read(tmp));<a name="line.100"></a>
-<FONT color="green">101</FONT>        }<a name="line.101"></a>
-<FONT color="green">102</FONT>    <a name="line.102"></a>
-<FONT color="green">103</FONT>        public int getFlushMode() {<a name="line.103"></a>
-<FONT color="green">104</FONT>            return (flush);<a name="line.104"></a>
-<FONT color="green">105</FONT>        }<a name="line.105"></a>
-<FONT color="green">106</FONT>    <a name="line.106"></a>
-<FONT color="green">107</FONT>        public void setFlushMode(int flush) {<a name="line.107"></a>
-<FONT color="green">108</FONT>            this.flush = flush;<a name="line.108"></a>
-<FONT color="green">109</FONT>        }<a name="line.109"></a>
-<FONT color="green">110</FONT>    <a name="line.110"></a>
-<FONT color="green">111</FONT>        /**<a name="line.111"></a>
-<FONT color="green">112</FONT>         * Returns the total number of bytes input so far.<a name="line.112"></a>
-<FONT color="green">113</FONT>         */<a name="line.113"></a>
-<FONT color="green">114</FONT>        public long getTotalIn() {<a name="line.114"></a>
-<FONT color="green">115</FONT>            return z.totalin;<a name="line.115"></a>
-<FONT color="green">116</FONT>        }<a name="line.116"></a>
-<FONT color="green">117</FONT>    <a name="line.117"></a>
-<FONT color="green">118</FONT>        /**<a name="line.118"></a>
-<FONT color="green">119</FONT>         * Returns the total number of bytes output so far.<a name="line.119"></a>
-<FONT color="green">120</FONT>         */<a name="line.120"></a>
-<FONT color="green">121</FONT>        public long getTotalOut() {<a name="line.121"></a>
-<FONT color="green">122</FONT>            return z.totalout;<a name="line.122"></a>
-<FONT color="green">123</FONT>        }<a name="line.123"></a>
-<FONT color="green">124</FONT>    <a name="line.124"></a>
-<FONT color="green">125</FONT>        public void close() throws IOException {<a name="line.125"></a>
-<FONT color="green">126</FONT>            in.close();<a name="line.126"></a>
-<FONT color="green">127</FONT>        }<a name="line.127"></a>
-<FONT color="green">128</FONT>    }<a name="line.128"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.io.FilterInputStream;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.io.IOException;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.InputStream;<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>public class ZInputStream extends FilterInputStream {<a name="line.8"></a>
+<span class="sourceLineNo">009</span><a name="line.9"></a>
+<span class="sourceLineNo">010</span>    protected ZStream z = new ZStream();<a name="line.10"></a>
+<span class="sourceLineNo">011</span>    protected int flush = ZConstants.Z_NO_FLUSH;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>    protected byte[] buf;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>    protected byte[] buf1 = new byte[1];<a name="line.13"></a>
+<span class="sourceLineNo">014</span>    protected boolean compress;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>    private int bufsize;<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>    public ZInputStream(InputStream in) {<a name="line.17"></a>
+<span class="sourceLineNo">018</span>        this(in, false);<a name="line.18"></a>
+<span class="sourceLineNo">019</span>    }<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>    public ZInputStream(InputStream in, boolean nowrap) {<a name="line.21"></a>
+<span class="sourceLineNo">022</span>        super(in);<a name="line.22"></a>
+<span class="sourceLineNo">023</span>        this.bufsize = 512;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>        this.buf = new byte[bufsize];<a name="line.24"></a>
+<span class="sourceLineNo">025</span>        z.inflateInit(nowrap);<a name="line.25"></a>
+<span class="sourceLineNo">026</span>        compress = false;<a name="line.26"></a>
+<span class="sourceLineNo">027</span>        z.nextin = buf;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>        z.nextinindex = 0;<a name="line.28"></a>
+<span class="sourceLineNo">029</span>        z.availin = 0;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>    }<a name="line.30"></a>
+<span class="sourceLineNo">031</span><a name="line.31"></a>
+<span class="sourceLineNo">032</span>    public ZInputStream(InputStream in, int bufsize) {<a name="line.32"></a>
+<span class="sourceLineNo">033</span>        super(in);<a name="line.33"></a>
+<span class="sourceLineNo">034</span>        this.bufsize = bufsize;<a name="line.34"></a>
+<span class="sourceLineNo">035</span>        this.buf = new byte[bufsize];<a name="line.35"></a>
+<span class="sourceLineNo">036</span>        z.inflateInit(false);<a name="line.36"></a>
+<span class="sourceLineNo">037</span>        compress = false;<a name="line.37"></a>
+<span class="sourceLineNo">038</span>        z.nextin = buf;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>        z.nextinindex = 0;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        z.availin = 0;<a name="line.40"></a>
+<span class="sourceLineNo">041</span>    }<a name="line.41"></a>
+<span class="sourceLineNo">042</span><a name="line.42"></a>
+<span class="sourceLineNo">043</span>    public void level(int level) {<a name="line.43"></a>
+<span class="sourceLineNo">044</span>        z.deflateInit(level);<a name="line.44"></a>
+<span class="sourceLineNo">045</span>    }<a name="line.45"></a>
+<span class="sourceLineNo">046</span><a name="line.46"></a>
+<span class="sourceLineNo">047</span>    @Override<a name="line.47"></a>
+<span class="sourceLineNo">048</span>    public int read() throws IOException {<a name="line.48"></a>
+<span class="sourceLineNo">049</span>        if (read(buf1, 0, 1) == -1) {<a name="line.49"></a>
+<span class="sourceLineNo">050</span>            return (-1);<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        }<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        return (buf1[0] &amp; 0xFF);<a name="line.52"></a>
+<span class="sourceLineNo">053</span>    }<a name="line.53"></a>
+<span class="sourceLineNo">054</span><a name="line.54"></a>
+<span class="sourceLineNo">055</span>    private boolean nomoreinput = false;<a name="line.55"></a>
+<span class="sourceLineNo">056</span><a name="line.56"></a>
+<span class="sourceLineNo">057</span>    @Override<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    public int read(byte[] b, int off, int len) throws IOException {<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        if (len == 0) {<a name="line.59"></a>
+<span class="sourceLineNo">060</span>            return (0);<a name="line.60"></a>
+<span class="sourceLineNo">061</span>        }<a name="line.61"></a>
+<span class="sourceLineNo">062</span>        int err;<a name="line.62"></a>
+<span class="sourceLineNo">063</span>        z.nextout = b;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>        z.nextoutindex = off;<a name="line.64"></a>
+<span class="sourceLineNo">065</span>        z.availout = len;<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        do {<a name="line.66"></a>
+<span class="sourceLineNo">067</span>            if ((z.availin == 0) &amp;&amp; (!nomoreinput)) { // if buffer is empty and more input is avaiable, refill it<a name="line.67"></a>
+<span class="sourceLineNo">068</span>                z.nextinindex = 0;<a name="line.68"></a>
+<span class="sourceLineNo">069</span>                z.availin = in.read(buf, 0, bufsize);//(bufsize&lt;z.avail_out ? bufsize : z.avail_out));<a name="line.69"></a>
+<span class="sourceLineNo">070</span>                if (z.availin == -1) {<a name="line.70"></a>
+<span class="sourceLineNo">071</span>                    z.availin = 0;<a name="line.71"></a>
+<span class="sourceLineNo">072</span>                    nomoreinput = true;<a name="line.72"></a>
+<span class="sourceLineNo">073</span>                }<a name="line.73"></a>
+<span class="sourceLineNo">074</span>            }<a name="line.74"></a>
+<span class="sourceLineNo">075</span>            if (compress) {<a name="line.75"></a>
+<span class="sourceLineNo">076</span>                err = z.deflate(flush);<a name="line.76"></a>
+<span class="sourceLineNo">077</span>            } else {<a name="line.77"></a>
+<span class="sourceLineNo">078</span>                err = z.inflate(flush);<a name="line.78"></a>
+<span class="sourceLineNo">079</span>            }<a name="line.79"></a>
+<span class="sourceLineNo">080</span>            if (nomoreinput &amp;&amp; (err == ZConstants.Z_BUF_ERROR)) {<a name="line.80"></a>
+<span class="sourceLineNo">081</span>                return (-1);<a name="line.81"></a>
+<span class="sourceLineNo">082</span>            }<a name="line.82"></a>
+<span class="sourceLineNo">083</span>            if (err != ZConstants.Z_OK &amp;&amp; err != ZConstants.Z_STREAM_END) {<a name="line.83"></a>
+<span class="sourceLineNo">084</span>                throw new IOException((compress ? "de" : "in") + "flating: " + z.msg);<a name="line.84"></a>
+<span class="sourceLineNo">085</span>            }<a name="line.85"></a>
+<span class="sourceLineNo">086</span>            if ((nomoreinput || err == ZConstants.Z_STREAM_END) &amp;&amp; (z.availout == len)) {<a name="line.86"></a>
+<span class="sourceLineNo">087</span>                return (-1);<a name="line.87"></a>
+<span class="sourceLineNo">088</span>            }<a name="line.88"></a>
+<span class="sourceLineNo">089</span>        } while (z.availout == len &amp;&amp; err == ZConstants.Z_OK);<a name="line.89"></a>
+<span class="sourceLineNo">090</span>        //System.err.print("("+(len-z.avail_out)+")");<a name="line.90"></a>
+<span class="sourceLineNo">091</span>        return (len - z.availout);<a name="line.91"></a>
+<span class="sourceLineNo">092</span>    }<a name="line.92"></a>
+<span class="sourceLineNo">093</span><a name="line.93"></a>
+<span class="sourceLineNo">094</span>    public long skip(long n) throws IOException {<a name="line.94"></a>
+<span class="sourceLineNo">095</span>        int len = 512;<a name="line.95"></a>
+<span class="sourceLineNo">096</span>        if (n &lt; len) {<a name="line.96"></a>
+<span class="sourceLineNo">097</span>            len = (int) n;<a name="line.97"></a>
+<span class="sourceLineNo">098</span>        }<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        byte[] tmp = new byte[len];<a name="line.99"></a>
+<span class="sourceLineNo">100</span>        return ((long) read(tmp));<a name="line.100"></a>
+<span class="sourceLineNo">101</span>    }<a name="line.101"></a>
+<span class="sourceLineNo">102</span><a name="line.102"></a>
+<span class="sourceLineNo">103</span>    public int getFlushMode() {<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        return (flush);<a name="line.104"></a>
+<span class="sourceLineNo">105</span>    }<a name="line.105"></a>
+<span class="sourceLineNo">106</span><a name="line.106"></a>
+<span class="sourceLineNo">107</span>    public void setFlushMode(int flush) {<a name="line.107"></a>
+<span class="sourceLineNo">108</span>        this.flush = flush;<a name="line.108"></a>
+<span class="sourceLineNo">109</span>    }<a name="line.109"></a>
+<span class="sourceLineNo">110</span><a name="line.110"></a>
+<span class="sourceLineNo">111</span>    /**<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     * Returns the total number of bytes input so far.<a name="line.112"></a>
+<span class="sourceLineNo">113</span>     */<a name="line.113"></a>
+<span class="sourceLineNo">114</span>    public long getTotalIn() {<a name="line.114"></a>
+<span class="sourceLineNo">115</span>        return z.totalin;<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    }<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    /**<a name="line.118"></a>
+<span class="sourceLineNo">119</span>     * Returns the total number of bytes output so far.<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     */<a name="line.120"></a>
+<span class="sourceLineNo">121</span>    public long getTotalOut() {<a name="line.121"></a>
+<span class="sourceLineNo">122</span>        return z.totalout;<a name="line.122"></a>
+<span class="sourceLineNo">123</span>    }<a name="line.123"></a>
+<span class="sourceLineNo">124</span><a name="line.124"></a>
+<span class="sourceLineNo">125</span>    public void close() throws IOException {<a name="line.125"></a>
+<span class="sourceLineNo">126</span>        in.close();<a name="line.126"></a>
+<span class="sourceLineNo">127</span>    }<a name="line.127"></a>
+<span class="sourceLineNo">128</span>}<a name="line.128"></a>
 
 
 
@@ -189,6 +194,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

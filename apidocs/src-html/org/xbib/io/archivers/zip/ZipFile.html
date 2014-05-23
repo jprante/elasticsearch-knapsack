@@ -1,956 +1,961 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.archivers.zip;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import java.io.EOFException;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import java.io.File;<a name="line.5"></a>
-<FONT color="green">006</FONT>    import java.io.IOException;<a name="line.6"></a>
-<FONT color="green">007</FONT>    import java.io.InputStream;<a name="line.7"></a>
-<FONT color="green">008</FONT>    import java.io.RandomAccessFile;<a name="line.8"></a>
-<FONT color="green">009</FONT>    import java.util.Arrays;<a name="line.9"></a>
-<FONT color="green">010</FONT>    import java.util.Collections;<a name="line.10"></a>
-<FONT color="green">011</FONT>    import java.util.Comparator;<a name="line.11"></a>
-<FONT color="green">012</FONT>    import java.util.Enumeration;<a name="line.12"></a>
-<FONT color="green">013</FONT>    import java.util.HashMap;<a name="line.13"></a>
-<FONT color="green">014</FONT>    import java.util.LinkedHashMap;<a name="line.14"></a>
-<FONT color="green">015</FONT>    import java.util.Map;<a name="line.15"></a>
-<FONT color="green">016</FONT>    import java.util.zip.Inflater;<a name="line.16"></a>
-<FONT color="green">017</FONT>    import java.util.zip.InflaterInputStream;<a name="line.17"></a>
-<FONT color="green">018</FONT>    import java.util.zip.ZipEntry;<a name="line.18"></a>
-<FONT color="green">019</FONT>    import java.util.zip.ZipException;<a name="line.19"></a>
-<FONT color="green">020</FONT>    <a name="line.20"></a>
-<FONT color="green">021</FONT>    import static org.xbib.io.archivers.zip.ZipConstants.DWORD;<a name="line.21"></a>
-<FONT color="green">022</FONT>    import static org.xbib.io.archivers.zip.ZipConstants.SHORT;<a name="line.22"></a>
-<FONT color="green">023</FONT>    import static org.xbib.io.archivers.zip.ZipConstants.WORD;<a name="line.23"></a>
-<FONT color="green">024</FONT>    import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC;<a name="line.24"></a>
-<FONT color="green">025</FONT>    import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC_SHORT;<a name="line.25"></a>
-<FONT color="green">026</FONT>    <a name="line.26"></a>
-<FONT color="green">027</FONT>    /**<a name="line.27"></a>
-<FONT color="green">028</FONT>     * Replacement for &lt;code&gt;java.util.ZipFile&lt;/code&gt;.<a name="line.28"></a>
-<FONT color="green">029</FONT>     * &lt;p/&gt;<a name="line.29"></a>
-<FONT color="green">030</FONT>     * &lt;p&gt;This class adds support for file name encodings other than UTF-8<a name="line.30"></a>
-<FONT color="green">031</FONT>     * (which is required to work on ZIP files created by native zip tools<a name="line.31"></a>
-<FONT color="green">032</FONT>     * and is able to skip a preamble like the one found in self<a name="line.32"></a>
-<FONT color="green">033</FONT>     * extracting archives.  Furthermore it returns instances of<a name="line.33"></a>
-<FONT color="green">034</FONT>     * &lt;code&gt;org.apache.commons.compress.archivers.zip.ZipArchiveEntry&lt;/code&gt;<a name="line.34"></a>
-<FONT color="green">035</FONT>     * instead of &lt;code&gt;java.util.zip.ZipEntry&lt;/code&gt;.&lt;/p&gt;<a name="line.35"></a>
-<FONT color="green">036</FONT>     * &lt;p/&gt;<a name="line.36"></a>
-<FONT color="green">037</FONT>     * &lt;p&gt;It doesn't extend &lt;code&gt;java.util.zip.ZipFile&lt;/code&gt; as it would<a name="line.37"></a>
-<FONT color="green">038</FONT>     * have to reimplement all methods anyway.  Like<a name="line.38"></a>
-<FONT color="green">039</FONT>     * &lt;code&gt;java.util.ZipFile&lt;/code&gt;, it uses RandomAccessFile under the<a name="line.39"></a>
-<FONT color="green">040</FONT>     * covers and supports compressed and uncompressed entries. This code<a name="line.40"></a>
-<FONT color="green">041</FONT>     * also transparently supports Zip64<a name="line.41"></a>
-<FONT color="green">042</FONT>     * extensions and thus individual entries and archives larger than 4<a name="line.42"></a>
-<FONT color="green">043</FONT>     * GB or with more than 65536 entries.&lt;/p&gt;<a name="line.43"></a>
-<FONT color="green">044</FONT>     * &lt;p/&gt;<a name="line.44"></a>
-<FONT color="green">045</FONT>     * &lt;p&gt;The method signatures mimic the ones of<a name="line.45"></a>
-<FONT color="green">046</FONT>     * &lt;code&gt;java.util.zip.ZipFile&lt;/code&gt;, with a couple of exceptions:<a name="line.46"></a>
-<FONT color="green">047</FONT>     * &lt;p/&gt;<a name="line.47"></a>
-<FONT color="green">048</FONT>     * &lt;ul&gt;<a name="line.48"></a>
-<FONT color="green">049</FONT>     * &lt;li&gt;There is no getName method.&lt;/li&gt;<a name="line.49"></a>
-<FONT color="green">050</FONT>     * &lt;li&gt;entries has been renamed to getEntries.&lt;/li&gt;<a name="line.50"></a>
-<FONT color="green">051</FONT>     * &lt;li&gt;getEntries and getEntry return<a name="line.51"></a>
-<FONT color="green">052</FONT>     * &lt;code&gt;org.apache.commons.compress.archivers.zip.ZipArchiveEntry&lt;/code&gt;<a name="line.52"></a>
-<FONT color="green">053</FONT>     * instances.&lt;/li&gt;<a name="line.53"></a>
-<FONT color="green">054</FONT>     * &lt;li&gt;close is allowed to throw IOException.&lt;/li&gt;<a name="line.54"></a>
-<FONT color="green">055</FONT>     * &lt;/ul&gt;<a name="line.55"></a>
-<FONT color="green">056</FONT>     */<a name="line.56"></a>
-<FONT color="green">057</FONT>    public class ZipFile {<a name="line.57"></a>
-<FONT color="green">058</FONT>        private static final int HASH_SIZE = 509;<a name="line.58"></a>
-<FONT color="green">059</FONT>        static final int NIBLET_MASK = 0x0f;<a name="line.59"></a>
-<FONT color="green">060</FONT>        static final int BYTE_SHIFT = 8;<a name="line.60"></a>
-<FONT color="green">061</FONT>        private static final int POS_0 = 0;<a name="line.61"></a>
-<FONT color="green">062</FONT>        private static final int POS_1 = 1;<a name="line.62"></a>
-<FONT color="green">063</FONT>        private static final int POS_2 = 2;<a name="line.63"></a>
-<FONT color="green">064</FONT>        private static final int POS_3 = 3;<a name="line.64"></a>
-<FONT color="green">065</FONT>    <a name="line.65"></a>
-<FONT color="green">066</FONT>        /**<a name="line.66"></a>
-<FONT color="green">067</FONT>         * Maps ZipArchiveEntrys to two longs, recording the offsets of<a name="line.67"></a>
-<FONT color="green">068</FONT>         * the local file headers and the start of entry data.<a name="line.68"></a>
-<FONT color="green">069</FONT>         */<a name="line.69"></a>
-<FONT color="green">070</FONT>        private final Map&lt;ZipArchiveEntry, OffsetEntry&gt; entries =<a name="line.70"></a>
-<FONT color="green">071</FONT>                new LinkedHashMap&lt;ZipArchiveEntry, OffsetEntry&gt;(HASH_SIZE);<a name="line.71"></a>
-<FONT color="green">072</FONT>    <a name="line.72"></a>
-<FONT color="green">073</FONT>        /**<a name="line.73"></a>
-<FONT color="green">074</FONT>         * Maps String to ZipArchiveEntrys, name -&gt; actual entry.<a name="line.74"></a>
-<FONT color="green">075</FONT>         */<a name="line.75"></a>
-<FONT color="green">076</FONT>        private final Map&lt;String, ZipArchiveEntry&gt; nameMap =<a name="line.76"></a>
-<FONT color="green">077</FONT>                new HashMap&lt;String, ZipArchiveEntry&gt;(HASH_SIZE);<a name="line.77"></a>
-<FONT color="green">078</FONT>    <a name="line.78"></a>
-<FONT color="green">079</FONT>        private static final class OffsetEntry {<a name="line.79"></a>
-<FONT color="green">080</FONT>            private long headerOffset = -1;<a name="line.80"></a>
-<FONT color="green">081</FONT>            private long dataOffset = -1;<a name="line.81"></a>
-<FONT color="green">082</FONT>        }<a name="line.82"></a>
-<FONT color="green">083</FONT>    <a name="line.83"></a>
-<FONT color="green">084</FONT>        /**<a name="line.84"></a>
-<FONT color="green">085</FONT>         * The encoding to use for filenames and the file comment.<a name="line.85"></a>
-<FONT color="green">086</FONT>         * &lt;p/&gt;<a name="line.86"></a>
-<FONT color="green">087</FONT>         * &lt;p&gt;For a list of possible values see &lt;a<a name="line.87"></a>
-<FONT color="green">088</FONT>         * href="http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html"&gt;http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html&lt;/a&gt;.<a name="line.88"></a>
-<FONT color="green">089</FONT>         * Defaults to UTF-8.&lt;/p&gt;<a name="line.89"></a>
-<FONT color="green">090</FONT>         */<a name="line.90"></a>
-<FONT color="green">091</FONT>        private final String encoding;<a name="line.91"></a>
-<FONT color="green">092</FONT>    <a name="line.92"></a>
-<FONT color="green">093</FONT>        /**<a name="line.93"></a>
-<FONT color="green">094</FONT>         * The zip encoding to use for filenames and the file comment.<a name="line.94"></a>
-<FONT color="green">095</FONT>         */<a name="line.95"></a>
-<FONT color="green">096</FONT>        private final ZipEncoding zipEncoding;<a name="line.96"></a>
-<FONT color="green">097</FONT>    <a name="line.97"></a>
-<FONT color="green">098</FONT>        /**<a name="line.98"></a>
-<FONT color="green">099</FONT>         * File name of actual source.<a name="line.99"></a>
-<FONT color="green">100</FONT>         */<a name="line.100"></a>
-<FONT color="green">101</FONT>        private final String archiveName;<a name="line.101"></a>
-<FONT color="green">102</FONT>    <a name="line.102"></a>
-<FONT color="green">103</FONT>        /**<a name="line.103"></a>
-<FONT color="green">104</FONT>         * The actual data source.<a name="line.104"></a>
-<FONT color="green">105</FONT>         */<a name="line.105"></a>
-<FONT color="green">106</FONT>        private final RandomAccessFile archive;<a name="line.106"></a>
-<FONT color="green">107</FONT>    <a name="line.107"></a>
-<FONT color="green">108</FONT>        /**<a name="line.108"></a>
-<FONT color="green">109</FONT>         * Whether to look for and use Unicode extra fields.<a name="line.109"></a>
-<FONT color="green">110</FONT>         */<a name="line.110"></a>
-<FONT color="green">111</FONT>        private final boolean useUnicodeExtraFields;<a name="line.111"></a>
-<FONT color="green">112</FONT>    <a name="line.112"></a>
-<FONT color="green">113</FONT>        /**<a name="line.113"></a>
-<FONT color="green">114</FONT>         * Whether the file is closed.<a name="line.114"></a>
-<FONT color="green">115</FONT>         */<a name="line.115"></a>
-<FONT color="green">116</FONT>        private boolean closed;<a name="line.116"></a>
-<FONT color="green">117</FONT>    <a name="line.117"></a>
-<FONT color="green">118</FONT>        /**<a name="line.118"></a>
-<FONT color="green">119</FONT>         * Opens the given file for reading, assuming "UTF8" for file names.<a name="line.119"></a>
-<FONT color="green">120</FONT>         *<a name="line.120"></a>
-<FONT color="green">121</FONT>         * @param f the archive.<a name="line.121"></a>
-<FONT color="green">122</FONT>         * @throws java.io.IOException if an error occurs while reading the file.<a name="line.122"></a>
-<FONT color="green">123</FONT>         */<a name="line.123"></a>
-<FONT color="green">124</FONT>        public ZipFile(File f) throws IOException {<a name="line.124"></a>
-<FONT color="green">125</FONT>            this(f, ZipEncodingHelper.UTF8);<a name="line.125"></a>
-<FONT color="green">126</FONT>        }<a name="line.126"></a>
-<FONT color="green">127</FONT>    <a name="line.127"></a>
-<FONT color="green">128</FONT>        /**<a name="line.128"></a>
-<FONT color="green">129</FONT>         * Opens the given file for reading, assuming "UTF8".<a name="line.129"></a>
-<FONT color="green">130</FONT>         *<a name="line.130"></a>
-<FONT color="green">131</FONT>         * @param name name of the archive.<a name="line.131"></a>
-<FONT color="green">132</FONT>         * @throws java.io.IOException if an error occurs while reading the file.<a name="line.132"></a>
-<FONT color="green">133</FONT>         */<a name="line.133"></a>
-<FONT color="green">134</FONT>        public ZipFile(String name) throws IOException {<a name="line.134"></a>
-<FONT color="green">135</FONT>            this(new File(name), ZipEncodingHelper.UTF8);<a name="line.135"></a>
-<FONT color="green">136</FONT>        }<a name="line.136"></a>
-<FONT color="green">137</FONT>    <a name="line.137"></a>
-<FONT color="green">138</FONT>        /**<a name="line.138"></a>
-<FONT color="green">139</FONT>         * Opens the given file for reading, assuming the specified<a name="line.139"></a>
-<FONT color="green">140</FONT>         * encoding for file names, scanning unicode extra fields.<a name="line.140"></a>
-<FONT color="green">141</FONT>         *<a name="line.141"></a>
-<FONT color="green">142</FONT>         * @param name     name of the archive.<a name="line.142"></a>
-<FONT color="green">143</FONT>         * @param encoding the encoding to use for file names, use null<a name="line.143"></a>
-<FONT color="green">144</FONT>         *                 for the platform's default encoding<a name="line.144"></a>
-<FONT color="green">145</FONT>         * @throws java.io.IOException if an error occurs while reading the file.<a name="line.145"></a>
-<FONT color="green">146</FONT>         */<a name="line.146"></a>
-<FONT color="green">147</FONT>        public ZipFile(String name, String encoding) throws IOException {<a name="line.147"></a>
-<FONT color="green">148</FONT>            this(new File(name), encoding, true);<a name="line.148"></a>
-<FONT color="green">149</FONT>        }<a name="line.149"></a>
-<FONT color="green">150</FONT>    <a name="line.150"></a>
-<FONT color="green">151</FONT>        /**<a name="line.151"></a>
-<FONT color="green">152</FONT>         * Opens the given file for reading, assuming the specified<a name="line.152"></a>
-<FONT color="green">153</FONT>         * encoding for file names and scanning for unicode extra fields.<a name="line.153"></a>
-<FONT color="green">154</FONT>         *<a name="line.154"></a>
-<FONT color="green">155</FONT>         * @param f        the archive.<a name="line.155"></a>
-<FONT color="green">156</FONT>         * @param encoding the encoding to use for file names, use null<a name="line.156"></a>
-<FONT color="green">157</FONT>         *                 for the platform's default encoding<a name="line.157"></a>
-<FONT color="green">158</FONT>         * @throws java.io.IOException if an error occurs while reading the file.<a name="line.158"></a>
-<FONT color="green">159</FONT>         */<a name="line.159"></a>
-<FONT color="green">160</FONT>        public ZipFile(File f, String encoding) throws IOException {<a name="line.160"></a>
-<FONT color="green">161</FONT>            this(f, encoding, true);<a name="line.161"></a>
-<FONT color="green">162</FONT>        }<a name="line.162"></a>
-<FONT color="green">163</FONT>    <a name="line.163"></a>
-<FONT color="green">164</FONT>        /**<a name="line.164"></a>
-<FONT color="green">165</FONT>         * Opens the given file for reading, assuming the specified<a name="line.165"></a>
-<FONT color="green">166</FONT>         * encoding for file names.<a name="line.166"></a>
-<FONT color="green">167</FONT>         *<a name="line.167"></a>
-<FONT color="green">168</FONT>         * @param f                     the archive.<a name="line.168"></a>
-<FONT color="green">169</FONT>         * @param encoding              the encoding to use for file names, use null<a name="line.169"></a>
-<FONT color="green">170</FONT>         *                              for the platform's default encoding<a name="line.170"></a>
-<FONT color="green">171</FONT>         * @param useUnicodeExtraFields whether to use InfoZIP Unicode<a name="line.171"></a>
-<FONT color="green">172</FONT>         *                              Extra Fields (if present) to set the file names.<a name="line.172"></a>
-<FONT color="green">173</FONT>         * @throws java.io.IOException if an error occurs while reading the file.<a name="line.173"></a>
-<FONT color="green">174</FONT>         */<a name="line.174"></a>
-<FONT color="green">175</FONT>        public ZipFile(File f, String encoding, boolean useUnicodeExtraFields)<a name="line.175"></a>
-<FONT color="green">176</FONT>                throws IOException {<a name="line.176"></a>
-<FONT color="green">177</FONT>            this.archiveName = f.getAbsolutePath();<a name="line.177"></a>
-<FONT color="green">178</FONT>            this.encoding = encoding;<a name="line.178"></a>
-<FONT color="green">179</FONT>            this.zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);<a name="line.179"></a>
-<FONT color="green">180</FONT>            this.useUnicodeExtraFields = useUnicodeExtraFields;<a name="line.180"></a>
-<FONT color="green">181</FONT>            archive = new RandomAccessFile(f, "r");<a name="line.181"></a>
-<FONT color="green">182</FONT>            boolean success = false;<a name="line.182"></a>
-<FONT color="green">183</FONT>            try {<a name="line.183"></a>
-<FONT color="green">184</FONT>                Map&lt;ZipArchiveEntry, NameAndComment&gt; entriesWithoutUTF8Flag =<a name="line.184"></a>
-<FONT color="green">185</FONT>                        populateFromCentralDirectory();<a name="line.185"></a>
-<FONT color="green">186</FONT>                resolveLocalFileHeaderData(entriesWithoutUTF8Flag);<a name="line.186"></a>
-<FONT color="green">187</FONT>                success = true;<a name="line.187"></a>
-<FONT color="green">188</FONT>            } finally {<a name="line.188"></a>
-<FONT color="green">189</FONT>                if (!success) {<a name="line.189"></a>
-<FONT color="green">190</FONT>                    try {<a name="line.190"></a>
-<FONT color="green">191</FONT>                        closed = true;<a name="line.191"></a>
-<FONT color="green">192</FONT>                        archive.close();<a name="line.192"></a>
-<FONT color="green">193</FONT>                    } catch (IOException e2) {<a name="line.193"></a>
-<FONT color="green">194</FONT>                        // swallow, throw the original exception instead<a name="line.194"></a>
-<FONT color="green">195</FONT>                    }<a name="line.195"></a>
-<FONT color="green">196</FONT>                }<a name="line.196"></a>
-<FONT color="green">197</FONT>            }<a name="line.197"></a>
-<FONT color="green">198</FONT>        }<a name="line.198"></a>
-<FONT color="green">199</FONT>    <a name="line.199"></a>
-<FONT color="green">200</FONT>        /**<a name="line.200"></a>
-<FONT color="green">201</FONT>         * The encoding to use for filenames and the file comment.<a name="line.201"></a>
-<FONT color="green">202</FONT>         *<a name="line.202"></a>
-<FONT color="green">203</FONT>         * @return null if using the platform's default character encoding.<a name="line.203"></a>
-<FONT color="green">204</FONT>         */<a name="line.204"></a>
-<FONT color="green">205</FONT>        public String getEncoding() {<a name="line.205"></a>
-<FONT color="green">206</FONT>            return encoding;<a name="line.206"></a>
-<FONT color="green">207</FONT>        }<a name="line.207"></a>
-<FONT color="green">208</FONT>    <a name="line.208"></a>
-<FONT color="green">209</FONT>        /**<a name="line.209"></a>
-<FONT color="green">210</FONT>         * Closes the archive.<a name="line.210"></a>
-<FONT color="green">211</FONT>         *<a name="line.211"></a>
-<FONT color="green">212</FONT>         * @throws java.io.IOException if an error occurs closing the archive.<a name="line.212"></a>
-<FONT color="green">213</FONT>         */<a name="line.213"></a>
-<FONT color="green">214</FONT>        public void close() throws IOException {<a name="line.214"></a>
-<FONT color="green">215</FONT>            // this flag is only written here and read in finalize() which<a name="line.215"></a>
-<FONT color="green">216</FONT>            // can never be run in parallel.<a name="line.216"></a>
-<FONT color="green">217</FONT>            // no synchronization needed.<a name="line.217"></a>
-<FONT color="green">218</FONT>            closed = true;<a name="line.218"></a>
-<FONT color="green">219</FONT>    <a name="line.219"></a>
-<FONT color="green">220</FONT>            archive.close();<a name="line.220"></a>
-<FONT color="green">221</FONT>        }<a name="line.221"></a>
-<FONT color="green">222</FONT>    <a name="line.222"></a>
-<FONT color="green">223</FONT>        /**<a name="line.223"></a>
-<FONT color="green">224</FONT>         * close a zipfile quietly; throw no io fault, do nothing<a name="line.224"></a>
-<FONT color="green">225</FONT>         * on a null parameter<a name="line.225"></a>
-<FONT color="green">226</FONT>         *<a name="line.226"></a>
-<FONT color="green">227</FONT>         * @param zipfile file to close, can be null<a name="line.227"></a>
-<FONT color="green">228</FONT>         */<a name="line.228"></a>
-<FONT color="green">229</FONT>        public static void closeQuietly(ZipFile zipfile) {<a name="line.229"></a>
-<FONT color="green">230</FONT>            if (zipfile != null) {<a name="line.230"></a>
-<FONT color="green">231</FONT>                try {<a name="line.231"></a>
-<FONT color="green">232</FONT>                    zipfile.close();<a name="line.232"></a>
-<FONT color="green">233</FONT>                } catch (IOException e) { // NOPMD<a name="line.233"></a>
-<FONT color="green">234</FONT>                    //ignore, that's why the method is called "quietly"<a name="line.234"></a>
-<FONT color="green">235</FONT>                }<a name="line.235"></a>
-<FONT color="green">236</FONT>            }<a name="line.236"></a>
-<FONT color="green">237</FONT>        }<a name="line.237"></a>
-<FONT color="green">238</FONT>    <a name="line.238"></a>
-<FONT color="green">239</FONT>        /**<a name="line.239"></a>
-<FONT color="green">240</FONT>         * Returns all entries.<a name="line.240"></a>
-<FONT color="green">241</FONT>         * &lt;p/&gt;<a name="line.241"></a>
-<FONT color="green">242</FONT>         * &lt;p&gt;Entries will be returned in the same order they appear<a name="line.242"></a>
-<FONT color="green">243</FONT>         * within the archive's central directory.&lt;/p&gt;<a name="line.243"></a>
-<FONT color="green">244</FONT>         *<a name="line.244"></a>
-<FONT color="green">245</FONT>         * @return all entries as {@link ZipArchiveEntry} instances<a name="line.245"></a>
-<FONT color="green">246</FONT>         */<a name="line.246"></a>
-<FONT color="green">247</FONT>        public Enumeration&lt;ZipArchiveEntry&gt; getEntries() {<a name="line.247"></a>
-<FONT color="green">248</FONT>            return Collections.enumeration(entries.keySet());<a name="line.248"></a>
-<FONT color="green">249</FONT>        }<a name="line.249"></a>
-<FONT color="green">250</FONT>    <a name="line.250"></a>
-<FONT color="green">251</FONT>        /**<a name="line.251"></a>
-<FONT color="green">252</FONT>         * Returns all entries in physical order.<a name="line.252"></a>
-<FONT color="green">253</FONT>         * &lt;p/&gt;<a name="line.253"></a>
-<FONT color="green">254</FONT>         * &lt;p&gt;Entries will be returned in the same order their contents<a name="line.254"></a>
-<FONT color="green">255</FONT>         * appear within the archive.&lt;/p&gt;<a name="line.255"></a>
-<FONT color="green">256</FONT>         *<a name="line.256"></a>
-<FONT color="green">257</FONT>         * @return all entries as {@link ZipArchiveEntry} instances<a name="line.257"></a>
-<FONT color="green">258</FONT>         */<a name="line.258"></a>
-<FONT color="green">259</FONT>        public Enumeration&lt;ZipArchiveEntry&gt; getEntriesInPhysicalOrder() {<a name="line.259"></a>
-<FONT color="green">260</FONT>            ZipArchiveEntry[] allEntries =<a name="line.260"></a>
-<FONT color="green">261</FONT>                    entries.keySet().toArray(new ZipArchiveEntry[0]);<a name="line.261"></a>
-<FONT color="green">262</FONT>            Arrays.sort(allEntries, OFFSET_COMPARATOR);<a name="line.262"></a>
-<FONT color="green">263</FONT>            return Collections.enumeration(Arrays.asList(allEntries));<a name="line.263"></a>
-<FONT color="green">264</FONT>        }<a name="line.264"></a>
-<FONT color="green">265</FONT>    <a name="line.265"></a>
-<FONT color="green">266</FONT>        /**<a name="line.266"></a>
-<FONT color="green">267</FONT>         * Returns a named entry - or {@code null} if no entry by<a name="line.267"></a>
-<FONT color="green">268</FONT>         * that name exists.<a name="line.268"></a>
-<FONT color="green">269</FONT>         *<a name="line.269"></a>
-<FONT color="green">270</FONT>         * @param name name of the entry.<a name="line.270"></a>
-<FONT color="green">271</FONT>         * @return the ZipArchiveEntry corresponding to the given name - or<a name="line.271"></a>
-<FONT color="green">272</FONT>         * {@code null} if not present.<a name="line.272"></a>
-<FONT color="green">273</FONT>         */<a name="line.273"></a>
-<FONT color="green">274</FONT>        public ZipArchiveEntry getEntry(String name) {<a name="line.274"></a>
-<FONT color="green">275</FONT>            return nameMap.get(name);<a name="line.275"></a>
-<FONT color="green">276</FONT>        }<a name="line.276"></a>
-<FONT color="green">277</FONT>    <a name="line.277"></a>
-<FONT color="green">278</FONT>        /**<a name="line.278"></a>
-<FONT color="green">279</FONT>         * Whether this class is able to read the given entry.<a name="line.279"></a>
-<FONT color="green">280</FONT>         * &lt;p/&gt;<a name="line.280"></a>
-<FONT color="green">281</FONT>         * &lt;p&gt;May return false if it is set up to use encryption or a<a name="line.281"></a>
-<FONT color="green">282</FONT>         * compression method that hasn't been implemented yet.&lt;/p&gt;<a name="line.282"></a>
-<FONT color="green">283</FONT>         */<a name="line.283"></a>
-<FONT color="green">284</FONT>        public boolean canReadEntryData(ZipArchiveEntry ze) {<a name="line.284"></a>
-<FONT color="green">285</FONT>            return ZipUtil.canHandleEntryData(ze);<a name="line.285"></a>
-<FONT color="green">286</FONT>        }<a name="line.286"></a>
-<FONT color="green">287</FONT>    <a name="line.287"></a>
-<FONT color="green">288</FONT>        /**<a name="line.288"></a>
-<FONT color="green">289</FONT>         * Returns an InputStream for reading the contents of the given entry.<a name="line.289"></a>
-<FONT color="green">290</FONT>         *<a name="line.290"></a>
-<FONT color="green">291</FONT>         * @param ze the entry to get the stream for.<a name="line.291"></a>
-<FONT color="green">292</FONT>         * @return a stream to read the entry from.<a name="line.292"></a>
-<FONT color="green">293</FONT>         * @throws java.io.IOException        if unable to create an input stream from the zipenty<a name="line.293"></a>
-<FONT color="green">294</FONT>         * @throws java.util.zip.ZipException if the zipentry uses an unsupported feature<a name="line.294"></a>
-<FONT color="green">295</FONT>         */<a name="line.295"></a>
-<FONT color="green">296</FONT>        public InputStream getInputStream(ZipArchiveEntry ze)<a name="line.296"></a>
-<FONT color="green">297</FONT>                throws IOException, ZipException {<a name="line.297"></a>
-<FONT color="green">298</FONT>            OffsetEntry offsetEntry = entries.get(ze);<a name="line.298"></a>
-<FONT color="green">299</FONT>            if (offsetEntry == null) {<a name="line.299"></a>
-<FONT color="green">300</FONT>                return null;<a name="line.300"></a>
-<FONT color="green">301</FONT>            }<a name="line.301"></a>
-<FONT color="green">302</FONT>            ZipUtil.checkRequestedFeatures(ze);<a name="line.302"></a>
-<FONT color="green">303</FONT>            long start = offsetEntry.dataOffset;<a name="line.303"></a>
-<FONT color="green">304</FONT>            BoundedInputStream bis =<a name="line.304"></a>
-<FONT color="green">305</FONT>                    new BoundedInputStream(start, ze.getCompressedSize());<a name="line.305"></a>
-<FONT color="green">306</FONT>            switch (ze.getMethod()) {<a name="line.306"></a>
-<FONT color="green">307</FONT>                case ZipEntry.STORED:<a name="line.307"></a>
-<FONT color="green">308</FONT>                    return bis;<a name="line.308"></a>
-<FONT color="green">309</FONT>                case ZipEntry.DEFLATED:<a name="line.309"></a>
-<FONT color="green">310</FONT>                    bis.addDummy();<a name="line.310"></a>
-<FONT color="green">311</FONT>                    final Inflater inflater = new Inflater(true);<a name="line.311"></a>
-<FONT color="green">312</FONT>                    return new InflaterInputStream(bis, inflater) {<a name="line.312"></a>
-<FONT color="green">313</FONT>                        @Override<a name="line.313"></a>
-<FONT color="green">314</FONT>                        public void close() throws IOException {<a name="line.314"></a>
-<FONT color="green">315</FONT>                            super.close();<a name="line.315"></a>
-<FONT color="green">316</FONT>                            inflater.end();<a name="line.316"></a>
-<FONT color="green">317</FONT>                        }<a name="line.317"></a>
-<FONT color="green">318</FONT>                    };<a name="line.318"></a>
-<FONT color="green">319</FONT>                default:<a name="line.319"></a>
-<FONT color="green">320</FONT>                    throw new ZipException("Found unsupported compression method "<a name="line.320"></a>
-<FONT color="green">321</FONT>                            + ze.getMethod());<a name="line.321"></a>
-<FONT color="green">322</FONT>            }<a name="line.322"></a>
-<FONT color="green">323</FONT>        }<a name="line.323"></a>
-<FONT color="green">324</FONT>    <a name="line.324"></a>
-<FONT color="green">325</FONT>        /**<a name="line.325"></a>
-<FONT color="green">326</FONT>         * Ensures that the close method of this zipfile is called when<a name="line.326"></a>
-<FONT color="green">327</FONT>         * there are no more references to it.<a name="line.327"></a>
-<FONT color="green">328</FONT>         *<a name="line.328"></a>
-<FONT color="green">329</FONT>         * @see #close()<a name="line.329"></a>
-<FONT color="green">330</FONT>         */<a name="line.330"></a>
-<FONT color="green">331</FONT>        @Override<a name="line.331"></a>
-<FONT color="green">332</FONT>        protected void finalize() throws Throwable {<a name="line.332"></a>
-<FONT color="green">333</FONT>            try {<a name="line.333"></a>
-<FONT color="green">334</FONT>                if (!closed) {<a name="line.334"></a>
-<FONT color="green">335</FONT>                    System.err.println("Cleaning up unclosed ZipFile for archive "<a name="line.335"></a>
-<FONT color="green">336</FONT>                            + archiveName);<a name="line.336"></a>
-<FONT color="green">337</FONT>                    close();<a name="line.337"></a>
-<FONT color="green">338</FONT>                }<a name="line.338"></a>
-<FONT color="green">339</FONT>            } finally {<a name="line.339"></a>
-<FONT color="green">340</FONT>                super.finalize();<a name="line.340"></a>
-<FONT color="green">341</FONT>            }<a name="line.341"></a>
-<FONT color="green">342</FONT>        }<a name="line.342"></a>
-<FONT color="green">343</FONT>    <a name="line.343"></a>
-<FONT color="green">344</FONT>        /**<a name="line.344"></a>
-<FONT color="green">345</FONT>         * Length of a "central directory" entry structure without file<a name="line.345"></a>
-<FONT color="green">346</FONT>         * name, extra fields or comment.<a name="line.346"></a>
-<FONT color="green">347</FONT>         */<a name="line.347"></a>
-<FONT color="green">348</FONT>        private static final int CFH_LEN =<a name="line.348"></a>
-<FONT color="green">349</FONT>            /* version made by                 */ SHORT<a name="line.349"></a>
-<FONT color="green">350</FONT>            /* version needed to extract       */ + SHORT<a name="line.350"></a>
-<FONT color="green">351</FONT>            /* general purpose bit flag        */ + SHORT<a name="line.351"></a>
-<FONT color="green">352</FONT>            /* compression method              */ + SHORT<a name="line.352"></a>
-<FONT color="green">353</FONT>            /* last mod file time              */ + SHORT<a name="line.353"></a>
-<FONT color="green">354</FONT>            /* last mod file date              */ + SHORT<a name="line.354"></a>
-<FONT color="green">355</FONT>            /* crc-32                          */ + WORD<a name="line.355"></a>
-<FONT color="green">356</FONT>            /* compressed size                 */ + WORD<a name="line.356"></a>
-<FONT color="green">357</FONT>            /* uncompressed size               */ + WORD<a name="line.357"></a>
-<FONT color="green">358</FONT>            /* filename length                 */ + SHORT<a name="line.358"></a>
-<FONT color="green">359</FONT>            /* extra field length              */ + SHORT<a name="line.359"></a>
-<FONT color="green">360</FONT>            /* file comment length             */ + SHORT<a name="line.360"></a>
-<FONT color="green">361</FONT>            /* disk number start               */ + SHORT<a name="line.361"></a>
-<FONT color="green">362</FONT>            /* internal file attributes        */ + SHORT<a name="line.362"></a>
-<FONT color="green">363</FONT>            /* external file attributes        */ + WORD<a name="line.363"></a>
-<FONT color="green">364</FONT>            /* relative offset of local header */ + WORD;<a name="line.364"></a>
-<FONT color="green">365</FONT>    <a name="line.365"></a>
-<FONT color="green">366</FONT>        private static final long CFH_SIG =<a name="line.366"></a>
-<FONT color="green">367</FONT>                ZipLong.getValue(ZipArchiveOutputStream.CFH_SIG);<a name="line.367"></a>
-<FONT color="green">368</FONT>    <a name="line.368"></a>
-<FONT color="green">369</FONT>        /**<a name="line.369"></a>
-<FONT color="green">370</FONT>         * Reads the central directory of the given archive and populates<a name="line.370"></a>
-<FONT color="green">371</FONT>         * the internal tables with ZipArchiveEntry instances.<a name="line.371"></a>
-<FONT color="green">372</FONT>         * &lt;p/&gt;<a name="line.372"></a>
-<FONT color="green">373</FONT>         * &lt;p&gt;The ZipArchiveEntrys will know all data that can be obtained from<a name="line.373"></a>
-<FONT color="green">374</FONT>         * the central directory alone, but not the data that requires the<a name="line.374"></a>
-<FONT color="green">375</FONT>         * local file header or additional data to be read.&lt;/p&gt;<a name="line.375"></a>
-<FONT color="green">376</FONT>         *<a name="line.376"></a>
-<FONT color="green">377</FONT>         * @return a map of zipentries that didn't have the language<a name="line.377"></a>
-<FONT color="green">378</FONT>         * encoding flag set when read.<a name="line.378"></a>
-<FONT color="green">379</FONT>         */<a name="line.379"></a>
-<FONT color="green">380</FONT>        private Map&lt;ZipArchiveEntry, NameAndComment&gt; populateFromCentralDirectory()<a name="line.380"></a>
-<FONT color="green">381</FONT>                throws IOException {<a name="line.381"></a>
-<FONT color="green">382</FONT>            HashMap&lt;ZipArchiveEntry, NameAndComment&gt; noUTF8Flag =<a name="line.382"></a>
-<FONT color="green">383</FONT>                    new HashMap&lt;ZipArchiveEntry, NameAndComment&gt;();<a name="line.383"></a>
-<FONT color="green">384</FONT>    <a name="line.384"></a>
-<FONT color="green">385</FONT>            positionAtCentralDirectory();<a name="line.385"></a>
-<FONT color="green">386</FONT>    <a name="line.386"></a>
-<FONT color="green">387</FONT>            byte[] signatureBytes = new byte[WORD];<a name="line.387"></a>
-<FONT color="green">388</FONT>            archive.readFully(signatureBytes);<a name="line.388"></a>
-<FONT color="green">389</FONT>            long sig = ZipLong.getValue(signatureBytes);<a name="line.389"></a>
-<FONT color="green">390</FONT>    <a name="line.390"></a>
-<FONT color="green">391</FONT>            if (sig != CFH_SIG &amp;&amp; startsWithLocalFileHeader()) {<a name="line.391"></a>
-<FONT color="green">392</FONT>                throw new IOException("central directory is empty, can't expand"<a name="line.392"></a>
-<FONT color="green">393</FONT>                        + " corrupt archive.");<a name="line.393"></a>
-<FONT color="green">394</FONT>            }<a name="line.394"></a>
-<FONT color="green">395</FONT>    <a name="line.395"></a>
-<FONT color="green">396</FONT>            while (sig == CFH_SIG) {<a name="line.396"></a>
-<FONT color="green">397</FONT>                readCentralDirectoryEntry(noUTF8Flag);<a name="line.397"></a>
-<FONT color="green">398</FONT>                archive.readFully(signatureBytes);<a name="line.398"></a>
-<FONT color="green">399</FONT>                sig = ZipLong.getValue(signatureBytes);<a name="line.399"></a>
-<FONT color="green">400</FONT>            }<a name="line.400"></a>
-<FONT color="green">401</FONT>            return noUTF8Flag;<a name="line.401"></a>
-<FONT color="green">402</FONT>        }<a name="line.402"></a>
-<FONT color="green">403</FONT>    <a name="line.403"></a>
-<FONT color="green">404</FONT>        /**<a name="line.404"></a>
-<FONT color="green">405</FONT>         * Reads an individual entry of the central directory, creats an<a name="line.405"></a>
-<FONT color="green">406</FONT>         * ZipArchiveEntry from it and adds it to the global maps.<a name="line.406"></a>
-<FONT color="green">407</FONT>         *<a name="line.407"></a>
-<FONT color="green">408</FONT>         * @param noUTF8Flag map used to collect entries that don't have<a name="line.408"></a>
-<FONT color="green">409</FONT>         *                   their UTF-8 flag set and whose name will be set by data read<a name="line.409"></a>
-<FONT color="green">410</FONT>         *                   from the local file header later.  The current entry may be<a name="line.410"></a>
-<FONT color="green">411</FONT>         *                   added to this map.<a name="line.411"></a>
-<FONT color="green">412</FONT>         */<a name="line.412"></a>
-<FONT color="green">413</FONT>        private void<a name="line.413"></a>
-<FONT color="green">414</FONT>        readCentralDirectoryEntry(Map&lt;ZipArchiveEntry, NameAndComment&gt; noUTF8Flag)<a name="line.414"></a>
-<FONT color="green">415</FONT>                throws IOException {<a name="line.415"></a>
-<FONT color="green">416</FONT>            byte[] cfh = new byte[CFH_LEN];<a name="line.416"></a>
-<FONT color="green">417</FONT>    <a name="line.417"></a>
-<FONT color="green">418</FONT>            archive.readFully(cfh);<a name="line.418"></a>
-<FONT color="green">419</FONT>            int off = 0;<a name="line.419"></a>
-<FONT color="green">420</FONT>            ZipArchiveEntry ze = new ZipArchiveEntry();<a name="line.420"></a>
-<FONT color="green">421</FONT>    <a name="line.421"></a>
-<FONT color="green">422</FONT>            int versionMadeBy = ZipShort.getValue(cfh, off);<a name="line.422"></a>
-<FONT color="green">423</FONT>            off += SHORT;<a name="line.423"></a>
-<FONT color="green">424</FONT>            ze.setPlatform((versionMadeBy &gt;&gt; BYTE_SHIFT) &amp; NIBLET_MASK);<a name="line.424"></a>
-<FONT color="green">425</FONT>    <a name="line.425"></a>
-<FONT color="green">426</FONT>            off += SHORT; // skip version info<a name="line.426"></a>
-<FONT color="green">427</FONT>    <a name="line.427"></a>
-<FONT color="green">428</FONT>            final GeneralPurposeBit gpFlag = GeneralPurposeBit.parse(cfh, off);<a name="line.428"></a>
-<FONT color="green">429</FONT>            final boolean hasUTF8Flag = gpFlag.usesUTF8ForNames();<a name="line.429"></a>
-<FONT color="green">430</FONT>            final ZipEncoding entryEncoding =<a name="line.430"></a>
-<FONT color="green">431</FONT>                    hasUTF8Flag ? ZipEncodingHelper.UTF8_ZIP_ENCODING : zipEncoding;<a name="line.431"></a>
-<FONT color="green">432</FONT>            ze.setGeneralPurposeBit(gpFlag);<a name="line.432"></a>
-<FONT color="green">433</FONT>    <a name="line.433"></a>
-<FONT color="green">434</FONT>            off += SHORT;<a name="line.434"></a>
-<FONT color="green">435</FONT>    <a name="line.435"></a>
-<FONT color="green">436</FONT>            ze.setMethod(ZipShort.getValue(cfh, off));<a name="line.436"></a>
-<FONT color="green">437</FONT>            off += SHORT;<a name="line.437"></a>
-<FONT color="green">438</FONT>    <a name="line.438"></a>
-<FONT color="green">439</FONT>            long time = ZipUtil.dosToJavaTime(ZipLong.getValue(cfh, off));<a name="line.439"></a>
-<FONT color="green">440</FONT>            ze.setTime(time);<a name="line.440"></a>
-<FONT color="green">441</FONT>            off += WORD;<a name="line.441"></a>
-<FONT color="green">442</FONT>    <a name="line.442"></a>
-<FONT color="green">443</FONT>            ze.setCrc(ZipLong.getValue(cfh, off));<a name="line.443"></a>
-<FONT color="green">444</FONT>            off += WORD;<a name="line.444"></a>
-<FONT color="green">445</FONT>    <a name="line.445"></a>
-<FONT color="green">446</FONT>            ze.setCompressedSize(ZipLong.getValue(cfh, off));<a name="line.446"></a>
-<FONT color="green">447</FONT>            off += WORD;<a name="line.447"></a>
-<FONT color="green">448</FONT>    <a name="line.448"></a>
-<FONT color="green">449</FONT>            ze.setSize(ZipLong.getValue(cfh, off));<a name="line.449"></a>
-<FONT color="green">450</FONT>            off += WORD;<a name="line.450"></a>
-<FONT color="green">451</FONT>    <a name="line.451"></a>
-<FONT color="green">452</FONT>            int fileNameLen = ZipShort.getValue(cfh, off);<a name="line.452"></a>
-<FONT color="green">453</FONT>            off += SHORT;<a name="line.453"></a>
-<FONT color="green">454</FONT>    <a name="line.454"></a>
-<FONT color="green">455</FONT>            int extraLen = ZipShort.getValue(cfh, off);<a name="line.455"></a>
-<FONT color="green">456</FONT>            off += SHORT;<a name="line.456"></a>
-<FONT color="green">457</FONT>    <a name="line.457"></a>
-<FONT color="green">458</FONT>            int commentLen = ZipShort.getValue(cfh, off);<a name="line.458"></a>
-<FONT color="green">459</FONT>            off += SHORT;<a name="line.459"></a>
-<FONT color="green">460</FONT>    <a name="line.460"></a>
-<FONT color="green">461</FONT>            int diskStart = ZipShort.getValue(cfh, off);<a name="line.461"></a>
-<FONT color="green">462</FONT>            off += SHORT;<a name="line.462"></a>
-<FONT color="green">463</FONT>    <a name="line.463"></a>
-<FONT color="green">464</FONT>            ze.setInternalAttributes(ZipShort.getValue(cfh, off));<a name="line.464"></a>
-<FONT color="green">465</FONT>            off += SHORT;<a name="line.465"></a>
-<FONT color="green">466</FONT>    <a name="line.466"></a>
-<FONT color="green">467</FONT>            ze.setExternalAttributes(ZipLong.getValue(cfh, off));<a name="line.467"></a>
-<FONT color="green">468</FONT>            off += WORD;<a name="line.468"></a>
-<FONT color="green">469</FONT>    <a name="line.469"></a>
-<FONT color="green">470</FONT>            byte[] fileName = new byte[fileNameLen];<a name="line.470"></a>
-<FONT color="green">471</FONT>            archive.readFully(fileName);<a name="line.471"></a>
-<FONT color="green">472</FONT>            ze.setName(entryEncoding.decode(fileName), fileName);<a name="line.472"></a>
-<FONT color="green">473</FONT>    <a name="line.473"></a>
-<FONT color="green">474</FONT>            // LFH offset,<a name="line.474"></a>
-<FONT color="green">475</FONT>            OffsetEntry offset = new OffsetEntry();<a name="line.475"></a>
-<FONT color="green">476</FONT>            offset.headerOffset = ZipLong.getValue(cfh, off);<a name="line.476"></a>
-<FONT color="green">477</FONT>            // data offset will be filled later<a name="line.477"></a>
-<FONT color="green">478</FONT>            entries.put(ze, offset);<a name="line.478"></a>
-<FONT color="green">479</FONT>    <a name="line.479"></a>
-<FONT color="green">480</FONT>            nameMap.put(ze.getName(), ze);<a name="line.480"></a>
-<FONT color="green">481</FONT>    <a name="line.481"></a>
-<FONT color="green">482</FONT>            byte[] cdExtraData = new byte[extraLen];<a name="line.482"></a>
-<FONT color="green">483</FONT>            archive.readFully(cdExtraData);<a name="line.483"></a>
-<FONT color="green">484</FONT>            ze.setCentralDirectoryExtra(cdExtraData);<a name="line.484"></a>
-<FONT color="green">485</FONT>    <a name="line.485"></a>
-<FONT color="green">486</FONT>            setSizesAndOffsetFromZip64Extra(ze, offset, diskStart);<a name="line.486"></a>
-<FONT color="green">487</FONT>    <a name="line.487"></a>
-<FONT color="green">488</FONT>            byte[] comment = new byte[commentLen];<a name="line.488"></a>
-<FONT color="green">489</FONT>            archive.readFully(comment);<a name="line.489"></a>
-<FONT color="green">490</FONT>            ze.setComment(entryEncoding.decode(comment));<a name="line.490"></a>
-<FONT color="green">491</FONT>    <a name="line.491"></a>
-<FONT color="green">492</FONT>            if (!hasUTF8Flag &amp;&amp; useUnicodeExtraFields) {<a name="line.492"></a>
-<FONT color="green">493</FONT>                noUTF8Flag.put(ze, new NameAndComment(fileName, comment));<a name="line.493"></a>
-<FONT color="green">494</FONT>            }<a name="line.494"></a>
-<FONT color="green">495</FONT>        }<a name="line.495"></a>
-<FONT color="green">496</FONT>    <a name="line.496"></a>
-<FONT color="green">497</FONT>        /**<a name="line.497"></a>
-<FONT color="green">498</FONT>         * If the entry holds a Zip64 extended information extra field,<a name="line.498"></a>
-<FONT color="green">499</FONT>         * read sizes from there if the entry's sizes are set to<a name="line.499"></a>
-<FONT color="green">500</FONT>         * 0xFFFFFFFFF, do the same for the offset of the local file<a name="line.500"></a>
-<FONT color="green">501</FONT>         * header.<a name="line.501"></a>
-<FONT color="green">502</FONT>         * &lt;p/&gt;<a name="line.502"></a>
-<FONT color="green">503</FONT>         * &lt;p&gt;Ensures the Zip64 extra either knows both compressed and<a name="line.503"></a>
-<FONT color="green">504</FONT>         * uncompressed size or neither of both as the internal logic in<a name="line.504"></a>
-<FONT color="green">505</FONT>         * ExtraFieldUtils forces the field to create local header data<a name="line.505"></a>
-<FONT color="green">506</FONT>         * even if they are never used - and here a field with only one<a name="line.506"></a>
-<FONT color="green">507</FONT>         * size would be invalid.&lt;/p&gt;<a name="line.507"></a>
-<FONT color="green">508</FONT>         */<a name="line.508"></a>
-<FONT color="green">509</FONT>        private void setSizesAndOffsetFromZip64Extra(ZipArchiveEntry ze,<a name="line.509"></a>
-<FONT color="green">510</FONT>                                                     OffsetEntry offset,<a name="line.510"></a>
-<FONT color="green">511</FONT>                                                     int diskStart)<a name="line.511"></a>
-<FONT color="green">512</FONT>                throws IOException {<a name="line.512"></a>
-<FONT color="green">513</FONT>            Zip64ExtendedInformationExtraField z64 =<a name="line.513"></a>
-<FONT color="green">514</FONT>                    (Zip64ExtendedInformationExtraField)<a name="line.514"></a>
-<FONT color="green">515</FONT>                            ze.getExtraField(Zip64ExtendedInformationExtraField.HEADER_ID);<a name="line.515"></a>
-<FONT color="green">516</FONT>            if (z64 != null) {<a name="line.516"></a>
-<FONT color="green">517</FONT>                boolean hasUncompressedSize = ze.getSize() == ZIP64_MAGIC;<a name="line.517"></a>
-<FONT color="green">518</FONT>                boolean hasCompressedSize = ze.getCompressedSize() == ZIP64_MAGIC;<a name="line.518"></a>
-<FONT color="green">519</FONT>                boolean hasRelativeHeaderOffset =<a name="line.519"></a>
-<FONT color="green">520</FONT>                        offset.headerOffset == ZIP64_MAGIC;<a name="line.520"></a>
-<FONT color="green">521</FONT>                z64.reparseCentralDirectoryData(hasUncompressedSize,<a name="line.521"></a>
-<FONT color="green">522</FONT>                        hasCompressedSize,<a name="line.522"></a>
-<FONT color="green">523</FONT>                        hasRelativeHeaderOffset,<a name="line.523"></a>
-<FONT color="green">524</FONT>                        diskStart == ZIP64_MAGIC_SHORT);<a name="line.524"></a>
-<FONT color="green">525</FONT>    <a name="line.525"></a>
-<FONT color="green">526</FONT>                if (hasUncompressedSize) {<a name="line.526"></a>
-<FONT color="green">527</FONT>                    ze.setSize(z64.getSize().getLongValue());<a name="line.527"></a>
-<FONT color="green">528</FONT>                } else if (hasCompressedSize) {<a name="line.528"></a>
-<FONT color="green">529</FONT>                    z64.setSize(new ZipEightByteInteger(ze.getSize()));<a name="line.529"></a>
-<FONT color="green">530</FONT>                }<a name="line.530"></a>
-<FONT color="green">531</FONT>    <a name="line.531"></a>
-<FONT color="green">532</FONT>                if (hasCompressedSize) {<a name="line.532"></a>
-<FONT color="green">533</FONT>                    ze.setCompressedSize(z64.getCompressedSize().getLongValue());<a name="line.533"></a>
-<FONT color="green">534</FONT>                } else if (hasUncompressedSize) {<a name="line.534"></a>
-<FONT color="green">535</FONT>                    z64.setCompressedSize(new ZipEightByteInteger(ze.getCompressedSize()));<a name="line.535"></a>
-<FONT color="green">536</FONT>                }<a name="line.536"></a>
-<FONT color="green">537</FONT>    <a name="line.537"></a>
-<FONT color="green">538</FONT>                if (hasRelativeHeaderOffset) {<a name="line.538"></a>
-<FONT color="green">539</FONT>                    offset.headerOffset =<a name="line.539"></a>
-<FONT color="green">540</FONT>                            z64.getRelativeHeaderOffset().getLongValue();<a name="line.540"></a>
-<FONT color="green">541</FONT>                }<a name="line.541"></a>
-<FONT color="green">542</FONT>            }<a name="line.542"></a>
-<FONT color="green">543</FONT>        }<a name="line.543"></a>
-<FONT color="green">544</FONT>    <a name="line.544"></a>
-<FONT color="green">545</FONT>        /**<a name="line.545"></a>
-<FONT color="green">546</FONT>         * Length of the "End of central directory record" - which is<a name="line.546"></a>
-<FONT color="green">547</FONT>         * supposed to be the last structure of the archive - without file<a name="line.547"></a>
-<FONT color="green">548</FONT>         * comment.<a name="line.548"></a>
-<FONT color="green">549</FONT>         */<a name="line.549"></a>
-<FONT color="green">550</FONT>        private static final int MIN_EOCD_SIZE =<a name="line.550"></a>
-<FONT color="green">551</FONT>            /* end of central dir signature    */ WORD<a name="line.551"></a>
-<FONT color="green">552</FONT>            /* number of this disk             */ + SHORT<a name="line.552"></a>
-<FONT color="green">553</FONT>            /* number of the disk with the     */<a name="line.553"></a>
-<FONT color="green">554</FONT>            /* start of the central directory  */ + SHORT<a name="line.554"></a>
-<FONT color="green">555</FONT>            /* total number of entries in      */<a name="line.555"></a>
-<FONT color="green">556</FONT>            /* the central dir on this disk    */ + SHORT<a name="line.556"></a>
-<FONT color="green">557</FONT>            /* total number of entries in      */<a name="line.557"></a>
-<FONT color="green">558</FONT>            /* the central dir                 */ + SHORT<a name="line.558"></a>
-<FONT color="green">559</FONT>            /* size of the central directory   */ + WORD<a name="line.559"></a>
-<FONT color="green">560</FONT>            /* offset of start of central      */<a name="line.560"></a>
-<FONT color="green">561</FONT>            /* directory with respect to       */<a name="line.561"></a>
-<FONT color="green">562</FONT>            /* the starting disk number        */ + WORD<a name="line.562"></a>
-<FONT color="green">563</FONT>            /* zipfile comment length          */ + SHORT;<a name="line.563"></a>
-<FONT color="green">564</FONT>    <a name="line.564"></a>
-<FONT color="green">565</FONT>        /**<a name="line.565"></a>
-<FONT color="green">566</FONT>         * Maximum length of the "End of central directory record" with a<a name="line.566"></a>
-<FONT color="green">567</FONT>         * file comment.<a name="line.567"></a>
-<FONT color="green">568</FONT>         */<a name="line.568"></a>
-<FONT color="green">569</FONT>        private static final int MAX_EOCD_SIZE = MIN_EOCD_SIZE<a name="line.569"></a>
-<FONT color="green">570</FONT>            /* maximum length of zipfile comment */ + ZIP64_MAGIC_SHORT;<a name="line.570"></a>
-<FONT color="green">571</FONT>    <a name="line.571"></a>
-<FONT color="green">572</FONT>        /**<a name="line.572"></a>
-<FONT color="green">573</FONT>         * Offset of the field that holds the location of the first<a name="line.573"></a>
-<FONT color="green">574</FONT>         * central directory entry inside the "End of central directory<a name="line.574"></a>
-<FONT color="green">575</FONT>         * record" relative to the start of the "End of central directory<a name="line.575"></a>
-<FONT color="green">576</FONT>         * record".<a name="line.576"></a>
-<FONT color="green">577</FONT>         */<a name="line.577"></a>
-<FONT color="green">578</FONT>        private static final int CFD_LOCATOR_OFFSET =<a name="line.578"></a>
-<FONT color="green">579</FONT>            /* end of central dir signature    */ WORD<a name="line.579"></a>
-<FONT color="green">580</FONT>            /* number of this disk             */ + SHORT<a name="line.580"></a>
-<FONT color="green">581</FONT>            /* number of the disk with the     */<a name="line.581"></a>
-<FONT color="green">582</FONT>            /* start of the central directory  */ + SHORT<a name="line.582"></a>
-<FONT color="green">583</FONT>            /* total number of entries in      */<a name="line.583"></a>
-<FONT color="green">584</FONT>            /* the central dir on this disk    */ + SHORT<a name="line.584"></a>
-<FONT color="green">585</FONT>            /* total number of entries in      */<a name="line.585"></a>
-<FONT color="green">586</FONT>            /* the central dir                 */ + SHORT<a name="line.586"></a>
-<FONT color="green">587</FONT>            /* size of the central directory   */ + WORD;<a name="line.587"></a>
-<FONT color="green">588</FONT>    <a name="line.588"></a>
-<FONT color="green">589</FONT>        /**<a name="line.589"></a>
-<FONT color="green">590</FONT>         * Length of the "Zip64 end of central directory locator" - which<a name="line.590"></a>
-<FONT color="green">591</FONT>         * should be right in front of the "end of central directory<a name="line.591"></a>
-<FONT color="green">592</FONT>         * record" if one is present at all.<a name="line.592"></a>
-<FONT color="green">593</FONT>         */<a name="line.593"></a>
-<FONT color="green">594</FONT>        private static final int ZIP64_EOCDL_LENGTH =<a name="line.594"></a>
-<FONT color="green">595</FONT>            /* zip64 end of central dir locator sig */ WORD<a name="line.595"></a>
-<FONT color="green">596</FONT>            /* number of the disk with the start    */<a name="line.596"></a>
-<FONT color="green">597</FONT>            /* start of the zip64 end of            */<a name="line.597"></a>
-<FONT color="green">598</FONT>            /* central directory                    */ + WORD<a name="line.598"></a>
-<FONT color="green">599</FONT>            /* relative offset of the zip64         */<a name="line.599"></a>
-<FONT color="green">600</FONT>            /* end of central directory record      */ + DWORD<a name="line.600"></a>
-<FONT color="green">601</FONT>            /* total number of disks                */ + WORD;<a name="line.601"></a>
-<FONT color="green">602</FONT>    <a name="line.602"></a>
-<FONT color="green">603</FONT>        /**<a name="line.603"></a>
-<FONT color="green">604</FONT>         * Offset of the field that holds the location of the "Zip64 end<a name="line.604"></a>
-<FONT color="green">605</FONT>         * of central directory record" inside the "Zip64 end of central<a name="line.605"></a>
-<FONT color="green">606</FONT>         * directory locator" relative to the start of the "Zip64 end of<a name="line.606"></a>
-<FONT color="green">607</FONT>         * central directory locator".<a name="line.607"></a>
-<FONT color="green">608</FONT>         */<a name="line.608"></a>
-<FONT color="green">609</FONT>        private static final int ZIP64_EOCDL_LOCATOR_OFFSET =<a name="line.609"></a>
-<FONT color="green">610</FONT>            /* zip64 end of central dir locator sig */ WORD<a name="line.610"></a>
-<FONT color="green">611</FONT>            /* number of the disk with the start    */<a name="line.611"></a>
-<FONT color="green">612</FONT>            /* start of the zip64 end of            */<a name="line.612"></a>
-<FONT color="green">613</FONT>            /* central directory                    */ + WORD;<a name="line.613"></a>
-<FONT color="green">614</FONT>    <a name="line.614"></a>
-<FONT color="green">615</FONT>        /**<a name="line.615"></a>
-<FONT color="green">616</FONT>         * Offset of the field that holds the location of the first<a name="line.616"></a>
-<FONT color="green">617</FONT>         * central directory entry inside the "Zip64 end of central<a name="line.617"></a>
-<FONT color="green">618</FONT>         * directory record" relative to the start of the "Zip64 end of<a name="line.618"></a>
-<FONT color="green">619</FONT>         * central directory record".<a name="line.619"></a>
-<FONT color="green">620</FONT>         */<a name="line.620"></a>
-<FONT color="green">621</FONT>        private static final int ZIP64_EOCD_CFD_LOCATOR_OFFSET =<a name="line.621"></a>
-<FONT color="green">622</FONT>            /* zip64 end of central dir        */<a name="line.622"></a>
-<FONT color="green">623</FONT>            /* signature                       */ WORD<a name="line.623"></a>
-<FONT color="green">624</FONT>            /* size of zip64 end of central    */<a name="line.624"></a>
-<FONT color="green">625</FONT>            /* directory record                */ + DWORD<a name="line.625"></a>
-<FONT color="green">626</FONT>            /* version made by                 */ + SHORT<a name="line.626"></a>
-<FONT color="green">627</FONT>            /* version needed to extract       */ + SHORT<a name="line.627"></a>
-<FONT color="green">628</FONT>            /* number of this disk             */ + WORD<a name="line.628"></a>
-<FONT color="green">629</FONT>            /* number of the disk with the     */<a name="line.629"></a>
-<FONT color="green">630</FONT>            /* start of the central directory  */ + WORD<a name="line.630"></a>
-<FONT color="green">631</FONT>            /* total number of entries in the  */<a name="line.631"></a>
-<FONT color="green">632</FONT>            /* central directory on this disk  */ + DWORD<a name="line.632"></a>
-<FONT color="green">633</FONT>            /* total number of entries in the  */<a name="line.633"></a>
-<FONT color="green">634</FONT>            /* central directory               */ + DWORD<a name="line.634"></a>
-<FONT color="green">635</FONT>            /* size of the central directory   */ + DWORD;<a name="line.635"></a>
-<FONT color="green">636</FONT>    <a name="line.636"></a>
-<FONT color="green">637</FONT>        /**<a name="line.637"></a>
-<FONT color="green">638</FONT>         * Searches for either the &amp;quot;Zip64 end of central directory<a name="line.638"></a>
-<FONT color="green">639</FONT>         * locator&amp;quot; or the &amp;quot;End of central dir record&amp;quot;, parses<a name="line.639"></a>
-<FONT color="green">640</FONT>         * it and positions the stream at the first central directory<a name="line.640"></a>
-<FONT color="green">641</FONT>         * record.<a name="line.641"></a>
-<FONT color="green">642</FONT>         */<a name="line.642"></a>
-<FONT color="green">643</FONT>        private void positionAtCentralDirectory()<a name="line.643"></a>
-<FONT color="green">644</FONT>                throws IOException {<a name="line.644"></a>
-<FONT color="green">645</FONT>            boolean found = tryToLocateSignature(MIN_EOCD_SIZE + ZIP64_EOCDL_LENGTH,<a name="line.645"></a>
-<FONT color="green">646</FONT>                    MAX_EOCD_SIZE + ZIP64_EOCDL_LENGTH,<a name="line.646"></a>
-<FONT color="green">647</FONT>                    ZipArchiveOutputStream<a name="line.647"></a>
-<FONT color="green">648</FONT>                            .ZIP64_EOCD_LOC_SIG);<a name="line.648"></a>
-<FONT color="green">649</FONT>            if (!found) {<a name="line.649"></a>
-<FONT color="green">650</FONT>                // not a ZIP64 archive<a name="line.650"></a>
-<FONT color="green">651</FONT>                positionAtCentralDirectory32();<a name="line.651"></a>
-<FONT color="green">652</FONT>            } else {<a name="line.652"></a>
-<FONT color="green">653</FONT>                positionAtCentralDirectory64();<a name="line.653"></a>
-<FONT color="green">654</FONT>            }<a name="line.654"></a>
-<FONT color="green">655</FONT>        }<a name="line.655"></a>
-<FONT color="green">656</FONT>    <a name="line.656"></a>
-<FONT color="green">657</FONT>        /**<a name="line.657"></a>
-<FONT color="green">658</FONT>         * Parses the &amp;quot;Zip64 end of central directory locator&amp;quot;,<a name="line.658"></a>
-<FONT color="green">659</FONT>         * finds the &amp;quot;Zip64 end of central directory record&amp;quot; using the<a name="line.659"></a>
-<FONT color="green">660</FONT>         * parsed information, parses that and positions the stream at the<a name="line.660"></a>
-<FONT color="green">661</FONT>         * first central directory record.<a name="line.661"></a>
-<FONT color="green">662</FONT>         */<a name="line.662"></a>
-<FONT color="green">663</FONT>        private void positionAtCentralDirectory64()<a name="line.663"></a>
-<FONT color="green">664</FONT>                throws IOException {<a name="line.664"></a>
-<FONT color="green">665</FONT>            skipBytes(ZIP64_EOCDL_LOCATOR_OFFSET);<a name="line.665"></a>
-<FONT color="green">666</FONT>            byte[] zip64EocdOffset = new byte[DWORD];<a name="line.666"></a>
-<FONT color="green">667</FONT>            archive.readFully(zip64EocdOffset);<a name="line.667"></a>
-<FONT color="green">668</FONT>            archive.seek(ZipEightByteInteger.getLongValue(zip64EocdOffset));<a name="line.668"></a>
-<FONT color="green">669</FONT>            byte[] sig = new byte[WORD];<a name="line.669"></a>
-<FONT color="green">670</FONT>            archive.readFully(sig);<a name="line.670"></a>
-<FONT color="green">671</FONT>            if (sig[POS_0] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_0]<a name="line.671"></a>
-<FONT color="green">672</FONT>                    || sig[POS_1] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_1]<a name="line.672"></a>
-<FONT color="green">673</FONT>                    || sig[POS_2] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_2]<a name="line.673"></a>
-<FONT color="green">674</FONT>                    || sig[POS_3] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_3]<a name="line.674"></a>
-<FONT color="green">675</FONT>                    ) {<a name="line.675"></a>
-<FONT color="green">676</FONT>                throw new ZipException("archive's ZIP64 end of central "<a name="line.676"></a>
-<FONT color="green">677</FONT>                        + "directory locator is corrupt.");<a name="line.677"></a>
-<FONT color="green">678</FONT>            }<a name="line.678"></a>
-<FONT color="green">679</FONT>            skipBytes(ZIP64_EOCD_CFD_LOCATOR_OFFSET<a name="line.679"></a>
-<FONT color="green">680</FONT>                    - WORD /* signature has already been read */);<a name="line.680"></a>
-<FONT color="green">681</FONT>            byte[] cfdOffset = new byte[DWORD];<a name="line.681"></a>
-<FONT color="green">682</FONT>            archive.readFully(cfdOffset);<a name="line.682"></a>
-<FONT color="green">683</FONT>            archive.seek(ZipEightByteInteger.getLongValue(cfdOffset));<a name="line.683"></a>
-<FONT color="green">684</FONT>        }<a name="line.684"></a>
-<FONT color="green">685</FONT>    <a name="line.685"></a>
-<FONT color="green">686</FONT>        /**<a name="line.686"></a>
-<FONT color="green">687</FONT>         * Searches for the &amp;quot;End of central dir record&amp;quot;, parses<a name="line.687"></a>
-<FONT color="green">688</FONT>         * it and positions the stream at the first central directory<a name="line.688"></a>
-<FONT color="green">689</FONT>         * record.<a name="line.689"></a>
-<FONT color="green">690</FONT>         */<a name="line.690"></a>
-<FONT color="green">691</FONT>        private void positionAtCentralDirectory32()<a name="line.691"></a>
-<FONT color="green">692</FONT>                throws IOException {<a name="line.692"></a>
-<FONT color="green">693</FONT>            boolean found = tryToLocateSignature(MIN_EOCD_SIZE, MAX_EOCD_SIZE,<a name="line.693"></a>
-<FONT color="green">694</FONT>                    ZipArchiveOutputStream.EOCD_SIG);<a name="line.694"></a>
-<FONT color="green">695</FONT>            if (!found) {<a name="line.695"></a>
-<FONT color="green">696</FONT>                throw new ZipException("archive is not a ZIP archive");<a name="line.696"></a>
-<FONT color="green">697</FONT>            }<a name="line.697"></a>
-<FONT color="green">698</FONT>            skipBytes(CFD_LOCATOR_OFFSET);<a name="line.698"></a>
-<FONT color="green">699</FONT>            byte[] cfdOffset = new byte[WORD];<a name="line.699"></a>
-<FONT color="green">700</FONT>            archive.readFully(cfdOffset);<a name="line.700"></a>
-<FONT color="green">701</FONT>            archive.seek(ZipLong.getValue(cfdOffset));<a name="line.701"></a>
-<FONT color="green">702</FONT>        }<a name="line.702"></a>
-<FONT color="green">703</FONT>    <a name="line.703"></a>
-<FONT color="green">704</FONT>        /**<a name="line.704"></a>
-<FONT color="green">705</FONT>         * Searches the archive backwards from minDistance to maxDistance<a name="line.705"></a>
-<FONT color="green">706</FONT>         * for the given signature, positions the RandomaccessFile right<a name="line.706"></a>
-<FONT color="green">707</FONT>         * at the signature if it has been found.<a name="line.707"></a>
-<FONT color="green">708</FONT>         */<a name="line.708"></a>
-<FONT color="green">709</FONT>        private boolean tryToLocateSignature(long minDistanceFromEnd,<a name="line.709"></a>
-<FONT color="green">710</FONT>                                             long maxDistanceFromEnd,<a name="line.710"></a>
-<FONT color="green">711</FONT>                                             byte[] sig) throws IOException {<a name="line.711"></a>
-<FONT color="green">712</FONT>            boolean found = false;<a name="line.712"></a>
-<FONT color="green">713</FONT>            long off = archive.length() - minDistanceFromEnd;<a name="line.713"></a>
-<FONT color="green">714</FONT>            final long stopSearching =<a name="line.714"></a>
-<FONT color="green">715</FONT>                    Math.max(0L, archive.length() - maxDistanceFromEnd);<a name="line.715"></a>
-<FONT color="green">716</FONT>            if (off &gt;= 0) {<a name="line.716"></a>
-<FONT color="green">717</FONT>                for (; off &gt;= stopSearching; off--) {<a name="line.717"></a>
-<FONT color="green">718</FONT>                    archive.seek(off);<a name="line.718"></a>
-<FONT color="green">719</FONT>                    int curr = archive.read();<a name="line.719"></a>
-<FONT color="green">720</FONT>                    if (curr == -1) {<a name="line.720"></a>
-<FONT color="green">721</FONT>                        break;<a name="line.721"></a>
-<FONT color="green">722</FONT>                    }<a name="line.722"></a>
-<FONT color="green">723</FONT>                    if (curr == sig[POS_0]) {<a name="line.723"></a>
-<FONT color="green">724</FONT>                        curr = archive.read();<a name="line.724"></a>
-<FONT color="green">725</FONT>                        if (curr == sig[POS_1]) {<a name="line.725"></a>
-<FONT color="green">726</FONT>                            curr = archive.read();<a name="line.726"></a>
-<FONT color="green">727</FONT>                            if (curr == sig[POS_2]) {<a name="line.727"></a>
-<FONT color="green">728</FONT>                                curr = archive.read();<a name="line.728"></a>
-<FONT color="green">729</FONT>                                if (curr == sig[POS_3]) {<a name="line.729"></a>
-<FONT color="green">730</FONT>                                    found = true;<a name="line.730"></a>
-<FONT color="green">731</FONT>                                    break;<a name="line.731"></a>
-<FONT color="green">732</FONT>                                }<a name="line.732"></a>
-<FONT color="green">733</FONT>                            }<a name="line.733"></a>
-<FONT color="green">734</FONT>                        }<a name="line.734"></a>
-<FONT color="green">735</FONT>                    }<a name="line.735"></a>
-<FONT color="green">736</FONT>                }<a name="line.736"></a>
-<FONT color="green">737</FONT>            }<a name="line.737"></a>
-<FONT color="green">738</FONT>            if (found) {<a name="line.738"></a>
-<FONT color="green">739</FONT>                archive.seek(off);<a name="line.739"></a>
-<FONT color="green">740</FONT>            }<a name="line.740"></a>
-<FONT color="green">741</FONT>            return found;<a name="line.741"></a>
-<FONT color="green">742</FONT>        }<a name="line.742"></a>
-<FONT color="green">743</FONT>    <a name="line.743"></a>
-<FONT color="green">744</FONT>        /**<a name="line.744"></a>
-<FONT color="green">745</FONT>         * Skips the given number of bytes or throws an EOFException if<a name="line.745"></a>
-<FONT color="green">746</FONT>         * skipping failed.<a name="line.746"></a>
-<FONT color="green">747</FONT>         */<a name="line.747"></a>
-<FONT color="green">748</FONT>        private void skipBytes(final int count) throws IOException {<a name="line.748"></a>
-<FONT color="green">749</FONT>            int totalSkipped = 0;<a name="line.749"></a>
-<FONT color="green">750</FONT>            while (totalSkipped &lt; count) {<a name="line.750"></a>
-<FONT color="green">751</FONT>                int skippedNow = archive.skipBytes(count - totalSkipped);<a name="line.751"></a>
-<FONT color="green">752</FONT>                if (skippedNow &lt;= 0) {<a name="line.752"></a>
-<FONT color="green">753</FONT>                    throw new EOFException();<a name="line.753"></a>
-<FONT color="green">754</FONT>                }<a name="line.754"></a>
-<FONT color="green">755</FONT>                totalSkipped += skippedNow;<a name="line.755"></a>
-<FONT color="green">756</FONT>            }<a name="line.756"></a>
-<FONT color="green">757</FONT>        }<a name="line.757"></a>
-<FONT color="green">758</FONT>    <a name="line.758"></a>
-<FONT color="green">759</FONT>        /**<a name="line.759"></a>
-<FONT color="green">760</FONT>         * Number of bytes in local file header up to the &amp;quot;length of<a name="line.760"></a>
-<FONT color="green">761</FONT>         * filename&amp;quot; entry.<a name="line.761"></a>
-<FONT color="green">762</FONT>         */<a name="line.762"></a>
-<FONT color="green">763</FONT>        private static final long LFH_OFFSET_FOR_FILENAME_LENGTH =<a name="line.763"></a>
-<FONT color="green">764</FONT>            /* local file header signature     */ WORD<a name="line.764"></a>
-<FONT color="green">765</FONT>            /* version needed to extract       */ + SHORT<a name="line.765"></a>
-<FONT color="green">766</FONT>            /* general purpose bit flag        */ + SHORT<a name="line.766"></a>
-<FONT color="green">767</FONT>            /* compression method              */ + SHORT<a name="line.767"></a>
-<FONT color="green">768</FONT>            /* last mod file time              */ + SHORT<a name="line.768"></a>
-<FONT color="green">769</FONT>            /* last mod file date              */ + SHORT<a name="line.769"></a>
-<FONT color="green">770</FONT>            /* crc-32                          */ + WORD<a name="line.770"></a>
-<FONT color="green">771</FONT>            /* compressed size                 */ + WORD<a name="line.771"></a>
-<FONT color="green">772</FONT>            /* uncompressed size               */ + WORD;<a name="line.772"></a>
-<FONT color="green">773</FONT>    <a name="line.773"></a>
-<FONT color="green">774</FONT>        /**<a name="line.774"></a>
-<FONT color="green">775</FONT>         * Walks through all recorded entries and adds the data available<a name="line.775"></a>
-<FONT color="green">776</FONT>         * from the local file header.<a name="line.776"></a>
-<FONT color="green">777</FONT>         * &lt;p/&gt;<a name="line.777"></a>
-<FONT color="green">778</FONT>         * &lt;p&gt;Also records the offsets for the data to read from the<a name="line.778"></a>
-<FONT color="green">779</FONT>         * entries.&lt;/p&gt;<a name="line.779"></a>
-<FONT color="green">780</FONT>         */<a name="line.780"></a>
-<FONT color="green">781</FONT>        private void resolveLocalFileHeaderData(Map&lt;ZipArchiveEntry, NameAndComment&gt;<a name="line.781"></a>
-<FONT color="green">782</FONT>                                                        entriesWithoutUTF8Flag)<a name="line.782"></a>
-<FONT color="green">783</FONT>                throws IOException {<a name="line.783"></a>
-<FONT color="green">784</FONT>            // changing the name of a ZipArchiveEntry is going to change<a name="line.784"></a>
-<FONT color="green">785</FONT>            // the hashcode - see COMPRESS-164<a name="line.785"></a>
-<FONT color="green">786</FONT>            // Map needs to be reconstructed in order to keep central<a name="line.786"></a>
-<FONT color="green">787</FONT>            // directory order<a name="line.787"></a>
-<FONT color="green">788</FONT>            Map&lt;ZipArchiveEntry, OffsetEntry&gt; origMap =<a name="line.788"></a>
-<FONT color="green">789</FONT>                    new LinkedHashMap&lt;ZipArchiveEntry, OffsetEntry&gt;(entries);<a name="line.789"></a>
-<FONT color="green">790</FONT>            entries.clear();<a name="line.790"></a>
-<FONT color="green">791</FONT>            for (Map.Entry&lt;ZipArchiveEntry, OffsetEntry&gt; ent : origMap.entrySet()) {<a name="line.791"></a>
-<FONT color="green">792</FONT>                ZipArchiveEntry ze = ent.getKey();<a name="line.792"></a>
-<FONT color="green">793</FONT>                OffsetEntry offsetEntry = ent.getValue();<a name="line.793"></a>
-<FONT color="green">794</FONT>                long offset = offsetEntry.headerOffset;<a name="line.794"></a>
-<FONT color="green">795</FONT>                archive.seek(offset + LFH_OFFSET_FOR_FILENAME_LENGTH);<a name="line.795"></a>
-<FONT color="green">796</FONT>                byte[] b = new byte[SHORT];<a name="line.796"></a>
-<FONT color="green">797</FONT>                archive.readFully(b);<a name="line.797"></a>
-<FONT color="green">798</FONT>                int fileNameLen = ZipShort.getValue(b);<a name="line.798"></a>
-<FONT color="green">799</FONT>                archive.readFully(b);<a name="line.799"></a>
-<FONT color="green">800</FONT>                int extraFieldLen = ZipShort.getValue(b);<a name="line.800"></a>
-<FONT color="green">801</FONT>                int lenToSkip = fileNameLen;<a name="line.801"></a>
-<FONT color="green">802</FONT>                while (lenToSkip &gt; 0) {<a name="line.802"></a>
-<FONT color="green">803</FONT>                    int skipped = archive.skipBytes(lenToSkip);<a name="line.803"></a>
-<FONT color="green">804</FONT>                    if (skipped &lt;= 0) {<a name="line.804"></a>
-<FONT color="green">805</FONT>                        throw new IOException("failed to skip file name in"<a name="line.805"></a>
-<FONT color="green">806</FONT>                                + " local file header");<a name="line.806"></a>
-<FONT color="green">807</FONT>                    }<a name="line.807"></a>
-<FONT color="green">808</FONT>                    lenToSkip -= skipped;<a name="line.808"></a>
-<FONT color="green">809</FONT>                }<a name="line.809"></a>
-<FONT color="green">810</FONT>                byte[] localExtraData = new byte[extraFieldLen];<a name="line.810"></a>
-<FONT color="green">811</FONT>                archive.readFully(localExtraData);<a name="line.811"></a>
-<FONT color="green">812</FONT>                ze.setExtra(localExtraData);<a name="line.812"></a>
-<FONT color="green">813</FONT>                offsetEntry.dataOffset = offset + LFH_OFFSET_FOR_FILENAME_LENGTH<a name="line.813"></a>
-<FONT color="green">814</FONT>                        + SHORT + SHORT + fileNameLen + extraFieldLen;<a name="line.814"></a>
-<FONT color="green">815</FONT>    <a name="line.815"></a>
-<FONT color="green">816</FONT>                if (entriesWithoutUTF8Flag.containsKey(ze)) {<a name="line.816"></a>
-<FONT color="green">817</FONT>                    String orig = ze.getName();<a name="line.817"></a>
-<FONT color="green">818</FONT>                    NameAndComment nc = entriesWithoutUTF8Flag.get(ze);<a name="line.818"></a>
-<FONT color="green">819</FONT>                    ZipUtil.setNameAndCommentFromExtraFields(ze, nc.name,<a name="line.819"></a>
-<FONT color="green">820</FONT>                            nc.comment);<a name="line.820"></a>
-<FONT color="green">821</FONT>                    if (!orig.equals(ze.getName())) {<a name="line.821"></a>
-<FONT color="green">822</FONT>                        nameMap.remove(orig);<a name="line.822"></a>
-<FONT color="green">823</FONT>                        nameMap.put(ze.getName(), ze);<a name="line.823"></a>
-<FONT color="green">824</FONT>                    }<a name="line.824"></a>
-<FONT color="green">825</FONT>                }<a name="line.825"></a>
-<FONT color="green">826</FONT>                entries.put(ze, offsetEntry);<a name="line.826"></a>
-<FONT color="green">827</FONT>            }<a name="line.827"></a>
-<FONT color="green">828</FONT>        }<a name="line.828"></a>
-<FONT color="green">829</FONT>    <a name="line.829"></a>
-<FONT color="green">830</FONT>        /**<a name="line.830"></a>
-<FONT color="green">831</FONT>         * Checks whether the archive starts with a LFH.  If it doesn't,<a name="line.831"></a>
-<FONT color="green">832</FONT>         * it may be an empty archive.<a name="line.832"></a>
-<FONT color="green">833</FONT>         */<a name="line.833"></a>
-<FONT color="green">834</FONT>        private boolean startsWithLocalFileHeader() throws IOException {<a name="line.834"></a>
-<FONT color="green">835</FONT>            archive.seek(0);<a name="line.835"></a>
-<FONT color="green">836</FONT>            final byte[] start = new byte[WORD];<a name="line.836"></a>
-<FONT color="green">837</FONT>            archive.readFully(start);<a name="line.837"></a>
-<FONT color="green">838</FONT>            for (int i = 0; i &lt; start.length; i++) {<a name="line.838"></a>
-<FONT color="green">839</FONT>                if (start[i] != ZipArchiveOutputStream.LFH_SIG[i]) {<a name="line.839"></a>
-<FONT color="green">840</FONT>                    return false;<a name="line.840"></a>
-<FONT color="green">841</FONT>                }<a name="line.841"></a>
-<FONT color="green">842</FONT>            }<a name="line.842"></a>
-<FONT color="green">843</FONT>            return true;<a name="line.843"></a>
-<FONT color="green">844</FONT>        }<a name="line.844"></a>
-<FONT color="green">845</FONT>    <a name="line.845"></a>
-<FONT color="green">846</FONT>        /**<a name="line.846"></a>
-<FONT color="green">847</FONT>         * InputStream that delegates requests to the underlying<a name="line.847"></a>
-<FONT color="green">848</FONT>         * RandomAccessFile, making sure that only bytes from a certain<a name="line.848"></a>
-<FONT color="green">849</FONT>         * range can be read.<a name="line.849"></a>
-<FONT color="green">850</FONT>         */<a name="line.850"></a>
-<FONT color="green">851</FONT>        private class BoundedInputStream extends InputStream {<a name="line.851"></a>
-<FONT color="green">852</FONT>            private long remaining;<a name="line.852"></a>
-<FONT color="green">853</FONT>            private long loc;<a name="line.853"></a>
-<FONT color="green">854</FONT>            private boolean addDummyByte = false;<a name="line.854"></a>
-<FONT color="green">855</FONT>    <a name="line.855"></a>
-<FONT color="green">856</FONT>            BoundedInputStream(long start, long remaining) {<a name="line.856"></a>
-<FONT color="green">857</FONT>                this.remaining = remaining;<a name="line.857"></a>
-<FONT color="green">858</FONT>                loc = start;<a name="line.858"></a>
-<FONT color="green">859</FONT>            }<a name="line.859"></a>
-<FONT color="green">860</FONT>    <a name="line.860"></a>
-<FONT color="green">861</FONT>            @Override<a name="line.861"></a>
-<FONT color="green">862</FONT>            public int read() throws IOException {<a name="line.862"></a>
-<FONT color="green">863</FONT>                if (remaining-- &lt;= 0) {<a name="line.863"></a>
-<FONT color="green">864</FONT>                    if (addDummyByte) {<a name="line.864"></a>
-<FONT color="green">865</FONT>                        addDummyByte = false;<a name="line.865"></a>
-<FONT color="green">866</FONT>                        return 0;<a name="line.866"></a>
-<FONT color="green">867</FONT>                    }<a name="line.867"></a>
-<FONT color="green">868</FONT>                    return -1;<a name="line.868"></a>
-<FONT color="green">869</FONT>                }<a name="line.869"></a>
-<FONT color="green">870</FONT>                synchronized (archive) {<a name="line.870"></a>
-<FONT color="green">871</FONT>                    archive.seek(loc++);<a name="line.871"></a>
-<FONT color="green">872</FONT>                    return archive.read();<a name="line.872"></a>
-<FONT color="green">873</FONT>                }<a name="line.873"></a>
-<FONT color="green">874</FONT>            }<a name="line.874"></a>
-<FONT color="green">875</FONT>    <a name="line.875"></a>
-<FONT color="green">876</FONT>            @Override<a name="line.876"></a>
-<FONT color="green">877</FONT>            public int read(byte[] b, int off, int len) throws IOException {<a name="line.877"></a>
-<FONT color="green">878</FONT>                if (remaining &lt;= 0) {<a name="line.878"></a>
-<FONT color="green">879</FONT>                    if (addDummyByte) {<a name="line.879"></a>
-<FONT color="green">880</FONT>                        addDummyByte = false;<a name="line.880"></a>
-<FONT color="green">881</FONT>                        b[off] = 0;<a name="line.881"></a>
-<FONT color="green">882</FONT>                        return 1;<a name="line.882"></a>
-<FONT color="green">883</FONT>                    }<a name="line.883"></a>
-<FONT color="green">884</FONT>                    return -1;<a name="line.884"></a>
-<FONT color="green">885</FONT>                }<a name="line.885"></a>
-<FONT color="green">886</FONT>    <a name="line.886"></a>
-<FONT color="green">887</FONT>                if (len &lt;= 0) {<a name="line.887"></a>
-<FONT color="green">888</FONT>                    return 0;<a name="line.888"></a>
-<FONT color="green">889</FONT>                }<a name="line.889"></a>
-<FONT color="green">890</FONT>    <a name="line.890"></a>
-<FONT color="green">891</FONT>                if (len &gt; remaining) {<a name="line.891"></a>
-<FONT color="green">892</FONT>                    len = (int) remaining;<a name="line.892"></a>
-<FONT color="green">893</FONT>                }<a name="line.893"></a>
-<FONT color="green">894</FONT>                int ret = -1;<a name="line.894"></a>
-<FONT color="green">895</FONT>                synchronized (archive) {<a name="line.895"></a>
-<FONT color="green">896</FONT>                    archive.seek(loc);<a name="line.896"></a>
-<FONT color="green">897</FONT>                    ret = archive.read(b, off, len);<a name="line.897"></a>
-<FONT color="green">898</FONT>                }<a name="line.898"></a>
-<FONT color="green">899</FONT>                if (ret &gt; 0) {<a name="line.899"></a>
-<FONT color="green">900</FONT>                    loc += ret;<a name="line.900"></a>
-<FONT color="green">901</FONT>                    remaining -= ret;<a name="line.901"></a>
-<FONT color="green">902</FONT>                }<a name="line.902"></a>
-<FONT color="green">903</FONT>                return ret;<a name="line.903"></a>
-<FONT color="green">904</FONT>            }<a name="line.904"></a>
-<FONT color="green">905</FONT>    <a name="line.905"></a>
-<FONT color="green">906</FONT>            /**<a name="line.906"></a>
-<FONT color="green">907</FONT>             * Inflater needs an extra dummy byte for nowrap - see<a name="line.907"></a>
-<FONT color="green">908</FONT>             * Inflater's javadocs.<a name="line.908"></a>
-<FONT color="green">909</FONT>             */<a name="line.909"></a>
-<FONT color="green">910</FONT>            void addDummy() {<a name="line.910"></a>
-<FONT color="green">911</FONT>                addDummyByte = true;<a name="line.911"></a>
-<FONT color="green">912</FONT>            }<a name="line.912"></a>
-<FONT color="green">913</FONT>        }<a name="line.913"></a>
-<FONT color="green">914</FONT>    <a name="line.914"></a>
-<FONT color="green">915</FONT>        private static final class NameAndComment {<a name="line.915"></a>
-<FONT color="green">916</FONT>            private final byte[] name;<a name="line.916"></a>
-<FONT color="green">917</FONT>            private final byte[] comment;<a name="line.917"></a>
-<FONT color="green">918</FONT>    <a name="line.918"></a>
-<FONT color="green">919</FONT>            private NameAndComment(byte[] name, byte[] comment) {<a name="line.919"></a>
-<FONT color="green">920</FONT>                this.name = name;<a name="line.920"></a>
-<FONT color="green">921</FONT>                this.comment = comment;<a name="line.921"></a>
-<FONT color="green">922</FONT>            }<a name="line.922"></a>
-<FONT color="green">923</FONT>        }<a name="line.923"></a>
-<FONT color="green">924</FONT>    <a name="line.924"></a>
-<FONT color="green">925</FONT>        /**<a name="line.925"></a>
-<FONT color="green">926</FONT>         * Compares two ZipArchiveEntries based on their offset within the archive.<a name="line.926"></a>
-<FONT color="green">927</FONT>         * &lt;p/&gt;<a name="line.927"></a>
-<FONT color="green">928</FONT>         * &lt;p&gt;Won't return any meaningful results if one of the entries<a name="line.928"></a>
-<FONT color="green">929</FONT>         * isn't part of the archive at all.&lt;/p&gt;<a name="line.929"></a>
-<FONT color="green">930</FONT>         */<a name="line.930"></a>
-<FONT color="green">931</FONT>        private final Comparator&lt;ZipArchiveEntry&gt; OFFSET_COMPARATOR =<a name="line.931"></a>
-<FONT color="green">932</FONT>                new Comparator&lt;ZipArchiveEntry&gt;() {<a name="line.932"></a>
-<FONT color="green">933</FONT>                    public int compare(ZipArchiveEntry e1, ZipArchiveEntry e2) {<a name="line.933"></a>
-<FONT color="green">934</FONT>                        if (e1 == e2) {<a name="line.934"></a>
-<FONT color="green">935</FONT>                            return 0;<a name="line.935"></a>
-<FONT color="green">936</FONT>                        }<a name="line.936"></a>
-<FONT color="green">937</FONT>    <a name="line.937"></a>
-<FONT color="green">938</FONT>                        OffsetEntry off1 = entries.get(e1);<a name="line.938"></a>
-<FONT color="green">939</FONT>                        OffsetEntry off2 = entries.get(e2);<a name="line.939"></a>
-<FONT color="green">940</FONT>                        if (off1 == null) {<a name="line.940"></a>
-<FONT color="green">941</FONT>                            return 1;<a name="line.941"></a>
-<FONT color="green">942</FONT>                        }<a name="line.942"></a>
-<FONT color="green">943</FONT>                        if (off2 == null) {<a name="line.943"></a>
-<FONT color="green">944</FONT>                            return -1;<a name="line.944"></a>
-<FONT color="green">945</FONT>                        }<a name="line.945"></a>
-<FONT color="green">946</FONT>                        long val = (off1.headerOffset - off2.headerOffset);<a name="line.946"></a>
-<FONT color="green">947</FONT>                        return val == 0 ? 0 : val &lt; 0 ? -1 : +1;<a name="line.947"></a>
-<FONT color="green">948</FONT>                    }<a name="line.948"></a>
-<FONT color="green">949</FONT>                };<a name="line.949"></a>
-<FONT color="green">950</FONT>    }<a name="line.950"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers.zip;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.io.EOFException;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.io.File;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.InputStream;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.RandomAccessFile;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.util.Arrays;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.util.Collections;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.util.Comparator;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import java.util.Enumeration;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import java.util.HashMap;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>import java.util.LinkedHashMap;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>import java.util.Map;<a name="line.15"></a>
+<span class="sourceLineNo">016</span>import java.util.zip.Inflater;<a name="line.16"></a>
+<span class="sourceLineNo">017</span>import java.util.zip.InflaterInputStream;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>import java.util.zip.ZipEntry;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import java.util.zip.ZipException;<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>import static org.xbib.io.archivers.zip.ZipConstants.DWORD;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>import static org.xbib.io.archivers.zip.ZipConstants.SHORT;<a name="line.22"></a>
+<span class="sourceLineNo">023</span>import static org.xbib.io.archivers.zip.ZipConstants.WORD;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>import static org.xbib.io.archivers.zip.ZipConstants.ZIP64_MAGIC_SHORT;<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>/**<a name="line.27"></a>
+<span class="sourceLineNo">028</span> * Replacement for &lt;code&gt;java.util.ZipFile&lt;/code&gt;.<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * &lt;p/&gt;<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * &lt;p&gt;This class adds support for file name encodings other than UTF-8<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * (which is required to work on ZIP files created by native zip tools<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * and is able to skip a preamble like the one found in self<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * extracting archives.  Furthermore it returns instances of<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * &lt;code&gt;org.apache.commons.compress.archivers.zip.ZipArchiveEntry&lt;/code&gt;<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * instead of &lt;code&gt;java.util.zip.ZipEntry&lt;/code&gt;.&lt;/p&gt;<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * &lt;p/&gt;<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * &lt;p&gt;It doesn't extend &lt;code&gt;java.util.zip.ZipFile&lt;/code&gt; as it would<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * have to reimplement all methods anyway.  Like<a name="line.38"></a>
+<span class="sourceLineNo">039</span> * &lt;code&gt;java.util.ZipFile&lt;/code&gt;, it uses RandomAccessFile under the<a name="line.39"></a>
+<span class="sourceLineNo">040</span> * covers and supports compressed and uncompressed entries. This code<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * also transparently supports Zip64<a name="line.41"></a>
+<span class="sourceLineNo">042</span> * extensions and thus individual entries and archives larger than 4<a name="line.42"></a>
+<span class="sourceLineNo">043</span> * GB or with more than 65536 entries.&lt;/p&gt;<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * &lt;p/&gt;<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * &lt;p&gt;The method signatures mimic the ones of<a name="line.45"></a>
+<span class="sourceLineNo">046</span> * &lt;code&gt;java.util.zip.ZipFile&lt;/code&gt;, with a couple of exceptions:<a name="line.46"></a>
+<span class="sourceLineNo">047</span> * &lt;p/&gt;<a name="line.47"></a>
+<span class="sourceLineNo">048</span> * &lt;ul&gt;<a name="line.48"></a>
+<span class="sourceLineNo">049</span> * &lt;li&gt;There is no getName method.&lt;/li&gt;<a name="line.49"></a>
+<span class="sourceLineNo">050</span> * &lt;li&gt;entries has been renamed to getEntries.&lt;/li&gt;<a name="line.50"></a>
+<span class="sourceLineNo">051</span> * &lt;li&gt;getEntries and getEntry return<a name="line.51"></a>
+<span class="sourceLineNo">052</span> * &lt;code&gt;org.apache.commons.compress.archivers.zip.ZipArchiveEntry&lt;/code&gt;<a name="line.52"></a>
+<span class="sourceLineNo">053</span> * instances.&lt;/li&gt;<a name="line.53"></a>
+<span class="sourceLineNo">054</span> * &lt;li&gt;close is allowed to throw IOException.&lt;/li&gt;<a name="line.54"></a>
+<span class="sourceLineNo">055</span> * &lt;/ul&gt;<a name="line.55"></a>
+<span class="sourceLineNo">056</span> */<a name="line.56"></a>
+<span class="sourceLineNo">057</span>public class ZipFile {<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    private static final int HASH_SIZE = 509;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>    static final int NIBLET_MASK = 0x0f;<a name="line.59"></a>
+<span class="sourceLineNo">060</span>    static final int BYTE_SHIFT = 8;<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    private static final int POS_0 = 0;<a name="line.61"></a>
+<span class="sourceLineNo">062</span>    private static final int POS_1 = 1;<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    private static final int POS_2 = 2;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    private static final int POS_3 = 3;<a name="line.64"></a>
+<span class="sourceLineNo">065</span><a name="line.65"></a>
+<span class="sourceLineNo">066</span>    /**<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     * Maps ZipArchiveEntrys to two longs, recording the offsets of<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * the local file headers and the start of entry data.<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     */<a name="line.69"></a>
+<span class="sourceLineNo">070</span>    private final Map&lt;ZipArchiveEntry, OffsetEntry&gt; entries =<a name="line.70"></a>
+<span class="sourceLineNo">071</span>            new LinkedHashMap&lt;ZipArchiveEntry, OffsetEntry&gt;(HASH_SIZE);<a name="line.71"></a>
+<span class="sourceLineNo">072</span><a name="line.72"></a>
+<span class="sourceLineNo">073</span>    /**<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * Maps String to ZipArchiveEntrys, name -&gt; actual entry.<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     */<a name="line.75"></a>
+<span class="sourceLineNo">076</span>    private final Map&lt;String, ZipArchiveEntry&gt; nameMap =<a name="line.76"></a>
+<span class="sourceLineNo">077</span>            new HashMap&lt;String, ZipArchiveEntry&gt;(HASH_SIZE);<a name="line.77"></a>
+<span class="sourceLineNo">078</span><a name="line.78"></a>
+<span class="sourceLineNo">079</span>    private static final class OffsetEntry {<a name="line.79"></a>
+<span class="sourceLineNo">080</span>        private long headerOffset = -1;<a name="line.80"></a>
+<span class="sourceLineNo">081</span>        private long dataOffset = -1;<a name="line.81"></a>
+<span class="sourceLineNo">082</span>    }<a name="line.82"></a>
+<span class="sourceLineNo">083</span><a name="line.83"></a>
+<span class="sourceLineNo">084</span>    /**<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * The encoding to use for filenames and the file comment.<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     * &lt;p/&gt;<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     * &lt;p&gt;For a list of possible values see &lt;a<a name="line.87"></a>
+<span class="sourceLineNo">088</span>     * href="http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html"&gt;http://java.sun.com/j2se/1.5.0/docs/guide/intl/encoding.doc.html&lt;/a&gt;.<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     * Defaults to UTF-8.&lt;/p&gt;<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     */<a name="line.90"></a>
+<span class="sourceLineNo">091</span>    private final String encoding;<a name="line.91"></a>
+<span class="sourceLineNo">092</span><a name="line.92"></a>
+<span class="sourceLineNo">093</span>    /**<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     * The zip encoding to use for filenames and the file comment.<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     */<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    private final ZipEncoding zipEncoding;<a name="line.96"></a>
+<span class="sourceLineNo">097</span><a name="line.97"></a>
+<span class="sourceLineNo">098</span>    /**<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     * File name of actual source.<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     */<a name="line.100"></a>
+<span class="sourceLineNo">101</span>    private final String archiveName;<a name="line.101"></a>
+<span class="sourceLineNo">102</span><a name="line.102"></a>
+<span class="sourceLineNo">103</span>    /**<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     * The actual data source.<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     */<a name="line.105"></a>
+<span class="sourceLineNo">106</span>    private final RandomAccessFile archive;<a name="line.106"></a>
+<span class="sourceLineNo">107</span><a name="line.107"></a>
+<span class="sourceLineNo">108</span>    /**<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * Whether to look for and use Unicode extra fields.<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     */<a name="line.110"></a>
+<span class="sourceLineNo">111</span>    private final boolean useUnicodeExtraFields;<a name="line.111"></a>
+<span class="sourceLineNo">112</span><a name="line.112"></a>
+<span class="sourceLineNo">113</span>    /**<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * Whether the file is closed.<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     */<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    private boolean closed;<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    /**<a name="line.118"></a>
+<span class="sourceLineNo">119</span>     * Opens the given file for reading, assuming "UTF8" for file names.<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     *<a name="line.120"></a>
+<span class="sourceLineNo">121</span>     * @param f the archive.<a name="line.121"></a>
+<span class="sourceLineNo">122</span>     * @throws java.io.IOException if an error occurs while reading the file.<a name="line.122"></a>
+<span class="sourceLineNo">123</span>     */<a name="line.123"></a>
+<span class="sourceLineNo">124</span>    public ZipFile(File f) throws IOException {<a name="line.124"></a>
+<span class="sourceLineNo">125</span>        this(f, ZipEncodingHelper.UTF8);<a name="line.125"></a>
+<span class="sourceLineNo">126</span>    }<a name="line.126"></a>
+<span class="sourceLineNo">127</span><a name="line.127"></a>
+<span class="sourceLineNo">128</span>    /**<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     * Opens the given file for reading, assuming "UTF8".<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     *<a name="line.130"></a>
+<span class="sourceLineNo">131</span>     * @param name name of the archive.<a name="line.131"></a>
+<span class="sourceLineNo">132</span>     * @throws java.io.IOException if an error occurs while reading the file.<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     */<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    public ZipFile(String name) throws IOException {<a name="line.134"></a>
+<span class="sourceLineNo">135</span>        this(new File(name), ZipEncodingHelper.UTF8);<a name="line.135"></a>
+<span class="sourceLineNo">136</span>    }<a name="line.136"></a>
+<span class="sourceLineNo">137</span><a name="line.137"></a>
+<span class="sourceLineNo">138</span>    /**<a name="line.138"></a>
+<span class="sourceLineNo">139</span>     * Opens the given file for reading, assuming the specified<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * encoding for file names, scanning unicode extra fields.<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     *<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     * @param name     name of the archive.<a name="line.142"></a>
+<span class="sourceLineNo">143</span>     * @param encoding the encoding to use for file names, use null<a name="line.143"></a>
+<span class="sourceLineNo">144</span>     *                 for the platform's default encoding<a name="line.144"></a>
+<span class="sourceLineNo">145</span>     * @throws java.io.IOException if an error occurs while reading the file.<a name="line.145"></a>
+<span class="sourceLineNo">146</span>     */<a name="line.146"></a>
+<span class="sourceLineNo">147</span>    public ZipFile(String name, String encoding) throws IOException {<a name="line.147"></a>
+<span class="sourceLineNo">148</span>        this(new File(name), encoding, true);<a name="line.148"></a>
+<span class="sourceLineNo">149</span>    }<a name="line.149"></a>
+<span class="sourceLineNo">150</span><a name="line.150"></a>
+<span class="sourceLineNo">151</span>    /**<a name="line.151"></a>
+<span class="sourceLineNo">152</span>     * Opens the given file for reading, assuming the specified<a name="line.152"></a>
+<span class="sourceLineNo">153</span>     * encoding for file names and scanning for unicode extra fields.<a name="line.153"></a>
+<span class="sourceLineNo">154</span>     *<a name="line.154"></a>
+<span class="sourceLineNo">155</span>     * @param f        the archive.<a name="line.155"></a>
+<span class="sourceLineNo">156</span>     * @param encoding the encoding to use for file names, use null<a name="line.156"></a>
+<span class="sourceLineNo">157</span>     *                 for the platform's default encoding<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     * @throws java.io.IOException if an error occurs while reading the file.<a name="line.158"></a>
+<span class="sourceLineNo">159</span>     */<a name="line.159"></a>
+<span class="sourceLineNo">160</span>    public ZipFile(File f, String encoding) throws IOException {<a name="line.160"></a>
+<span class="sourceLineNo">161</span>        this(f, encoding, true);<a name="line.161"></a>
+<span class="sourceLineNo">162</span>    }<a name="line.162"></a>
+<span class="sourceLineNo">163</span><a name="line.163"></a>
+<span class="sourceLineNo">164</span>    /**<a name="line.164"></a>
+<span class="sourceLineNo">165</span>     * Opens the given file for reading, assuming the specified<a name="line.165"></a>
+<span class="sourceLineNo">166</span>     * encoding for file names.<a name="line.166"></a>
+<span class="sourceLineNo">167</span>     *<a name="line.167"></a>
+<span class="sourceLineNo">168</span>     * @param f                     the archive.<a name="line.168"></a>
+<span class="sourceLineNo">169</span>     * @param encoding              the encoding to use for file names, use null<a name="line.169"></a>
+<span class="sourceLineNo">170</span>     *                              for the platform's default encoding<a name="line.170"></a>
+<span class="sourceLineNo">171</span>     * @param useUnicodeExtraFields whether to use InfoZIP Unicode<a name="line.171"></a>
+<span class="sourceLineNo">172</span>     *                              Extra Fields (if present) to set the file names.<a name="line.172"></a>
+<span class="sourceLineNo">173</span>     * @throws java.io.IOException if an error occurs while reading the file.<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     */<a name="line.174"></a>
+<span class="sourceLineNo">175</span>    public ZipFile(File f, String encoding, boolean useUnicodeExtraFields)<a name="line.175"></a>
+<span class="sourceLineNo">176</span>            throws IOException {<a name="line.176"></a>
+<span class="sourceLineNo">177</span>        this.archiveName = f.getAbsolutePath();<a name="line.177"></a>
+<span class="sourceLineNo">178</span>        this.encoding = encoding;<a name="line.178"></a>
+<span class="sourceLineNo">179</span>        this.zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);<a name="line.179"></a>
+<span class="sourceLineNo">180</span>        this.useUnicodeExtraFields = useUnicodeExtraFields;<a name="line.180"></a>
+<span class="sourceLineNo">181</span>        archive = new RandomAccessFile(f, "r");<a name="line.181"></a>
+<span class="sourceLineNo">182</span>        boolean success = false;<a name="line.182"></a>
+<span class="sourceLineNo">183</span>        try {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>            Map&lt;ZipArchiveEntry, NameAndComment&gt; entriesWithoutUTF8Flag =<a name="line.184"></a>
+<span class="sourceLineNo">185</span>                    populateFromCentralDirectory();<a name="line.185"></a>
+<span class="sourceLineNo">186</span>            resolveLocalFileHeaderData(entriesWithoutUTF8Flag);<a name="line.186"></a>
+<span class="sourceLineNo">187</span>            success = true;<a name="line.187"></a>
+<span class="sourceLineNo">188</span>        } finally {<a name="line.188"></a>
+<span class="sourceLineNo">189</span>            if (!success) {<a name="line.189"></a>
+<span class="sourceLineNo">190</span>                try {<a name="line.190"></a>
+<span class="sourceLineNo">191</span>                    closed = true;<a name="line.191"></a>
+<span class="sourceLineNo">192</span>                    archive.close();<a name="line.192"></a>
+<span class="sourceLineNo">193</span>                } catch (IOException e2) {<a name="line.193"></a>
+<span class="sourceLineNo">194</span>                    // swallow, throw the original exception instead<a name="line.194"></a>
+<span class="sourceLineNo">195</span>                }<a name="line.195"></a>
+<span class="sourceLineNo">196</span>            }<a name="line.196"></a>
+<span class="sourceLineNo">197</span>        }<a name="line.197"></a>
+<span class="sourceLineNo">198</span>    }<a name="line.198"></a>
+<span class="sourceLineNo">199</span><a name="line.199"></a>
+<span class="sourceLineNo">200</span>    /**<a name="line.200"></a>
+<span class="sourceLineNo">201</span>     * The encoding to use for filenames and the file comment.<a name="line.201"></a>
+<span class="sourceLineNo">202</span>     *<a name="line.202"></a>
+<span class="sourceLineNo">203</span>     * @return null if using the platform's default character encoding.<a name="line.203"></a>
+<span class="sourceLineNo">204</span>     */<a name="line.204"></a>
+<span class="sourceLineNo">205</span>    public String getEncoding() {<a name="line.205"></a>
+<span class="sourceLineNo">206</span>        return encoding;<a name="line.206"></a>
+<span class="sourceLineNo">207</span>    }<a name="line.207"></a>
+<span class="sourceLineNo">208</span><a name="line.208"></a>
+<span class="sourceLineNo">209</span>    /**<a name="line.209"></a>
+<span class="sourceLineNo">210</span>     * Closes the archive.<a name="line.210"></a>
+<span class="sourceLineNo">211</span>     *<a name="line.211"></a>
+<span class="sourceLineNo">212</span>     * @throws java.io.IOException if an error occurs closing the archive.<a name="line.212"></a>
+<span class="sourceLineNo">213</span>     */<a name="line.213"></a>
+<span class="sourceLineNo">214</span>    public void close() throws IOException {<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        // this flag is only written here and read in finalize() which<a name="line.215"></a>
+<span class="sourceLineNo">216</span>        // can never be run in parallel.<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        // no synchronization needed.<a name="line.217"></a>
+<span class="sourceLineNo">218</span>        closed = true;<a name="line.218"></a>
+<span class="sourceLineNo">219</span><a name="line.219"></a>
+<span class="sourceLineNo">220</span>        archive.close();<a name="line.220"></a>
+<span class="sourceLineNo">221</span>    }<a name="line.221"></a>
+<span class="sourceLineNo">222</span><a name="line.222"></a>
+<span class="sourceLineNo">223</span>    /**<a name="line.223"></a>
+<span class="sourceLineNo">224</span>     * close a zipfile quietly; throw no io fault, do nothing<a name="line.224"></a>
+<span class="sourceLineNo">225</span>     * on a null parameter<a name="line.225"></a>
+<span class="sourceLineNo">226</span>     *<a name="line.226"></a>
+<span class="sourceLineNo">227</span>     * @param zipfile file to close, can be null<a name="line.227"></a>
+<span class="sourceLineNo">228</span>     */<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    public static void closeQuietly(ZipFile zipfile) {<a name="line.229"></a>
+<span class="sourceLineNo">230</span>        if (zipfile != null) {<a name="line.230"></a>
+<span class="sourceLineNo">231</span>            try {<a name="line.231"></a>
+<span class="sourceLineNo">232</span>                zipfile.close();<a name="line.232"></a>
+<span class="sourceLineNo">233</span>            } catch (IOException e) { // NOPMD<a name="line.233"></a>
+<span class="sourceLineNo">234</span>                //ignore, that's why the method is called "quietly"<a name="line.234"></a>
+<span class="sourceLineNo">235</span>            }<a name="line.235"></a>
+<span class="sourceLineNo">236</span>        }<a name="line.236"></a>
+<span class="sourceLineNo">237</span>    }<a name="line.237"></a>
+<span class="sourceLineNo">238</span><a name="line.238"></a>
+<span class="sourceLineNo">239</span>    /**<a name="line.239"></a>
+<span class="sourceLineNo">240</span>     * Returns all entries.<a name="line.240"></a>
+<span class="sourceLineNo">241</span>     * &lt;p/&gt;<a name="line.241"></a>
+<span class="sourceLineNo">242</span>     * &lt;p&gt;Entries will be returned in the same order they appear<a name="line.242"></a>
+<span class="sourceLineNo">243</span>     * within the archive's central directory.&lt;/p&gt;<a name="line.243"></a>
+<span class="sourceLineNo">244</span>     *<a name="line.244"></a>
+<span class="sourceLineNo">245</span>     * @return all entries as {@link ZipArchiveEntry} instances<a name="line.245"></a>
+<span class="sourceLineNo">246</span>     */<a name="line.246"></a>
+<span class="sourceLineNo">247</span>    public Enumeration&lt;ZipArchiveEntry&gt; getEntries() {<a name="line.247"></a>
+<span class="sourceLineNo">248</span>        return Collections.enumeration(entries.keySet());<a name="line.248"></a>
+<span class="sourceLineNo">249</span>    }<a name="line.249"></a>
+<span class="sourceLineNo">250</span><a name="line.250"></a>
+<span class="sourceLineNo">251</span>    /**<a name="line.251"></a>
+<span class="sourceLineNo">252</span>     * Returns all entries in physical order.<a name="line.252"></a>
+<span class="sourceLineNo">253</span>     * &lt;p/&gt;<a name="line.253"></a>
+<span class="sourceLineNo">254</span>     * &lt;p&gt;Entries will be returned in the same order their contents<a name="line.254"></a>
+<span class="sourceLineNo">255</span>     * appear within the archive.&lt;/p&gt;<a name="line.255"></a>
+<span class="sourceLineNo">256</span>     *<a name="line.256"></a>
+<span class="sourceLineNo">257</span>     * @return all entries as {@link ZipArchiveEntry} instances<a name="line.257"></a>
+<span class="sourceLineNo">258</span>     */<a name="line.258"></a>
+<span class="sourceLineNo">259</span>    public Enumeration&lt;ZipArchiveEntry&gt; getEntriesInPhysicalOrder() {<a name="line.259"></a>
+<span class="sourceLineNo">260</span>        ZipArchiveEntry[] allEntries =<a name="line.260"></a>
+<span class="sourceLineNo">261</span>                entries.keySet().toArray(new ZipArchiveEntry[0]);<a name="line.261"></a>
+<span class="sourceLineNo">262</span>        Arrays.sort(allEntries, OFFSET_COMPARATOR);<a name="line.262"></a>
+<span class="sourceLineNo">263</span>        return Collections.enumeration(Arrays.asList(allEntries));<a name="line.263"></a>
+<span class="sourceLineNo">264</span>    }<a name="line.264"></a>
+<span class="sourceLineNo">265</span><a name="line.265"></a>
+<span class="sourceLineNo">266</span>    /**<a name="line.266"></a>
+<span class="sourceLineNo">267</span>     * Returns a named entry - or {@code null} if no entry by<a name="line.267"></a>
+<span class="sourceLineNo">268</span>     * that name exists.<a name="line.268"></a>
+<span class="sourceLineNo">269</span>     *<a name="line.269"></a>
+<span class="sourceLineNo">270</span>     * @param name name of the entry.<a name="line.270"></a>
+<span class="sourceLineNo">271</span>     * @return the ZipArchiveEntry corresponding to the given name - or<a name="line.271"></a>
+<span class="sourceLineNo">272</span>     * {@code null} if not present.<a name="line.272"></a>
+<span class="sourceLineNo">273</span>     */<a name="line.273"></a>
+<span class="sourceLineNo">274</span>    public ZipArchiveEntry getEntry(String name) {<a name="line.274"></a>
+<span class="sourceLineNo">275</span>        return nameMap.get(name);<a name="line.275"></a>
+<span class="sourceLineNo">276</span>    }<a name="line.276"></a>
+<span class="sourceLineNo">277</span><a name="line.277"></a>
+<span class="sourceLineNo">278</span>    /**<a name="line.278"></a>
+<span class="sourceLineNo">279</span>     * Whether this class is able to read the given entry.<a name="line.279"></a>
+<span class="sourceLineNo">280</span>     * &lt;p/&gt;<a name="line.280"></a>
+<span class="sourceLineNo">281</span>     * &lt;p&gt;May return false if it is set up to use encryption or a<a name="line.281"></a>
+<span class="sourceLineNo">282</span>     * compression method that hasn't been implemented yet.&lt;/p&gt;<a name="line.282"></a>
+<span class="sourceLineNo">283</span>     */<a name="line.283"></a>
+<span class="sourceLineNo">284</span>    public boolean canReadEntryData(ZipArchiveEntry ze) {<a name="line.284"></a>
+<span class="sourceLineNo">285</span>        return ZipUtil.canHandleEntryData(ze);<a name="line.285"></a>
+<span class="sourceLineNo">286</span>    }<a name="line.286"></a>
+<span class="sourceLineNo">287</span><a name="line.287"></a>
+<span class="sourceLineNo">288</span>    /**<a name="line.288"></a>
+<span class="sourceLineNo">289</span>     * Returns an InputStream for reading the contents of the given entry.<a name="line.289"></a>
+<span class="sourceLineNo">290</span>     *<a name="line.290"></a>
+<span class="sourceLineNo">291</span>     * @param ze the entry to get the stream for.<a name="line.291"></a>
+<span class="sourceLineNo">292</span>     * @return a stream to read the entry from.<a name="line.292"></a>
+<span class="sourceLineNo">293</span>     * @throws java.io.IOException        if unable to create an input stream from the zipenty<a name="line.293"></a>
+<span class="sourceLineNo">294</span>     * @throws java.util.zip.ZipException if the zipentry uses an unsupported feature<a name="line.294"></a>
+<span class="sourceLineNo">295</span>     */<a name="line.295"></a>
+<span class="sourceLineNo">296</span>    public InputStream getInputStream(ZipArchiveEntry ze)<a name="line.296"></a>
+<span class="sourceLineNo">297</span>            throws IOException, ZipException {<a name="line.297"></a>
+<span class="sourceLineNo">298</span>        OffsetEntry offsetEntry = entries.get(ze);<a name="line.298"></a>
+<span class="sourceLineNo">299</span>        if (offsetEntry == null) {<a name="line.299"></a>
+<span class="sourceLineNo">300</span>            return null;<a name="line.300"></a>
+<span class="sourceLineNo">301</span>        }<a name="line.301"></a>
+<span class="sourceLineNo">302</span>        ZipUtil.checkRequestedFeatures(ze);<a name="line.302"></a>
+<span class="sourceLineNo">303</span>        long start = offsetEntry.dataOffset;<a name="line.303"></a>
+<span class="sourceLineNo">304</span>        BoundedInputStream bis =<a name="line.304"></a>
+<span class="sourceLineNo">305</span>                new BoundedInputStream(start, ze.getCompressedSize());<a name="line.305"></a>
+<span class="sourceLineNo">306</span>        switch (ze.getMethod()) {<a name="line.306"></a>
+<span class="sourceLineNo">307</span>            case ZipEntry.STORED:<a name="line.307"></a>
+<span class="sourceLineNo">308</span>                return bis;<a name="line.308"></a>
+<span class="sourceLineNo">309</span>            case ZipEntry.DEFLATED:<a name="line.309"></a>
+<span class="sourceLineNo">310</span>                bis.addDummy();<a name="line.310"></a>
+<span class="sourceLineNo">311</span>                final Inflater inflater = new Inflater(true);<a name="line.311"></a>
+<span class="sourceLineNo">312</span>                return new InflaterInputStream(bis, inflater) {<a name="line.312"></a>
+<span class="sourceLineNo">313</span>                    @Override<a name="line.313"></a>
+<span class="sourceLineNo">314</span>                    public void close() throws IOException {<a name="line.314"></a>
+<span class="sourceLineNo">315</span>                        super.close();<a name="line.315"></a>
+<span class="sourceLineNo">316</span>                        inflater.end();<a name="line.316"></a>
+<span class="sourceLineNo">317</span>                    }<a name="line.317"></a>
+<span class="sourceLineNo">318</span>                };<a name="line.318"></a>
+<span class="sourceLineNo">319</span>            default:<a name="line.319"></a>
+<span class="sourceLineNo">320</span>                throw new ZipException("Found unsupported compression method "<a name="line.320"></a>
+<span class="sourceLineNo">321</span>                        + ze.getMethod());<a name="line.321"></a>
+<span class="sourceLineNo">322</span>        }<a name="line.322"></a>
+<span class="sourceLineNo">323</span>    }<a name="line.323"></a>
+<span class="sourceLineNo">324</span><a name="line.324"></a>
+<span class="sourceLineNo">325</span>    /**<a name="line.325"></a>
+<span class="sourceLineNo">326</span>     * Ensures that the close method of this zipfile is called when<a name="line.326"></a>
+<span class="sourceLineNo">327</span>     * there are no more references to it.<a name="line.327"></a>
+<span class="sourceLineNo">328</span>     *<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     * @see #close()<a name="line.329"></a>
+<span class="sourceLineNo">330</span>     */<a name="line.330"></a>
+<span class="sourceLineNo">331</span>    @Override<a name="line.331"></a>
+<span class="sourceLineNo">332</span>    protected void finalize() throws Throwable {<a name="line.332"></a>
+<span class="sourceLineNo">333</span>        try {<a name="line.333"></a>
+<span class="sourceLineNo">334</span>            if (!closed) {<a name="line.334"></a>
+<span class="sourceLineNo">335</span>                System.err.println("Cleaning up unclosed ZipFile for archive "<a name="line.335"></a>
+<span class="sourceLineNo">336</span>                        + archiveName);<a name="line.336"></a>
+<span class="sourceLineNo">337</span>                close();<a name="line.337"></a>
+<span class="sourceLineNo">338</span>            }<a name="line.338"></a>
+<span class="sourceLineNo">339</span>        } finally {<a name="line.339"></a>
+<span class="sourceLineNo">340</span>            super.finalize();<a name="line.340"></a>
+<span class="sourceLineNo">341</span>        }<a name="line.341"></a>
+<span class="sourceLineNo">342</span>    }<a name="line.342"></a>
+<span class="sourceLineNo">343</span><a name="line.343"></a>
+<span class="sourceLineNo">344</span>    /**<a name="line.344"></a>
+<span class="sourceLineNo">345</span>     * Length of a "central directory" entry structure without file<a name="line.345"></a>
+<span class="sourceLineNo">346</span>     * name, extra fields or comment.<a name="line.346"></a>
+<span class="sourceLineNo">347</span>     */<a name="line.347"></a>
+<span class="sourceLineNo">348</span>    private static final int CFH_LEN =<a name="line.348"></a>
+<span class="sourceLineNo">349</span>        /* version made by                 */ SHORT<a name="line.349"></a>
+<span class="sourceLineNo">350</span>        /* version needed to extract       */ + SHORT<a name="line.350"></a>
+<span class="sourceLineNo">351</span>        /* general purpose bit flag        */ + SHORT<a name="line.351"></a>
+<span class="sourceLineNo">352</span>        /* compression method              */ + SHORT<a name="line.352"></a>
+<span class="sourceLineNo">353</span>        /* last mod file time              */ + SHORT<a name="line.353"></a>
+<span class="sourceLineNo">354</span>        /* last mod file date              */ + SHORT<a name="line.354"></a>
+<span class="sourceLineNo">355</span>        /* crc-32                          */ + WORD<a name="line.355"></a>
+<span class="sourceLineNo">356</span>        /* compressed size                 */ + WORD<a name="line.356"></a>
+<span class="sourceLineNo">357</span>        /* uncompressed size               */ + WORD<a name="line.357"></a>
+<span class="sourceLineNo">358</span>        /* filename length                 */ + SHORT<a name="line.358"></a>
+<span class="sourceLineNo">359</span>        /* extra field length              */ + SHORT<a name="line.359"></a>
+<span class="sourceLineNo">360</span>        /* file comment length             */ + SHORT<a name="line.360"></a>
+<span class="sourceLineNo">361</span>        /* disk number start               */ + SHORT<a name="line.361"></a>
+<span class="sourceLineNo">362</span>        /* internal file attributes        */ + SHORT<a name="line.362"></a>
+<span class="sourceLineNo">363</span>        /* external file attributes        */ + WORD<a name="line.363"></a>
+<span class="sourceLineNo">364</span>        /* relative offset of local header */ + WORD;<a name="line.364"></a>
+<span class="sourceLineNo">365</span><a name="line.365"></a>
+<span class="sourceLineNo">366</span>    private static final long CFH_SIG =<a name="line.366"></a>
+<span class="sourceLineNo">367</span>            ZipLong.getValue(ZipArchiveOutputStream.CFH_SIG);<a name="line.367"></a>
+<span class="sourceLineNo">368</span><a name="line.368"></a>
+<span class="sourceLineNo">369</span>    /**<a name="line.369"></a>
+<span class="sourceLineNo">370</span>     * Reads the central directory of the given archive and populates<a name="line.370"></a>
+<span class="sourceLineNo">371</span>     * the internal tables with ZipArchiveEntry instances.<a name="line.371"></a>
+<span class="sourceLineNo">372</span>     * &lt;p/&gt;<a name="line.372"></a>
+<span class="sourceLineNo">373</span>     * &lt;p&gt;The ZipArchiveEntrys will know all data that can be obtained from<a name="line.373"></a>
+<span class="sourceLineNo">374</span>     * the central directory alone, but not the data that requires the<a name="line.374"></a>
+<span class="sourceLineNo">375</span>     * local file header or additional data to be read.&lt;/p&gt;<a name="line.375"></a>
+<span class="sourceLineNo">376</span>     *<a name="line.376"></a>
+<span class="sourceLineNo">377</span>     * @return a map of zipentries that didn't have the language<a name="line.377"></a>
+<span class="sourceLineNo">378</span>     * encoding flag set when read.<a name="line.378"></a>
+<span class="sourceLineNo">379</span>     */<a name="line.379"></a>
+<span class="sourceLineNo">380</span>    private Map&lt;ZipArchiveEntry, NameAndComment&gt; populateFromCentralDirectory()<a name="line.380"></a>
+<span class="sourceLineNo">381</span>            throws IOException {<a name="line.381"></a>
+<span class="sourceLineNo">382</span>        HashMap&lt;ZipArchiveEntry, NameAndComment&gt; noUTF8Flag =<a name="line.382"></a>
+<span class="sourceLineNo">383</span>                new HashMap&lt;ZipArchiveEntry, NameAndComment&gt;();<a name="line.383"></a>
+<span class="sourceLineNo">384</span><a name="line.384"></a>
+<span class="sourceLineNo">385</span>        positionAtCentralDirectory();<a name="line.385"></a>
+<span class="sourceLineNo">386</span><a name="line.386"></a>
+<span class="sourceLineNo">387</span>        byte[] signatureBytes = new byte[WORD];<a name="line.387"></a>
+<span class="sourceLineNo">388</span>        archive.readFully(signatureBytes);<a name="line.388"></a>
+<span class="sourceLineNo">389</span>        long sig = ZipLong.getValue(signatureBytes);<a name="line.389"></a>
+<span class="sourceLineNo">390</span><a name="line.390"></a>
+<span class="sourceLineNo">391</span>        if (sig != CFH_SIG &amp;&amp; startsWithLocalFileHeader()) {<a name="line.391"></a>
+<span class="sourceLineNo">392</span>            throw new IOException("central directory is empty, can't expand"<a name="line.392"></a>
+<span class="sourceLineNo">393</span>                    + " corrupt archive.");<a name="line.393"></a>
+<span class="sourceLineNo">394</span>        }<a name="line.394"></a>
+<span class="sourceLineNo">395</span><a name="line.395"></a>
+<span class="sourceLineNo">396</span>        while (sig == CFH_SIG) {<a name="line.396"></a>
+<span class="sourceLineNo">397</span>            readCentralDirectoryEntry(noUTF8Flag);<a name="line.397"></a>
+<span class="sourceLineNo">398</span>            archive.readFully(signatureBytes);<a name="line.398"></a>
+<span class="sourceLineNo">399</span>            sig = ZipLong.getValue(signatureBytes);<a name="line.399"></a>
+<span class="sourceLineNo">400</span>        }<a name="line.400"></a>
+<span class="sourceLineNo">401</span>        return noUTF8Flag;<a name="line.401"></a>
+<span class="sourceLineNo">402</span>    }<a name="line.402"></a>
+<span class="sourceLineNo">403</span><a name="line.403"></a>
+<span class="sourceLineNo">404</span>    /**<a name="line.404"></a>
+<span class="sourceLineNo">405</span>     * Reads an individual entry of the central directory, creats an<a name="line.405"></a>
+<span class="sourceLineNo">406</span>     * ZipArchiveEntry from it and adds it to the global maps.<a name="line.406"></a>
+<span class="sourceLineNo">407</span>     *<a name="line.407"></a>
+<span class="sourceLineNo">408</span>     * @param noUTF8Flag map used to collect entries that don't have<a name="line.408"></a>
+<span class="sourceLineNo">409</span>     *                   their UTF-8 flag set and whose name will be set by data read<a name="line.409"></a>
+<span class="sourceLineNo">410</span>     *                   from the local file header later.  The current entry may be<a name="line.410"></a>
+<span class="sourceLineNo">411</span>     *                   added to this map.<a name="line.411"></a>
+<span class="sourceLineNo">412</span>     */<a name="line.412"></a>
+<span class="sourceLineNo">413</span>    private void<a name="line.413"></a>
+<span class="sourceLineNo">414</span>    readCentralDirectoryEntry(Map&lt;ZipArchiveEntry, NameAndComment&gt; noUTF8Flag)<a name="line.414"></a>
+<span class="sourceLineNo">415</span>            throws IOException {<a name="line.415"></a>
+<span class="sourceLineNo">416</span>        byte[] cfh = new byte[CFH_LEN];<a name="line.416"></a>
+<span class="sourceLineNo">417</span><a name="line.417"></a>
+<span class="sourceLineNo">418</span>        archive.readFully(cfh);<a name="line.418"></a>
+<span class="sourceLineNo">419</span>        int off = 0;<a name="line.419"></a>
+<span class="sourceLineNo">420</span>        ZipArchiveEntry ze = new ZipArchiveEntry();<a name="line.420"></a>
+<span class="sourceLineNo">421</span><a name="line.421"></a>
+<span class="sourceLineNo">422</span>        int versionMadeBy = ZipShort.getValue(cfh, off);<a name="line.422"></a>
+<span class="sourceLineNo">423</span>        off += SHORT;<a name="line.423"></a>
+<span class="sourceLineNo">424</span>        ze.setPlatform((versionMadeBy &gt;&gt; BYTE_SHIFT) &amp; NIBLET_MASK);<a name="line.424"></a>
+<span class="sourceLineNo">425</span><a name="line.425"></a>
+<span class="sourceLineNo">426</span>        off += SHORT; // skip version info<a name="line.426"></a>
+<span class="sourceLineNo">427</span><a name="line.427"></a>
+<span class="sourceLineNo">428</span>        final GeneralPurposeBit gpFlag = GeneralPurposeBit.parse(cfh, off);<a name="line.428"></a>
+<span class="sourceLineNo">429</span>        final boolean hasUTF8Flag = gpFlag.usesUTF8ForNames();<a name="line.429"></a>
+<span class="sourceLineNo">430</span>        final ZipEncoding entryEncoding =<a name="line.430"></a>
+<span class="sourceLineNo">431</span>                hasUTF8Flag ? ZipEncodingHelper.UTF8_ZIP_ENCODING : zipEncoding;<a name="line.431"></a>
+<span class="sourceLineNo">432</span>        ze.setGeneralPurposeBit(gpFlag);<a name="line.432"></a>
+<span class="sourceLineNo">433</span><a name="line.433"></a>
+<span class="sourceLineNo">434</span>        off += SHORT;<a name="line.434"></a>
+<span class="sourceLineNo">435</span><a name="line.435"></a>
+<span class="sourceLineNo">436</span>        ze.setMethod(ZipShort.getValue(cfh, off));<a name="line.436"></a>
+<span class="sourceLineNo">437</span>        off += SHORT;<a name="line.437"></a>
+<span class="sourceLineNo">438</span><a name="line.438"></a>
+<span class="sourceLineNo">439</span>        long time = ZipUtil.dosToJavaTime(ZipLong.getValue(cfh, off));<a name="line.439"></a>
+<span class="sourceLineNo">440</span>        ze.setTime(time);<a name="line.440"></a>
+<span class="sourceLineNo">441</span>        off += WORD;<a name="line.441"></a>
+<span class="sourceLineNo">442</span><a name="line.442"></a>
+<span class="sourceLineNo">443</span>        ze.setCrc(ZipLong.getValue(cfh, off));<a name="line.443"></a>
+<span class="sourceLineNo">444</span>        off += WORD;<a name="line.444"></a>
+<span class="sourceLineNo">445</span><a name="line.445"></a>
+<span class="sourceLineNo">446</span>        ze.setCompressedSize(ZipLong.getValue(cfh, off));<a name="line.446"></a>
+<span class="sourceLineNo">447</span>        off += WORD;<a name="line.447"></a>
+<span class="sourceLineNo">448</span><a name="line.448"></a>
+<span class="sourceLineNo">449</span>        ze.setSize(ZipLong.getValue(cfh, off));<a name="line.449"></a>
+<span class="sourceLineNo">450</span>        off += WORD;<a name="line.450"></a>
+<span class="sourceLineNo">451</span><a name="line.451"></a>
+<span class="sourceLineNo">452</span>        int fileNameLen = ZipShort.getValue(cfh, off);<a name="line.452"></a>
+<span class="sourceLineNo">453</span>        off += SHORT;<a name="line.453"></a>
+<span class="sourceLineNo">454</span><a name="line.454"></a>
+<span class="sourceLineNo">455</span>        int extraLen = ZipShort.getValue(cfh, off);<a name="line.455"></a>
+<span class="sourceLineNo">456</span>        off += SHORT;<a name="line.456"></a>
+<span class="sourceLineNo">457</span><a name="line.457"></a>
+<span class="sourceLineNo">458</span>        int commentLen = ZipShort.getValue(cfh, off);<a name="line.458"></a>
+<span class="sourceLineNo">459</span>        off += SHORT;<a name="line.459"></a>
+<span class="sourceLineNo">460</span><a name="line.460"></a>
+<span class="sourceLineNo">461</span>        int diskStart = ZipShort.getValue(cfh, off);<a name="line.461"></a>
+<span class="sourceLineNo">462</span>        off += SHORT;<a name="line.462"></a>
+<span class="sourceLineNo">463</span><a name="line.463"></a>
+<span class="sourceLineNo">464</span>        ze.setInternalAttributes(ZipShort.getValue(cfh, off));<a name="line.464"></a>
+<span class="sourceLineNo">465</span>        off += SHORT;<a name="line.465"></a>
+<span class="sourceLineNo">466</span><a name="line.466"></a>
+<span class="sourceLineNo">467</span>        ze.setExternalAttributes(ZipLong.getValue(cfh, off));<a name="line.467"></a>
+<span class="sourceLineNo">468</span>        off += WORD;<a name="line.468"></a>
+<span class="sourceLineNo">469</span><a name="line.469"></a>
+<span class="sourceLineNo">470</span>        byte[] fileName = new byte[fileNameLen];<a name="line.470"></a>
+<span class="sourceLineNo">471</span>        archive.readFully(fileName);<a name="line.471"></a>
+<span class="sourceLineNo">472</span>        ze.setName(entryEncoding.decode(fileName), fileName);<a name="line.472"></a>
+<span class="sourceLineNo">473</span><a name="line.473"></a>
+<span class="sourceLineNo">474</span>        // LFH offset,<a name="line.474"></a>
+<span class="sourceLineNo">475</span>        OffsetEntry offset = new OffsetEntry();<a name="line.475"></a>
+<span class="sourceLineNo">476</span>        offset.headerOffset = ZipLong.getValue(cfh, off);<a name="line.476"></a>
+<span class="sourceLineNo">477</span>        // data offset will be filled later<a name="line.477"></a>
+<span class="sourceLineNo">478</span>        entries.put(ze, offset);<a name="line.478"></a>
+<span class="sourceLineNo">479</span><a name="line.479"></a>
+<span class="sourceLineNo">480</span>        nameMap.put(ze.getName(), ze);<a name="line.480"></a>
+<span class="sourceLineNo">481</span><a name="line.481"></a>
+<span class="sourceLineNo">482</span>        byte[] cdExtraData = new byte[extraLen];<a name="line.482"></a>
+<span class="sourceLineNo">483</span>        archive.readFully(cdExtraData);<a name="line.483"></a>
+<span class="sourceLineNo">484</span>        ze.setCentralDirectoryExtra(cdExtraData);<a name="line.484"></a>
+<span class="sourceLineNo">485</span><a name="line.485"></a>
+<span class="sourceLineNo">486</span>        setSizesAndOffsetFromZip64Extra(ze, offset, diskStart);<a name="line.486"></a>
+<span class="sourceLineNo">487</span><a name="line.487"></a>
+<span class="sourceLineNo">488</span>        byte[] comment = new byte[commentLen];<a name="line.488"></a>
+<span class="sourceLineNo">489</span>        archive.readFully(comment);<a name="line.489"></a>
+<span class="sourceLineNo">490</span>        ze.setComment(entryEncoding.decode(comment));<a name="line.490"></a>
+<span class="sourceLineNo">491</span><a name="line.491"></a>
+<span class="sourceLineNo">492</span>        if (!hasUTF8Flag &amp;&amp; useUnicodeExtraFields) {<a name="line.492"></a>
+<span class="sourceLineNo">493</span>            noUTF8Flag.put(ze, new NameAndComment(fileName, comment));<a name="line.493"></a>
+<span class="sourceLineNo">494</span>        }<a name="line.494"></a>
+<span class="sourceLineNo">495</span>    }<a name="line.495"></a>
+<span class="sourceLineNo">496</span><a name="line.496"></a>
+<span class="sourceLineNo">497</span>    /**<a name="line.497"></a>
+<span class="sourceLineNo">498</span>     * If the entry holds a Zip64 extended information extra field,<a name="line.498"></a>
+<span class="sourceLineNo">499</span>     * read sizes from there if the entry's sizes are set to<a name="line.499"></a>
+<span class="sourceLineNo">500</span>     * 0xFFFFFFFFF, do the same for the offset of the local file<a name="line.500"></a>
+<span class="sourceLineNo">501</span>     * header.<a name="line.501"></a>
+<span class="sourceLineNo">502</span>     * &lt;p/&gt;<a name="line.502"></a>
+<span class="sourceLineNo">503</span>     * &lt;p&gt;Ensures the Zip64 extra either knows both compressed and<a name="line.503"></a>
+<span class="sourceLineNo">504</span>     * uncompressed size or neither of both as the internal logic in<a name="line.504"></a>
+<span class="sourceLineNo">505</span>     * ExtraFieldUtils forces the field to create local header data<a name="line.505"></a>
+<span class="sourceLineNo">506</span>     * even if they are never used - and here a field with only one<a name="line.506"></a>
+<span class="sourceLineNo">507</span>     * size would be invalid.&lt;/p&gt;<a name="line.507"></a>
+<span class="sourceLineNo">508</span>     */<a name="line.508"></a>
+<span class="sourceLineNo">509</span>    private void setSizesAndOffsetFromZip64Extra(ZipArchiveEntry ze,<a name="line.509"></a>
+<span class="sourceLineNo">510</span>                                                 OffsetEntry offset,<a name="line.510"></a>
+<span class="sourceLineNo">511</span>                                                 int diskStart)<a name="line.511"></a>
+<span class="sourceLineNo">512</span>            throws IOException {<a name="line.512"></a>
+<span class="sourceLineNo">513</span>        Zip64ExtendedInformationExtraField z64 =<a name="line.513"></a>
+<span class="sourceLineNo">514</span>                (Zip64ExtendedInformationExtraField)<a name="line.514"></a>
+<span class="sourceLineNo">515</span>                        ze.getExtraField(Zip64ExtendedInformationExtraField.HEADER_ID);<a name="line.515"></a>
+<span class="sourceLineNo">516</span>        if (z64 != null) {<a name="line.516"></a>
+<span class="sourceLineNo">517</span>            boolean hasUncompressedSize = ze.getSize() == ZIP64_MAGIC;<a name="line.517"></a>
+<span class="sourceLineNo">518</span>            boolean hasCompressedSize = ze.getCompressedSize() == ZIP64_MAGIC;<a name="line.518"></a>
+<span class="sourceLineNo">519</span>            boolean hasRelativeHeaderOffset =<a name="line.519"></a>
+<span class="sourceLineNo">520</span>                    offset.headerOffset == ZIP64_MAGIC;<a name="line.520"></a>
+<span class="sourceLineNo">521</span>            z64.reparseCentralDirectoryData(hasUncompressedSize,<a name="line.521"></a>
+<span class="sourceLineNo">522</span>                    hasCompressedSize,<a name="line.522"></a>
+<span class="sourceLineNo">523</span>                    hasRelativeHeaderOffset,<a name="line.523"></a>
+<span class="sourceLineNo">524</span>                    diskStart == ZIP64_MAGIC_SHORT);<a name="line.524"></a>
+<span class="sourceLineNo">525</span><a name="line.525"></a>
+<span class="sourceLineNo">526</span>            if (hasUncompressedSize) {<a name="line.526"></a>
+<span class="sourceLineNo">527</span>                ze.setSize(z64.getSize().getLongValue());<a name="line.527"></a>
+<span class="sourceLineNo">528</span>            } else if (hasCompressedSize) {<a name="line.528"></a>
+<span class="sourceLineNo">529</span>                z64.setSize(new ZipEightByteInteger(ze.getSize()));<a name="line.529"></a>
+<span class="sourceLineNo">530</span>            }<a name="line.530"></a>
+<span class="sourceLineNo">531</span><a name="line.531"></a>
+<span class="sourceLineNo">532</span>            if (hasCompressedSize) {<a name="line.532"></a>
+<span class="sourceLineNo">533</span>                ze.setCompressedSize(z64.getCompressedSize().getLongValue());<a name="line.533"></a>
+<span class="sourceLineNo">534</span>            } else if (hasUncompressedSize) {<a name="line.534"></a>
+<span class="sourceLineNo">535</span>                z64.setCompressedSize(new ZipEightByteInteger(ze.getCompressedSize()));<a name="line.535"></a>
+<span class="sourceLineNo">536</span>            }<a name="line.536"></a>
+<span class="sourceLineNo">537</span><a name="line.537"></a>
+<span class="sourceLineNo">538</span>            if (hasRelativeHeaderOffset) {<a name="line.538"></a>
+<span class="sourceLineNo">539</span>                offset.headerOffset =<a name="line.539"></a>
+<span class="sourceLineNo">540</span>                        z64.getRelativeHeaderOffset().getLongValue();<a name="line.540"></a>
+<span class="sourceLineNo">541</span>            }<a name="line.541"></a>
+<span class="sourceLineNo">542</span>        }<a name="line.542"></a>
+<span class="sourceLineNo">543</span>    }<a name="line.543"></a>
+<span class="sourceLineNo">544</span><a name="line.544"></a>
+<span class="sourceLineNo">545</span>    /**<a name="line.545"></a>
+<span class="sourceLineNo">546</span>     * Length of the "End of central directory record" - which is<a name="line.546"></a>
+<span class="sourceLineNo">547</span>     * supposed to be the last structure of the archive - without file<a name="line.547"></a>
+<span class="sourceLineNo">548</span>     * comment.<a name="line.548"></a>
+<span class="sourceLineNo">549</span>     */<a name="line.549"></a>
+<span class="sourceLineNo">550</span>    private static final int MIN_EOCD_SIZE =<a name="line.550"></a>
+<span class="sourceLineNo">551</span>        /* end of central dir signature    */ WORD<a name="line.551"></a>
+<span class="sourceLineNo">552</span>        /* number of this disk             */ + SHORT<a name="line.552"></a>
+<span class="sourceLineNo">553</span>        /* number of the disk with the     */<a name="line.553"></a>
+<span class="sourceLineNo">554</span>        /* start of the central directory  */ + SHORT<a name="line.554"></a>
+<span class="sourceLineNo">555</span>        /* total number of entries in      */<a name="line.555"></a>
+<span class="sourceLineNo">556</span>        /* the central dir on this disk    */ + SHORT<a name="line.556"></a>
+<span class="sourceLineNo">557</span>        /* total number of entries in      */<a name="line.557"></a>
+<span class="sourceLineNo">558</span>        /* the central dir                 */ + SHORT<a name="line.558"></a>
+<span class="sourceLineNo">559</span>        /* size of the central directory   */ + WORD<a name="line.559"></a>
+<span class="sourceLineNo">560</span>        /* offset of start of central      */<a name="line.560"></a>
+<span class="sourceLineNo">561</span>        /* directory with respect to       */<a name="line.561"></a>
+<span class="sourceLineNo">562</span>        /* the starting disk number        */ + WORD<a name="line.562"></a>
+<span class="sourceLineNo">563</span>        /* zipfile comment length          */ + SHORT;<a name="line.563"></a>
+<span class="sourceLineNo">564</span><a name="line.564"></a>
+<span class="sourceLineNo">565</span>    /**<a name="line.565"></a>
+<span class="sourceLineNo">566</span>     * Maximum length of the "End of central directory record" with a<a name="line.566"></a>
+<span class="sourceLineNo">567</span>     * file comment.<a name="line.567"></a>
+<span class="sourceLineNo">568</span>     */<a name="line.568"></a>
+<span class="sourceLineNo">569</span>    private static final int MAX_EOCD_SIZE = MIN_EOCD_SIZE<a name="line.569"></a>
+<span class="sourceLineNo">570</span>        /* maximum length of zipfile comment */ + ZIP64_MAGIC_SHORT;<a name="line.570"></a>
+<span class="sourceLineNo">571</span><a name="line.571"></a>
+<span class="sourceLineNo">572</span>    /**<a name="line.572"></a>
+<span class="sourceLineNo">573</span>     * Offset of the field that holds the location of the first<a name="line.573"></a>
+<span class="sourceLineNo">574</span>     * central directory entry inside the "End of central directory<a name="line.574"></a>
+<span class="sourceLineNo">575</span>     * record" relative to the start of the "End of central directory<a name="line.575"></a>
+<span class="sourceLineNo">576</span>     * record".<a name="line.576"></a>
+<span class="sourceLineNo">577</span>     */<a name="line.577"></a>
+<span class="sourceLineNo">578</span>    private static final int CFD_LOCATOR_OFFSET =<a name="line.578"></a>
+<span class="sourceLineNo">579</span>        /* end of central dir signature    */ WORD<a name="line.579"></a>
+<span class="sourceLineNo">580</span>        /* number of this disk             */ + SHORT<a name="line.580"></a>
+<span class="sourceLineNo">581</span>        /* number of the disk with the     */<a name="line.581"></a>
+<span class="sourceLineNo">582</span>        /* start of the central directory  */ + SHORT<a name="line.582"></a>
+<span class="sourceLineNo">583</span>        /* total number of entries in      */<a name="line.583"></a>
+<span class="sourceLineNo">584</span>        /* the central dir on this disk    */ + SHORT<a name="line.584"></a>
+<span class="sourceLineNo">585</span>        /* total number of entries in      */<a name="line.585"></a>
+<span class="sourceLineNo">586</span>        /* the central dir                 */ + SHORT<a name="line.586"></a>
+<span class="sourceLineNo">587</span>        /* size of the central directory   */ + WORD;<a name="line.587"></a>
+<span class="sourceLineNo">588</span><a name="line.588"></a>
+<span class="sourceLineNo">589</span>    /**<a name="line.589"></a>
+<span class="sourceLineNo">590</span>     * Length of the "Zip64 end of central directory locator" - which<a name="line.590"></a>
+<span class="sourceLineNo">591</span>     * should be right in front of the "end of central directory<a name="line.591"></a>
+<span class="sourceLineNo">592</span>     * record" if one is present at all.<a name="line.592"></a>
+<span class="sourceLineNo">593</span>     */<a name="line.593"></a>
+<span class="sourceLineNo">594</span>    private static final int ZIP64_EOCDL_LENGTH =<a name="line.594"></a>
+<span class="sourceLineNo">595</span>        /* zip64 end of central dir locator sig */ WORD<a name="line.595"></a>
+<span class="sourceLineNo">596</span>        /* number of the disk with the start    */<a name="line.596"></a>
+<span class="sourceLineNo">597</span>        /* start of the zip64 end of            */<a name="line.597"></a>
+<span class="sourceLineNo">598</span>        /* central directory                    */ + WORD<a name="line.598"></a>
+<span class="sourceLineNo">599</span>        /* relative offset of the zip64         */<a name="line.599"></a>
+<span class="sourceLineNo">600</span>        /* end of central directory record      */ + DWORD<a name="line.600"></a>
+<span class="sourceLineNo">601</span>        /* total number of disks                */ + WORD;<a name="line.601"></a>
+<span class="sourceLineNo">602</span><a name="line.602"></a>
+<span class="sourceLineNo">603</span>    /**<a name="line.603"></a>
+<span class="sourceLineNo">604</span>     * Offset of the field that holds the location of the "Zip64 end<a name="line.604"></a>
+<span class="sourceLineNo">605</span>     * of central directory record" inside the "Zip64 end of central<a name="line.605"></a>
+<span class="sourceLineNo">606</span>     * directory locator" relative to the start of the "Zip64 end of<a name="line.606"></a>
+<span class="sourceLineNo">607</span>     * central directory locator".<a name="line.607"></a>
+<span class="sourceLineNo">608</span>     */<a name="line.608"></a>
+<span class="sourceLineNo">609</span>    private static final int ZIP64_EOCDL_LOCATOR_OFFSET =<a name="line.609"></a>
+<span class="sourceLineNo">610</span>        /* zip64 end of central dir locator sig */ WORD<a name="line.610"></a>
+<span class="sourceLineNo">611</span>        /* number of the disk with the start    */<a name="line.611"></a>
+<span class="sourceLineNo">612</span>        /* start of the zip64 end of            */<a name="line.612"></a>
+<span class="sourceLineNo">613</span>        /* central directory                    */ + WORD;<a name="line.613"></a>
+<span class="sourceLineNo">614</span><a name="line.614"></a>
+<span class="sourceLineNo">615</span>    /**<a name="line.615"></a>
+<span class="sourceLineNo">616</span>     * Offset of the field that holds the location of the first<a name="line.616"></a>
+<span class="sourceLineNo">617</span>     * central directory entry inside the "Zip64 end of central<a name="line.617"></a>
+<span class="sourceLineNo">618</span>     * directory record" relative to the start of the "Zip64 end of<a name="line.618"></a>
+<span class="sourceLineNo">619</span>     * central directory record".<a name="line.619"></a>
+<span class="sourceLineNo">620</span>     */<a name="line.620"></a>
+<span class="sourceLineNo">621</span>    private static final int ZIP64_EOCD_CFD_LOCATOR_OFFSET =<a name="line.621"></a>
+<span class="sourceLineNo">622</span>        /* zip64 end of central dir        */<a name="line.622"></a>
+<span class="sourceLineNo">623</span>        /* signature                       */ WORD<a name="line.623"></a>
+<span class="sourceLineNo">624</span>        /* size of zip64 end of central    */<a name="line.624"></a>
+<span class="sourceLineNo">625</span>        /* directory record                */ + DWORD<a name="line.625"></a>
+<span class="sourceLineNo">626</span>        /* version made by                 */ + SHORT<a name="line.626"></a>
+<span class="sourceLineNo">627</span>        /* version needed to extract       */ + SHORT<a name="line.627"></a>
+<span class="sourceLineNo">628</span>        /* number of this disk             */ + WORD<a name="line.628"></a>
+<span class="sourceLineNo">629</span>        /* number of the disk with the     */<a name="line.629"></a>
+<span class="sourceLineNo">630</span>        /* start of the central directory  */ + WORD<a name="line.630"></a>
+<span class="sourceLineNo">631</span>        /* total number of entries in the  */<a name="line.631"></a>
+<span class="sourceLineNo">632</span>        /* central directory on this disk  */ + DWORD<a name="line.632"></a>
+<span class="sourceLineNo">633</span>        /* total number of entries in the  */<a name="line.633"></a>
+<span class="sourceLineNo">634</span>        /* central directory               */ + DWORD<a name="line.634"></a>
+<span class="sourceLineNo">635</span>        /* size of the central directory   */ + DWORD;<a name="line.635"></a>
+<span class="sourceLineNo">636</span><a name="line.636"></a>
+<span class="sourceLineNo">637</span>    /**<a name="line.637"></a>
+<span class="sourceLineNo">638</span>     * Searches for either the &amp;quot;Zip64 end of central directory<a name="line.638"></a>
+<span class="sourceLineNo">639</span>     * locator&amp;quot; or the &amp;quot;End of central dir record&amp;quot;, parses<a name="line.639"></a>
+<span class="sourceLineNo">640</span>     * it and positions the stream at the first central directory<a name="line.640"></a>
+<span class="sourceLineNo">641</span>     * record.<a name="line.641"></a>
+<span class="sourceLineNo">642</span>     */<a name="line.642"></a>
+<span class="sourceLineNo">643</span>    private void positionAtCentralDirectory()<a name="line.643"></a>
+<span class="sourceLineNo">644</span>            throws IOException {<a name="line.644"></a>
+<span class="sourceLineNo">645</span>        boolean found = tryToLocateSignature(MIN_EOCD_SIZE + ZIP64_EOCDL_LENGTH,<a name="line.645"></a>
+<span class="sourceLineNo">646</span>                MAX_EOCD_SIZE + ZIP64_EOCDL_LENGTH,<a name="line.646"></a>
+<span class="sourceLineNo">647</span>                ZipArchiveOutputStream<a name="line.647"></a>
+<span class="sourceLineNo">648</span>                        .ZIP64_EOCD_LOC_SIG);<a name="line.648"></a>
+<span class="sourceLineNo">649</span>        if (!found) {<a name="line.649"></a>
+<span class="sourceLineNo">650</span>            // not a ZIP64 archive<a name="line.650"></a>
+<span class="sourceLineNo">651</span>            positionAtCentralDirectory32();<a name="line.651"></a>
+<span class="sourceLineNo">652</span>        } else {<a name="line.652"></a>
+<span class="sourceLineNo">653</span>            positionAtCentralDirectory64();<a name="line.653"></a>
+<span class="sourceLineNo">654</span>        }<a name="line.654"></a>
+<span class="sourceLineNo">655</span>    }<a name="line.655"></a>
+<span class="sourceLineNo">656</span><a name="line.656"></a>
+<span class="sourceLineNo">657</span>    /**<a name="line.657"></a>
+<span class="sourceLineNo">658</span>     * Parses the &amp;quot;Zip64 end of central directory locator&amp;quot;,<a name="line.658"></a>
+<span class="sourceLineNo">659</span>     * finds the &amp;quot;Zip64 end of central directory record&amp;quot; using the<a name="line.659"></a>
+<span class="sourceLineNo">660</span>     * parsed information, parses that and positions the stream at the<a name="line.660"></a>
+<span class="sourceLineNo">661</span>     * first central directory record.<a name="line.661"></a>
+<span class="sourceLineNo">662</span>     */<a name="line.662"></a>
+<span class="sourceLineNo">663</span>    private void positionAtCentralDirectory64()<a name="line.663"></a>
+<span class="sourceLineNo">664</span>            throws IOException {<a name="line.664"></a>
+<span class="sourceLineNo">665</span>        skipBytes(ZIP64_EOCDL_LOCATOR_OFFSET);<a name="line.665"></a>
+<span class="sourceLineNo">666</span>        byte[] zip64EocdOffset = new byte[DWORD];<a name="line.666"></a>
+<span class="sourceLineNo">667</span>        archive.readFully(zip64EocdOffset);<a name="line.667"></a>
+<span class="sourceLineNo">668</span>        archive.seek(ZipEightByteInteger.getLongValue(zip64EocdOffset));<a name="line.668"></a>
+<span class="sourceLineNo">669</span>        byte[] sig = new byte[WORD];<a name="line.669"></a>
+<span class="sourceLineNo">670</span>        archive.readFully(sig);<a name="line.670"></a>
+<span class="sourceLineNo">671</span>        if (sig[POS_0] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_0]<a name="line.671"></a>
+<span class="sourceLineNo">672</span>                || sig[POS_1] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_1]<a name="line.672"></a>
+<span class="sourceLineNo">673</span>                || sig[POS_2] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_2]<a name="line.673"></a>
+<span class="sourceLineNo">674</span>                || sig[POS_3] != ZipArchiveOutputStream.ZIP64_EOCD_SIG[POS_3]<a name="line.674"></a>
+<span class="sourceLineNo">675</span>                ) {<a name="line.675"></a>
+<span class="sourceLineNo">676</span>            throw new ZipException("archive's ZIP64 end of central "<a name="line.676"></a>
+<span class="sourceLineNo">677</span>                    + "directory locator is corrupt.");<a name="line.677"></a>
+<span class="sourceLineNo">678</span>        }<a name="line.678"></a>
+<span class="sourceLineNo">679</span>        skipBytes(ZIP64_EOCD_CFD_LOCATOR_OFFSET<a name="line.679"></a>
+<span class="sourceLineNo">680</span>                - WORD /* signature has already been read */);<a name="line.680"></a>
+<span class="sourceLineNo">681</span>        byte[] cfdOffset = new byte[DWORD];<a name="line.681"></a>
+<span class="sourceLineNo">682</span>        archive.readFully(cfdOffset);<a name="line.682"></a>
+<span class="sourceLineNo">683</span>        archive.seek(ZipEightByteInteger.getLongValue(cfdOffset));<a name="line.683"></a>
+<span class="sourceLineNo">684</span>    }<a name="line.684"></a>
+<span class="sourceLineNo">685</span><a name="line.685"></a>
+<span class="sourceLineNo">686</span>    /**<a name="line.686"></a>
+<span class="sourceLineNo">687</span>     * Searches for the &amp;quot;End of central dir record&amp;quot;, parses<a name="line.687"></a>
+<span class="sourceLineNo">688</span>     * it and positions the stream at the first central directory<a name="line.688"></a>
+<span class="sourceLineNo">689</span>     * record.<a name="line.689"></a>
+<span class="sourceLineNo">690</span>     */<a name="line.690"></a>
+<span class="sourceLineNo">691</span>    private void positionAtCentralDirectory32()<a name="line.691"></a>
+<span class="sourceLineNo">692</span>            throws IOException {<a name="line.692"></a>
+<span class="sourceLineNo">693</span>        boolean found = tryToLocateSignature(MIN_EOCD_SIZE, MAX_EOCD_SIZE,<a name="line.693"></a>
+<span class="sourceLineNo">694</span>                ZipArchiveOutputStream.EOCD_SIG);<a name="line.694"></a>
+<span class="sourceLineNo">695</span>        if (!found) {<a name="line.695"></a>
+<span class="sourceLineNo">696</span>            throw new ZipException("archive is not a ZIP archive");<a name="line.696"></a>
+<span class="sourceLineNo">697</span>        }<a name="line.697"></a>
+<span class="sourceLineNo">698</span>        skipBytes(CFD_LOCATOR_OFFSET);<a name="line.698"></a>
+<span class="sourceLineNo">699</span>        byte[] cfdOffset = new byte[WORD];<a name="line.699"></a>
+<span class="sourceLineNo">700</span>        archive.readFully(cfdOffset);<a name="line.700"></a>
+<span class="sourceLineNo">701</span>        archive.seek(ZipLong.getValue(cfdOffset));<a name="line.701"></a>
+<span class="sourceLineNo">702</span>    }<a name="line.702"></a>
+<span class="sourceLineNo">703</span><a name="line.703"></a>
+<span class="sourceLineNo">704</span>    /**<a name="line.704"></a>
+<span class="sourceLineNo">705</span>     * Searches the archive backwards from minDistance to maxDistance<a name="line.705"></a>
+<span class="sourceLineNo">706</span>     * for the given signature, positions the RandomaccessFile right<a name="line.706"></a>
+<span class="sourceLineNo">707</span>     * at the signature if it has been found.<a name="line.707"></a>
+<span class="sourceLineNo">708</span>     */<a name="line.708"></a>
+<span class="sourceLineNo">709</span>    private boolean tryToLocateSignature(long minDistanceFromEnd,<a name="line.709"></a>
+<span class="sourceLineNo">710</span>                                         long maxDistanceFromEnd,<a name="line.710"></a>
+<span class="sourceLineNo">711</span>                                         byte[] sig) throws IOException {<a name="line.711"></a>
+<span class="sourceLineNo">712</span>        boolean found = false;<a name="line.712"></a>
+<span class="sourceLineNo">713</span>        long off = archive.length() - minDistanceFromEnd;<a name="line.713"></a>
+<span class="sourceLineNo">714</span>        final long stopSearching =<a name="line.714"></a>
+<span class="sourceLineNo">715</span>                Math.max(0L, archive.length() - maxDistanceFromEnd);<a name="line.715"></a>
+<span class="sourceLineNo">716</span>        if (off &gt;= 0) {<a name="line.716"></a>
+<span class="sourceLineNo">717</span>            for (; off &gt;= stopSearching; off--) {<a name="line.717"></a>
+<span class="sourceLineNo">718</span>                archive.seek(off);<a name="line.718"></a>
+<span class="sourceLineNo">719</span>                int curr = archive.read();<a name="line.719"></a>
+<span class="sourceLineNo">720</span>                if (curr == -1) {<a name="line.720"></a>
+<span class="sourceLineNo">721</span>                    break;<a name="line.721"></a>
+<span class="sourceLineNo">722</span>                }<a name="line.722"></a>
+<span class="sourceLineNo">723</span>                if (curr == sig[POS_0]) {<a name="line.723"></a>
+<span class="sourceLineNo">724</span>                    curr = archive.read();<a name="line.724"></a>
+<span class="sourceLineNo">725</span>                    if (curr == sig[POS_1]) {<a name="line.725"></a>
+<span class="sourceLineNo">726</span>                        curr = archive.read();<a name="line.726"></a>
+<span class="sourceLineNo">727</span>                        if (curr == sig[POS_2]) {<a name="line.727"></a>
+<span class="sourceLineNo">728</span>                            curr = archive.read();<a name="line.728"></a>
+<span class="sourceLineNo">729</span>                            if (curr == sig[POS_3]) {<a name="line.729"></a>
+<span class="sourceLineNo">730</span>                                found = true;<a name="line.730"></a>
+<span class="sourceLineNo">731</span>                                break;<a name="line.731"></a>
+<span class="sourceLineNo">732</span>                            }<a name="line.732"></a>
+<span class="sourceLineNo">733</span>                        }<a name="line.733"></a>
+<span class="sourceLineNo">734</span>                    }<a name="line.734"></a>
+<span class="sourceLineNo">735</span>                }<a name="line.735"></a>
+<span class="sourceLineNo">736</span>            }<a name="line.736"></a>
+<span class="sourceLineNo">737</span>        }<a name="line.737"></a>
+<span class="sourceLineNo">738</span>        if (found) {<a name="line.738"></a>
+<span class="sourceLineNo">739</span>            archive.seek(off);<a name="line.739"></a>
+<span class="sourceLineNo">740</span>        }<a name="line.740"></a>
+<span class="sourceLineNo">741</span>        return found;<a name="line.741"></a>
+<span class="sourceLineNo">742</span>    }<a name="line.742"></a>
+<span class="sourceLineNo">743</span><a name="line.743"></a>
+<span class="sourceLineNo">744</span>    /**<a name="line.744"></a>
+<span class="sourceLineNo">745</span>     * Skips the given number of bytes or throws an EOFException if<a name="line.745"></a>
+<span class="sourceLineNo">746</span>     * skipping failed.<a name="line.746"></a>
+<span class="sourceLineNo">747</span>     */<a name="line.747"></a>
+<span class="sourceLineNo">748</span>    private void skipBytes(final int count) throws IOException {<a name="line.748"></a>
+<span class="sourceLineNo">749</span>        int totalSkipped = 0;<a name="line.749"></a>
+<span class="sourceLineNo">750</span>        while (totalSkipped &lt; count) {<a name="line.750"></a>
+<span class="sourceLineNo">751</span>            int skippedNow = archive.skipBytes(count - totalSkipped);<a name="line.751"></a>
+<span class="sourceLineNo">752</span>            if (skippedNow &lt;= 0) {<a name="line.752"></a>
+<span class="sourceLineNo">753</span>                throw new EOFException();<a name="line.753"></a>
+<span class="sourceLineNo">754</span>            }<a name="line.754"></a>
+<span class="sourceLineNo">755</span>            totalSkipped += skippedNow;<a name="line.755"></a>
+<span class="sourceLineNo">756</span>        }<a name="line.756"></a>
+<span class="sourceLineNo">757</span>    }<a name="line.757"></a>
+<span class="sourceLineNo">758</span><a name="line.758"></a>
+<span class="sourceLineNo">759</span>    /**<a name="line.759"></a>
+<span class="sourceLineNo">760</span>     * Number of bytes in local file header up to the &amp;quot;length of<a name="line.760"></a>
+<span class="sourceLineNo">761</span>     * filename&amp;quot; entry.<a name="line.761"></a>
+<span class="sourceLineNo">762</span>     */<a name="line.762"></a>
+<span class="sourceLineNo">763</span>    private static final long LFH_OFFSET_FOR_FILENAME_LENGTH =<a name="line.763"></a>
+<span class="sourceLineNo">764</span>        /* local file header signature     */ WORD<a name="line.764"></a>
+<span class="sourceLineNo">765</span>        /* version needed to extract       */ + SHORT<a name="line.765"></a>
+<span class="sourceLineNo">766</span>        /* general purpose bit flag        */ + SHORT<a name="line.766"></a>
+<span class="sourceLineNo">767</span>        /* compression method              */ + SHORT<a name="line.767"></a>
+<span class="sourceLineNo">768</span>        /* last mod file time              */ + SHORT<a name="line.768"></a>
+<span class="sourceLineNo">769</span>        /* last mod file date              */ + SHORT<a name="line.769"></a>
+<span class="sourceLineNo">770</span>        /* crc-32                          */ + WORD<a name="line.770"></a>
+<span class="sourceLineNo">771</span>        /* compressed size                 */ + WORD<a name="line.771"></a>
+<span class="sourceLineNo">772</span>        /* uncompressed size               */ + WORD;<a name="line.772"></a>
+<span class="sourceLineNo">773</span><a name="line.773"></a>
+<span class="sourceLineNo">774</span>    /**<a name="line.774"></a>
+<span class="sourceLineNo">775</span>     * Walks through all recorded entries and adds the data available<a name="line.775"></a>
+<span class="sourceLineNo">776</span>     * from the local file header.<a name="line.776"></a>
+<span class="sourceLineNo">777</span>     * &lt;p/&gt;<a name="line.777"></a>
+<span class="sourceLineNo">778</span>     * &lt;p&gt;Also records the offsets for the data to read from the<a name="line.778"></a>
+<span class="sourceLineNo">779</span>     * entries.&lt;/p&gt;<a name="line.779"></a>
+<span class="sourceLineNo">780</span>     */<a name="line.780"></a>
+<span class="sourceLineNo">781</span>    private void resolveLocalFileHeaderData(Map&lt;ZipArchiveEntry, NameAndComment&gt;<a name="line.781"></a>
+<span class="sourceLineNo">782</span>                                                    entriesWithoutUTF8Flag)<a name="line.782"></a>
+<span class="sourceLineNo">783</span>            throws IOException {<a name="line.783"></a>
+<span class="sourceLineNo">784</span>        // changing the name of a ZipArchiveEntry is going to change<a name="line.784"></a>
+<span class="sourceLineNo">785</span>        // the hashcode - see COMPRESS-164<a name="line.785"></a>
+<span class="sourceLineNo">786</span>        // Map needs to be reconstructed in order to keep central<a name="line.786"></a>
+<span class="sourceLineNo">787</span>        // directory order<a name="line.787"></a>
+<span class="sourceLineNo">788</span>        Map&lt;ZipArchiveEntry, OffsetEntry&gt; origMap =<a name="line.788"></a>
+<span class="sourceLineNo">789</span>                new LinkedHashMap&lt;ZipArchiveEntry, OffsetEntry&gt;(entries);<a name="line.789"></a>
+<span class="sourceLineNo">790</span>        entries.clear();<a name="line.790"></a>
+<span class="sourceLineNo">791</span>        for (Map.Entry&lt;ZipArchiveEntry, OffsetEntry&gt; ent : origMap.entrySet()) {<a name="line.791"></a>
+<span class="sourceLineNo">792</span>            ZipArchiveEntry ze = ent.getKey();<a name="line.792"></a>
+<span class="sourceLineNo">793</span>            OffsetEntry offsetEntry = ent.getValue();<a name="line.793"></a>
+<span class="sourceLineNo">794</span>            long offset = offsetEntry.headerOffset;<a name="line.794"></a>
+<span class="sourceLineNo">795</span>            archive.seek(offset + LFH_OFFSET_FOR_FILENAME_LENGTH);<a name="line.795"></a>
+<span class="sourceLineNo">796</span>            byte[] b = new byte[SHORT];<a name="line.796"></a>
+<span class="sourceLineNo">797</span>            archive.readFully(b);<a name="line.797"></a>
+<span class="sourceLineNo">798</span>            int fileNameLen = ZipShort.getValue(b);<a name="line.798"></a>
+<span class="sourceLineNo">799</span>            archive.readFully(b);<a name="line.799"></a>
+<span class="sourceLineNo">800</span>            int extraFieldLen = ZipShort.getValue(b);<a name="line.800"></a>
+<span class="sourceLineNo">801</span>            int lenToSkip = fileNameLen;<a name="line.801"></a>
+<span class="sourceLineNo">802</span>            while (lenToSkip &gt; 0) {<a name="line.802"></a>
+<span class="sourceLineNo">803</span>                int skipped = archive.skipBytes(lenToSkip);<a name="line.803"></a>
+<span class="sourceLineNo">804</span>                if (skipped &lt;= 0) {<a name="line.804"></a>
+<span class="sourceLineNo">805</span>                    throw new IOException("failed to skip file name in"<a name="line.805"></a>
+<span class="sourceLineNo">806</span>                            + " local file header");<a name="line.806"></a>
+<span class="sourceLineNo">807</span>                }<a name="line.807"></a>
+<span class="sourceLineNo">808</span>                lenToSkip -= skipped;<a name="line.808"></a>
+<span class="sourceLineNo">809</span>            }<a name="line.809"></a>
+<span class="sourceLineNo">810</span>            byte[] localExtraData = new byte[extraFieldLen];<a name="line.810"></a>
+<span class="sourceLineNo">811</span>            archive.readFully(localExtraData);<a name="line.811"></a>
+<span class="sourceLineNo">812</span>            ze.setExtra(localExtraData);<a name="line.812"></a>
+<span class="sourceLineNo">813</span>            offsetEntry.dataOffset = offset + LFH_OFFSET_FOR_FILENAME_LENGTH<a name="line.813"></a>
+<span class="sourceLineNo">814</span>                    + SHORT + SHORT + fileNameLen + extraFieldLen;<a name="line.814"></a>
+<span class="sourceLineNo">815</span><a name="line.815"></a>
+<span class="sourceLineNo">816</span>            if (entriesWithoutUTF8Flag.containsKey(ze)) {<a name="line.816"></a>
+<span class="sourceLineNo">817</span>                String orig = ze.getName();<a name="line.817"></a>
+<span class="sourceLineNo">818</span>                NameAndComment nc = entriesWithoutUTF8Flag.get(ze);<a name="line.818"></a>
+<span class="sourceLineNo">819</span>                ZipUtil.setNameAndCommentFromExtraFields(ze, nc.name,<a name="line.819"></a>
+<span class="sourceLineNo">820</span>                        nc.comment);<a name="line.820"></a>
+<span class="sourceLineNo">821</span>                if (!orig.equals(ze.getName())) {<a name="line.821"></a>
+<span class="sourceLineNo">822</span>                    nameMap.remove(orig);<a name="line.822"></a>
+<span class="sourceLineNo">823</span>                    nameMap.put(ze.getName(), ze);<a name="line.823"></a>
+<span class="sourceLineNo">824</span>                }<a name="line.824"></a>
+<span class="sourceLineNo">825</span>            }<a name="line.825"></a>
+<span class="sourceLineNo">826</span>            entries.put(ze, offsetEntry);<a name="line.826"></a>
+<span class="sourceLineNo">827</span>        }<a name="line.827"></a>
+<span class="sourceLineNo">828</span>    }<a name="line.828"></a>
+<span class="sourceLineNo">829</span><a name="line.829"></a>
+<span class="sourceLineNo">830</span>    /**<a name="line.830"></a>
+<span class="sourceLineNo">831</span>     * Checks whether the archive starts with a LFH.  If it doesn't,<a name="line.831"></a>
+<span class="sourceLineNo">832</span>     * it may be an empty archive.<a name="line.832"></a>
+<span class="sourceLineNo">833</span>     */<a name="line.833"></a>
+<span class="sourceLineNo">834</span>    private boolean startsWithLocalFileHeader() throws IOException {<a name="line.834"></a>
+<span class="sourceLineNo">835</span>        archive.seek(0);<a name="line.835"></a>
+<span class="sourceLineNo">836</span>        final byte[] start = new byte[WORD];<a name="line.836"></a>
+<span class="sourceLineNo">837</span>        archive.readFully(start);<a name="line.837"></a>
+<span class="sourceLineNo">838</span>        for (int i = 0; i &lt; start.length; i++) {<a name="line.838"></a>
+<span class="sourceLineNo">839</span>            if (start[i] != ZipArchiveOutputStream.LFH_SIG[i]) {<a name="line.839"></a>
+<span class="sourceLineNo">840</span>                return false;<a name="line.840"></a>
+<span class="sourceLineNo">841</span>            }<a name="line.841"></a>
+<span class="sourceLineNo">842</span>        }<a name="line.842"></a>
+<span class="sourceLineNo">843</span>        return true;<a name="line.843"></a>
+<span class="sourceLineNo">844</span>    }<a name="line.844"></a>
+<span class="sourceLineNo">845</span><a name="line.845"></a>
+<span class="sourceLineNo">846</span>    /**<a name="line.846"></a>
+<span class="sourceLineNo">847</span>     * InputStream that delegates requests to the underlying<a name="line.847"></a>
+<span class="sourceLineNo">848</span>     * RandomAccessFile, making sure that only bytes from a certain<a name="line.848"></a>
+<span class="sourceLineNo">849</span>     * range can be read.<a name="line.849"></a>
+<span class="sourceLineNo">850</span>     */<a name="line.850"></a>
+<span class="sourceLineNo">851</span>    private class BoundedInputStream extends InputStream {<a name="line.851"></a>
+<span class="sourceLineNo">852</span>        private long remaining;<a name="line.852"></a>
+<span class="sourceLineNo">853</span>        private long loc;<a name="line.853"></a>
+<span class="sourceLineNo">854</span>        private boolean addDummyByte = false;<a name="line.854"></a>
+<span class="sourceLineNo">855</span><a name="line.855"></a>
+<span class="sourceLineNo">856</span>        BoundedInputStream(long start, long remaining) {<a name="line.856"></a>
+<span class="sourceLineNo">857</span>            this.remaining = remaining;<a name="line.857"></a>
+<span class="sourceLineNo">858</span>            loc = start;<a name="line.858"></a>
+<span class="sourceLineNo">859</span>        }<a name="line.859"></a>
+<span class="sourceLineNo">860</span><a name="line.860"></a>
+<span class="sourceLineNo">861</span>        @Override<a name="line.861"></a>
+<span class="sourceLineNo">862</span>        public int read() throws IOException {<a name="line.862"></a>
+<span class="sourceLineNo">863</span>            if (remaining-- &lt;= 0) {<a name="line.863"></a>
+<span class="sourceLineNo">864</span>                if (addDummyByte) {<a name="line.864"></a>
+<span class="sourceLineNo">865</span>                    addDummyByte = false;<a name="line.865"></a>
+<span class="sourceLineNo">866</span>                    return 0;<a name="line.866"></a>
+<span class="sourceLineNo">867</span>                }<a name="line.867"></a>
+<span class="sourceLineNo">868</span>                return -1;<a name="line.868"></a>
+<span class="sourceLineNo">869</span>            }<a name="line.869"></a>
+<span class="sourceLineNo">870</span>            synchronized (archive) {<a name="line.870"></a>
+<span class="sourceLineNo">871</span>                archive.seek(loc++);<a name="line.871"></a>
+<span class="sourceLineNo">872</span>                return archive.read();<a name="line.872"></a>
+<span class="sourceLineNo">873</span>            }<a name="line.873"></a>
+<span class="sourceLineNo">874</span>        }<a name="line.874"></a>
+<span class="sourceLineNo">875</span><a name="line.875"></a>
+<span class="sourceLineNo">876</span>        @Override<a name="line.876"></a>
+<span class="sourceLineNo">877</span>        public int read(byte[] b, int off, int len) throws IOException {<a name="line.877"></a>
+<span class="sourceLineNo">878</span>            if (remaining &lt;= 0) {<a name="line.878"></a>
+<span class="sourceLineNo">879</span>                if (addDummyByte) {<a name="line.879"></a>
+<span class="sourceLineNo">880</span>                    addDummyByte = false;<a name="line.880"></a>
+<span class="sourceLineNo">881</span>                    b[off] = 0;<a name="line.881"></a>
+<span class="sourceLineNo">882</span>                    return 1;<a name="line.882"></a>
+<span class="sourceLineNo">883</span>                }<a name="line.883"></a>
+<span class="sourceLineNo">884</span>                return -1;<a name="line.884"></a>
+<span class="sourceLineNo">885</span>            }<a name="line.885"></a>
+<span class="sourceLineNo">886</span><a name="line.886"></a>
+<span class="sourceLineNo">887</span>            if (len &lt;= 0) {<a name="line.887"></a>
+<span class="sourceLineNo">888</span>                return 0;<a name="line.888"></a>
+<span class="sourceLineNo">889</span>            }<a name="line.889"></a>
+<span class="sourceLineNo">890</span><a name="line.890"></a>
+<span class="sourceLineNo">891</span>            if (len &gt; remaining) {<a name="line.891"></a>
+<span class="sourceLineNo">892</span>                len = (int) remaining;<a name="line.892"></a>
+<span class="sourceLineNo">893</span>            }<a name="line.893"></a>
+<span class="sourceLineNo">894</span>            int ret = -1;<a name="line.894"></a>
+<span class="sourceLineNo">895</span>            synchronized (archive) {<a name="line.895"></a>
+<span class="sourceLineNo">896</span>                archive.seek(loc);<a name="line.896"></a>
+<span class="sourceLineNo">897</span>                ret = archive.read(b, off, len);<a name="line.897"></a>
+<span class="sourceLineNo">898</span>            }<a name="line.898"></a>
+<span class="sourceLineNo">899</span>            if (ret &gt; 0) {<a name="line.899"></a>
+<span class="sourceLineNo">900</span>                loc += ret;<a name="line.900"></a>
+<span class="sourceLineNo">901</span>                remaining -= ret;<a name="line.901"></a>
+<span class="sourceLineNo">902</span>            }<a name="line.902"></a>
+<span class="sourceLineNo">903</span>            return ret;<a name="line.903"></a>
+<span class="sourceLineNo">904</span>        }<a name="line.904"></a>
+<span class="sourceLineNo">905</span><a name="line.905"></a>
+<span class="sourceLineNo">906</span>        /**<a name="line.906"></a>
+<span class="sourceLineNo">907</span>         * Inflater needs an extra dummy byte for nowrap - see<a name="line.907"></a>
+<span class="sourceLineNo">908</span>         * Inflater's javadocs.<a name="line.908"></a>
+<span class="sourceLineNo">909</span>         */<a name="line.909"></a>
+<span class="sourceLineNo">910</span>        void addDummy() {<a name="line.910"></a>
+<span class="sourceLineNo">911</span>            addDummyByte = true;<a name="line.911"></a>
+<span class="sourceLineNo">912</span>        }<a name="line.912"></a>
+<span class="sourceLineNo">913</span>    }<a name="line.913"></a>
+<span class="sourceLineNo">914</span><a name="line.914"></a>
+<span class="sourceLineNo">915</span>    private static final class NameAndComment {<a name="line.915"></a>
+<span class="sourceLineNo">916</span>        private final byte[] name;<a name="line.916"></a>
+<span class="sourceLineNo">917</span>        private final byte[] comment;<a name="line.917"></a>
+<span class="sourceLineNo">918</span><a name="line.918"></a>
+<span class="sourceLineNo">919</span>        private NameAndComment(byte[] name, byte[] comment) {<a name="line.919"></a>
+<span class="sourceLineNo">920</span>            this.name = name;<a name="line.920"></a>
+<span class="sourceLineNo">921</span>            this.comment = comment;<a name="line.921"></a>
+<span class="sourceLineNo">922</span>        }<a name="line.922"></a>
+<span class="sourceLineNo">923</span>    }<a name="line.923"></a>
+<span class="sourceLineNo">924</span><a name="line.924"></a>
+<span class="sourceLineNo">925</span>    /**<a name="line.925"></a>
+<span class="sourceLineNo">926</span>     * Compares two ZipArchiveEntries based on their offset within the archive.<a name="line.926"></a>
+<span class="sourceLineNo">927</span>     * &lt;p/&gt;<a name="line.927"></a>
+<span class="sourceLineNo">928</span>     * &lt;p&gt;Won't return any meaningful results if one of the entries<a name="line.928"></a>
+<span class="sourceLineNo">929</span>     * isn't part of the archive at all.&lt;/p&gt;<a name="line.929"></a>
+<span class="sourceLineNo">930</span>     */<a name="line.930"></a>
+<span class="sourceLineNo">931</span>    private final Comparator&lt;ZipArchiveEntry&gt; OFFSET_COMPARATOR =<a name="line.931"></a>
+<span class="sourceLineNo">932</span>            new Comparator&lt;ZipArchiveEntry&gt;() {<a name="line.932"></a>
+<span class="sourceLineNo">933</span>                public int compare(ZipArchiveEntry e1, ZipArchiveEntry e2) {<a name="line.933"></a>
+<span class="sourceLineNo">934</span>                    if (e1 == e2) {<a name="line.934"></a>
+<span class="sourceLineNo">935</span>                        return 0;<a name="line.935"></a>
+<span class="sourceLineNo">936</span>                    }<a name="line.936"></a>
+<span class="sourceLineNo">937</span><a name="line.937"></a>
+<span class="sourceLineNo">938</span>                    OffsetEntry off1 = entries.get(e1);<a name="line.938"></a>
+<span class="sourceLineNo">939</span>                    OffsetEntry off2 = entries.get(e2);<a name="line.939"></a>
+<span class="sourceLineNo">940</span>                    if (off1 == null) {<a name="line.940"></a>
+<span class="sourceLineNo">941</span>                        return 1;<a name="line.941"></a>
+<span class="sourceLineNo">942</span>                    }<a name="line.942"></a>
+<span class="sourceLineNo">943</span>                    if (off2 == null) {<a name="line.943"></a>
+<span class="sourceLineNo">944</span>                        return -1;<a name="line.944"></a>
+<span class="sourceLineNo">945</span>                    }<a name="line.945"></a>
+<span class="sourceLineNo">946</span>                    long val = (off1.headerOffset - off2.headerOffset);<a name="line.946"></a>
+<span class="sourceLineNo">947</span>                    return val == 0 ? 0 : val &lt; 0 ? -1 : +1;<a name="line.947"></a>
+<span class="sourceLineNo">948</span>                }<a name="line.948"></a>
+<span class="sourceLineNo">949</span>            };<a name="line.949"></a>
+<span class="sourceLineNo">950</span>}<a name="line.950"></a>
 
 
 
@@ -1011,6 +1016,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

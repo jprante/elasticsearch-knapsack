@@ -2,7 +2,6 @@ org.xbib.classloader
 org.xbib.classloader.directory
 org.xbib.classloader.jar
 org.xbib.classloader.uri
-org.xbib.classloader.url
 org.xbib.elasticsearch.action
 org.xbib.elasticsearch.plugin.knapsack
 org.xbib.io

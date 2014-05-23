@@ -1,444 +1,474 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.elasticsearch.action;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.elasticsearch.ElasticsearchIllegalStateException;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;<a name="line.5"></a>
-<FONT color="green">006</FONT>    import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;<a name="line.6"></a>
-<FONT color="green">007</FONT>    import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;<a name="line.7"></a>
-<FONT color="green">008</FONT>    import org.elasticsearch.action.index.IndexRequest;<a name="line.8"></a>
-<FONT color="green">009</FONT>    import org.elasticsearch.client.Client;<a name="line.9"></a>
-<FONT color="green">010</FONT>    import org.elasticsearch.cluster.ClusterName;<a name="line.10"></a>
-<FONT color="green">011</FONT>    import org.elasticsearch.cluster.ClusterService;<a name="line.11"></a>
-<FONT color="green">012</FONT>    import org.elasticsearch.common.bytes.BytesArray;<a name="line.12"></a>
-<FONT color="green">013</FONT>    import org.elasticsearch.common.inject.Inject;<a name="line.13"></a>
-<FONT color="green">014</FONT>    import org.elasticsearch.common.io.Streams;<a name="line.14"></a>
-<FONT color="green">015</FONT>    import org.elasticsearch.common.settings.Settings;<a name="line.15"></a>
-<FONT color="green">016</FONT>    import org.elasticsearch.common.unit.TimeValue;<a name="line.16"></a>
-<FONT color="green">017</FONT>    import org.elasticsearch.common.util.concurrent.EsExecutors;<a name="line.17"></a>
-<FONT color="green">018</FONT>    import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;<a name="line.18"></a>
-<FONT color="green">019</FONT>    import org.elasticsearch.common.xcontent.XContentBuilder;<a name="line.19"></a>
-<FONT color="green">020</FONT>    import org.elasticsearch.common.xcontent.XContentFactory;<a name="line.20"></a>
-<FONT color="green">021</FONT>    import org.elasticsearch.common.xcontent.XContentParser;<a name="line.21"></a>
-<FONT color="green">022</FONT>    import org.elasticsearch.common.xcontent.XContentType;<a name="line.22"></a>
-<FONT color="green">023</FONT>    import org.elasticsearch.env.Environment;<a name="line.23"></a>
-<FONT color="green">024</FONT>    import org.elasticsearch.index.VersionType;<a name="line.24"></a>
-<FONT color="green">025</FONT>    import org.elasticsearch.indices.IndexAlreadyExistsException;<a name="line.25"></a>
-<FONT color="green">026</FONT>    import org.elasticsearch.rest.BaseRestHandler;<a name="line.26"></a>
-<FONT color="green">027</FONT>    import org.elasticsearch.rest.RestChannel;<a name="line.27"></a>
-<FONT color="green">028</FONT>    import org.elasticsearch.rest.RestController;<a name="line.28"></a>
-<FONT color="green">029</FONT>    import org.elasticsearch.rest.RestHandler;<a name="line.29"></a>
-<FONT color="green">030</FONT>    import org.elasticsearch.rest.RestRequest;<a name="line.30"></a>
-<FONT color="green">031</FONT>    import org.elasticsearch.rest.XContentRestResponse;<a name="line.31"></a>
-<FONT color="green">032</FONT>    import org.elasticsearch.rest.XContentThrowableRestResponse;<a name="line.32"></a>
-<FONT color="green">033</FONT>    <a name="line.33"></a>
-<FONT color="green">034</FONT>    import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;<a name="line.34"></a>
-<FONT color="green">035</FONT>    import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;<a name="line.35"></a>
-<FONT color="green">036</FONT>    import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;<a name="line.36"></a>
-<FONT color="green">037</FONT>    import org.xbib.elasticsearch.support.client.bulk.BulkClient;<a name="line.37"></a>
-<FONT color="green">038</FONT>    import org.xbib.io.Connection;<a name="line.38"></a>
-<FONT color="green">039</FONT>    import org.xbib.io.ConnectionFactory;<a name="line.39"></a>
-<FONT color="green">040</FONT>    import org.xbib.io.ConnectionService;<a name="line.40"></a>
-<FONT color="green">041</FONT>    import org.xbib.io.Packet;<a name="line.41"></a>
-<FONT color="green">042</FONT>    import org.xbib.io.Session;<a name="line.42"></a>
-<FONT color="green">043</FONT>    <a name="line.43"></a>
-<FONT color="green">044</FONT>    import java.io.File;<a name="line.44"></a>
-<FONT color="green">045</FONT>    import java.io.FileInputStream;<a name="line.45"></a>
-<FONT color="green">046</FONT>    import java.io.IOException;<a name="line.46"></a>
-<FONT color="green">047</FONT>    import java.io.InputStreamReader;<a name="line.47"></a>
-<FONT color="green">048</FONT>    import java.net.URI;<a name="line.48"></a>
-<FONT color="green">049</FONT>    import java.util.Date;<a name="line.49"></a>
-<FONT color="green">050</FONT>    import java.util.Map;<a name="line.50"></a>
-<FONT color="green">051</FONT>    <a name="line.51"></a>
-<FONT color="green">052</FONT>    import static org.elasticsearch.client.Requests.createIndexRequest;<a name="line.52"></a>
-<FONT color="green">053</FONT>    import static org.elasticsearch.common.collect.Maps.newHashMap;<a name="line.53"></a>
-<FONT color="green">054</FONT>    import static org.elasticsearch.common.collect.Maps.newLinkedHashMap;<a name="line.54"></a>
-<FONT color="green">055</FONT>    import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;<a name="line.55"></a>
-<FONT color="green">056</FONT>    import static org.elasticsearch.rest.RestRequest.Method.GET;<a name="line.56"></a>
-<FONT color="green">057</FONT>    import static org.elasticsearch.rest.RestRequest.Method.POST;<a name="line.57"></a>
-<FONT color="green">058</FONT>    import static org.elasticsearch.rest.RestStatus.OK;<a name="line.58"></a>
-<FONT color="green">059</FONT>    import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;<a name="line.59"></a>
-<FONT color="green">060</FONT>    <a name="line.60"></a>
-<FONT color="green">061</FONT>    /**<a name="line.61"></a>
-<FONT color="green">062</FONT>     * The knapsack import action opens an archive and transfers the content into Elasticsearch<a name="line.62"></a>
-<FONT color="green">063</FONT>     */<a name="line.63"></a>
-<FONT color="green">064</FONT>    public class RestImportAction extends BaseRestHandler {<a name="line.64"></a>
-<FONT color="green">065</FONT>    <a name="line.65"></a>
-<FONT color="green">066</FONT>        private final ClusterName clusterName;<a name="line.66"></a>
-<FONT color="green">067</FONT>    <a name="line.67"></a>
-<FONT color="green">068</FONT>        private final Environment environment;<a name="line.68"></a>
-<FONT color="green">069</FONT>    <a name="line.69"></a>
-<FONT color="green">070</FONT>        private final KnapsackHelper knapsackHelper;<a name="line.70"></a>
-<FONT color="green">071</FONT>    <a name="line.71"></a>
-<FONT color="green">072</FONT>        private EsThreadPoolExecutor executor;<a name="line.72"></a>
-<FONT color="green">073</FONT>    <a name="line.73"></a>
-<FONT color="green">074</FONT>        @Inject<a name="line.74"></a>
-<FONT color="green">075</FONT>        public RestImportAction(Settings settings,<a name="line.75"></a>
-<FONT color="green">076</FONT>                                Environment environment,<a name="line.76"></a>
-<FONT color="green">077</FONT>                                Client client,<a name="line.77"></a>
-<FONT color="green">078</FONT>                                RestController controller,<a name="line.78"></a>
-<FONT color="green">079</FONT>                                ClusterService clusterService,<a name="line.79"></a>
-<FONT color="green">080</FONT>                                ClusterName clusterName) {<a name="line.80"></a>
-<FONT color="green">081</FONT>            super(settings, client);<a name="line.81"></a>
-<FONT color="green">082</FONT>            this.environment = environment;<a name="line.82"></a>
-<FONT color="green">083</FONT>            this.clusterName = clusterName;<a name="line.83"></a>
-<FONT color="green">084</FONT>            this.knapsackHelper = new KnapsackHelper(client, clusterService);<a name="line.84"></a>
-<FONT color="green">085</FONT>            this.executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-import"));<a name="line.85"></a>
-<FONT color="green">086</FONT>    <a name="line.86"></a>
-<FONT color="green">087</FONT>            controller.registerHandler(POST, "/_import", this);<a name="line.87"></a>
-<FONT color="green">088</FONT>            controller.registerHandler(POST, "/{index}/_import", this);<a name="line.88"></a>
-<FONT color="green">089</FONT>            controller.registerHandler(POST, "/{index}/{type}/_import", this);<a name="line.89"></a>
-<FONT color="green">090</FONT>    <a name="line.90"></a>
-<FONT color="green">091</FONT>            controller.registerHandler(POST, "/_import/{mode}", this);<a name="line.91"></a>
-<FONT color="green">092</FONT>            controller.registerHandler(POST, "/{index}/_import/{mode}", this);<a name="line.92"></a>
-<FONT color="green">093</FONT>            controller.registerHandler(POST, "/{index}/{type}/_import/{mode}", this);<a name="line.93"></a>
-<FONT color="green">094</FONT>    <a name="line.94"></a>
-<FONT color="green">095</FONT>            controller.registerHandler(GET, "/_import/state", new RestKnapsackImportState());<a name="line.95"></a>
-<FONT color="green">096</FONT>            controller.registerHandler(POST, "/_import/abort", new RestKnapsackImportAbort());<a name="line.96"></a>
-<FONT color="green">097</FONT>        }<a name="line.97"></a>
-<FONT color="green">098</FONT>    <a name="line.98"></a>
-<FONT color="green">099</FONT>        @Override<a name="line.99"></a>
-<FONT color="green">100</FONT>        public void handleRequest(final RestRequest request, RestChannel channel) {<a name="line.100"></a>
-<FONT color="green">101</FONT>            try {<a name="line.101"></a>
-<FONT color="green">102</FONT>                ConnectionService&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; service = ConnectionService.getInstance();<a name="line.102"></a>
-<FONT color="green">103</FONT>                final String newIndex = request.param("index", "_all");<a name="line.103"></a>
-<FONT color="green">104</FONT>                final String newType = request.param("type");<a name="line.104"></a>
-<FONT color="green">105</FONT>                final String defaultSpec = newIndex + (newType != null ? "_" + newType : "") + ".tar.gz";<a name="line.105"></a>
-<FONT color="green">106</FONT>                final String path = request.param("path", defaultSpec);<a name="line.106"></a>
-<FONT color="green">107</FONT>                URI pathURI = URI.create("file:" + path);<a name="line.107"></a>
-<FONT color="green">108</FONT>                if ("s3".equals(request.param("mode")) &amp;&amp; request.param("s3") != null &amp;&amp; !new File(path).exists()) {<a name="line.108"></a>
-<FONT color="green">109</FONT>                    // fetch file from S3<a name="line.109"></a>
-<FONT color="green">110</FONT>                    URI s3 = URI.create(request.param("s3")<a name="line.110"></a>
-<FONT color="green">111</FONT>                            + "?bucketName=" + request.param("bucketName")<a name="line.111"></a>
-<FONT color="green">112</FONT>                            + "&amp;key=" + request.param("key")<a name="line.112"></a>
-<FONT color="green">113</FONT>                            + "&amp;path=" + path);<a name="line.113"></a>
-<FONT color="green">114</FONT>                    logger.info("trying to transfer file from s3 to: {}", s3);<a name="line.114"></a>
-<FONT color="green">115</FONT>                    ConnectionFactory&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; factory = service.getConnectionFactory(s3);<a name="line.115"></a>
-<FONT color="green">116</FONT>                    final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection = factory.getConnection(s3);<a name="line.116"></a>
-<FONT color="green">117</FONT>                    final Session session = connection.createSession();<a name="line.117"></a>
-<FONT color="green">118</FONT>                    session.open(Session.Mode.READ);<a name="line.118"></a>
-<FONT color="green">119</FONT>                    session.read(); // this will copy the file from S3 to path<a name="line.119"></a>
-<FONT color="green">120</FONT>                    session.close();<a name="line.120"></a>
-<FONT color="green">121</FONT>                    logger.info("file from s3 succesfully transferred");<a name="line.121"></a>
-<FONT color="green">122</FONT>                }<a name="line.122"></a>
-<FONT color="green">123</FONT>                ConnectionFactory&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; factory = service.getConnectionFactory(pathURI);<a name="line.123"></a>
-<FONT color="green">124</FONT>                final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection = factory.getConnection(pathURI);<a name="line.124"></a>
-<FONT color="green">125</FONT>                final Session&lt;Packet&lt;String&gt;&gt; session = connection.createSession();<a name="line.125"></a>
-<FONT color="green">126</FONT>                session.open(Session.Mode.READ);<a name="line.126"></a>
-<FONT color="green">127</FONT>                XContentBuilder builder = restContentBuilder(request);<a name="line.127"></a>
-<FONT color="green">128</FONT>                if (session.isOpen()) {<a name="line.128"></a>
-<FONT color="green">129</FONT>                    executor.execute(new ImportThread(request, connection, session));<a name="line.129"></a>
-<FONT color="green">130</FONT>                    builder.startObject()<a name="line.130"></a>
-<FONT color="green">131</FONT>                            .field("running", true)<a name="line.131"></a>
-<FONT color="green">132</FONT>                            .field("mode", request.param("mode") != null ? request.param("mode") : "import")<a name="line.132"></a>
-<FONT color="green">133</FONT>                            .field("type", factory.getName())<a name="line.133"></a>
-<FONT color="green">134</FONT>                            .field("path", connection.getURI())<a name="line.134"></a>
-<FONT color="green">135</FONT>                            .endObject();<a name="line.135"></a>
-<FONT color="green">136</FONT>                } else {<a name="line.136"></a>
-<FONT color="green">137</FONT>                    builder.startObject()<a name="line.137"></a>
-<FONT color="green">138</FONT>                            .field("running", false)<a name="line.138"></a>
-<FONT color="green">139</FONT>                            .endObject();<a name="line.139"></a>
-<FONT color="green">140</FONT>                }<a name="line.140"></a>
-<FONT color="green">141</FONT>                channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.141"></a>
-<FONT color="green">142</FONT>            } catch (Throwable ex) {<a name="line.142"></a>
-<FONT color="green">143</FONT>                try {<a name="line.143"></a>
-<FONT color="green">144</FONT>                    logger.error(ex.getMessage(), ex);<a name="line.144"></a>
-<FONT color="green">145</FONT>                    channel.sendResponse(new XContentThrowableRestResponse(request, ex));<a name="line.145"></a>
-<FONT color="green">146</FONT>                } catch (Exception ex2) {<a name="line.146"></a>
-<FONT color="green">147</FONT>                    logger.error(ex2.getMessage(), ex2);<a name="line.147"></a>
-<FONT color="green">148</FONT>                }<a name="line.148"></a>
-<FONT color="green">149</FONT>            }<a name="line.149"></a>
-<FONT color="green">150</FONT>        }<a name="line.150"></a>
-<FONT color="green">151</FONT>    <a name="line.151"></a>
-<FONT color="green">152</FONT>        private class ImportThread extends Thread {<a name="line.152"></a>
-<FONT color="green">153</FONT>    <a name="line.153"></a>
-<FONT color="green">154</FONT>            private final RestRequest request;<a name="line.154"></a>
-<FONT color="green">155</FONT>    <a name="line.155"></a>
-<FONT color="green">156</FONT>            private final Map&lt;String, CreateIndexRequest&gt; indexRequestMap = newHashMap();<a name="line.156"></a>
-<FONT color="green">157</FONT>    <a name="line.157"></a>
-<FONT color="green">158</FONT>            private final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection;<a name="line.158"></a>
-<FONT color="green">159</FONT>    <a name="line.159"></a>
-<FONT color="green">160</FONT>            private final Session&lt;Packet&lt;String&gt;&gt; session;<a name="line.160"></a>
-<FONT color="green">161</FONT>    <a name="line.161"></a>
-<FONT color="green">162</FONT>            private TimeValue timeout;<a name="line.162"></a>
-<FONT color="green">163</FONT>    <a name="line.163"></a>
-<FONT color="green">164</FONT>            private BulkClient bulkClient;<a name="line.164"></a>
-<FONT color="green">165</FONT>    <a name="line.165"></a>
-<FONT color="green">166</FONT>            private Map&lt;String,Object&gt; map;<a name="line.166"></a>
-<FONT color="green">167</FONT>    <a name="line.167"></a>
-<FONT color="green">168</FONT>            private Map&lt;String, Packet&lt;String&gt;&gt; packets;<a name="line.168"></a>
-<FONT color="green">169</FONT>    <a name="line.169"></a>
-<FONT color="green">170</FONT>            ImportThread(RestRequest request, Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection,<a name="line.170"></a>
-<FONT color="green">171</FONT>                         Session&lt;Packet&lt;String&gt;&gt; session) {<a name="line.171"></a>
-<FONT color="green">172</FONT>                this.request = request;<a name="line.172"></a>
-<FONT color="green">173</FONT>                this.connection = connection;<a name="line.173"></a>
-<FONT color="green">174</FONT>                this.session = session;<a name="line.174"></a>
-<FONT color="green">175</FONT>            }<a name="line.175"></a>
-<FONT color="green">176</FONT>    <a name="line.176"></a>
-<FONT color="green">177</FONT>            @Override<a name="line.177"></a>
-<FONT color="green">178</FONT>            public void run() {<a name="line.178"></a>
-<FONT color="green">179</FONT>                final Map&lt;String, String&gt; params = request.params();<a name="line.179"></a>
-<FONT color="green">180</FONT>                logger.info("params = {}", params);<a name="line.180"></a>
-<FONT color="green">181</FONT>                this.timeout = request.paramAsTime("timeout", TimeValue.timeValueSeconds(30L));<a name="line.181"></a>
-<FONT color="green">182</FONT>                final int limit = request.paramAsInt("limit", -1);<a name="line.182"></a>
-<FONT color="green">183</FONT>                final int maxActionsPerBulkRequest = request.paramAsInt("maxActionsPerBulkRequest", 1000);<a name="line.183"></a>
-<FONT color="green">184</FONT>                final int maxBulkConcurrency = request.paramAsInt("maxBulkConcurrency",<a name="line.184"></a>
-<FONT color="green">185</FONT>                        Runtime.getRuntime().availableProcessors() * 2);<a name="line.185"></a>
-<FONT color="green">186</FONT>                map = toMap(request.param("map"));<a name="line.186"></a>
-<FONT color="green">187</FONT>                logger.info("index/type map = {}", map);<a name="line.187"></a>
-<FONT color="green">188</FONT>                URI destination = KnapsackHelper.getAddress(client, clusterName, request.param("host"),<a name="line.188"></a>
-<FONT color="green">189</FONT>                        request.paramAsInt("port", 0), request.param("cluster"));<a name="line.189"></a>
-<FONT color="green">190</FONT>                String path = connection.getURI().getSchemeSpecificPart();<a name="line.190"></a>
-<FONT color="green">191</FONT>                final boolean copy = "copy".equals(request.param("mode"));<a name="line.191"></a>
-<FONT color="green">192</FONT>                final boolean s3 = "s3".equals(request.param("mode"));<a name="line.192"></a>
-<FONT color="green">193</FONT>                final KnapsackStatus status = new KnapsackStatus()<a name="line.193"></a>
-<FONT color="green">194</FONT>                        .setTimestamp(new Date())<a name="line.194"></a>
-<FONT color="green">195</FONT>                        .setMap(map)<a name="line.195"></a>
-<FONT color="green">196</FONT>                        .setPath(path)<a name="line.196"></a>
-<FONT color="green">197</FONT>                        .setURI(destination)<a name="line.197"></a>
-<FONT color="green">198</FONT>                        .setCopy(copy)<a name="line.198"></a>
-<FONT color="green">199</FONT>                        .setS3(s3);<a name="line.199"></a>
-<FONT color="green">200</FONT>                try {<a name="line.200"></a>
-<FONT color="green">201</FONT>                    logger.info("start of import: {}", status);<a name="line.201"></a>
-<FONT color="green">202</FONT>                    knapsackHelper.addImport(status);<a name="line.202"></a>
-<FONT color="green">203</FONT>                    this.bulkClient = new BulkClient();<a name="line.203"></a>
-<FONT color="green">204</FONT>                    Settings settings = KnapsackHelper.clientSettings(environment, destination);<a name="line.204"></a>
-<FONT color="green">205</FONT>                    logger.info("client settings classloader = " + settings.getClassLoader());<a name="line.205"></a>
-<FONT color="green">206</FONT>                    bulkClient.flushInterval(TimeValue.timeValueSeconds(5))<a name="line.206"></a>
-<FONT color="green">207</FONT>                        .maxActionsPerBulkRequest(maxActionsPerBulkRequest)<a name="line.207"></a>
-<FONT color="green">208</FONT>                        .maxConcurrentBulkRequests(maxBulkConcurrency)<a name="line.208"></a>
-<FONT color="green">209</FONT>                        .newClient(destination, settings);<a name="line.209"></a>
-<FONT color="green">210</FONT>                    logger.info("waiting for healthy cluster...");<a name="line.210"></a>
-<FONT color="green">211</FONT>                    bulkClient.waitForCluster(ClusterHealthStatus.YELLOW, timeout);<a name="line.211"></a>
-<FONT color="green">212</FONT>                    logger.info("... cluster is ready");<a name="line.212"></a>
-<FONT color="green">213</FONT>                    // we can't disable refresh for better bulk performance<a name="line.213"></a>
-<FONT color="green">214</FONT>                    // because we do not know beforehand what index and type are in the archive<a name="line.214"></a>
-<FONT color="green">215</FONT>                    packets = newLinkedHashMap();<a name="line.215"></a>
-<FONT color="green">216</FONT>                    Packet&lt;String&gt; packet;<a name="line.216"></a>
-<FONT color="green">217</FONT>                    String lastCoord = null;<a name="line.217"></a>
-<FONT color="green">218</FONT>                    int count = 0;<a name="line.218"></a>
-<FONT color="green">219</FONT>                    while ((packet = session.read()) != null) {<a name="line.219"></a>
-<FONT color="green">220</FONT>                        count++;<a name="line.220"></a>
-<FONT color="green">221</FONT>                        if (limit &gt; 0) {<a name="line.221"></a>
-<FONT color="green">222</FONT>                            if (count &gt; limit) {<a name="line.222"></a>
-<FONT color="green">223</FONT>                                logger.warn("limit exceeded: {}", limit);<a name="line.223"></a>
-<FONT color="green">224</FONT>                                break;<a name="line.224"></a>
-<FONT color="green">225</FONT>                            }<a name="line.225"></a>
-<FONT color="green">226</FONT>                        }<a name="line.226"></a>
-<FONT color="green">227</FONT>                        String[] entry = KnapsackPacket.decodeName(packet.name());<a name="line.227"></a>
-<FONT color="green">228</FONT>                        if (entry.length &lt; 2) {<a name="line.228"></a>
-<FONT color="green">229</FONT>                            throw new ElasticsearchIllegalStateException("archive entry too short, can't import");<a name="line.229"></a>
-<FONT color="green">230</FONT>                        }<a name="line.230"></a>
-<FONT color="green">231</FONT>                        String index = entry[0];<a name="line.231"></a>
-<FONT color="green">232</FONT>                        String type = entry[1];<a name="line.232"></a>
-<FONT color="green">233</FONT>                        // entry length != 4 ? older knapsack format<a name="line.233"></a>
-<FONT color="green">234</FONT>                        String id = entry.length &gt; 2 ? entry[2] : null;<a name="line.234"></a>
-<FONT color="green">235</FONT>                        String field = entry.length &gt; 3 ? entry[3] : "_source";<a name="line.235"></a>
-<FONT color="green">236</FONT>                        if ("_settings".equals(type)) {<a name="line.236"></a>
-<FONT color="green">237</FONT>                            index = mapIndex(index);<a name="line.237"></a>
-<FONT color="green">238</FONT>                            String settingsStr;<a name="line.238"></a>
-<FONT color="green">239</FONT>                            // override settings by user request<a name="line.239"></a>
-<FONT color="green">240</FONT>                            if (params.containsKey(index + "_settings")) {<a name="line.240"></a>
-<FONT color="green">241</FONT>                                InputStreamReader reader =<a name="line.241"></a>
-<FONT color="green">242</FONT>                                        new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");<a name="line.242"></a>
-<FONT color="green">243</FONT>                                settingsStr = Streams.copyToString(reader);<a name="line.243"></a>
-<FONT color="green">244</FONT>                                reader.close();<a name="line.244"></a>
-<FONT color="green">245</FONT>                            } else {<a name="line.245"></a>
-<FONT color="green">246</FONT>                                settingsStr = packet.packet();<a name="line.246"></a>
-<FONT color="green">247</FONT>                            }<a name="line.247"></a>
-<FONT color="green">248</FONT>                            if (!"_all".equals(index)) {<a name="line.248"></a>
-<FONT color="green">249</FONT>                                logger.info("index {}: got settings {}", index, settingsStr);<a name="line.249"></a>
-<FONT color="green">250</FONT>                                CreateIndexRequest createIndexRequest = indexRequestMap.get(index);<a name="line.250"></a>
-<FONT color="green">251</FONT>                                if (createIndexRequest == null) {<a name="line.251"></a>
-<FONT color="green">252</FONT>                                    createIndexRequest = createIndexRequest(index);<a name="line.252"></a>
-<FONT color="green">253</FONT>                                    indexRequestMap.put(index, createIndexRequest);<a name="line.253"></a>
-<FONT color="green">254</FONT>                                }<a name="line.254"></a>
-<FONT color="green">255</FONT>                                createIndexRequest.settings(settingsStr);<a name="line.255"></a>
-<FONT color="green">256</FONT>                            }<a name="line.256"></a>
-<FONT color="green">257</FONT>                        }<a name="line.257"></a>
-<FONT color="green">258</FONT>                        else if ("_mapping".equals(id)) {<a name="line.258"></a>
-<FONT color="green">259</FONT>                            type = mapType(index, type);<a name="line.259"></a>
-<FONT color="green">260</FONT>                            index = mapIndex(index);<a name="line.260"></a>
-<FONT color="green">261</FONT>                            String mapping;<a name="line.261"></a>
-<FONT color="green">262</FONT>                            // override mappings by user request<a name="line.262"></a>
-<FONT color="green">263</FONT>                            if (params.containsKey(index + "_" + type + "_mapping")) {<a name="line.263"></a>
-<FONT color="green">264</FONT>                                InputStreamReader reader =<a name="line.264"></a>
-<FONT color="green">265</FONT>                                        new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");<a name="line.265"></a>
-<FONT color="green">266</FONT>                                mapping = Streams.copyToString(reader);<a name="line.266"></a>
-<FONT color="green">267</FONT>                                reader.close();<a name="line.267"></a>
-<FONT color="green">268</FONT>                            } else {<a name="line.268"></a>
-<FONT color="green">269</FONT>                                mapping = packet.packet();<a name="line.269"></a>
-<FONT color="green">270</FONT>                            }<a name="line.270"></a>
-<FONT color="green">271</FONT>                            if (!"_all".equals(index)) {<a name="line.271"></a>
-<FONT color="green">272</FONT>                                logger.info("index {}: got mapping {}", index, mapping);<a name="line.272"></a>
-<FONT color="green">273</FONT>                                CreateIndexRequest createIndexRequest = indexRequestMap.get(index);<a name="line.273"></a>
-<FONT color="green">274</FONT>                                if (createIndexRequest == null) {<a name="line.274"></a>
-<FONT color="green">275</FONT>                                    createIndexRequest = createIndexRequest(index);<a name="line.275"></a>
-<FONT color="green">276</FONT>                                    indexRequestMap.put(index, createIndexRequest);<a name="line.276"></a>
-<FONT color="green">277</FONT>                                }<a name="line.277"></a>
-<FONT color="green">278</FONT>                                createIndexRequest.mapping(type, mapping);<a name="line.278"></a>
-<FONT color="green">279</FONT>                            }<a name="line.279"></a>
-<FONT color="green">280</FONT>                        } else {<a name="line.280"></a>
-<FONT color="green">281</FONT>                            // normal document fields<a name="line.281"></a>
-<FONT color="green">282</FONT>                            String coord = index + File.separator + type + File.separator + id;<a name="line.282"></a>
-<FONT color="green">283</FONT>                            if (!coord.equals(lastCoord) &amp;&amp; !packets.isEmpty()) {<a name="line.283"></a>
-<FONT color="green">284</FONT>                                indexPackets(packets);<a name="line.284"></a>
-<FONT color="green">285</FONT>                                packets.clear();<a name="line.285"></a>
-<FONT color="green">286</FONT>                            }<a name="line.286"></a>
-<FONT color="green">287</FONT>                            packets.put(field, packet);<a name="line.287"></a>
-<FONT color="green">288</FONT>                            lastCoord = coord;<a name="line.288"></a>
-<FONT color="green">289</FONT>                        }<a name="line.289"></a>
-<FONT color="green">290</FONT>                    }<a name="line.290"></a>
-<FONT color="green">291</FONT>                    if (!packets.isEmpty()) {<a name="line.291"></a>
-<FONT color="green">292</FONT>                        indexPackets(packets);<a name="line.292"></a>
-<FONT color="green">293</FONT>                    }<a name="line.293"></a>
-<FONT color="green">294</FONT>                    logger.info("end of import: {}", status);<a name="line.294"></a>
-<FONT color="green">295</FONT>                    session.close();<a name="line.295"></a>
-<FONT color="green">296</FONT>                    bulkClient.refresh().shutdown();<a name="line.296"></a>
-<FONT color="green">297</FONT>                    bulkClient = null;<a name="line.297"></a>
-<FONT color="green">298</FONT>                } catch (Throwable e) {<a name="line.298"></a>
-<FONT color="green">299</FONT>                    logger.error(e.getMessage(), e);<a name="line.299"></a>
-<FONT color="green">300</FONT>                } finally {<a name="line.300"></a>
-<FONT color="green">301</FONT>                    try {<a name="line.301"></a>
-<FONT color="green">302</FONT>                        knapsackHelper.removeImport(status);<a name="line.302"></a>
-<FONT color="green">303</FONT>                    } catch (IOException ex) {<a name="line.303"></a>
-<FONT color="green">304</FONT>                        logger.error(ex.getMessage(), ex);<a name="line.304"></a>
-<FONT color="green">305</FONT>                    }<a name="line.305"></a>
-<FONT color="green">306</FONT>                }<a name="line.306"></a>
-<FONT color="green">307</FONT>            }<a name="line.307"></a>
-<FONT color="green">308</FONT>    <a name="line.308"></a>
-<FONT color="green">309</FONT>            private void indexPackets(Map&lt;String, Packet&lt;String&gt;&gt; packets) throws IOException {<a name="line.309"></a>
-<FONT color="green">310</FONT>                String entryName = packets.values().iterator().next().name();<a name="line.310"></a>
-<FONT color="green">311</FONT>                String[] entry = KnapsackPacket.decodeName(entryName);<a name="line.311"></a>
-<FONT color="green">312</FONT>                if (entry.length &lt; 3) {<a name="line.312"></a>
-<FONT color="green">313</FONT>                    throw new ElasticsearchIllegalStateException("entry too short: " + entryName);<a name="line.313"></a>
-<FONT color="green">314</FONT>                }<a name="line.314"></a>
-<FONT color="green">315</FONT>                String index = entry[0];<a name="line.315"></a>
-<FONT color="green">316</FONT>                String type = entry[1];<a name="line.316"></a>
-<FONT color="green">317</FONT>                String id = entry[2];<a name="line.317"></a>
-<FONT color="green">318</FONT>                if (indexRequestMap.containsKey(index)) {<a name="line.318"></a>
-<FONT color="green">319</FONT>                    CreateIndexRequest createIndexRequest = indexRequestMap.remove(index);<a name="line.319"></a>
-<FONT color="green">320</FONT>                    if (request.paramAsBoolean("createIndex", true)) {<a name="line.320"></a>
-<FONT color="green">321</FONT>                        logger.info("creating index {}", index);<a name="line.321"></a>
-<FONT color="green">322</FONT>                        createIndexRequest.timeout(timeout);<a name="line.322"></a>
-<FONT color="green">323</FONT>                        try {<a name="line.323"></a>
-<FONT color="green">324</FONT>                            CreateIndexResponse response = bulkClient.client().admin().indices()<a name="line.324"></a>
-<FONT color="green">325</FONT>                                    .create(createIndexRequest).actionGet();<a name="line.325"></a>
-<FONT color="green">326</FONT>                            if (!response.isAcknowledged()) {<a name="line.326"></a>
-<FONT color="green">327</FONT>                                logger.warn("index creation was not acknowledged");<a name="line.327"></a>
-<FONT color="green">328</FONT>                            }<a name="line.328"></a>
-<FONT color="green">329</FONT>                        } catch (IndexAlreadyExistsException e) {<a name="line.329"></a>
-<FONT color="green">330</FONT>                            if (request.paramAsBoolean("createIndex", true)) {<a name="line.330"></a>
-<FONT color="green">331</FONT>                                throw e;<a name="line.331"></a>
-<FONT color="green">332</FONT>                            } else {<a name="line.332"></a>
-<FONT color="green">333</FONT>                                logger.warn("index already exists: {}", index);<a name="line.333"></a>
-<FONT color="green">334</FONT>                            }<a name="line.334"></a>
-<FONT color="green">335</FONT>                        }<a name="line.335"></a>
-<FONT color="green">336</FONT>                    }<a name="line.336"></a>
-<FONT color="green">337</FONT>                }<a name="line.337"></a>
-<FONT color="green">338</FONT>                IndexRequest indexRequest = new IndexRequest(mapIndex(index),<a name="line.338"></a>
-<FONT color="green">339</FONT>                        mapType(index, type), id);<a name="line.339"></a>
-<FONT color="green">340</FONT>                for (String f : packets.keySet()) {<a name="line.340"></a>
-<FONT color="green">341</FONT>                    if (f == null) {<a name="line.341"></a>
-<FONT color="green">342</FONT>                        continue;<a name="line.342"></a>
-<FONT color="green">343</FONT>                    }<a name="line.343"></a>
-<FONT color="green">344</FONT>                    if ("_parent".equals(f)) {<a name="line.344"></a>
-<FONT color="green">345</FONT>                        indexRequest.parent(packets.get(f).packet());<a name="line.345"></a>
-<FONT color="green">346</FONT>                    } else if ("_routing".equals(f)) {<a name="line.346"></a>
-<FONT color="green">347</FONT>                        indexRequest.routing(packets.get(f).packet());<a name="line.347"></a>
-<FONT color="green">348</FONT>                    } else if ("_timestamp".equals(f)) {<a name="line.348"></a>
-<FONT color="green">349</FONT>                        indexRequest.timestamp(packets.get(f).packet());<a name="line.349"></a>
-<FONT color="green">350</FONT>                    } else if ("_version".equals(f)) {<a name="line.350"></a>
-<FONT color="green">351</FONT>                        indexRequest.versionType(VersionType.EXTERNAL)<a name="line.351"></a>
-<FONT color="green">352</FONT>                                .version(Long.parseLong(packets.get(f).packet()));<a name="line.352"></a>
-<FONT color="green">353</FONT>                    } else if ("_source".equals(f)) {<a name="line.353"></a>
-<FONT color="green">354</FONT>                        indexRequest.source(packets.get(f).packet());<a name="line.354"></a>
-<FONT color="green">355</FONT>                    } else {<a name="line.355"></a>
-<FONT color="green">356</FONT>                        indexRequest.source(f, packets.get(f).packet());<a name="line.356"></a>
-<FONT color="green">357</FONT>                    }<a name="line.357"></a>
-<FONT color="green">358</FONT>                }<a name="line.358"></a>
-<FONT color="green">359</FONT>                bulkClient.index(indexRequest);<a name="line.359"></a>
-<FONT color="green">360</FONT>            }<a name="line.360"></a>
-<FONT color="green">361</FONT>    <a name="line.361"></a>
-<FONT color="green">362</FONT>            private Map&lt;String, Object&gt; toMap(String s) {<a name="line.362"></a>
-<FONT color="green">363</FONT>                if (s == null) {<a name="line.363"></a>
-<FONT color="green">364</FONT>                    logger.warn("no map defined");<a name="line.364"></a>
-<FONT color="green">365</FONT>                    return newHashMap();<a name="line.365"></a>
-<FONT color="green">366</FONT>                }<a name="line.366"></a>
-<FONT color="green">367</FONT>                BytesArray ref = new BytesArray(s);<a name="line.367"></a>
-<FONT color="green">368</FONT>                try {<a name="line.368"></a>
-<FONT color="green">369</FONT>                    byte[] b = ref.hasArray() ? ref.array() : ref.toBytes();<a name="line.369"></a>
-<FONT color="green">370</FONT>                    XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(b, 0, b.length);<a name="line.370"></a>
-<FONT color="green">371</FONT>                    return parser.mapAndClose();<a name="line.371"></a>
-<FONT color="green">372</FONT>                } catch (IOException e) {<a name="line.372"></a>
-<FONT color="green">373</FONT>                    logger.warn("parse error while reading map", e);<a name="line.373"></a>
-<FONT color="green">374</FONT>                    return newHashMap();<a name="line.374"></a>
-<FONT color="green">375</FONT>                }<a name="line.375"></a>
-<FONT color="green">376</FONT>            }<a name="line.376"></a>
-<FONT color="green">377</FONT>    <a name="line.377"></a>
-<FONT color="green">378</FONT>            private String mapIndex(String index) {<a name="line.378"></a>
-<FONT color="green">379</FONT>                return map.containsKey(index) ? map.get(index).toString() : index;<a name="line.379"></a>
-<FONT color="green">380</FONT>            }<a name="line.380"></a>
-<FONT color="green">381</FONT>    <a name="line.381"></a>
-<FONT color="green">382</FONT>            private String mapType(String index, String type) {<a name="line.382"></a>
-<FONT color="green">383</FONT>                String s = index + "/" + type;<a name="line.383"></a>
-<FONT color="green">384</FONT>                return map.containsKey(s) ? map.get(s).toString() : type;<a name="line.384"></a>
-<FONT color="green">385</FONT>            }<a name="line.385"></a>
-<FONT color="green">386</FONT>        }<a name="line.386"></a>
-<FONT color="green">387</FONT>    <a name="line.387"></a>
-<FONT color="green">388</FONT>        private class RestKnapsackImportState implements RestHandler {<a name="line.388"></a>
-<FONT color="green">389</FONT>    <a name="line.389"></a>
-<FONT color="green">390</FONT>            @Override<a name="line.390"></a>
-<FONT color="green">391</FONT>            public void handleRequest(RestRequest request, RestChannel channel) {<a name="line.391"></a>
-<FONT color="green">392</FONT>                try {<a name="line.392"></a>
-<FONT color="green">393</FONT>                    XContentBuilder builder = restContentBuilder(request);<a name="line.393"></a>
-<FONT color="green">394</FONT>                    builder.startObject()<a name="line.394"></a>
-<FONT color="green">395</FONT>                            .field("imports")<a name="line.395"></a>
-<FONT color="green">396</FONT>                            .startArray();<a name="line.396"></a>
-<FONT color="green">397</FONT>                    for (KnapsackStatus export : knapsackHelper.getImports()) {<a name="line.397"></a>
-<FONT color="green">398</FONT>                        export.toXContent(builder, EMPTY_PARAMS);<a name="line.398"></a>
-<FONT color="green">399</FONT>                    }<a name="line.399"></a>
-<FONT color="green">400</FONT>                    builder.endArray()<a name="line.400"></a>
-<FONT color="green">401</FONT>                            .endObject();<a name="line.401"></a>
-<FONT color="green">402</FONT>                    channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.402"></a>
-<FONT color="green">403</FONT>                } catch (IOException ioe) {<a name="line.403"></a>
-<FONT color="green">404</FONT>                    try {<a name="line.404"></a>
-<FONT color="green">405</FONT>                        channel.sendResponse(new XContentThrowableRestResponse(request, ioe));<a name="line.405"></a>
-<FONT color="green">406</FONT>                    } catch (IOException e) {<a name="line.406"></a>
-<FONT color="green">407</FONT>                        logger.error("unable to send response to client");<a name="line.407"></a>
-<FONT color="green">408</FONT>                    }<a name="line.408"></a>
-<FONT color="green">409</FONT>                }<a name="line.409"></a>
-<FONT color="green">410</FONT>            }<a name="line.410"></a>
-<FONT color="green">411</FONT>        }<a name="line.411"></a>
-<FONT color="green">412</FONT>    <a name="line.412"></a>
-<FONT color="green">413</FONT>        private class RestKnapsackImportAbort implements RestHandler {<a name="line.413"></a>
-<FONT color="green">414</FONT>    <a name="line.414"></a>
-<FONT color="green">415</FONT>            @Override<a name="line.415"></a>
-<FONT color="green">416</FONT>            public void handleRequest(RestRequest request, RestChannel channel) {<a name="line.416"></a>
-<FONT color="green">417</FONT>                try {<a name="line.417"></a>
-<FONT color="green">418</FONT>                    XContentBuilder builder = restContentBuilder(request);<a name="line.418"></a>
-<FONT color="green">419</FONT>                    builder.startObject()<a name="line.419"></a>
-<FONT color="green">420</FONT>                            .field("imports")<a name="line.420"></a>
-<FONT color="green">421</FONT>                            .startArray();<a name="line.421"></a>
-<FONT color="green">422</FONT>                    for (KnapsackStatus export : knapsackHelper.getImports()) {<a name="line.422"></a>
-<FONT color="green">423</FONT>                        export.toXContent(builder, EMPTY_PARAMS);<a name="line.423"></a>
-<FONT color="green">424</FONT>                    }<a name="line.424"></a>
-<FONT color="green">425</FONT>                    builder.endArray().endObject();<a name="line.425"></a>
-<FONT color="green">426</FONT>                    executor.shutdownNow();<a name="line.426"></a>
-<FONT color="green">427</FONT>                    executor = EsExecutors.newFixed(10, 0, EsExecutors.daemonThreadFactory(settings, "knapsack-import"));<a name="line.427"></a>
-<FONT color="green">428</FONT>                    channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.428"></a>
-<FONT color="green">429</FONT>                } catch (IOException ioe) {<a name="line.429"></a>
-<FONT color="green">430</FONT>                    try {<a name="line.430"></a>
-<FONT color="green">431</FONT>                        channel.sendResponse(new XContentThrowableRestResponse(request, ioe));<a name="line.431"></a>
-<FONT color="green">432</FONT>                    } catch (IOException e) {<a name="line.432"></a>
-<FONT color="green">433</FONT>                        logger.error("unable to send response to client");<a name="line.433"></a>
-<FONT color="green">434</FONT>                    }<a name="line.434"></a>
-<FONT color="green">435</FONT>                }<a name="line.435"></a>
-<FONT color="green">436</FONT>            }<a name="line.436"></a>
-<FONT color="green">437</FONT>        }<a name="line.437"></a>
-<FONT color="green">438</FONT>    }<a name="line.438"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.elasticsearch.action;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import org.elasticsearch.action.index.IndexRequest;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import org.elasticsearch.client.Client;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import org.elasticsearch.cluster.ClusterName;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import org.elasticsearch.cluster.ClusterService;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import org.elasticsearch.common.bytes.BytesArray;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import org.elasticsearch.common.inject.Inject;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import org.elasticsearch.common.io.Streams;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>import org.elasticsearch.common.settings.ImmutableSettings;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>import org.elasticsearch.common.settings.Settings;<a name="line.15"></a>
+<span class="sourceLineNo">016</span>import org.elasticsearch.common.unit.TimeValue;<a name="line.16"></a>
+<span class="sourceLineNo">017</span>import org.elasticsearch.common.util.concurrent.EsExecutors;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import org.elasticsearch.common.xcontent.XContentBuilder;<a name="line.19"></a>
+<span class="sourceLineNo">020</span>import org.elasticsearch.common.xcontent.XContentFactory;<a name="line.20"></a>
+<span class="sourceLineNo">021</span>import org.elasticsearch.common.xcontent.XContentParser;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>import org.elasticsearch.common.xcontent.XContentType;<a name="line.22"></a>
+<span class="sourceLineNo">023</span>import org.elasticsearch.env.Environment;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>import org.elasticsearch.index.VersionType;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>import org.elasticsearch.indices.IndexAlreadyExistsException;<a name="line.25"></a>
+<span class="sourceLineNo">026</span>import org.elasticsearch.rest.BaseRestHandler;<a name="line.26"></a>
+<span class="sourceLineNo">027</span>import org.elasticsearch.rest.RestChannel;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>import org.elasticsearch.rest.RestController;<a name="line.28"></a>
+<span class="sourceLineNo">029</span>import org.elasticsearch.rest.RestHandler;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>import org.elasticsearch.rest.RestRequest;<a name="line.30"></a>
+<span class="sourceLineNo">031</span><a name="line.31"></a>
+<span class="sourceLineNo">032</span>import org.xbib.elasticsearch.plugin.knapsack.KnapsackException;<a name="line.32"></a>
+<span class="sourceLineNo">033</span>import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;<a name="line.33"></a>
+<span class="sourceLineNo">034</span>import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;<a name="line.34"></a>
+<span class="sourceLineNo">035</span>import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;<a name="line.35"></a>
+<span class="sourceLineNo">036</span>import org.xbib.elasticsearch.rest.action.support.XContentRestResponse;<a name="line.36"></a>
+<span class="sourceLineNo">037</span>import org.xbib.elasticsearch.rest.action.support.XContentThrowableRestResponse;<a name="line.37"></a>
+<span class="sourceLineNo">038</span>import org.xbib.elasticsearch.support.client.bulk.BulkTransportClient;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>import org.xbib.io.Connection;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>import org.xbib.io.ConnectionFactory;<a name="line.40"></a>
+<span class="sourceLineNo">041</span>import org.xbib.io.ConnectionService;<a name="line.41"></a>
+<span class="sourceLineNo">042</span>import org.xbib.io.Packet;<a name="line.42"></a>
+<span class="sourceLineNo">043</span>import org.xbib.io.Session;<a name="line.43"></a>
+<span class="sourceLineNo">044</span><a name="line.44"></a>
+<span class="sourceLineNo">045</span>import java.io.File;<a name="line.45"></a>
+<span class="sourceLineNo">046</span>import java.io.FileInputStream;<a name="line.46"></a>
+<span class="sourceLineNo">047</span>import java.io.IOException;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>import java.io.InputStreamReader;<a name="line.48"></a>
+<span class="sourceLineNo">049</span>import java.net.URI;<a name="line.49"></a>
+<span class="sourceLineNo">050</span>import java.util.Date;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>import java.util.Map;<a name="line.51"></a>
+<span class="sourceLineNo">052</span>import java.util.concurrent.TimeUnit;<a name="line.52"></a>
+<span class="sourceLineNo">053</span><a name="line.53"></a>
+<span class="sourceLineNo">054</span>import static org.elasticsearch.client.Requests.createIndexRequest;<a name="line.54"></a>
+<span class="sourceLineNo">055</span>import static org.elasticsearch.common.collect.Maps.newHashMap;<a name="line.55"></a>
+<span class="sourceLineNo">056</span>import static org.elasticsearch.common.collect.Maps.newLinkedHashMap;<a name="line.56"></a>
+<span class="sourceLineNo">057</span>import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;<a name="line.57"></a>
+<span class="sourceLineNo">058</span>import static org.elasticsearch.rest.RestRequest.Method.GET;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>import static org.elasticsearch.rest.RestRequest.Method.POST;<a name="line.59"></a>
+<span class="sourceLineNo">060</span>import static org.elasticsearch.rest.RestStatus.OK;<a name="line.60"></a>
+<span class="sourceLineNo">061</span>import static org.xbib.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;<a name="line.61"></a>
+<span class="sourceLineNo">062</span><a name="line.62"></a>
+<span class="sourceLineNo">063</span>/**<a name="line.63"></a>
+<span class="sourceLineNo">064</span> * The knapsack import action opens an archive and transfers the content into Elasticsearch<a name="line.64"></a>
+<span class="sourceLineNo">065</span> */<a name="line.65"></a>
+<span class="sourceLineNo">066</span>public class RestImportAction extends BaseRestHandler {<a name="line.66"></a>
+<span class="sourceLineNo">067</span><a name="line.67"></a>
+<span class="sourceLineNo">068</span>    private final ClusterName clusterName;<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>    private final Environment environment;<a name="line.70"></a>
+<span class="sourceLineNo">071</span><a name="line.71"></a>
+<span class="sourceLineNo">072</span>    private final KnapsackHelper knapsackHelper;<a name="line.72"></a>
+<span class="sourceLineNo">073</span><a name="line.73"></a>
+<span class="sourceLineNo">074</span>    private EsThreadPoolExecutor executor;<a name="line.74"></a>
+<span class="sourceLineNo">075</span><a name="line.75"></a>
+<span class="sourceLineNo">076</span>    @Inject<a name="line.76"></a>
+<span class="sourceLineNo">077</span>    public RestImportAction(Settings settings,<a name="line.77"></a>
+<span class="sourceLineNo">078</span>                            Environment environment,<a name="line.78"></a>
+<span class="sourceLineNo">079</span>                            Client client,<a name="line.79"></a>
+<span class="sourceLineNo">080</span>                            RestController controller,<a name="line.80"></a>
+<span class="sourceLineNo">081</span>                            ClusterService clusterService,<a name="line.81"></a>
+<span class="sourceLineNo">082</span>                            ClusterName clusterName) {<a name="line.82"></a>
+<span class="sourceLineNo">083</span>        super(settings, client);<a name="line.83"></a>
+<span class="sourceLineNo">084</span>        this.environment = environment;<a name="line.84"></a>
+<span class="sourceLineNo">085</span>        this.clusterName = clusterName;<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        this.knapsackHelper = new KnapsackHelper(client, clusterService);<a name="line.86"></a>
+<span class="sourceLineNo">087</span>        this.executor = EsExecutors.newScaling(0, 10, 7L, TimeUnit.DAYS,<a name="line.87"></a>
+<span class="sourceLineNo">088</span>                        EsExecutors.daemonThreadFactory(settings, "knapsack-import"));<a name="line.88"></a>
+<span class="sourceLineNo">089</span><a name="line.89"></a>
+<span class="sourceLineNo">090</span>        controller.registerHandler(POST, "/_import", this);<a name="line.90"></a>
+<span class="sourceLineNo">091</span>        controller.registerHandler(POST, "/{index}/_import", this);<a name="line.91"></a>
+<span class="sourceLineNo">092</span>        controller.registerHandler(POST, "/{index}/{type}/_import", this);<a name="line.92"></a>
+<span class="sourceLineNo">093</span><a name="line.93"></a>
+<span class="sourceLineNo">094</span>        controller.registerHandler(POST, "/_import/{mode}", this);<a name="line.94"></a>
+<span class="sourceLineNo">095</span>        controller.registerHandler(POST, "/{index}/_import/{mode}", this);<a name="line.95"></a>
+<span class="sourceLineNo">096</span>        controller.registerHandler(POST, "/{index}/{type}/_import/{mode}", this);<a name="line.96"></a>
+<span class="sourceLineNo">097</span><a name="line.97"></a>
+<span class="sourceLineNo">098</span>        controller.registerHandler(GET, "/_import/state", new RestKnapsackImportState());<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        controller.registerHandler(POST, "/_import/abort", new RestKnapsackImportAbort());<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    }<a name="line.100"></a>
+<span class="sourceLineNo">101</span><a name="line.101"></a>
+<span class="sourceLineNo">102</span>    @Override<a name="line.102"></a>
+<span class="sourceLineNo">103</span>    public void handleRequest(final RestRequest request, RestChannel channel) {<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        try {<a name="line.104"></a>
+<span class="sourceLineNo">105</span>            ConnectionService&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; service = ConnectionService.getInstance();<a name="line.105"></a>
+<span class="sourceLineNo">106</span>            final String newIndex = request.param("index", "_all");<a name="line.106"></a>
+<span class="sourceLineNo">107</span>            final String newType = request.param("type");<a name="line.107"></a>
+<span class="sourceLineNo">108</span>            final String defaultSpec = newIndex + (newType != null ? "_" + newType : "") + ".tar.gz";<a name="line.108"></a>
+<span class="sourceLineNo">109</span>            final String path = request.param("path", defaultSpec);<a name="line.109"></a>
+<span class="sourceLineNo">110</span>            URI pathURI = URI.create("file:" + path);<a name="line.110"></a>
+<span class="sourceLineNo">111</span>            if ("s3".equals(request.param("mode")) &amp;&amp; request.param("s3") != null &amp;&amp; !new File(path).exists()) {<a name="line.111"></a>
+<span class="sourceLineNo">112</span>                // fetch file from S3<a name="line.112"></a>
+<span class="sourceLineNo">113</span>                URI s3 = URI.create(request.param("s3")<a name="line.113"></a>
+<span class="sourceLineNo">114</span>                        + "?bucketName=" + request.param("bucketName")<a name="line.114"></a>
+<span class="sourceLineNo">115</span>                        + "&amp;key=" + request.param("key")<a name="line.115"></a>
+<span class="sourceLineNo">116</span>                        + "&amp;path=" + path);<a name="line.116"></a>
+<span class="sourceLineNo">117</span>                logger.info("trying to transfer file from s3 to: {}", s3);<a name="line.117"></a>
+<span class="sourceLineNo">118</span>                ConnectionFactory&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; factory = service.getConnectionFactory(s3);<a name="line.118"></a>
+<span class="sourceLineNo">119</span>                final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection = factory.getConnection(s3);<a name="line.119"></a>
+<span class="sourceLineNo">120</span>                final Session session = connection.createSession();<a name="line.120"></a>
+<span class="sourceLineNo">121</span>                session.open(Session.Mode.READ);<a name="line.121"></a>
+<span class="sourceLineNo">122</span>                session.read(); // this will copy the file from S3 to path<a name="line.122"></a>
+<span class="sourceLineNo">123</span>                session.close();<a name="line.123"></a>
+<span class="sourceLineNo">124</span>                logger.info("file from s3 succesfully transferred");<a name="line.124"></a>
+<span class="sourceLineNo">125</span>            }<a name="line.125"></a>
+<span class="sourceLineNo">126</span>            ConnectionFactory&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; factory = service.getConnectionFactory(pathURI);<a name="line.126"></a>
+<span class="sourceLineNo">127</span>            final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection = factory.getConnection(pathURI);<a name="line.127"></a>
+<span class="sourceLineNo">128</span>            final Session&lt;Packet&lt;String&gt;&gt; session = connection.createSession();<a name="line.128"></a>
+<span class="sourceLineNo">129</span>            session.open(Session.Mode.READ);<a name="line.129"></a>
+<span class="sourceLineNo">130</span>            XContentBuilder builder = restContentBuilder(request);<a name="line.130"></a>
+<span class="sourceLineNo">131</span>            if (session.isOpen()) {<a name="line.131"></a>
+<span class="sourceLineNo">132</span>                executor.execute(new ImportThread(request, connection, session));<a name="line.132"></a>
+<span class="sourceLineNo">133</span>                builder.startObject()<a name="line.133"></a>
+<span class="sourceLineNo">134</span>                        .field("running", true)<a name="line.134"></a>
+<span class="sourceLineNo">135</span>                        .field("mode", request.param("mode") != null ? request.param("mode") : "import")<a name="line.135"></a>
+<span class="sourceLineNo">136</span>                        .field("type", factory.getName())<a name="line.136"></a>
+<span class="sourceLineNo">137</span>                        .field("path", connection.getURI())<a name="line.137"></a>
+<span class="sourceLineNo">138</span>                        .endObject();<a name="line.138"></a>
+<span class="sourceLineNo">139</span>            } else {<a name="line.139"></a>
+<span class="sourceLineNo">140</span>                builder.startObject()<a name="line.140"></a>
+<span class="sourceLineNo">141</span>                        .field("running", false)<a name="line.141"></a>
+<span class="sourceLineNo">142</span>                        .endObject();<a name="line.142"></a>
+<span class="sourceLineNo">143</span>            }<a name="line.143"></a>
+<span class="sourceLineNo">144</span>            channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        } catch (Throwable ex) {<a name="line.145"></a>
+<span class="sourceLineNo">146</span>            try {<a name="line.146"></a>
+<span class="sourceLineNo">147</span>                logger.error(ex.getMessage(), ex);<a name="line.147"></a>
+<span class="sourceLineNo">148</span>                channel.sendResponse(new XContentThrowableRestResponse(request, ex));<a name="line.148"></a>
+<span class="sourceLineNo">149</span>            } catch (Exception ex2) {<a name="line.149"></a>
+<span class="sourceLineNo">150</span>                logger.error(ex2.getMessage(), ex2);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>            }<a name="line.151"></a>
+<span class="sourceLineNo">152</span>        }<a name="line.152"></a>
+<span class="sourceLineNo">153</span>    }<a name="line.153"></a>
+<span class="sourceLineNo">154</span><a name="line.154"></a>
+<span class="sourceLineNo">155</span>    private class ImportThread extends Thread {<a name="line.155"></a>
+<span class="sourceLineNo">156</span><a name="line.156"></a>
+<span class="sourceLineNo">157</span>        private final RestRequest request;<a name="line.157"></a>
+<span class="sourceLineNo">158</span><a name="line.158"></a>
+<span class="sourceLineNo">159</span>        private final Map&lt;String, CreateIndexRequest&gt; indexRequestMap = newHashMap();<a name="line.159"></a>
+<span class="sourceLineNo">160</span><a name="line.160"></a>
+<span class="sourceLineNo">161</span>        private final Map&lt;String, String&gt; indexReplicaMap = newHashMap();<a name="line.161"></a>
+<span class="sourceLineNo">162</span><a name="line.162"></a>
+<span class="sourceLineNo">163</span>        private final Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection;<a name="line.163"></a>
+<span class="sourceLineNo">164</span><a name="line.164"></a>
+<span class="sourceLineNo">165</span>        private final Session&lt;Packet&lt;String&gt;&gt; session;<a name="line.165"></a>
+<span class="sourceLineNo">166</span><a name="line.166"></a>
+<span class="sourceLineNo">167</span>        private TimeValue timeout;<a name="line.167"></a>
+<span class="sourceLineNo">168</span><a name="line.168"></a>
+<span class="sourceLineNo">169</span>        private BulkTransportClient bulkClient;<a name="line.169"></a>
+<span class="sourceLineNo">170</span><a name="line.170"></a>
+<span class="sourceLineNo">171</span>        private Map&lt;String,Object&gt; map;<a name="line.171"></a>
+<span class="sourceLineNo">172</span><a name="line.172"></a>
+<span class="sourceLineNo">173</span>        private Map&lt;String, Packet&lt;String&gt;&gt; packets;<a name="line.173"></a>
+<span class="sourceLineNo">174</span><a name="line.174"></a>
+<span class="sourceLineNo">175</span>        ImportThread(RestRequest request, Connection&lt;Session&lt;Packet&lt;String&gt;&gt;&gt; connection,<a name="line.175"></a>
+<span class="sourceLineNo">176</span>                     Session&lt;Packet&lt;String&gt;&gt; session) {<a name="line.176"></a>
+<span class="sourceLineNo">177</span>            this.request = request;<a name="line.177"></a>
+<span class="sourceLineNo">178</span>            this.connection = connection;<a name="line.178"></a>
+<span class="sourceLineNo">179</span>            this.session = session;<a name="line.179"></a>
+<span class="sourceLineNo">180</span>        }<a name="line.180"></a>
+<span class="sourceLineNo">181</span><a name="line.181"></a>
+<span class="sourceLineNo">182</span>        @Override<a name="line.182"></a>
+<span class="sourceLineNo">183</span>        public void run() {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>            final Map&lt;String, String&gt; params = request.params();<a name="line.184"></a>
+<span class="sourceLineNo">185</span>            logger.info("params = {}", params);<a name="line.185"></a>
+<span class="sourceLineNo">186</span>            this.timeout = request.paramAsTime("timeout", TimeValue.timeValueSeconds(30L));<a name="line.186"></a>
+<span class="sourceLineNo">187</span>            final int limit = request.paramAsInt("limit", -1);<a name="line.187"></a>
+<span class="sourceLineNo">188</span>            final int maxActionsPerBulkRequest = request.paramAsInt("maxActionsPerBulkRequest", 1000);<a name="line.188"></a>
+<span class="sourceLineNo">189</span>            final int maxBulkConcurrency = request.paramAsInt("maxBulkConcurrency",<a name="line.189"></a>
+<span class="sourceLineNo">190</span>                    Runtime.getRuntime().availableProcessors() * 2);<a name="line.190"></a>
+<span class="sourceLineNo">191</span>            map = toMap(request.param("map"));<a name="line.191"></a>
+<span class="sourceLineNo">192</span>            logger.info("index/type map = {}", map);<a name="line.192"></a>
+<span class="sourceLineNo">193</span>            URI destination = KnapsackHelper.getAddress(client, clusterName, request.param("host"),<a name="line.193"></a>
+<span class="sourceLineNo">194</span>                    request.paramAsInt("port", 0), request.param("cluster"));<a name="line.194"></a>
+<span class="sourceLineNo">195</span>            String path = connection.getURI().getSchemeSpecificPart();<a name="line.195"></a>
+<span class="sourceLineNo">196</span>            final boolean copy = "copy".equals(request.param("mode"));<a name="line.196"></a>
+<span class="sourceLineNo">197</span>            final boolean s3 = "s3".equals(request.param("mode"));<a name="line.197"></a>
+<span class="sourceLineNo">198</span>            final KnapsackStatus status = new KnapsackStatus()<a name="line.198"></a>
+<span class="sourceLineNo">199</span>                    .setTimestamp(new Date())<a name="line.199"></a>
+<span class="sourceLineNo">200</span>                    .setMap(map)<a name="line.200"></a>
+<span class="sourceLineNo">201</span>                    .setPath(path)<a name="line.201"></a>
+<span class="sourceLineNo">202</span>                    .setURI(destination)<a name="line.202"></a>
+<span class="sourceLineNo">203</span>                    .setCopy(copy)<a name="line.203"></a>
+<span class="sourceLineNo">204</span>                    .setS3(s3);<a name="line.204"></a>
+<span class="sourceLineNo">205</span>            try {<a name="line.205"></a>
+<span class="sourceLineNo">206</span>                logger.info("start of import: {}", status);<a name="line.206"></a>
+<span class="sourceLineNo">207</span>                knapsackHelper.addImport(status);<a name="line.207"></a>
+<span class="sourceLineNo">208</span>                this.bulkClient = new BulkTransportClient();<a name="line.208"></a>
+<span class="sourceLineNo">209</span>                Settings settings = KnapsackHelper.clientSettings(environment, destination);<a name="line.209"></a>
+<span class="sourceLineNo">210</span>                bulkClient.flushInterval(TimeValue.timeValueSeconds(5))<a name="line.210"></a>
+<span class="sourceLineNo">211</span>                    .maxActionsPerBulkRequest(maxActionsPerBulkRequest)<a name="line.211"></a>
+<span class="sourceLineNo">212</span>                    .maxConcurrentBulkRequests(maxBulkConcurrency)<a name="line.212"></a>
+<span class="sourceLineNo">213</span>                    .newClient(destination, settings);<a name="line.213"></a>
+<span class="sourceLineNo">214</span>                logger.info("waiting for healthy cluster...");<a name="line.214"></a>
+<span class="sourceLineNo">215</span>                bulkClient.waitForCluster(ClusterHealthStatus.YELLOW, timeout);<a name="line.215"></a>
+<span class="sourceLineNo">216</span>                logger.info("... cluster is ready");<a name="line.216"></a>
+<span class="sourceLineNo">217</span>                // we can't disable refresh for better bulk performance<a name="line.217"></a>
+<span class="sourceLineNo">218</span>                // because we do not know beforehand what index and type are in the archive<a name="line.218"></a>
+<span class="sourceLineNo">219</span>                packets = newLinkedHashMap();<a name="line.219"></a>
+<span class="sourceLineNo">220</span>                Packet&lt;String&gt; packet;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>                String lastCoord = null;<a name="line.221"></a>
+<span class="sourceLineNo">222</span>                int count = 0;<a name="line.222"></a>
+<span class="sourceLineNo">223</span>                while ((packet = session.read()) != null) {<a name="line.223"></a>
+<span class="sourceLineNo">224</span>                    count++;<a name="line.224"></a>
+<span class="sourceLineNo">225</span>                    if (limit &gt; 0) {<a name="line.225"></a>
+<span class="sourceLineNo">226</span>                        if (count &gt; limit) {<a name="line.226"></a>
+<span class="sourceLineNo">227</span>                            logger.warn("limit exceeded: {}", limit);<a name="line.227"></a>
+<span class="sourceLineNo">228</span>                            break;<a name="line.228"></a>
+<span class="sourceLineNo">229</span>                        }<a name="line.229"></a>
+<span class="sourceLineNo">230</span>                    }<a name="line.230"></a>
+<span class="sourceLineNo">231</span>                    String[] entry = KnapsackPacket.decodeName(packet.name());<a name="line.231"></a>
+<span class="sourceLineNo">232</span>                    if (entry.length &lt; 2) {<a name="line.232"></a>
+<span class="sourceLineNo">233</span>                        throw new KnapsackException("archive entry too short, can't import");<a name="line.233"></a>
+<span class="sourceLineNo">234</span>                    }<a name="line.234"></a>
+<span class="sourceLineNo">235</span>                    String index = entry[0];<a name="line.235"></a>
+<span class="sourceLineNo">236</span>                    String type = entry[1];<a name="line.236"></a>
+<span class="sourceLineNo">237</span>                    // entry length != 4 ? older knapsack format<a name="line.237"></a>
+<span class="sourceLineNo">238</span>                    String id = entry.length &gt; 2 ? entry[2] : null;<a name="line.238"></a>
+<span class="sourceLineNo">239</span>                    String field = entry.length &gt; 3 ? entry[3] : "_source";<a name="line.239"></a>
+<span class="sourceLineNo">240</span>                    if ("_settings".equals(type)) {<a name="line.240"></a>
+<span class="sourceLineNo">241</span>                        index = mapIndex(index);<a name="line.241"></a>
+<span class="sourceLineNo">242</span>                        String settingsStr;<a name="line.242"></a>
+<span class="sourceLineNo">243</span>                        // override settings by user request<a name="line.243"></a>
+<span class="sourceLineNo">244</span>                        if (params.containsKey(index + "_settings")) {<a name="line.244"></a>
+<span class="sourceLineNo">245</span>                            InputStreamReader reader =<a name="line.245"></a>
+<span class="sourceLineNo">246</span>                                    new InputStreamReader(new FileInputStream(params.get(index + "_settings")), "UTF-8");<a name="line.246"></a>
+<span class="sourceLineNo">247</span>                            settingsStr = Streams.copyToString(reader);<a name="line.247"></a>
+<span class="sourceLineNo">248</span>                            reader.close();<a name="line.248"></a>
+<span class="sourceLineNo">249</span>                        } else {<a name="line.249"></a>
+<span class="sourceLineNo">250</span>                            settingsStr = packet.packet();<a name="line.250"></a>
+<span class="sourceLineNo">251</span>                        }<a name="line.251"></a>
+<span class="sourceLineNo">252</span>                        if (!"_all".equals(index)) {<a name="line.252"></a>
+<span class="sourceLineNo">253</span>                            logger.info("index {}: got settings {}", index, settingsStr);<a name="line.253"></a>
+<span class="sourceLineNo">254</span>                            CreateIndexRequest createIndexRequest = indexRequestMap.get(index);<a name="line.254"></a>
+<span class="sourceLineNo">255</span>                            if (createIndexRequest == null) {<a name="line.255"></a>
+<span class="sourceLineNo">256</span>                                createIndexRequest = createIndexRequest(index);<a name="line.256"></a>
+<span class="sourceLineNo">257</span>                                indexRequestMap.put(index, createIndexRequest);<a name="line.257"></a>
+<span class="sourceLineNo">258</span>                            }<a name="line.258"></a>
+<span class="sourceLineNo">259</span>                            ImmutableSettings.Builder indexSettingsBuilder = ImmutableSettings.settingsBuilder()<a name="line.259"></a>
+<span class="sourceLineNo">260</span>                                    .loadFromSource(settingsStr);<a name="line.260"></a>
+<span class="sourceLineNo">261</span>                            indexReplicaMap.put(index, indexSettingsBuilder.get("index.number_of_replicas"));<a name="line.261"></a>
+<span class="sourceLineNo">262</span>                            // get settings, but overwrite replica, and disable refresh for faster bulk<a name="line.262"></a>
+<span class="sourceLineNo">263</span>                            Settings indexSettings = indexSettingsBuilder<a name="line.263"></a>
+<span class="sourceLineNo">264</span>                                    .put("index.refresh_interval", -1)<a name="line.264"></a>
+<span class="sourceLineNo">265</span>                                    .put("index.number_of_replicas", 0)<a name="line.265"></a>
+<span class="sourceLineNo">266</span>                                    .build();<a name="line.266"></a>
+<span class="sourceLineNo">267</span>                            logger.info("index {}: effective settings {}", index, indexSettings.getAsMap());<a name="line.267"></a>
+<span class="sourceLineNo">268</span>                            createIndexRequest.settings(indexSettings);<a name="line.268"></a>
+<span class="sourceLineNo">269</span>                        }<a name="line.269"></a>
+<span class="sourceLineNo">270</span>                    }<a name="line.270"></a>
+<span class="sourceLineNo">271</span>                    else if ("_mapping".equals(id)) {<a name="line.271"></a>
+<span class="sourceLineNo">272</span>                        type = mapType(index, type);<a name="line.272"></a>
+<span class="sourceLineNo">273</span>                        index = mapIndex(index);<a name="line.273"></a>
+<span class="sourceLineNo">274</span>                        String mapping;<a name="line.274"></a>
+<span class="sourceLineNo">275</span>                        // override mappings by user request<a name="line.275"></a>
+<span class="sourceLineNo">276</span>                        if (params.containsKey(index + "_" + type + "_mapping")) {<a name="line.276"></a>
+<span class="sourceLineNo">277</span>                            InputStreamReader reader =<a name="line.277"></a>
+<span class="sourceLineNo">278</span>                                    new InputStreamReader(new FileInputStream(params.get(index + "_" + type + "_mapping")), "UTF-8");<a name="line.278"></a>
+<span class="sourceLineNo">279</span>                            mapping = Streams.copyToString(reader);<a name="line.279"></a>
+<span class="sourceLineNo">280</span>                            reader.close();<a name="line.280"></a>
+<span class="sourceLineNo">281</span>                        } else {<a name="line.281"></a>
+<span class="sourceLineNo">282</span>                            mapping = packet.packet();<a name="line.282"></a>
+<span class="sourceLineNo">283</span>                        }<a name="line.283"></a>
+<span class="sourceLineNo">284</span>                        if (!"_all".equals(index)) {<a name="line.284"></a>
+<span class="sourceLineNo">285</span>                            logger.info("index {}: got mapping {}", index, mapping);<a name="line.285"></a>
+<span class="sourceLineNo">286</span>                            CreateIndexRequest createIndexRequest = indexRequestMap.get(index);<a name="line.286"></a>
+<span class="sourceLineNo">287</span>                            if (createIndexRequest == null) {<a name="line.287"></a>
+<span class="sourceLineNo">288</span>                                createIndexRequest = createIndexRequest(index);<a name="line.288"></a>
+<span class="sourceLineNo">289</span>                                indexRequestMap.put(index, createIndexRequest);<a name="line.289"></a>
+<span class="sourceLineNo">290</span>                            }<a name="line.290"></a>
+<span class="sourceLineNo">291</span>                            createIndexRequest.mapping(type, mapping);<a name="line.291"></a>
+<span class="sourceLineNo">292</span>                        }<a name="line.292"></a>
+<span class="sourceLineNo">293</span>                    } else {<a name="line.293"></a>
+<span class="sourceLineNo">294</span>                        // normal document fields<a name="line.294"></a>
+<span class="sourceLineNo">295</span>                        String coord = index + File.separator + type + File.separator + id;<a name="line.295"></a>
+<span class="sourceLineNo">296</span>                        if (!coord.equals(lastCoord) &amp;&amp; !packets.isEmpty()) {<a name="line.296"></a>
+<span class="sourceLineNo">297</span>                            indexPackets(packets);<a name="line.297"></a>
+<span class="sourceLineNo">298</span>                            packets.clear();<a name="line.298"></a>
+<span class="sourceLineNo">299</span>                        }<a name="line.299"></a>
+<span class="sourceLineNo">300</span>                        packets.put(field, packet);<a name="line.300"></a>
+<span class="sourceLineNo">301</span>                        lastCoord = coord;<a name="line.301"></a>
+<span class="sourceLineNo">302</span>                    }<a name="line.302"></a>
+<span class="sourceLineNo">303</span>                }<a name="line.303"></a>
+<span class="sourceLineNo">304</span>                if (!packets.isEmpty()) {<a name="line.304"></a>
+<span class="sourceLineNo">305</span>                    indexPackets(packets);<a name="line.305"></a>
+<span class="sourceLineNo">306</span>                }<a name="line.306"></a>
+<span class="sourceLineNo">307</span>                logger.info("end of import: {}", status);<a name="line.307"></a>
+<span class="sourceLineNo">308</span>                session.close();<a name="line.308"></a>
+<span class="sourceLineNo">309</span>                for (String index : indexReplicaMap.keySet()) {<a name="line.309"></a>
+<span class="sourceLineNo">310</span>                    try {<a name="line.310"></a>
+<span class="sourceLineNo">311</span>                        logger.info("setting refresh rate for index {}", index);<a name="line.311"></a>
+<span class="sourceLineNo">312</span>                        bulkClient.stopBulk(index);<a name="line.312"></a>
+<span class="sourceLineNo">313</span>                        Integer replica = Integer.parseInt(indexReplicaMap.get(index));<a name="line.313"></a>
+<span class="sourceLineNo">314</span>                        logger.info("setting replica level {} for index {}", replica, index);<a name="line.314"></a>
+<span class="sourceLineNo">315</span>                        bulkClient.updateReplicaLevel(index, replica);<a name="line.315"></a>
+<span class="sourceLineNo">316</span>                    } catch (Exception e) {<a name="line.316"></a>
+<span class="sourceLineNo">317</span>                        logger.error(e.getMessage(), e);<a name="line.317"></a>
+<span class="sourceLineNo">318</span>                    }<a name="line.318"></a>
+<span class="sourceLineNo">319</span>                }<a name="line.319"></a>
+<span class="sourceLineNo">320</span>                bulkClient.shutdown();<a name="line.320"></a>
+<span class="sourceLineNo">321</span>                bulkClient = null;<a name="line.321"></a>
+<span class="sourceLineNo">322</span>            } catch (Throwable e) {<a name="line.322"></a>
+<span class="sourceLineNo">323</span>                logger.error(e.getMessage(), e);<a name="line.323"></a>
+<span class="sourceLineNo">324</span>            } finally {<a name="line.324"></a>
+<span class="sourceLineNo">325</span>                try {<a name="line.325"></a>
+<span class="sourceLineNo">326</span>                    knapsackHelper.removeImport(status);<a name="line.326"></a>
+<span class="sourceLineNo">327</span>                } catch (IOException ex) {<a name="line.327"></a>
+<span class="sourceLineNo">328</span>                    logger.error(ex.getMessage(), ex);<a name="line.328"></a>
+<span class="sourceLineNo">329</span>                }<a name="line.329"></a>
+<span class="sourceLineNo">330</span>            }<a name="line.330"></a>
+<span class="sourceLineNo">331</span>        }<a name="line.331"></a>
+<span class="sourceLineNo">332</span><a name="line.332"></a>
+<span class="sourceLineNo">333</span>        private void indexPackets(Map&lt;String, Packet&lt;String&gt;&gt; packets) throws IOException {<a name="line.333"></a>
+<span class="sourceLineNo">334</span>            String entryName = packets.values().iterator().next().name();<a name="line.334"></a>
+<span class="sourceLineNo">335</span>            String[] entry = KnapsackPacket.decodeName(entryName);<a name="line.335"></a>
+<span class="sourceLineNo">336</span>            if (entry.length &lt; 3) {<a name="line.336"></a>
+<span class="sourceLineNo">337</span>                throw new KnapsackException("entry too short: " + entryName);<a name="line.337"></a>
+<span class="sourceLineNo">338</span>            }<a name="line.338"></a>
+<span class="sourceLineNo">339</span>            String index = entry[0];<a name="line.339"></a>
+<span class="sourceLineNo">340</span>            String type = entry[1];<a name="line.340"></a>
+<span class="sourceLineNo">341</span>            String id = entry[2];<a name="line.341"></a>
+<span class="sourceLineNo">342</span>            if (indexRequestMap.containsKey(index)) {<a name="line.342"></a>
+<span class="sourceLineNo">343</span>                CreateIndexRequest createIndexRequest = indexRequestMap.remove(index);<a name="line.343"></a>
+<span class="sourceLineNo">344</span>                if (request.paramAsBoolean("createIndex", true)) {<a name="line.344"></a>
+<span class="sourceLineNo">345</span>                    logger.info("creating index {}", index);<a name="line.345"></a>
+<span class="sourceLineNo">346</span>                    createIndexRequest.timeout(timeout);<a name="line.346"></a>
+<span class="sourceLineNo">347</span>                    try {<a name="line.347"></a>
+<span class="sourceLineNo">348</span>                        CreateIndexResponse response = bulkClient.client().admin().indices()<a name="line.348"></a>
+<span class="sourceLineNo">349</span>                                .create(createIndexRequest).actionGet();<a name="line.349"></a>
+<span class="sourceLineNo">350</span>                        if (!response.isAcknowledged()) {<a name="line.350"></a>
+<span class="sourceLineNo">351</span>                            logger.warn("index creation was not acknowledged");<a name="line.351"></a>
+<span class="sourceLineNo">352</span>                        }<a name="line.352"></a>
+<span class="sourceLineNo">353</span>                    } catch (IndexAlreadyExistsException e) {<a name="line.353"></a>
+<span class="sourceLineNo">354</span>                        if (request.paramAsBoolean("createIndex", true)) {<a name="line.354"></a>
+<span class="sourceLineNo">355</span>                            throw e;<a name="line.355"></a>
+<span class="sourceLineNo">356</span>                        } else {<a name="line.356"></a>
+<span class="sourceLineNo">357</span>                            logger.warn("index already exists: {}", index);<a name="line.357"></a>
+<span class="sourceLineNo">358</span>                        }<a name="line.358"></a>
+<span class="sourceLineNo">359</span>                    }<a name="line.359"></a>
+<span class="sourceLineNo">360</span>                }<a name="line.360"></a>
+<span class="sourceLineNo">361</span>            }<a name="line.361"></a>
+<span class="sourceLineNo">362</span>            IndexRequest indexRequest = new IndexRequest(mapIndex(index),<a name="line.362"></a>
+<span class="sourceLineNo">363</span>                    mapType(index, type), id);<a name="line.363"></a>
+<span class="sourceLineNo">364</span>            for (String f : packets.keySet()) {<a name="line.364"></a>
+<span class="sourceLineNo">365</span>                if (f == null) {<a name="line.365"></a>
+<span class="sourceLineNo">366</span>                    continue;<a name="line.366"></a>
+<span class="sourceLineNo">367</span>                }<a name="line.367"></a>
+<span class="sourceLineNo">368</span>                if ("_parent".equals(f)) {<a name="line.368"></a>
+<span class="sourceLineNo">369</span>                    indexRequest.parent(packets.get(f).packet());<a name="line.369"></a>
+<span class="sourceLineNo">370</span>                } else if ("_routing".equals(f)) {<a name="line.370"></a>
+<span class="sourceLineNo">371</span>                    indexRequest.routing(packets.get(f).packet());<a name="line.371"></a>
+<span class="sourceLineNo">372</span>                } else if ("_timestamp".equals(f)) {<a name="line.372"></a>
+<span class="sourceLineNo">373</span>                    indexRequest.timestamp(packets.get(f).packet());<a name="line.373"></a>
+<span class="sourceLineNo">374</span>                } else if ("_version".equals(f)) {<a name="line.374"></a>
+<span class="sourceLineNo">375</span>                    indexRequest.versionType(VersionType.EXTERNAL)<a name="line.375"></a>
+<span class="sourceLineNo">376</span>                            .version(Long.parseLong(packets.get(f).packet()));<a name="line.376"></a>
+<span class="sourceLineNo">377</span>                } else if ("_source".equals(f)) {<a name="line.377"></a>
+<span class="sourceLineNo">378</span>                    indexRequest.source(packets.get(f).packet());<a name="line.378"></a>
+<span class="sourceLineNo">379</span>                } else {<a name="line.379"></a>
+<span class="sourceLineNo">380</span>                    indexRequest.source(f, packets.get(f).packet());<a name="line.380"></a>
+<span class="sourceLineNo">381</span>                }<a name="line.381"></a>
+<span class="sourceLineNo">382</span>            }<a name="line.382"></a>
+<span class="sourceLineNo">383</span>            bulkClient.index(indexRequest);<a name="line.383"></a>
+<span class="sourceLineNo">384</span>        }<a name="line.384"></a>
+<span class="sourceLineNo">385</span><a name="line.385"></a>
+<span class="sourceLineNo">386</span>        private Map&lt;String, Object&gt; toMap(String s) {<a name="line.386"></a>
+<span class="sourceLineNo">387</span>            if (s == null) {<a name="line.387"></a>
+<span class="sourceLineNo">388</span>                logger.warn("no map defined");<a name="line.388"></a>
+<span class="sourceLineNo">389</span>                return newHashMap();<a name="line.389"></a>
+<span class="sourceLineNo">390</span>            }<a name="line.390"></a>
+<span class="sourceLineNo">391</span>            BytesArray ref = new BytesArray(s);<a name="line.391"></a>
+<span class="sourceLineNo">392</span>            try {<a name="line.392"></a>
+<span class="sourceLineNo">393</span>                byte[] b = ref.hasArray() ? ref.array() : ref.toBytes();<a name="line.393"></a>
+<span class="sourceLineNo">394</span>                XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(b, 0, b.length);<a name="line.394"></a>
+<span class="sourceLineNo">395</span>                return parser.mapAndClose();<a name="line.395"></a>
+<span class="sourceLineNo">396</span>            } catch (IOException e) {<a name="line.396"></a>
+<span class="sourceLineNo">397</span>                logger.warn("parse error while reading map", e);<a name="line.397"></a>
+<span class="sourceLineNo">398</span>                return newHashMap();<a name="line.398"></a>
+<span class="sourceLineNo">399</span>            }<a name="line.399"></a>
+<span class="sourceLineNo">400</span>        }<a name="line.400"></a>
+<span class="sourceLineNo">401</span><a name="line.401"></a>
+<span class="sourceLineNo">402</span>        private String mapIndex(String index) {<a name="line.402"></a>
+<span class="sourceLineNo">403</span>            return map.containsKey(index) ? map.get(index).toString() : index;<a name="line.403"></a>
+<span class="sourceLineNo">404</span>        }<a name="line.404"></a>
+<span class="sourceLineNo">405</span><a name="line.405"></a>
+<span class="sourceLineNo">406</span>        private String mapType(String index, String type) {<a name="line.406"></a>
+<span class="sourceLineNo">407</span>            String s = index + "/" + type;<a name="line.407"></a>
+<span class="sourceLineNo">408</span>            return map.containsKey(s) ? map.get(s).toString() : type;<a name="line.408"></a>
+<span class="sourceLineNo">409</span>        }<a name="line.409"></a>
+<span class="sourceLineNo">410</span>    }<a name="line.410"></a>
+<span class="sourceLineNo">411</span><a name="line.411"></a>
+<span class="sourceLineNo">412</span>    private class RestKnapsackImportState implements RestHandler {<a name="line.412"></a>
+<span class="sourceLineNo">413</span><a name="line.413"></a>
+<span class="sourceLineNo">414</span>        @Override<a name="line.414"></a>
+<span class="sourceLineNo">415</span>        public void handleRequest(RestRequest request, RestChannel channel) {<a name="line.415"></a>
+<span class="sourceLineNo">416</span>            try {<a name="line.416"></a>
+<span class="sourceLineNo">417</span>                XContentBuilder builder = restContentBuilder(request);<a name="line.417"></a>
+<span class="sourceLineNo">418</span>                builder.startObject()<a name="line.418"></a>
+<span class="sourceLineNo">419</span>                        .field("imports")<a name="line.419"></a>
+<span class="sourceLineNo">420</span>                        .startArray();<a name="line.420"></a>
+<span class="sourceLineNo">421</span>                for (KnapsackStatus export : knapsackHelper.getImports()) {<a name="line.421"></a>
+<span class="sourceLineNo">422</span>                    export.toXContent(builder, EMPTY_PARAMS);<a name="line.422"></a>
+<span class="sourceLineNo">423</span>                }<a name="line.423"></a>
+<span class="sourceLineNo">424</span>                builder.endArray()<a name="line.424"></a>
+<span class="sourceLineNo">425</span>                        .endObject();<a name="line.425"></a>
+<span class="sourceLineNo">426</span>                channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.426"></a>
+<span class="sourceLineNo">427</span>            } catch (IOException ioe) {<a name="line.427"></a>
+<span class="sourceLineNo">428</span>                try {<a name="line.428"></a>
+<span class="sourceLineNo">429</span>                    channel.sendResponse(new XContentThrowableRestResponse(request, ioe));<a name="line.429"></a>
+<span class="sourceLineNo">430</span>                } catch (IOException e) {<a name="line.430"></a>
+<span class="sourceLineNo">431</span>                    logger.error("unable to send response to client");<a name="line.431"></a>
+<span class="sourceLineNo">432</span>                }<a name="line.432"></a>
+<span class="sourceLineNo">433</span>            }<a name="line.433"></a>
+<span class="sourceLineNo">434</span>        }<a name="line.434"></a>
+<span class="sourceLineNo">435</span>    }<a name="line.435"></a>
+<span class="sourceLineNo">436</span><a name="line.436"></a>
+<span class="sourceLineNo">437</span>    private class RestKnapsackImportAbort implements RestHandler {<a name="line.437"></a>
+<span class="sourceLineNo">438</span><a name="line.438"></a>
+<span class="sourceLineNo">439</span>        @Override<a name="line.439"></a>
+<span class="sourceLineNo">440</span>        public void handleRequest(RestRequest request, RestChannel channel) {<a name="line.440"></a>
+<span class="sourceLineNo">441</span>            try {<a name="line.441"></a>
+<span class="sourceLineNo">442</span>                XContentBuilder builder = restContentBuilder(request);<a name="line.442"></a>
+<span class="sourceLineNo">443</span>                builder.startObject()<a name="line.443"></a>
+<span class="sourceLineNo">444</span>                        .field("imports")<a name="line.444"></a>
+<span class="sourceLineNo">445</span>                        .startArray();<a name="line.445"></a>
+<span class="sourceLineNo">446</span>                for (KnapsackStatus export : knapsackHelper.getImports()) {<a name="line.446"></a>
+<span class="sourceLineNo">447</span>                    export.toXContent(builder, EMPTY_PARAMS);<a name="line.447"></a>
+<span class="sourceLineNo">448</span>                }<a name="line.448"></a>
+<span class="sourceLineNo">449</span>                builder.endArray().endObject();<a name="line.449"></a>
+<span class="sourceLineNo">450</span>                executor.shutdownNow();<a name="line.450"></a>
+<span class="sourceLineNo">451</span>                executor = EsExecutors.newScaling(0,10, 7L, TimeUnit.DAYS,<a name="line.451"></a>
+<span class="sourceLineNo">452</span>                       EsExecutors.daemonThreadFactory(settings, "knapsack-import"));<a name="line.452"></a>
+<span class="sourceLineNo">453</span>                channel.sendResponse(new XContentRestResponse(request, OK, builder));<a name="line.453"></a>
+<span class="sourceLineNo">454</span>            } catch (IOException ioe) {<a name="line.454"></a>
+<span class="sourceLineNo">455</span>                try {<a name="line.455"></a>
+<span class="sourceLineNo">456</span>                    channel.sendResponse(new XContentThrowableRestResponse(request, ioe));<a name="line.456"></a>
+<span class="sourceLineNo">457</span>                } catch (IOException e) {<a name="line.457"></a>
+<span class="sourceLineNo">458</span>                    logger.error("unable to send response to client");<a name="line.458"></a>
+<span class="sourceLineNo">459</span>                }<a name="line.459"></a>
+<span class="sourceLineNo">460</span>            }<a name="line.460"></a>
+<span class="sourceLineNo">461</span>        }<a name="line.461"></a>
+<span class="sourceLineNo">462</span>    }<a name="line.462"></a>
+<span class="sourceLineNo">463</span>}<a name="line.463"></a>
 
 
 
@@ -499,6 +529,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

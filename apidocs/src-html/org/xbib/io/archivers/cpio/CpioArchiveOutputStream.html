@@ -1,455 +1,460 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.archivers.cpio;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
-<FONT color="green">005</FONT>    import org.xbib.io.archivers.ArchiveOutputStream;<a name="line.5"></a>
-<FONT color="green">006</FONT>    import org.xbib.io.archivers.ArchiveUtils;<a name="line.6"></a>
-<FONT color="green">007</FONT>    <a name="line.7"></a>
-<FONT color="green">008</FONT>    import java.io.IOException;<a name="line.8"></a>
-<FONT color="green">009</FONT>    import java.io.OutputStream;<a name="line.9"></a>
-<FONT color="green">010</FONT>    import java.util.HashMap;<a name="line.10"></a>
-<FONT color="green">011</FONT>    <a name="line.11"></a>
-<FONT color="green">012</FONT>    /**<a name="line.12"></a>
-<FONT color="green">013</FONT>     * CPIOArchiveOutputStream is a stream for writing CPIO streams. All formats of<a name="line.13"></a>
-<FONT color="green">014</FONT>     * CPIO are supported (old ASCII, old binary, new portable format and the new<a name="line.14"></a>
-<FONT color="green">015</FONT>     * portable format with CRC).<a name="line.15"></a>
-<FONT color="green">016</FONT>     * &lt;p/&gt;<a name="line.16"></a>
-<FONT color="green">017</FONT>     * &lt;p/&gt;<a name="line.17"></a>
-<FONT color="green">018</FONT>     * An entry can be written by creating an instance of CpioArchiveEntry and fill<a name="line.18"></a>
-<FONT color="green">019</FONT>     * it with the necessary values and put it into the CPIO stream. Afterwards<a name="line.19"></a>
-<FONT color="green">020</FONT>     * write the contents of the file into the CPIO stream. Either close the stream<a name="line.20"></a>
-<FONT color="green">021</FONT>     * by calling finish() or put a next entry into the cpio stream.<a name="line.21"></a>
-<FONT color="green">022</FONT>     * &lt;p/&gt;<a name="line.22"></a>
-<FONT color="green">023</FONT>     * &lt;code&gt;&lt;pre&gt;<a name="line.23"></a>
-<FONT color="green">024</FONT>     * CpioArchiveOutputStream out = new CpioArchiveOutputStream(<a name="line.24"></a>
-<FONT color="green">025</FONT>     *         new FileOutputStream(new File("test.cpio")));<a name="line.25"></a>
-<FONT color="green">026</FONT>     * CpioArchiveEntry entry = new CpioArchiveEntry();<a name="line.26"></a>
-<FONT color="green">027</FONT>     * entry.setName("testfile");<a name="line.27"></a>
-<FONT color="green">028</FONT>     * String contents = &amp;quot;12345&amp;quot;;<a name="line.28"></a>
-<FONT color="green">029</FONT>     * entry.setFileSize(contents.length());<a name="line.29"></a>
-<FONT color="green">030</FONT>     * entry.setMode(CpioConstants.C_ISREG); // regular file<a name="line.30"></a>
-<FONT color="green">031</FONT>     * ... set other attributes, e.g. time, number of links<a name="line.31"></a>
-<FONT color="green">032</FONT>     * out.putArchiveEntry(entry);<a name="line.32"></a>
-<FONT color="green">033</FONT>     * out.write(testContents.getBytes());<a name="line.33"></a>
-<FONT color="green">034</FONT>     * out.close();<a name="line.34"></a>
-<FONT color="green">035</FONT>     * &lt;/pre&gt;&lt;/code&gt;<a name="line.35"></a>
-<FONT color="green">036</FONT>     * &lt;p/&gt;<a name="line.36"></a>
-<FONT color="green">037</FONT>     * Note: This implementation should be compatible to cpio 2.5<a name="line.37"></a>
-<FONT color="green">038</FONT>     */<a name="line.38"></a>
-<FONT color="green">039</FONT>    public class CpioArchiveOutputStream extends ArchiveOutputStream implements<a name="line.39"></a>
-<FONT color="green">040</FONT>            CpioConstants {<a name="line.40"></a>
-<FONT color="green">041</FONT>    <a name="line.41"></a>
-<FONT color="green">042</FONT>        private CpioArchiveEntry entry;<a name="line.42"></a>
-<FONT color="green">043</FONT>    <a name="line.43"></a>
-<FONT color="green">044</FONT>        private boolean closed = false;<a name="line.44"></a>
-<FONT color="green">045</FONT>    <a name="line.45"></a>
-<FONT color="green">046</FONT>        /**<a name="line.46"></a>
-<FONT color="green">047</FONT>         * indicates if this archive is finished<a name="line.47"></a>
-<FONT color="green">048</FONT>         */<a name="line.48"></a>
-<FONT color="green">049</FONT>        private boolean finished;<a name="line.49"></a>
-<FONT color="green">050</FONT>    <a name="line.50"></a>
-<FONT color="green">051</FONT>        private final short entryFormat;<a name="line.51"></a>
-<FONT color="green">052</FONT>    <a name="line.52"></a>
-<FONT color="green">053</FONT>        private final HashMap&lt;String, CpioArchiveEntry&gt; names =<a name="line.53"></a>
-<FONT color="green">054</FONT>                new HashMap&lt;String, CpioArchiveEntry&gt;();<a name="line.54"></a>
-<FONT color="green">055</FONT>    <a name="line.55"></a>
-<FONT color="green">056</FONT>        private long crc = 0;<a name="line.56"></a>
-<FONT color="green">057</FONT>    <a name="line.57"></a>
-<FONT color="green">058</FONT>        private long written;<a name="line.58"></a>
-<FONT color="green">059</FONT>    <a name="line.59"></a>
-<FONT color="green">060</FONT>        private final OutputStream out;<a name="line.60"></a>
-<FONT color="green">061</FONT>    <a name="line.61"></a>
-<FONT color="green">062</FONT>        private final int blockSize;<a name="line.62"></a>
-<FONT color="green">063</FONT>    <a name="line.63"></a>
-<FONT color="green">064</FONT>        private long nextArtificalDeviceAndInode = 1;<a name="line.64"></a>
-<FONT color="green">065</FONT>    <a name="line.65"></a>
-<FONT color="green">066</FONT>        /**<a name="line.66"></a>
-<FONT color="green">067</FONT>         * Construct the cpio output stream with a specified format and a<a name="line.67"></a>
-<FONT color="green">068</FONT>         * blocksize of {@link CpioConstants#BLOCK_SIZE BLOCK_SIZE}.<a name="line.68"></a>
-<FONT color="green">069</FONT>         *<a name="line.69"></a>
-<FONT color="green">070</FONT>         * @param out    The cpio stream<a name="line.70"></a>
-<FONT color="green">071</FONT>         * @param format The format of the stream<a name="line.71"></a>
-<FONT color="green">072</FONT>         */<a name="line.72"></a>
-<FONT color="green">073</FONT>        public CpioArchiveOutputStream(final OutputStream out, final short format) {<a name="line.73"></a>
-<FONT color="green">074</FONT>            this(out, format, BLOCK_SIZE);<a name="line.74"></a>
-<FONT color="green">075</FONT>        }<a name="line.75"></a>
-<FONT color="green">076</FONT>    <a name="line.76"></a>
-<FONT color="green">077</FONT>        /**<a name="line.77"></a>
-<FONT color="green">078</FONT>         * Construct the cpio output stream with a specified format<a name="line.78"></a>
-<FONT color="green">079</FONT>         *<a name="line.79"></a>
-<FONT color="green">080</FONT>         * @param out       The cpio stream<a name="line.80"></a>
-<FONT color="green">081</FONT>         * @param format    The format of the stream<a name="line.81"></a>
-<FONT color="green">082</FONT>         * @param blockSize The block size of the archive.<a name="line.82"></a>
-<FONT color="green">083</FONT>         */<a name="line.83"></a>
-<FONT color="green">084</FONT>        public CpioArchiveOutputStream(final OutputStream out, final short format,<a name="line.84"></a>
-<FONT color="green">085</FONT>                                       final int blockSize) {<a name="line.85"></a>
-<FONT color="green">086</FONT>            this.out = out;<a name="line.86"></a>
-<FONT color="green">087</FONT>            switch (format) {<a name="line.87"></a>
-<FONT color="green">088</FONT>                case FORMAT_NEW:<a name="line.88"></a>
-<FONT color="green">089</FONT>                case FORMAT_NEW_CRC:<a name="line.89"></a>
-<FONT color="green">090</FONT>                case FORMAT_OLD_ASCII:<a name="line.90"></a>
-<FONT color="green">091</FONT>                case FORMAT_OLD_BINARY:<a name="line.91"></a>
-<FONT color="green">092</FONT>                    break;<a name="line.92"></a>
-<FONT color="green">093</FONT>                default:<a name="line.93"></a>
-<FONT color="green">094</FONT>                    throw new IllegalArgumentException("Unknown format: " + format);<a name="line.94"></a>
-<FONT color="green">095</FONT>    <a name="line.95"></a>
-<FONT color="green">096</FONT>            }<a name="line.96"></a>
-<FONT color="green">097</FONT>            this.entryFormat = format;<a name="line.97"></a>
-<FONT color="green">098</FONT>            this.blockSize = blockSize;<a name="line.98"></a>
-<FONT color="green">099</FONT>        }<a name="line.99"></a>
-<FONT color="green">100</FONT>    <a name="line.100"></a>
-<FONT color="green">101</FONT>        /**<a name="line.101"></a>
-<FONT color="green">102</FONT>         * Construct the cpio output stream. The format for this CPIO stream is the<a name="line.102"></a>
-<FONT color="green">103</FONT>         * "new" format<a name="line.103"></a>
-<FONT color="green">104</FONT>         *<a name="line.104"></a>
-<FONT color="green">105</FONT>         * @param out The cpio stream<a name="line.105"></a>
-<FONT color="green">106</FONT>         */<a name="line.106"></a>
-<FONT color="green">107</FONT>        public CpioArchiveOutputStream(final OutputStream out) {<a name="line.107"></a>
-<FONT color="green">108</FONT>            this(out, FORMAT_NEW);<a name="line.108"></a>
-<FONT color="green">109</FONT>        }<a name="line.109"></a>
-<FONT color="green">110</FONT>    <a name="line.110"></a>
-<FONT color="green">111</FONT>        /**<a name="line.111"></a>
-<FONT color="green">112</FONT>         * Check to make sure that this stream has not been closed<a name="line.112"></a>
-<FONT color="green">113</FONT>         *<a name="line.113"></a>
-<FONT color="green">114</FONT>         * @throws java.io.IOException if the stream is already closed<a name="line.114"></a>
-<FONT color="green">115</FONT>         */<a name="line.115"></a>
-<FONT color="green">116</FONT>        private void ensureOpen() throws IOException {<a name="line.116"></a>
-<FONT color="green">117</FONT>            if (this.closed) {<a name="line.117"></a>
-<FONT color="green">118</FONT>                throw new IOException("Stream closed");<a name="line.118"></a>
-<FONT color="green">119</FONT>            }<a name="line.119"></a>
-<FONT color="green">120</FONT>        }<a name="line.120"></a>
-<FONT color="green">121</FONT>    <a name="line.121"></a>
-<FONT color="green">122</FONT>        /**<a name="line.122"></a>
-<FONT color="green">123</FONT>         * Begins writing a new CPIO file entry and positions the stream to the<a name="line.123"></a>
-<FONT color="green">124</FONT>         * start of the entry data. Closes the current entry if still active. The<a name="line.124"></a>
-<FONT color="green">125</FONT>         * current time will be used if the entry has no set modification time and<a name="line.125"></a>
-<FONT color="green">126</FONT>         * the default header format will be used if no other format is specified in<a name="line.126"></a>
-<FONT color="green">127</FONT>         * the entry.<a name="line.127"></a>
-<FONT color="green">128</FONT>         *<a name="line.128"></a>
-<FONT color="green">129</FONT>         * @param entry the CPIO cpioEntry to be written<a name="line.129"></a>
-<FONT color="green">130</FONT>         * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.130"></a>
-<FONT color="green">131</FONT>         *                             occurred<a name="line.131"></a>
-<FONT color="green">132</FONT>         * @throws ClassCastException  if entry is not an instance of CpioArchiveEntry<a name="line.132"></a>
-<FONT color="green">133</FONT>         */<a name="line.133"></a>
-<FONT color="green">134</FONT>        @Override<a name="line.134"></a>
-<FONT color="green">135</FONT>        public void putArchiveEntry(ArchiveEntry entry) throws IOException {<a name="line.135"></a>
-<FONT color="green">136</FONT>            if (finished) {<a name="line.136"></a>
-<FONT color="green">137</FONT>                throw new IOException("Stream has already been finished");<a name="line.137"></a>
-<FONT color="green">138</FONT>            }<a name="line.138"></a>
-<FONT color="green">139</FONT>    <a name="line.139"></a>
-<FONT color="green">140</FONT>            CpioArchiveEntry e = (CpioArchiveEntry) entry;<a name="line.140"></a>
-<FONT color="green">141</FONT>            ensureOpen();<a name="line.141"></a>
-<FONT color="green">142</FONT>            if (this.entry != null) {<a name="line.142"></a>
-<FONT color="green">143</FONT>                closeArchiveEntry(); // close previous entry<a name="line.143"></a>
-<FONT color="green">144</FONT>            }<a name="line.144"></a>
-<FONT color="green">145</FONT>            if (e.getTime() == -1) {<a name="line.145"></a>
-<FONT color="green">146</FONT>                e.setTime(System.currentTimeMillis() / 1000);<a name="line.146"></a>
-<FONT color="green">147</FONT>            }<a name="line.147"></a>
-<FONT color="green">148</FONT>    <a name="line.148"></a>
-<FONT color="green">149</FONT>            final short format = e.getFormat();<a name="line.149"></a>
-<FONT color="green">150</FONT>            if (format != this.entryFormat) {<a name="line.150"></a>
-<FONT color="green">151</FONT>                throw new IOException("Header format: " + format + " does not match existing format: " + this.entryFormat);<a name="line.151"></a>
-<FONT color="green">152</FONT>            }<a name="line.152"></a>
-<FONT color="green">153</FONT>    <a name="line.153"></a>
-<FONT color="green">154</FONT>            if (this.names.put(e.getName(), e) != null) {<a name="line.154"></a>
-<FONT color="green">155</FONT>                throw new IOException("duplicate entry: " + e.getName());<a name="line.155"></a>
-<FONT color="green">156</FONT>            }<a name="line.156"></a>
-<FONT color="green">157</FONT>    <a name="line.157"></a>
-<FONT color="green">158</FONT>            writeHeader(e);<a name="line.158"></a>
-<FONT color="green">159</FONT>            this.entry = e;<a name="line.159"></a>
-<FONT color="green">160</FONT>            this.written = 0;<a name="line.160"></a>
-<FONT color="green">161</FONT>        }<a name="line.161"></a>
-<FONT color="green">162</FONT>    <a name="line.162"></a>
-<FONT color="green">163</FONT>        private void writeHeader(final CpioArchiveEntry e) throws IOException {<a name="line.163"></a>
-<FONT color="green">164</FONT>            switch (e.getFormat()) {<a name="line.164"></a>
-<FONT color="green">165</FONT>                case FORMAT_NEW:<a name="line.165"></a>
-<FONT color="green">166</FONT>                    out.write(ArchiveUtils.toAsciiBytes(MAGIC_NEW));<a name="line.166"></a>
-<FONT color="green">167</FONT>                    count(6);<a name="line.167"></a>
-<FONT color="green">168</FONT>                    writeNewEntry(e);<a name="line.168"></a>
-<FONT color="green">169</FONT>                    break;<a name="line.169"></a>
-<FONT color="green">170</FONT>                case FORMAT_NEW_CRC:<a name="line.170"></a>
-<FONT color="green">171</FONT>                    out.write(ArchiveUtils.toAsciiBytes(MAGIC_NEW_CRC));<a name="line.171"></a>
-<FONT color="green">172</FONT>                    count(6);<a name="line.172"></a>
-<FONT color="green">173</FONT>                    writeNewEntry(e);<a name="line.173"></a>
-<FONT color="green">174</FONT>                    break;<a name="line.174"></a>
-<FONT color="green">175</FONT>                case FORMAT_OLD_ASCII:<a name="line.175"></a>
-<FONT color="green">176</FONT>                    out.write(ArchiveUtils.toAsciiBytes(MAGIC_OLD_ASCII));<a name="line.176"></a>
-<FONT color="green">177</FONT>                    count(6);<a name="line.177"></a>
-<FONT color="green">178</FONT>                    writeOldAsciiEntry(e);<a name="line.178"></a>
-<FONT color="green">179</FONT>                    break;<a name="line.179"></a>
-<FONT color="green">180</FONT>                case FORMAT_OLD_BINARY:<a name="line.180"></a>
-<FONT color="green">181</FONT>                    boolean swapHalfWord = true;<a name="line.181"></a>
-<FONT color="green">182</FONT>                    writeBinaryLong(MAGIC_OLD_BINARY, 2, swapHalfWord);<a name="line.182"></a>
-<FONT color="green">183</FONT>                    writeOldBinaryEntry(e, swapHalfWord);<a name="line.183"></a>
-<FONT color="green">184</FONT>                    break;<a name="line.184"></a>
-<FONT color="green">185</FONT>            }<a name="line.185"></a>
-<FONT color="green">186</FONT>        }<a name="line.186"></a>
-<FONT color="green">187</FONT>    <a name="line.187"></a>
-<FONT color="green">188</FONT>        private void writeNewEntry(final CpioArchiveEntry entry) throws IOException {<a name="line.188"></a>
-<FONT color="green">189</FONT>            long inode = entry.getInode();<a name="line.189"></a>
-<FONT color="green">190</FONT>            long devMin = entry.getDeviceMin();<a name="line.190"></a>
-<FONT color="green">191</FONT>            if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.191"></a>
-<FONT color="green">192</FONT>                inode = devMin = 0;<a name="line.192"></a>
-<FONT color="green">193</FONT>            } else {<a name="line.193"></a>
-<FONT color="green">194</FONT>                if (inode == 0 &amp;&amp; devMin == 0) {<a name="line.194"></a>
-<FONT color="green">195</FONT>                    inode = nextArtificalDeviceAndInode &amp; 0xFFFFFFFF;<a name="line.195"></a>
-<FONT color="green">196</FONT>                    devMin = (nextArtificalDeviceAndInode++ &gt;&gt; 32) &amp; 0xFFFFFFFF;<a name="line.196"></a>
-<FONT color="green">197</FONT>                } else {<a name="line.197"></a>
-<FONT color="green">198</FONT>                    nextArtificalDeviceAndInode =<a name="line.198"></a>
-<FONT color="green">199</FONT>                            Math.max(nextArtificalDeviceAndInode,<a name="line.199"></a>
-<FONT color="green">200</FONT>                                    inode + 0x100000000L * devMin) + 1;<a name="line.200"></a>
-<FONT color="green">201</FONT>                }<a name="line.201"></a>
-<FONT color="green">202</FONT>            }<a name="line.202"></a>
-<FONT color="green">203</FONT>    <a name="line.203"></a>
-<FONT color="green">204</FONT>            writeAsciiLong(inode, 8, 16);<a name="line.204"></a>
-<FONT color="green">205</FONT>            writeAsciiLong(entry.getMode(), 8, 16);<a name="line.205"></a>
-<FONT color="green">206</FONT>            writeAsciiLong(entry.getUID(), 8, 16);<a name="line.206"></a>
-<FONT color="green">207</FONT>            writeAsciiLong(entry.getGID(), 8, 16);<a name="line.207"></a>
-<FONT color="green">208</FONT>            writeAsciiLong(entry.getNumberOfLinks(), 8, 16);<a name="line.208"></a>
-<FONT color="green">209</FONT>            writeAsciiLong(entry.getTime(), 8, 16);<a name="line.209"></a>
-<FONT color="green">210</FONT>            writeAsciiLong(entry.getEntrySize(), 8, 16);<a name="line.210"></a>
-<FONT color="green">211</FONT>            writeAsciiLong(entry.getDeviceMaj(), 8, 16);<a name="line.211"></a>
-<FONT color="green">212</FONT>            writeAsciiLong(devMin, 8, 16);<a name="line.212"></a>
-<FONT color="green">213</FONT>            writeAsciiLong(entry.getRemoteDeviceMaj(), 8, 16);<a name="line.213"></a>
-<FONT color="green">214</FONT>            writeAsciiLong(entry.getRemoteDeviceMin(), 8, 16);<a name="line.214"></a>
-<FONT color="green">215</FONT>            writeAsciiLong(entry.getName().length() + 1, 8, 16);<a name="line.215"></a>
-<FONT color="green">216</FONT>            writeAsciiLong(entry.getChksum(), 8, 16);<a name="line.216"></a>
-<FONT color="green">217</FONT>            writeCString(entry.getName());<a name="line.217"></a>
-<FONT color="green">218</FONT>            pad(entry.getHeaderPadCount());<a name="line.218"></a>
-<FONT color="green">219</FONT>        }<a name="line.219"></a>
-<FONT color="green">220</FONT>    <a name="line.220"></a>
-<FONT color="green">221</FONT>        private void writeOldAsciiEntry(final CpioArchiveEntry entry)<a name="line.221"></a>
-<FONT color="green">222</FONT>                throws IOException {<a name="line.222"></a>
-<FONT color="green">223</FONT>            long inode = entry.getInode();<a name="line.223"></a>
-<FONT color="green">224</FONT>            long device = entry.getDevice();<a name="line.224"></a>
-<FONT color="green">225</FONT>            if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.225"></a>
-<FONT color="green">226</FONT>                inode = device = 0;<a name="line.226"></a>
-<FONT color="green">227</FONT>            } else {<a name="line.227"></a>
-<FONT color="green">228</FONT>                if (inode == 0 &amp;&amp; device == 0) {<a name="line.228"></a>
-<FONT color="green">229</FONT>                    inode = nextArtificalDeviceAndInode &amp; 0777777;<a name="line.229"></a>
-<FONT color="green">230</FONT>                    device = (nextArtificalDeviceAndInode++ &gt;&gt; 18) &amp; 0777777;<a name="line.230"></a>
-<FONT color="green">231</FONT>                } else {<a name="line.231"></a>
-<FONT color="green">232</FONT>                    nextArtificalDeviceAndInode =<a name="line.232"></a>
-<FONT color="green">233</FONT>                            Math.max(nextArtificalDeviceAndInode,<a name="line.233"></a>
-<FONT color="green">234</FONT>                                    inode + 01000000 * device) + 1;<a name="line.234"></a>
-<FONT color="green">235</FONT>                }<a name="line.235"></a>
-<FONT color="green">236</FONT>            }<a name="line.236"></a>
-<FONT color="green">237</FONT>    <a name="line.237"></a>
-<FONT color="green">238</FONT>            writeAsciiLong(device, 6, 8);<a name="line.238"></a>
-<FONT color="green">239</FONT>            writeAsciiLong(inode, 6, 8);<a name="line.239"></a>
-<FONT color="green">240</FONT>            writeAsciiLong(entry.getMode(), 6, 8);<a name="line.240"></a>
-<FONT color="green">241</FONT>            writeAsciiLong(entry.getUID(), 6, 8);<a name="line.241"></a>
-<FONT color="green">242</FONT>            writeAsciiLong(entry.getGID(), 6, 8);<a name="line.242"></a>
-<FONT color="green">243</FONT>            writeAsciiLong(entry.getNumberOfLinks(), 6, 8);<a name="line.243"></a>
-<FONT color="green">244</FONT>            writeAsciiLong(entry.getRemoteDevice(), 6, 8);<a name="line.244"></a>
-<FONT color="green">245</FONT>            writeAsciiLong(entry.getTime(), 11, 8);<a name="line.245"></a>
-<FONT color="green">246</FONT>            writeAsciiLong(entry.getName().length() + 1, 6, 8);<a name="line.246"></a>
-<FONT color="green">247</FONT>            writeAsciiLong(entry.getEntrySize(), 11, 8);<a name="line.247"></a>
-<FONT color="green">248</FONT>            writeCString(entry.getName());<a name="line.248"></a>
-<FONT color="green">249</FONT>        }<a name="line.249"></a>
-<FONT color="green">250</FONT>    <a name="line.250"></a>
-<FONT color="green">251</FONT>        private void writeOldBinaryEntry(final CpioArchiveEntry entry,<a name="line.251"></a>
-<FONT color="green">252</FONT>                                         final boolean swapHalfWord) throws IOException {<a name="line.252"></a>
-<FONT color="green">253</FONT>            long inode = entry.getInode();<a name="line.253"></a>
-<FONT color="green">254</FONT>            long device = entry.getDevice();<a name="line.254"></a>
-<FONT color="green">255</FONT>            if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.255"></a>
-<FONT color="green">256</FONT>                inode = device = 0;<a name="line.256"></a>
-<FONT color="green">257</FONT>            } else {<a name="line.257"></a>
-<FONT color="green">258</FONT>                if (inode == 0 &amp;&amp; device == 0) {<a name="line.258"></a>
-<FONT color="green">259</FONT>                    inode = nextArtificalDeviceAndInode &amp; 0xFFFF;<a name="line.259"></a>
-<FONT color="green">260</FONT>                    device = (nextArtificalDeviceAndInode++ &gt;&gt; 16) &amp; 0xFFFF;<a name="line.260"></a>
-<FONT color="green">261</FONT>                } else {<a name="line.261"></a>
-<FONT color="green">262</FONT>                    nextArtificalDeviceAndInode =<a name="line.262"></a>
-<FONT color="green">263</FONT>                            Math.max(nextArtificalDeviceAndInode,<a name="line.263"></a>
-<FONT color="green">264</FONT>                                    inode + 0x10000 * device) + 1;<a name="line.264"></a>
-<FONT color="green">265</FONT>                }<a name="line.265"></a>
-<FONT color="green">266</FONT>            }<a name="line.266"></a>
-<FONT color="green">267</FONT>    <a name="line.267"></a>
-<FONT color="green">268</FONT>            writeBinaryLong(device, 2, swapHalfWord);<a name="line.268"></a>
-<FONT color="green">269</FONT>            writeBinaryLong(inode, 2, swapHalfWord);<a name="line.269"></a>
-<FONT color="green">270</FONT>            writeBinaryLong(entry.getMode(), 2, swapHalfWord);<a name="line.270"></a>
-<FONT color="green">271</FONT>            writeBinaryLong(entry.getUID(), 2, swapHalfWord);<a name="line.271"></a>
-<FONT color="green">272</FONT>            writeBinaryLong(entry.getGID(), 2, swapHalfWord);<a name="line.272"></a>
-<FONT color="green">273</FONT>            writeBinaryLong(entry.getNumberOfLinks(), 2, swapHalfWord);<a name="line.273"></a>
-<FONT color="green">274</FONT>            writeBinaryLong(entry.getRemoteDevice(), 2, swapHalfWord);<a name="line.274"></a>
-<FONT color="green">275</FONT>            writeBinaryLong(entry.getTime(), 4, swapHalfWord);<a name="line.275"></a>
-<FONT color="green">276</FONT>            writeBinaryLong(entry.getName().length() + 1, 2, swapHalfWord);<a name="line.276"></a>
-<FONT color="green">277</FONT>            writeBinaryLong(entry.getEntrySize(), 4, swapHalfWord);<a name="line.277"></a>
-<FONT color="green">278</FONT>            writeCString(entry.getName());<a name="line.278"></a>
-<FONT color="green">279</FONT>            pad(entry.getHeaderPadCount());<a name="line.279"></a>
-<FONT color="green">280</FONT>        }<a name="line.280"></a>
-<FONT color="green">281</FONT>    <a name="line.281"></a>
-<FONT color="green">282</FONT>        @Override<a name="line.282"></a>
-<FONT color="green">283</FONT>        public void closeArchiveEntry() throws IOException {<a name="line.283"></a>
-<FONT color="green">284</FONT>            if (finished) {<a name="line.284"></a>
-<FONT color="green">285</FONT>                throw new IOException("Stream has already been finished");<a name="line.285"></a>
-<FONT color="green">286</FONT>            }<a name="line.286"></a>
-<FONT color="green">287</FONT>    <a name="line.287"></a>
-<FONT color="green">288</FONT>            ensureOpen();<a name="line.288"></a>
-<FONT color="green">289</FONT>    <a name="line.289"></a>
-<FONT color="green">290</FONT>            if (entry == null) {<a name="line.290"></a>
-<FONT color="green">291</FONT>                throw new IOException("Trying to close non-existent entry");<a name="line.291"></a>
-<FONT color="green">292</FONT>            }<a name="line.292"></a>
-<FONT color="green">293</FONT>    <a name="line.293"></a>
-<FONT color="green">294</FONT>            if (this.entry.getEntrySize() != this.written) {<a name="line.294"></a>
-<FONT color="green">295</FONT>                throw new IOException("invalid entry size (expected "<a name="line.295"></a>
-<FONT color="green">296</FONT>                        + this.entry.getEntrySize() + " but got " + this.written<a name="line.296"></a>
-<FONT color="green">297</FONT>                        + " bytes)");<a name="line.297"></a>
-<FONT color="green">298</FONT>            }<a name="line.298"></a>
-<FONT color="green">299</FONT>            pad(this.entry.getDataPadCount());<a name="line.299"></a>
-<FONT color="green">300</FONT>            if (this.entry.getFormat() == FORMAT_NEW_CRC<a name="line.300"></a>
-<FONT color="green">301</FONT>                    &amp;&amp; this.crc != this.entry.getChksum()) {<a name="line.301"></a>
-<FONT color="green">302</FONT>                throw new IOException("CRC Error");<a name="line.302"></a>
-<FONT color="green">303</FONT>            }<a name="line.303"></a>
-<FONT color="green">304</FONT>            this.entry = null;<a name="line.304"></a>
-<FONT color="green">305</FONT>            this.crc = 0;<a name="line.305"></a>
-<FONT color="green">306</FONT>            this.written = 0;<a name="line.306"></a>
-<FONT color="green">307</FONT>        }<a name="line.307"></a>
-<FONT color="green">308</FONT>    <a name="line.308"></a>
-<FONT color="green">309</FONT>        /**<a name="line.309"></a>
-<FONT color="green">310</FONT>         * Writes an array of bytes to the current CPIO entry data. This method will<a name="line.310"></a>
-<FONT color="green">311</FONT>         * block until all the bytes are written.<a name="line.311"></a>
-<FONT color="green">312</FONT>         *<a name="line.312"></a>
-<FONT color="green">313</FONT>         * @param b   the data to be written<a name="line.313"></a>
-<FONT color="green">314</FONT>         * @param off the start offset in the data<a name="line.314"></a>
-<FONT color="green">315</FONT>         * @param len the number of bytes that are written<a name="line.315"></a>
-<FONT color="green">316</FONT>         * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.316"></a>
-<FONT color="green">317</FONT>         *                             occurred<a name="line.317"></a>
-<FONT color="green">318</FONT>         */<a name="line.318"></a>
-<FONT color="green">319</FONT>        @Override<a name="line.319"></a>
-<FONT color="green">320</FONT>        public void write(final byte[] b, final int off, final int len)<a name="line.320"></a>
-<FONT color="green">321</FONT>                throws IOException {<a name="line.321"></a>
-<FONT color="green">322</FONT>            ensureOpen();<a name="line.322"></a>
-<FONT color="green">323</FONT>            if (off &lt; 0 || len &lt; 0 || off &gt; b.length - len) {<a name="line.323"></a>
-<FONT color="green">324</FONT>                throw new IndexOutOfBoundsException();<a name="line.324"></a>
-<FONT color="green">325</FONT>            } else if (len == 0) {<a name="line.325"></a>
-<FONT color="green">326</FONT>                return;<a name="line.326"></a>
-<FONT color="green">327</FONT>            }<a name="line.327"></a>
-<FONT color="green">328</FONT>    <a name="line.328"></a>
-<FONT color="green">329</FONT>            if (this.entry == null) {<a name="line.329"></a>
-<FONT color="green">330</FONT>                throw new IOException("no current CPIO entry");<a name="line.330"></a>
-<FONT color="green">331</FONT>            }<a name="line.331"></a>
-<FONT color="green">332</FONT>            if (this.written + len &gt; this.entry.getEntrySize()) {<a name="line.332"></a>
-<FONT color="green">333</FONT>                throw new IOException("attempt to write past end of STORED entry");<a name="line.333"></a>
-<FONT color="green">334</FONT>            }<a name="line.334"></a>
-<FONT color="green">335</FONT>            out.write(b, off, len);<a name="line.335"></a>
-<FONT color="green">336</FONT>            this.written += len;<a name="line.336"></a>
-<FONT color="green">337</FONT>            if (this.entry.getFormat() == FORMAT_NEW_CRC) {<a name="line.337"></a>
-<FONT color="green">338</FONT>                for (int pos = 0; pos &lt; len; pos++) {<a name="line.338"></a>
-<FONT color="green">339</FONT>                    this.crc += b[pos] &amp; 0xFF;<a name="line.339"></a>
-<FONT color="green">340</FONT>                }<a name="line.340"></a>
-<FONT color="green">341</FONT>            }<a name="line.341"></a>
-<FONT color="green">342</FONT>            count(len);<a name="line.342"></a>
-<FONT color="green">343</FONT>        }<a name="line.343"></a>
-<FONT color="green">344</FONT>    <a name="line.344"></a>
-<FONT color="green">345</FONT>        /**<a name="line.345"></a>
-<FONT color="green">346</FONT>         * Finishes writing the contents of the CPIO output stream without closing<a name="line.346"></a>
-<FONT color="green">347</FONT>         * the underlying stream. Use this method when applying multiple filters in<a name="line.347"></a>
-<FONT color="green">348</FONT>         * succession to the same output stream.<a name="line.348"></a>
-<FONT color="green">349</FONT>         *<a name="line.349"></a>
-<FONT color="green">350</FONT>         * @throws java.io.IOException if an I/O exception has occurred or if a CPIO file error has<a name="line.350"></a>
-<FONT color="green">351</FONT>         *                             occurred<a name="line.351"></a>
-<FONT color="green">352</FONT>         */<a name="line.352"></a>
-<FONT color="green">353</FONT>        @Override<a name="line.353"></a>
-<FONT color="green">354</FONT>        public void finish() throws IOException {<a name="line.354"></a>
-<FONT color="green">355</FONT>            ensureOpen();<a name="line.355"></a>
-<FONT color="green">356</FONT>            if (finished) {<a name="line.356"></a>
-<FONT color="green">357</FONT>                throw new IOException("This archive has already been finished");<a name="line.357"></a>
-<FONT color="green">358</FONT>            }<a name="line.358"></a>
-<FONT color="green">359</FONT>    <a name="line.359"></a>
-<FONT color="green">360</FONT>            if (this.entry != null) {<a name="line.360"></a>
-<FONT color="green">361</FONT>                throw new IOException("This archive contains unclosed entries.");<a name="line.361"></a>
-<FONT color="green">362</FONT>            }<a name="line.362"></a>
-<FONT color="green">363</FONT>            this.entry = new CpioArchiveEntry(this.entryFormat);<a name="line.363"></a>
-<FONT color="green">364</FONT>            this.entry.setName(CPIO_TRAILER);<a name="line.364"></a>
-<FONT color="green">365</FONT>            this.entry.setNumberOfLinks(1);<a name="line.365"></a>
-<FONT color="green">366</FONT>            writeHeader(this.entry);<a name="line.366"></a>
-<FONT color="green">367</FONT>            closeArchiveEntry();<a name="line.367"></a>
-<FONT color="green">368</FONT>    <a name="line.368"></a>
-<FONT color="green">369</FONT>            int lengthOfLastBlock = (int) (getBytesWritten() % blockSize);<a name="line.369"></a>
-<FONT color="green">370</FONT>            if (lengthOfLastBlock != 0) {<a name="line.370"></a>
-<FONT color="green">371</FONT>                pad(blockSize - lengthOfLastBlock);<a name="line.371"></a>
-<FONT color="green">372</FONT>            }<a name="line.372"></a>
-<FONT color="green">373</FONT>    <a name="line.373"></a>
-<FONT color="green">374</FONT>            finished = true;<a name="line.374"></a>
-<FONT color="green">375</FONT>        }<a name="line.375"></a>
-<FONT color="green">376</FONT>    <a name="line.376"></a>
-<FONT color="green">377</FONT>        /**<a name="line.377"></a>
-<FONT color="green">378</FONT>         * Closes the CPIO output stream as well as the stream being filtered.<a name="line.378"></a>
-<FONT color="green">379</FONT>         *<a name="line.379"></a>
-<FONT color="green">380</FONT>         * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.380"></a>
-<FONT color="green">381</FONT>         *                             occurred<a name="line.381"></a>
-<FONT color="green">382</FONT>         */<a name="line.382"></a>
-<FONT color="green">383</FONT>        @Override<a name="line.383"></a>
-<FONT color="green">384</FONT>        public void close() throws IOException {<a name="line.384"></a>
-<FONT color="green">385</FONT>            if (!finished) {<a name="line.385"></a>
-<FONT color="green">386</FONT>                finish();<a name="line.386"></a>
-<FONT color="green">387</FONT>            }<a name="line.387"></a>
-<FONT color="green">388</FONT>    <a name="line.388"></a>
-<FONT color="green">389</FONT>            if (!this.closed) {<a name="line.389"></a>
-<FONT color="green">390</FONT>                out.close();<a name="line.390"></a>
-<FONT color="green">391</FONT>                this.closed = true;<a name="line.391"></a>
-<FONT color="green">392</FONT>            }<a name="line.392"></a>
-<FONT color="green">393</FONT>        }<a name="line.393"></a>
-<FONT color="green">394</FONT>    <a name="line.394"></a>
-<FONT color="green">395</FONT>        private void pad(int count) throws IOException {<a name="line.395"></a>
-<FONT color="green">396</FONT>            if (count &gt; 0) {<a name="line.396"></a>
-<FONT color="green">397</FONT>                byte buff[] = new byte[count];<a name="line.397"></a>
-<FONT color="green">398</FONT>                out.write(buff);<a name="line.398"></a>
-<FONT color="green">399</FONT>                count(count);<a name="line.399"></a>
-<FONT color="green">400</FONT>            }<a name="line.400"></a>
-<FONT color="green">401</FONT>        }<a name="line.401"></a>
-<FONT color="green">402</FONT>    <a name="line.402"></a>
-<FONT color="green">403</FONT>        private void writeBinaryLong(final long number, final int length,<a name="line.403"></a>
-<FONT color="green">404</FONT>                                     final boolean swapHalfWord) throws IOException {<a name="line.404"></a>
-<FONT color="green">405</FONT>            byte tmp[] = CpioUtil.long2byteArray(number, length, swapHalfWord);<a name="line.405"></a>
-<FONT color="green">406</FONT>            out.write(tmp);<a name="line.406"></a>
-<FONT color="green">407</FONT>            count(tmp.length);<a name="line.407"></a>
-<FONT color="green">408</FONT>        }<a name="line.408"></a>
-<FONT color="green">409</FONT>    <a name="line.409"></a>
-<FONT color="green">410</FONT>        private void writeAsciiLong(final long number, final int length,<a name="line.410"></a>
-<FONT color="green">411</FONT>                                    final int radix) throws IOException {<a name="line.411"></a>
-<FONT color="green">412</FONT>            StringBuffer tmp = new StringBuffer();<a name="line.412"></a>
-<FONT color="green">413</FONT>            String tmpStr;<a name="line.413"></a>
-<FONT color="green">414</FONT>            if (radix == 16) {<a name="line.414"></a>
-<FONT color="green">415</FONT>                tmp.append(Long.toHexString(number));<a name="line.415"></a>
-<FONT color="green">416</FONT>            } else if (radix == 8) {<a name="line.416"></a>
-<FONT color="green">417</FONT>                tmp.append(Long.toOctalString(number));<a name="line.417"></a>
-<FONT color="green">418</FONT>            } else {<a name="line.418"></a>
-<FONT color="green">419</FONT>                tmp.append(Long.toString(number));<a name="line.419"></a>
-<FONT color="green">420</FONT>            }<a name="line.420"></a>
-<FONT color="green">421</FONT>    <a name="line.421"></a>
-<FONT color="green">422</FONT>            if (tmp.length() &lt;= length) {<a name="line.422"></a>
-<FONT color="green">423</FONT>                long insertLength = length - tmp.length();<a name="line.423"></a>
-<FONT color="green">424</FONT>                for (int pos = 0; pos &lt; insertLength; pos++) {<a name="line.424"></a>
-<FONT color="green">425</FONT>                    tmp.insert(0, "0");<a name="line.425"></a>
-<FONT color="green">426</FONT>                }<a name="line.426"></a>
-<FONT color="green">427</FONT>                tmpStr = tmp.toString();<a name="line.427"></a>
-<FONT color="green">428</FONT>            } else {<a name="line.428"></a>
-<FONT color="green">429</FONT>                tmpStr = tmp.substring(tmp.length() - length);<a name="line.429"></a>
-<FONT color="green">430</FONT>            }<a name="line.430"></a>
-<FONT color="green">431</FONT>            byte[] b = ArchiveUtils.toAsciiBytes(tmpStr);<a name="line.431"></a>
-<FONT color="green">432</FONT>            out.write(b);<a name="line.432"></a>
-<FONT color="green">433</FONT>            count(b.length);<a name="line.433"></a>
-<FONT color="green">434</FONT>        }<a name="line.434"></a>
-<FONT color="green">435</FONT>    <a name="line.435"></a>
-<FONT color="green">436</FONT>        /**<a name="line.436"></a>
-<FONT color="green">437</FONT>         * Writes an ASCII string to the stream followed by \0<a name="line.437"></a>
-<FONT color="green">438</FONT>         *<a name="line.438"></a>
-<FONT color="green">439</FONT>         * @param str the String to write<a name="line.439"></a>
-<FONT color="green">440</FONT>         * @throws java.io.IOException if the string couldn't be written<a name="line.440"></a>
-<FONT color="green">441</FONT>         */<a name="line.441"></a>
-<FONT color="green">442</FONT>        private void writeCString(final String str) throws IOException {<a name="line.442"></a>
-<FONT color="green">443</FONT>            byte[] b = ArchiveUtils.toAsciiBytes(str);<a name="line.443"></a>
-<FONT color="green">444</FONT>            out.write(b);<a name="line.444"></a>
-<FONT color="green">445</FONT>            out.write('\0');<a name="line.445"></a>
-<FONT color="green">446</FONT>            count(b.length + 1);<a name="line.446"></a>
-<FONT color="green">447</FONT>        }<a name="line.447"></a>
-<FONT color="green">448</FONT>    <a name="line.448"></a>
-<FONT color="green">449</FONT>    }<a name="line.449"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.archivers.cpio;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.archivers.ArchiveEntry;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.archivers.ArchiveOutputStream;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.xbib.io.archivers.ArchiveUtils;<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.IOException;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.OutputStream;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.util.HashMap;<a name="line.10"></a>
+<span class="sourceLineNo">011</span><a name="line.11"></a>
+<span class="sourceLineNo">012</span>/**<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * CPIOArchiveOutputStream is a stream for writing CPIO streams. All formats of<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * CPIO are supported (old ASCII, old binary, new portable format and the new<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * portable format with CRC).<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * &lt;p/&gt;<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * &lt;p/&gt;<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * An entry can be written by creating an instance of CpioArchiveEntry and fill<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * it with the necessary values and put it into the CPIO stream. Afterwards<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * write the contents of the file into the CPIO stream. Either close the stream<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * by calling finish() or put a next entry into the cpio stream.<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * &lt;p/&gt;<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * &lt;code&gt;&lt;pre&gt;<a name="line.23"></a>
+<span class="sourceLineNo">024</span> * CpioArchiveOutputStream out = new CpioArchiveOutputStream(<a name="line.24"></a>
+<span class="sourceLineNo">025</span> *         new FileOutputStream(new File("test.cpio")));<a name="line.25"></a>
+<span class="sourceLineNo">026</span> * CpioArchiveEntry entry = new CpioArchiveEntry();<a name="line.26"></a>
+<span class="sourceLineNo">027</span> * entry.setName("testfile");<a name="line.27"></a>
+<span class="sourceLineNo">028</span> * String contents = &amp;quot;12345&amp;quot;;<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * entry.setFileSize(contents.length());<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * entry.setMode(CpioConstants.C_ISREG); // regular file<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * ... set other attributes, e.g. time, number of links<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * out.putArchiveEntry(entry);<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * out.write(testContents.getBytes());<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * out.close();<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * &lt;/pre&gt;&lt;/code&gt;<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * &lt;p/&gt;<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * Note: This implementation should be compatible to cpio 2.5<a name="line.37"></a>
+<span class="sourceLineNo">038</span> */<a name="line.38"></a>
+<span class="sourceLineNo">039</span>public class CpioArchiveOutputStream extends ArchiveOutputStream implements<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        CpioConstants {<a name="line.40"></a>
+<span class="sourceLineNo">041</span><a name="line.41"></a>
+<span class="sourceLineNo">042</span>    private CpioArchiveEntry entry;<a name="line.42"></a>
+<span class="sourceLineNo">043</span><a name="line.43"></a>
+<span class="sourceLineNo">044</span>    private boolean closed = false;<a name="line.44"></a>
+<span class="sourceLineNo">045</span><a name="line.45"></a>
+<span class="sourceLineNo">046</span>    /**<a name="line.46"></a>
+<span class="sourceLineNo">047</span>     * indicates if this archive is finished<a name="line.47"></a>
+<span class="sourceLineNo">048</span>     */<a name="line.48"></a>
+<span class="sourceLineNo">049</span>    private boolean finished;<a name="line.49"></a>
+<span class="sourceLineNo">050</span><a name="line.50"></a>
+<span class="sourceLineNo">051</span>    private final short entryFormat;<a name="line.51"></a>
+<span class="sourceLineNo">052</span><a name="line.52"></a>
+<span class="sourceLineNo">053</span>    private final HashMap&lt;String, CpioArchiveEntry&gt; names =<a name="line.53"></a>
+<span class="sourceLineNo">054</span>            new HashMap&lt;String, CpioArchiveEntry&gt;();<a name="line.54"></a>
+<span class="sourceLineNo">055</span><a name="line.55"></a>
+<span class="sourceLineNo">056</span>    private long crc = 0;<a name="line.56"></a>
+<span class="sourceLineNo">057</span><a name="line.57"></a>
+<span class="sourceLineNo">058</span>    private long written;<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span>    private final OutputStream out;<a name="line.60"></a>
+<span class="sourceLineNo">061</span><a name="line.61"></a>
+<span class="sourceLineNo">062</span>    private final int blockSize;<a name="line.62"></a>
+<span class="sourceLineNo">063</span><a name="line.63"></a>
+<span class="sourceLineNo">064</span>    private long nextArtificalDeviceAndInode = 1;<a name="line.64"></a>
+<span class="sourceLineNo">065</span><a name="line.65"></a>
+<span class="sourceLineNo">066</span>    /**<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     * Construct the cpio output stream with a specified format and a<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * blocksize of {@link CpioConstants#BLOCK_SIZE BLOCK_SIZE}.<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     *<a name="line.69"></a>
+<span class="sourceLineNo">070</span>     * @param out    The cpio stream<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * @param format The format of the stream<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     */<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    public CpioArchiveOutputStream(final OutputStream out, final short format) {<a name="line.73"></a>
+<span class="sourceLineNo">074</span>        this(out, format, BLOCK_SIZE);<a name="line.74"></a>
+<span class="sourceLineNo">075</span>    }<a name="line.75"></a>
+<span class="sourceLineNo">076</span><a name="line.76"></a>
+<span class="sourceLineNo">077</span>    /**<a name="line.77"></a>
+<span class="sourceLineNo">078</span>     * Construct the cpio output stream with a specified format<a name="line.78"></a>
+<span class="sourceLineNo">079</span>     *<a name="line.79"></a>
+<span class="sourceLineNo">080</span>     * @param out       The cpio stream<a name="line.80"></a>
+<span class="sourceLineNo">081</span>     * @param format    The format of the stream<a name="line.81"></a>
+<span class="sourceLineNo">082</span>     * @param blockSize The block size of the archive.<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     */<a name="line.83"></a>
+<span class="sourceLineNo">084</span>    public CpioArchiveOutputStream(final OutputStream out, final short format,<a name="line.84"></a>
+<span class="sourceLineNo">085</span>                                   final int blockSize) {<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        this.out = out;<a name="line.86"></a>
+<span class="sourceLineNo">087</span>        switch (format) {<a name="line.87"></a>
+<span class="sourceLineNo">088</span>            case FORMAT_NEW:<a name="line.88"></a>
+<span class="sourceLineNo">089</span>            case FORMAT_NEW_CRC:<a name="line.89"></a>
+<span class="sourceLineNo">090</span>            case FORMAT_OLD_ASCII:<a name="line.90"></a>
+<span class="sourceLineNo">091</span>            case FORMAT_OLD_BINARY:<a name="line.91"></a>
+<span class="sourceLineNo">092</span>                break;<a name="line.92"></a>
+<span class="sourceLineNo">093</span>            default:<a name="line.93"></a>
+<span class="sourceLineNo">094</span>                throw new IllegalArgumentException("Unknown format: " + format);<a name="line.94"></a>
+<span class="sourceLineNo">095</span><a name="line.95"></a>
+<span class="sourceLineNo">096</span>        }<a name="line.96"></a>
+<span class="sourceLineNo">097</span>        this.entryFormat = format;<a name="line.97"></a>
+<span class="sourceLineNo">098</span>        this.blockSize = blockSize;<a name="line.98"></a>
+<span class="sourceLineNo">099</span>    }<a name="line.99"></a>
+<span class="sourceLineNo">100</span><a name="line.100"></a>
+<span class="sourceLineNo">101</span>    /**<a name="line.101"></a>
+<span class="sourceLineNo">102</span>     * Construct the cpio output stream. The format for this CPIO stream is the<a name="line.102"></a>
+<span class="sourceLineNo">103</span>     * "new" format<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     *<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     * @param out The cpio stream<a name="line.105"></a>
+<span class="sourceLineNo">106</span>     */<a name="line.106"></a>
+<span class="sourceLineNo">107</span>    public CpioArchiveOutputStream(final OutputStream out) {<a name="line.107"></a>
+<span class="sourceLineNo">108</span>        this(out, FORMAT_NEW);<a name="line.108"></a>
+<span class="sourceLineNo">109</span>    }<a name="line.109"></a>
+<span class="sourceLineNo">110</span><a name="line.110"></a>
+<span class="sourceLineNo">111</span>    /**<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     * Check to make sure that this stream has not been closed<a name="line.112"></a>
+<span class="sourceLineNo">113</span>     *<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * @throws java.io.IOException if the stream is already closed<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     */<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    private void ensureOpen() throws IOException {<a name="line.116"></a>
+<span class="sourceLineNo">117</span>        if (this.closed) {<a name="line.117"></a>
+<span class="sourceLineNo">118</span>            throw new IOException("Stream closed");<a name="line.118"></a>
+<span class="sourceLineNo">119</span>        }<a name="line.119"></a>
+<span class="sourceLineNo">120</span>    }<a name="line.120"></a>
+<span class="sourceLineNo">121</span><a name="line.121"></a>
+<span class="sourceLineNo">122</span>    /**<a name="line.122"></a>
+<span class="sourceLineNo">123</span>     * Begins writing a new CPIO file entry and positions the stream to the<a name="line.123"></a>
+<span class="sourceLineNo">124</span>     * start of the entry data. Closes the current entry if still active. The<a name="line.124"></a>
+<span class="sourceLineNo">125</span>     * current time will be used if the entry has no set modification time and<a name="line.125"></a>
+<span class="sourceLineNo">126</span>     * the default header format will be used if no other format is specified in<a name="line.126"></a>
+<span class="sourceLineNo">127</span>     * the entry.<a name="line.127"></a>
+<span class="sourceLineNo">128</span>     *<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     * @param entry the CPIO cpioEntry to be written<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.130"></a>
+<span class="sourceLineNo">131</span>     *                             occurred<a name="line.131"></a>
+<span class="sourceLineNo">132</span>     * @throws ClassCastException  if entry is not an instance of CpioArchiveEntry<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     */<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    @Override<a name="line.134"></a>
+<span class="sourceLineNo">135</span>    public void putArchiveEntry(ArchiveEntry entry) throws IOException {<a name="line.135"></a>
+<span class="sourceLineNo">136</span>        if (finished) {<a name="line.136"></a>
+<span class="sourceLineNo">137</span>            throw new IOException("Stream has already been finished");<a name="line.137"></a>
+<span class="sourceLineNo">138</span>        }<a name="line.138"></a>
+<span class="sourceLineNo">139</span><a name="line.139"></a>
+<span class="sourceLineNo">140</span>        CpioArchiveEntry e = (CpioArchiveEntry) entry;<a name="line.140"></a>
+<span class="sourceLineNo">141</span>        ensureOpen();<a name="line.141"></a>
+<span class="sourceLineNo">142</span>        if (this.entry != null) {<a name="line.142"></a>
+<span class="sourceLineNo">143</span>            closeArchiveEntry(); // close previous entry<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        }<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        if (e.getTime() == -1) {<a name="line.145"></a>
+<span class="sourceLineNo">146</span>            e.setTime(System.currentTimeMillis() / 1000);<a name="line.146"></a>
+<span class="sourceLineNo">147</span>        }<a name="line.147"></a>
+<span class="sourceLineNo">148</span><a name="line.148"></a>
+<span class="sourceLineNo">149</span>        final short format = e.getFormat();<a name="line.149"></a>
+<span class="sourceLineNo">150</span>        if (format != this.entryFormat) {<a name="line.150"></a>
+<span class="sourceLineNo">151</span>            throw new IOException("Header format: " + format + " does not match existing format: " + this.entryFormat);<a name="line.151"></a>
+<span class="sourceLineNo">152</span>        }<a name="line.152"></a>
+<span class="sourceLineNo">153</span><a name="line.153"></a>
+<span class="sourceLineNo">154</span>        if (this.names.put(e.getName(), e) != null) {<a name="line.154"></a>
+<span class="sourceLineNo">155</span>            throw new IOException("duplicate entry: " + e.getName());<a name="line.155"></a>
+<span class="sourceLineNo">156</span>        }<a name="line.156"></a>
+<span class="sourceLineNo">157</span><a name="line.157"></a>
+<span class="sourceLineNo">158</span>        writeHeader(e);<a name="line.158"></a>
+<span class="sourceLineNo">159</span>        this.entry = e;<a name="line.159"></a>
+<span class="sourceLineNo">160</span>        this.written = 0;<a name="line.160"></a>
+<span class="sourceLineNo">161</span>    }<a name="line.161"></a>
+<span class="sourceLineNo">162</span><a name="line.162"></a>
+<span class="sourceLineNo">163</span>    private void writeHeader(final CpioArchiveEntry e) throws IOException {<a name="line.163"></a>
+<span class="sourceLineNo">164</span>        switch (e.getFormat()) {<a name="line.164"></a>
+<span class="sourceLineNo">165</span>            case FORMAT_NEW:<a name="line.165"></a>
+<span class="sourceLineNo">166</span>                out.write(ArchiveUtils.toAsciiBytes(MAGIC_NEW));<a name="line.166"></a>
+<span class="sourceLineNo">167</span>                count(6);<a name="line.167"></a>
+<span class="sourceLineNo">168</span>                writeNewEntry(e);<a name="line.168"></a>
+<span class="sourceLineNo">169</span>                break;<a name="line.169"></a>
+<span class="sourceLineNo">170</span>            case FORMAT_NEW_CRC:<a name="line.170"></a>
+<span class="sourceLineNo">171</span>                out.write(ArchiveUtils.toAsciiBytes(MAGIC_NEW_CRC));<a name="line.171"></a>
+<span class="sourceLineNo">172</span>                count(6);<a name="line.172"></a>
+<span class="sourceLineNo">173</span>                writeNewEntry(e);<a name="line.173"></a>
+<span class="sourceLineNo">174</span>                break;<a name="line.174"></a>
+<span class="sourceLineNo">175</span>            case FORMAT_OLD_ASCII:<a name="line.175"></a>
+<span class="sourceLineNo">176</span>                out.write(ArchiveUtils.toAsciiBytes(MAGIC_OLD_ASCII));<a name="line.176"></a>
+<span class="sourceLineNo">177</span>                count(6);<a name="line.177"></a>
+<span class="sourceLineNo">178</span>                writeOldAsciiEntry(e);<a name="line.178"></a>
+<span class="sourceLineNo">179</span>                break;<a name="line.179"></a>
+<span class="sourceLineNo">180</span>            case FORMAT_OLD_BINARY:<a name="line.180"></a>
+<span class="sourceLineNo">181</span>                boolean swapHalfWord = true;<a name="line.181"></a>
+<span class="sourceLineNo">182</span>                writeBinaryLong(MAGIC_OLD_BINARY, 2, swapHalfWord);<a name="line.182"></a>
+<span class="sourceLineNo">183</span>                writeOldBinaryEntry(e, swapHalfWord);<a name="line.183"></a>
+<span class="sourceLineNo">184</span>                break;<a name="line.184"></a>
+<span class="sourceLineNo">185</span>        }<a name="line.185"></a>
+<span class="sourceLineNo">186</span>    }<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>    private void writeNewEntry(final CpioArchiveEntry entry) throws IOException {<a name="line.188"></a>
+<span class="sourceLineNo">189</span>        long inode = entry.getInode();<a name="line.189"></a>
+<span class="sourceLineNo">190</span>        long devMin = entry.getDeviceMin();<a name="line.190"></a>
+<span class="sourceLineNo">191</span>        if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.191"></a>
+<span class="sourceLineNo">192</span>            inode = devMin = 0;<a name="line.192"></a>
+<span class="sourceLineNo">193</span>        } else {<a name="line.193"></a>
+<span class="sourceLineNo">194</span>            if (inode == 0 &amp;&amp; devMin == 0) {<a name="line.194"></a>
+<span class="sourceLineNo">195</span>                inode = nextArtificalDeviceAndInode &amp; 0xFFFFFFFF;<a name="line.195"></a>
+<span class="sourceLineNo">196</span>                devMin = (nextArtificalDeviceAndInode++ &gt;&gt; 32) &amp; 0xFFFFFFFF;<a name="line.196"></a>
+<span class="sourceLineNo">197</span>            } else {<a name="line.197"></a>
+<span class="sourceLineNo">198</span>                nextArtificalDeviceAndInode =<a name="line.198"></a>
+<span class="sourceLineNo">199</span>                        Math.max(nextArtificalDeviceAndInode,<a name="line.199"></a>
+<span class="sourceLineNo">200</span>                                inode + 0x100000000L * devMin) + 1;<a name="line.200"></a>
+<span class="sourceLineNo">201</span>            }<a name="line.201"></a>
+<span class="sourceLineNo">202</span>        }<a name="line.202"></a>
+<span class="sourceLineNo">203</span><a name="line.203"></a>
+<span class="sourceLineNo">204</span>        writeAsciiLong(inode, 8, 16);<a name="line.204"></a>
+<span class="sourceLineNo">205</span>        writeAsciiLong(entry.getMode(), 8, 16);<a name="line.205"></a>
+<span class="sourceLineNo">206</span>        writeAsciiLong(entry.getUID(), 8, 16);<a name="line.206"></a>
+<span class="sourceLineNo">207</span>        writeAsciiLong(entry.getGID(), 8, 16);<a name="line.207"></a>
+<span class="sourceLineNo">208</span>        writeAsciiLong(entry.getNumberOfLinks(), 8, 16);<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        writeAsciiLong(entry.getTime(), 8, 16);<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        writeAsciiLong(entry.getEntrySize(), 8, 16);<a name="line.210"></a>
+<span class="sourceLineNo">211</span>        writeAsciiLong(entry.getDeviceMaj(), 8, 16);<a name="line.211"></a>
+<span class="sourceLineNo">212</span>        writeAsciiLong(devMin, 8, 16);<a name="line.212"></a>
+<span class="sourceLineNo">213</span>        writeAsciiLong(entry.getRemoteDeviceMaj(), 8, 16);<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        writeAsciiLong(entry.getRemoteDeviceMin(), 8, 16);<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        writeAsciiLong(entry.getName().length() + 1, 8, 16);<a name="line.215"></a>
+<span class="sourceLineNo">216</span>        writeAsciiLong(entry.getChksum(), 8, 16);<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        writeCString(entry.getName());<a name="line.217"></a>
+<span class="sourceLineNo">218</span>        pad(entry.getHeaderPadCount());<a name="line.218"></a>
+<span class="sourceLineNo">219</span>    }<a name="line.219"></a>
+<span class="sourceLineNo">220</span><a name="line.220"></a>
+<span class="sourceLineNo">221</span>    private void writeOldAsciiEntry(final CpioArchiveEntry entry)<a name="line.221"></a>
+<span class="sourceLineNo">222</span>            throws IOException {<a name="line.222"></a>
+<span class="sourceLineNo">223</span>        long inode = entry.getInode();<a name="line.223"></a>
+<span class="sourceLineNo">224</span>        long device = entry.getDevice();<a name="line.224"></a>
+<span class="sourceLineNo">225</span>        if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.225"></a>
+<span class="sourceLineNo">226</span>            inode = device = 0;<a name="line.226"></a>
+<span class="sourceLineNo">227</span>        } else {<a name="line.227"></a>
+<span class="sourceLineNo">228</span>            if (inode == 0 &amp;&amp; device == 0) {<a name="line.228"></a>
+<span class="sourceLineNo">229</span>                inode = nextArtificalDeviceAndInode &amp; 0777777;<a name="line.229"></a>
+<span class="sourceLineNo">230</span>                device = (nextArtificalDeviceAndInode++ &gt;&gt; 18) &amp; 0777777;<a name="line.230"></a>
+<span class="sourceLineNo">231</span>            } else {<a name="line.231"></a>
+<span class="sourceLineNo">232</span>                nextArtificalDeviceAndInode =<a name="line.232"></a>
+<span class="sourceLineNo">233</span>                        Math.max(nextArtificalDeviceAndInode,<a name="line.233"></a>
+<span class="sourceLineNo">234</span>                                inode + 01000000 * device) + 1;<a name="line.234"></a>
+<span class="sourceLineNo">235</span>            }<a name="line.235"></a>
+<span class="sourceLineNo">236</span>        }<a name="line.236"></a>
+<span class="sourceLineNo">237</span><a name="line.237"></a>
+<span class="sourceLineNo">238</span>        writeAsciiLong(device, 6, 8);<a name="line.238"></a>
+<span class="sourceLineNo">239</span>        writeAsciiLong(inode, 6, 8);<a name="line.239"></a>
+<span class="sourceLineNo">240</span>        writeAsciiLong(entry.getMode(), 6, 8);<a name="line.240"></a>
+<span class="sourceLineNo">241</span>        writeAsciiLong(entry.getUID(), 6, 8);<a name="line.241"></a>
+<span class="sourceLineNo">242</span>        writeAsciiLong(entry.getGID(), 6, 8);<a name="line.242"></a>
+<span class="sourceLineNo">243</span>        writeAsciiLong(entry.getNumberOfLinks(), 6, 8);<a name="line.243"></a>
+<span class="sourceLineNo">244</span>        writeAsciiLong(entry.getRemoteDevice(), 6, 8);<a name="line.244"></a>
+<span class="sourceLineNo">245</span>        writeAsciiLong(entry.getTime(), 11, 8);<a name="line.245"></a>
+<span class="sourceLineNo">246</span>        writeAsciiLong(entry.getName().length() + 1, 6, 8);<a name="line.246"></a>
+<span class="sourceLineNo">247</span>        writeAsciiLong(entry.getEntrySize(), 11, 8);<a name="line.247"></a>
+<span class="sourceLineNo">248</span>        writeCString(entry.getName());<a name="line.248"></a>
+<span class="sourceLineNo">249</span>    }<a name="line.249"></a>
+<span class="sourceLineNo">250</span><a name="line.250"></a>
+<span class="sourceLineNo">251</span>    private void writeOldBinaryEntry(final CpioArchiveEntry entry,<a name="line.251"></a>
+<span class="sourceLineNo">252</span>                                     final boolean swapHalfWord) throws IOException {<a name="line.252"></a>
+<span class="sourceLineNo">253</span>        long inode = entry.getInode();<a name="line.253"></a>
+<span class="sourceLineNo">254</span>        long device = entry.getDevice();<a name="line.254"></a>
+<span class="sourceLineNo">255</span>        if (CPIO_TRAILER.equals(entry.getName())) {<a name="line.255"></a>
+<span class="sourceLineNo">256</span>            inode = device = 0;<a name="line.256"></a>
+<span class="sourceLineNo">257</span>        } else {<a name="line.257"></a>
+<span class="sourceLineNo">258</span>            if (inode == 0 &amp;&amp; device == 0) {<a name="line.258"></a>
+<span class="sourceLineNo">259</span>                inode = nextArtificalDeviceAndInode &amp; 0xFFFF;<a name="line.259"></a>
+<span class="sourceLineNo">260</span>                device = (nextArtificalDeviceAndInode++ &gt;&gt; 16) &amp; 0xFFFF;<a name="line.260"></a>
+<span class="sourceLineNo">261</span>            } else {<a name="line.261"></a>
+<span class="sourceLineNo">262</span>                nextArtificalDeviceAndInode =<a name="line.262"></a>
+<span class="sourceLineNo">263</span>                        Math.max(nextArtificalDeviceAndInode,<a name="line.263"></a>
+<span class="sourceLineNo">264</span>                                inode + 0x10000 * device) + 1;<a name="line.264"></a>
+<span class="sourceLineNo">265</span>            }<a name="line.265"></a>
+<span class="sourceLineNo">266</span>        }<a name="line.266"></a>
+<span class="sourceLineNo">267</span><a name="line.267"></a>
+<span class="sourceLineNo">268</span>        writeBinaryLong(device, 2, swapHalfWord);<a name="line.268"></a>
+<span class="sourceLineNo">269</span>        writeBinaryLong(inode, 2, swapHalfWord);<a name="line.269"></a>
+<span class="sourceLineNo">270</span>        writeBinaryLong(entry.getMode(), 2, swapHalfWord);<a name="line.270"></a>
+<span class="sourceLineNo">271</span>        writeBinaryLong(entry.getUID(), 2, swapHalfWord);<a name="line.271"></a>
+<span class="sourceLineNo">272</span>        writeBinaryLong(entry.getGID(), 2, swapHalfWord);<a name="line.272"></a>
+<span class="sourceLineNo">273</span>        writeBinaryLong(entry.getNumberOfLinks(), 2, swapHalfWord);<a name="line.273"></a>
+<span class="sourceLineNo">274</span>        writeBinaryLong(entry.getRemoteDevice(), 2, swapHalfWord);<a name="line.274"></a>
+<span class="sourceLineNo">275</span>        writeBinaryLong(entry.getTime(), 4, swapHalfWord);<a name="line.275"></a>
+<span class="sourceLineNo">276</span>        writeBinaryLong(entry.getName().length() + 1, 2, swapHalfWord);<a name="line.276"></a>
+<span class="sourceLineNo">277</span>        writeBinaryLong(entry.getEntrySize(), 4, swapHalfWord);<a name="line.277"></a>
+<span class="sourceLineNo">278</span>        writeCString(entry.getName());<a name="line.278"></a>
+<span class="sourceLineNo">279</span>        pad(entry.getHeaderPadCount());<a name="line.279"></a>
+<span class="sourceLineNo">280</span>    }<a name="line.280"></a>
+<span class="sourceLineNo">281</span><a name="line.281"></a>
+<span class="sourceLineNo">282</span>    @Override<a name="line.282"></a>
+<span class="sourceLineNo">283</span>    public void closeArchiveEntry() throws IOException {<a name="line.283"></a>
+<span class="sourceLineNo">284</span>        if (finished) {<a name="line.284"></a>
+<span class="sourceLineNo">285</span>            throw new IOException("Stream has already been finished");<a name="line.285"></a>
+<span class="sourceLineNo">286</span>        }<a name="line.286"></a>
+<span class="sourceLineNo">287</span><a name="line.287"></a>
+<span class="sourceLineNo">288</span>        ensureOpen();<a name="line.288"></a>
+<span class="sourceLineNo">289</span><a name="line.289"></a>
+<span class="sourceLineNo">290</span>        if (entry == null) {<a name="line.290"></a>
+<span class="sourceLineNo">291</span>            throw new IOException("Trying to close non-existent entry");<a name="line.291"></a>
+<span class="sourceLineNo">292</span>        }<a name="line.292"></a>
+<span class="sourceLineNo">293</span><a name="line.293"></a>
+<span class="sourceLineNo">294</span>        if (this.entry.getEntrySize() != this.written) {<a name="line.294"></a>
+<span class="sourceLineNo">295</span>            throw new IOException("invalid entry size (expected "<a name="line.295"></a>
+<span class="sourceLineNo">296</span>                    + this.entry.getEntrySize() + " but got " + this.written<a name="line.296"></a>
+<span class="sourceLineNo">297</span>                    + " bytes)");<a name="line.297"></a>
+<span class="sourceLineNo">298</span>        }<a name="line.298"></a>
+<span class="sourceLineNo">299</span>        pad(this.entry.getDataPadCount());<a name="line.299"></a>
+<span class="sourceLineNo">300</span>        if (this.entry.getFormat() == FORMAT_NEW_CRC<a name="line.300"></a>
+<span class="sourceLineNo">301</span>                &amp;&amp; this.crc != this.entry.getChksum()) {<a name="line.301"></a>
+<span class="sourceLineNo">302</span>            throw new IOException("CRC Error");<a name="line.302"></a>
+<span class="sourceLineNo">303</span>        }<a name="line.303"></a>
+<span class="sourceLineNo">304</span>        this.entry = null;<a name="line.304"></a>
+<span class="sourceLineNo">305</span>        this.crc = 0;<a name="line.305"></a>
+<span class="sourceLineNo">306</span>        this.written = 0;<a name="line.306"></a>
+<span class="sourceLineNo">307</span>    }<a name="line.307"></a>
+<span class="sourceLineNo">308</span><a name="line.308"></a>
+<span class="sourceLineNo">309</span>    /**<a name="line.309"></a>
+<span class="sourceLineNo">310</span>     * Writes an array of bytes to the current CPIO entry data. This method will<a name="line.310"></a>
+<span class="sourceLineNo">311</span>     * block until all the bytes are written.<a name="line.311"></a>
+<span class="sourceLineNo">312</span>     *<a name="line.312"></a>
+<span class="sourceLineNo">313</span>     * @param b   the data to be written<a name="line.313"></a>
+<span class="sourceLineNo">314</span>     * @param off the start offset in the data<a name="line.314"></a>
+<span class="sourceLineNo">315</span>     * @param len the number of bytes that are written<a name="line.315"></a>
+<span class="sourceLineNo">316</span>     * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.316"></a>
+<span class="sourceLineNo">317</span>     *                             occurred<a name="line.317"></a>
+<span class="sourceLineNo">318</span>     */<a name="line.318"></a>
+<span class="sourceLineNo">319</span>    @Override<a name="line.319"></a>
+<span class="sourceLineNo">320</span>    public void write(final byte[] b, final int off, final int len)<a name="line.320"></a>
+<span class="sourceLineNo">321</span>            throws IOException {<a name="line.321"></a>
+<span class="sourceLineNo">322</span>        ensureOpen();<a name="line.322"></a>
+<span class="sourceLineNo">323</span>        if (off &lt; 0 || len &lt; 0 || off &gt; b.length - len) {<a name="line.323"></a>
+<span class="sourceLineNo">324</span>            throw new IndexOutOfBoundsException();<a name="line.324"></a>
+<span class="sourceLineNo">325</span>        } else if (len == 0) {<a name="line.325"></a>
+<span class="sourceLineNo">326</span>            return;<a name="line.326"></a>
+<span class="sourceLineNo">327</span>        }<a name="line.327"></a>
+<span class="sourceLineNo">328</span><a name="line.328"></a>
+<span class="sourceLineNo">329</span>        if (this.entry == null) {<a name="line.329"></a>
+<span class="sourceLineNo">330</span>            throw new IOException("no current CPIO entry");<a name="line.330"></a>
+<span class="sourceLineNo">331</span>        }<a name="line.331"></a>
+<span class="sourceLineNo">332</span>        if (this.written + len &gt; this.entry.getEntrySize()) {<a name="line.332"></a>
+<span class="sourceLineNo">333</span>            throw new IOException("attempt to write past end of STORED entry");<a name="line.333"></a>
+<span class="sourceLineNo">334</span>        }<a name="line.334"></a>
+<span class="sourceLineNo">335</span>        out.write(b, off, len);<a name="line.335"></a>
+<span class="sourceLineNo">336</span>        this.written += len;<a name="line.336"></a>
+<span class="sourceLineNo">337</span>        if (this.entry.getFormat() == FORMAT_NEW_CRC) {<a name="line.337"></a>
+<span class="sourceLineNo">338</span>            for (int pos = 0; pos &lt; len; pos++) {<a name="line.338"></a>
+<span class="sourceLineNo">339</span>                this.crc += b[pos] &amp; 0xFF;<a name="line.339"></a>
+<span class="sourceLineNo">340</span>            }<a name="line.340"></a>
+<span class="sourceLineNo">341</span>        }<a name="line.341"></a>
+<span class="sourceLineNo">342</span>        count(len);<a name="line.342"></a>
+<span class="sourceLineNo">343</span>    }<a name="line.343"></a>
+<span class="sourceLineNo">344</span><a name="line.344"></a>
+<span class="sourceLineNo">345</span>    /**<a name="line.345"></a>
+<span class="sourceLineNo">346</span>     * Finishes writing the contents of the CPIO output stream without closing<a name="line.346"></a>
+<span class="sourceLineNo">347</span>     * the underlying stream. Use this method when applying multiple filters in<a name="line.347"></a>
+<span class="sourceLineNo">348</span>     * succession to the same output stream.<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     *<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     * @throws java.io.IOException if an I/O exception has occurred or if a CPIO file error has<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     *                             occurred<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     */<a name="line.352"></a>
+<span class="sourceLineNo">353</span>    @Override<a name="line.353"></a>
+<span class="sourceLineNo">354</span>    public void finish() throws IOException {<a name="line.354"></a>
+<span class="sourceLineNo">355</span>        ensureOpen();<a name="line.355"></a>
+<span class="sourceLineNo">356</span>        if (finished) {<a name="line.356"></a>
+<span class="sourceLineNo">357</span>            throw new IOException("This archive has already been finished");<a name="line.357"></a>
+<span class="sourceLineNo">358</span>        }<a name="line.358"></a>
+<span class="sourceLineNo">359</span><a name="line.359"></a>
+<span class="sourceLineNo">360</span>        if (this.entry != null) {<a name="line.360"></a>
+<span class="sourceLineNo">361</span>            throw new IOException("This archive contains unclosed entries.");<a name="line.361"></a>
+<span class="sourceLineNo">362</span>        }<a name="line.362"></a>
+<span class="sourceLineNo">363</span>        this.entry = new CpioArchiveEntry(this.entryFormat);<a name="line.363"></a>
+<span class="sourceLineNo">364</span>        this.entry.setName(CPIO_TRAILER);<a name="line.364"></a>
+<span class="sourceLineNo">365</span>        this.entry.setNumberOfLinks(1);<a name="line.365"></a>
+<span class="sourceLineNo">366</span>        writeHeader(this.entry);<a name="line.366"></a>
+<span class="sourceLineNo">367</span>        closeArchiveEntry();<a name="line.367"></a>
+<span class="sourceLineNo">368</span><a name="line.368"></a>
+<span class="sourceLineNo">369</span>        int lengthOfLastBlock = (int) (getBytesWritten() % blockSize);<a name="line.369"></a>
+<span class="sourceLineNo">370</span>        if (lengthOfLastBlock != 0) {<a name="line.370"></a>
+<span class="sourceLineNo">371</span>            pad(blockSize - lengthOfLastBlock);<a name="line.371"></a>
+<span class="sourceLineNo">372</span>        }<a name="line.372"></a>
+<span class="sourceLineNo">373</span><a name="line.373"></a>
+<span class="sourceLineNo">374</span>        finished = true;<a name="line.374"></a>
+<span class="sourceLineNo">375</span>    }<a name="line.375"></a>
+<span class="sourceLineNo">376</span><a name="line.376"></a>
+<span class="sourceLineNo">377</span>    /**<a name="line.377"></a>
+<span class="sourceLineNo">378</span>     * Closes the CPIO output stream as well as the stream being filtered.<a name="line.378"></a>
+<span class="sourceLineNo">379</span>     *<a name="line.379"></a>
+<span class="sourceLineNo">380</span>     * @throws java.io.IOException if an I/O error has occurred or if a CPIO file error has<a name="line.380"></a>
+<span class="sourceLineNo">381</span>     *                             occurred<a name="line.381"></a>
+<span class="sourceLineNo">382</span>     */<a name="line.382"></a>
+<span class="sourceLineNo">383</span>    @Override<a name="line.383"></a>
+<span class="sourceLineNo">384</span>    public void close() throws IOException {<a name="line.384"></a>
+<span class="sourceLineNo">385</span>        if (!finished) {<a name="line.385"></a>
+<span class="sourceLineNo">386</span>            finish();<a name="line.386"></a>
+<span class="sourceLineNo">387</span>        }<a name="line.387"></a>
+<span class="sourceLineNo">388</span><a name="line.388"></a>
+<span class="sourceLineNo">389</span>        if (!this.closed) {<a name="line.389"></a>
+<span class="sourceLineNo">390</span>            out.close();<a name="line.390"></a>
+<span class="sourceLineNo">391</span>            this.closed = true;<a name="line.391"></a>
+<span class="sourceLineNo">392</span>        }<a name="line.392"></a>
+<span class="sourceLineNo">393</span>    }<a name="line.393"></a>
+<span class="sourceLineNo">394</span><a name="line.394"></a>
+<span class="sourceLineNo">395</span>    private void pad(int count) throws IOException {<a name="line.395"></a>
+<span class="sourceLineNo">396</span>        if (count &gt; 0) {<a name="line.396"></a>
+<span class="sourceLineNo">397</span>            byte buff[] = new byte[count];<a name="line.397"></a>
+<span class="sourceLineNo">398</span>            out.write(buff);<a name="line.398"></a>
+<span class="sourceLineNo">399</span>            count(count);<a name="line.399"></a>
+<span class="sourceLineNo">400</span>        }<a name="line.400"></a>
+<span class="sourceLineNo">401</span>    }<a name="line.401"></a>
+<span class="sourceLineNo">402</span><a name="line.402"></a>
+<span class="sourceLineNo">403</span>    private void writeBinaryLong(final long number, final int length,<a name="line.403"></a>
+<span class="sourceLineNo">404</span>                                 final boolean swapHalfWord) throws IOException {<a name="line.404"></a>
+<span class="sourceLineNo">405</span>        byte tmp[] = CpioUtil.long2byteArray(number, length, swapHalfWord);<a name="line.405"></a>
+<span class="sourceLineNo">406</span>        out.write(tmp);<a name="line.406"></a>
+<span class="sourceLineNo">407</span>        count(tmp.length);<a name="line.407"></a>
+<span class="sourceLineNo">408</span>    }<a name="line.408"></a>
+<span class="sourceLineNo">409</span><a name="line.409"></a>
+<span class="sourceLineNo">410</span>    private void writeAsciiLong(final long number, final int length,<a name="line.410"></a>
+<span class="sourceLineNo">411</span>                                final int radix) throws IOException {<a name="line.411"></a>
+<span class="sourceLineNo">412</span>        StringBuffer tmp = new StringBuffer();<a name="line.412"></a>
+<span class="sourceLineNo">413</span>        String tmpStr;<a name="line.413"></a>
+<span class="sourceLineNo">414</span>        if (radix == 16) {<a name="line.414"></a>
+<span class="sourceLineNo">415</span>            tmp.append(Long.toHexString(number));<a name="line.415"></a>
+<span class="sourceLineNo">416</span>        } else if (radix == 8) {<a name="line.416"></a>
+<span class="sourceLineNo">417</span>            tmp.append(Long.toOctalString(number));<a name="line.417"></a>
+<span class="sourceLineNo">418</span>        } else {<a name="line.418"></a>
+<span class="sourceLineNo">419</span>            tmp.append(Long.toString(number));<a name="line.419"></a>
+<span class="sourceLineNo">420</span>        }<a name="line.420"></a>
+<span class="sourceLineNo">421</span><a name="line.421"></a>
+<span class="sourceLineNo">422</span>        if (tmp.length() &lt;= length) {<a name="line.422"></a>
+<span class="sourceLineNo">423</span>            long insertLength = length - tmp.length();<a name="line.423"></a>
+<span class="sourceLineNo">424</span>            for (int pos = 0; pos &lt; insertLength; pos++) {<a name="line.424"></a>
+<span class="sourceLineNo">425</span>                tmp.insert(0, "0");<a name="line.425"></a>
+<span class="sourceLineNo">426</span>            }<a name="line.426"></a>
+<span class="sourceLineNo">427</span>            tmpStr = tmp.toString();<a name="line.427"></a>
+<span class="sourceLineNo">428</span>        } else {<a name="line.428"></a>
+<span class="sourceLineNo">429</span>            tmpStr = tmp.substring(tmp.length() - length);<a name="line.429"></a>
+<span class="sourceLineNo">430</span>        }<a name="line.430"></a>
+<span class="sourceLineNo">431</span>        byte[] b = ArchiveUtils.toAsciiBytes(tmpStr);<a name="line.431"></a>
+<span class="sourceLineNo">432</span>        out.write(b);<a name="line.432"></a>
+<span class="sourceLineNo">433</span>        count(b.length);<a name="line.433"></a>
+<span class="sourceLineNo">434</span>    }<a name="line.434"></a>
+<span class="sourceLineNo">435</span><a name="line.435"></a>
+<span class="sourceLineNo">436</span>    /**<a name="line.436"></a>
+<span class="sourceLineNo">437</span>     * Writes an ASCII string to the stream followed by \0<a name="line.437"></a>
+<span class="sourceLineNo">438</span>     *<a name="line.438"></a>
+<span class="sourceLineNo">439</span>     * @param str the String to write<a name="line.439"></a>
+<span class="sourceLineNo">440</span>     * @throws java.io.IOException if the string couldn't be written<a name="line.440"></a>
+<span class="sourceLineNo">441</span>     */<a name="line.441"></a>
+<span class="sourceLineNo">442</span>    private void writeCString(final String str) throws IOException {<a name="line.442"></a>
+<span class="sourceLineNo">443</span>        byte[] b = ArchiveUtils.toAsciiBytes(str);<a name="line.443"></a>
+<span class="sourceLineNo">444</span>        out.write(b);<a name="line.444"></a>
+<span class="sourceLineNo">445</span>        out.write('\0');<a name="line.445"></a>
+<span class="sourceLineNo">446</span>        count(b.length + 1);<a name="line.446"></a>
+<span class="sourceLineNo">447</span>    }<a name="line.447"></a>
+<span class="sourceLineNo">448</span><a name="line.448"></a>
+<span class="sourceLineNo">449</span>}<a name="line.449"></a>
 
 
 
@@ -510,6 +515,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

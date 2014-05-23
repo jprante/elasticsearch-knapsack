@@ -1,196 +1,201 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.zlib;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    public class ZStream {<a name="line.4"></a>
-<FONT color="green">005</FONT>    <a name="line.5"></a>
-<FONT color="green">006</FONT>        private final static int MAX_WBITS = 15;        // 32K LZ77 window<a name="line.6"></a>
-<FONT color="green">007</FONT>    <a name="line.7"></a>
-<FONT color="green">008</FONT>        private final static int DEF_WBITS = MAX_WBITS;<a name="line.8"></a>
-<FONT color="green">009</FONT>    <a name="line.9"></a>
-<FONT color="green">010</FONT>        private final static int Z_STREAM_ERROR = -2;<a name="line.10"></a>
-<FONT color="green">011</FONT>    <a name="line.11"></a>
-<FONT color="green">012</FONT>        protected byte[] nextin;     // next input byte<a name="line.12"></a>
-<FONT color="green">013</FONT>    <a name="line.13"></a>
-<FONT color="green">014</FONT>        protected int nextinindex;<a name="line.14"></a>
-<FONT color="green">015</FONT>    <a name="line.15"></a>
-<FONT color="green">016</FONT>        protected int availin;       // number of bytes available at next_in<a name="line.16"></a>
-<FONT color="green">017</FONT>    <a name="line.17"></a>
-<FONT color="green">018</FONT>        protected long totalin;      // total nb of input bytes read so far<a name="line.18"></a>
-<FONT color="green">019</FONT>    <a name="line.19"></a>
-<FONT color="green">020</FONT>        protected byte[] nextout;    // next output byte should be put there<a name="line.20"></a>
-<FONT color="green">021</FONT>    <a name="line.21"></a>
-<FONT color="green">022</FONT>        protected int nextoutindex;<a name="line.22"></a>
-<FONT color="green">023</FONT>    <a name="line.23"></a>
-<FONT color="green">024</FONT>        protected int availout;      // remaining free space at next_out<a name="line.24"></a>
-<FONT color="green">025</FONT>    <a name="line.25"></a>
-<FONT color="green">026</FONT>        protected long totalout;     // total nb of bytes output so far<a name="line.26"></a>
-<FONT color="green">027</FONT>    <a name="line.27"></a>
-<FONT color="green">028</FONT>        protected String msg;<a name="line.28"></a>
-<FONT color="green">029</FONT>    <a name="line.29"></a>
-<FONT color="green">030</FONT>        protected Deflate dstate;<a name="line.30"></a>
-<FONT color="green">031</FONT>    <a name="line.31"></a>
-<FONT color="green">032</FONT>        protected Inflate istate;<a name="line.32"></a>
-<FONT color="green">033</FONT>    <a name="line.33"></a>
-<FONT color="green">034</FONT>        protected int dataType; // best guess about the data type: ascii or binary<a name="line.34"></a>
-<FONT color="green">035</FONT>    <a name="line.35"></a>
-<FONT color="green">036</FONT>        protected long adler;<a name="line.36"></a>
-<FONT color="green">037</FONT>    <a name="line.37"></a>
-<FONT color="green">038</FONT>        public int inflateInit() {<a name="line.38"></a>
-<FONT color="green">039</FONT>            return inflateInit(DEF_WBITS);<a name="line.39"></a>
-<FONT color="green">040</FONT>        }<a name="line.40"></a>
-<FONT color="green">041</FONT>    <a name="line.41"></a>
-<FONT color="green">042</FONT>        public int inflateInit(boolean nowrap) {<a name="line.42"></a>
-<FONT color="green">043</FONT>            return inflateInit(DEF_WBITS, nowrap);<a name="line.43"></a>
-<FONT color="green">044</FONT>        }<a name="line.44"></a>
-<FONT color="green">045</FONT>    <a name="line.45"></a>
-<FONT color="green">046</FONT>        public int inflateInit(int w) {<a name="line.46"></a>
-<FONT color="green">047</FONT>            return inflateInit(w, false);<a name="line.47"></a>
-<FONT color="green">048</FONT>        }<a name="line.48"></a>
-<FONT color="green">049</FONT>    <a name="line.49"></a>
-<FONT color="green">050</FONT>        public int inflateInit(int w, boolean nowrap) {<a name="line.50"></a>
-<FONT color="green">051</FONT>            istate = new Inflate();<a name="line.51"></a>
-<FONT color="green">052</FONT>            return istate.inflateInit(this, nowrap ? -w : w);<a name="line.52"></a>
-<FONT color="green">053</FONT>        }<a name="line.53"></a>
-<FONT color="green">054</FONT>    <a name="line.54"></a>
-<FONT color="green">055</FONT>        public int inflate(int f) {<a name="line.55"></a>
-<FONT color="green">056</FONT>            if (istate == null) {<a name="line.56"></a>
-<FONT color="green">057</FONT>                return Z_STREAM_ERROR;<a name="line.57"></a>
-<FONT color="green">058</FONT>            }<a name="line.58"></a>
-<FONT color="green">059</FONT>            return istate.inflate(this, f);<a name="line.59"></a>
-<FONT color="green">060</FONT>        }<a name="line.60"></a>
-<FONT color="green">061</FONT>    <a name="line.61"></a>
-<FONT color="green">062</FONT>        public int inflateEnd() {<a name="line.62"></a>
-<FONT color="green">063</FONT>            if (istate == null) {<a name="line.63"></a>
-<FONT color="green">064</FONT>                return Z_STREAM_ERROR;<a name="line.64"></a>
-<FONT color="green">065</FONT>            }<a name="line.65"></a>
-<FONT color="green">066</FONT>            int ret = istate.inflateEnd(this);<a name="line.66"></a>
-<FONT color="green">067</FONT>            istate = null;<a name="line.67"></a>
-<FONT color="green">068</FONT>            return ret;<a name="line.68"></a>
-<FONT color="green">069</FONT>        }<a name="line.69"></a>
-<FONT color="green">070</FONT>    <a name="line.70"></a>
-<FONT color="green">071</FONT>        public int inflateSync() {<a name="line.71"></a>
-<FONT color="green">072</FONT>            if (istate == null) {<a name="line.72"></a>
-<FONT color="green">073</FONT>                return Z_STREAM_ERROR;<a name="line.73"></a>
-<FONT color="green">074</FONT>            }<a name="line.74"></a>
-<FONT color="green">075</FONT>            return istate.inflateSync(this);<a name="line.75"></a>
-<FONT color="green">076</FONT>        }<a name="line.76"></a>
-<FONT color="green">077</FONT>    <a name="line.77"></a>
-<FONT color="green">078</FONT>        public int inflateSetDictionary(byte[] dictionary, int dictLength) {<a name="line.78"></a>
-<FONT color="green">079</FONT>            if (istate == null) {<a name="line.79"></a>
-<FONT color="green">080</FONT>                return Z_STREAM_ERROR;<a name="line.80"></a>
-<FONT color="green">081</FONT>            }<a name="line.81"></a>
-<FONT color="green">082</FONT>            return istate.inflateSetDictionary(this, dictionary, dictLength);<a name="line.82"></a>
-<FONT color="green">083</FONT>        }<a name="line.83"></a>
-<FONT color="green">084</FONT>    <a name="line.84"></a>
-<FONT color="green">085</FONT>        public int deflateInit(int level) {<a name="line.85"></a>
-<FONT color="green">086</FONT>            return deflateInit(level, MAX_WBITS);<a name="line.86"></a>
-<FONT color="green">087</FONT>        }<a name="line.87"></a>
-<FONT color="green">088</FONT>    <a name="line.88"></a>
-<FONT color="green">089</FONT>        public int deflateInit(int level, boolean nowrap) {<a name="line.89"></a>
-<FONT color="green">090</FONT>            return deflateInit(level, MAX_WBITS, nowrap);<a name="line.90"></a>
-<FONT color="green">091</FONT>        }<a name="line.91"></a>
-<FONT color="green">092</FONT>    <a name="line.92"></a>
-<FONT color="green">093</FONT>        public int deflateInit(int level, int bits) {<a name="line.93"></a>
-<FONT color="green">094</FONT>            return deflateInit(level, bits, false);<a name="line.94"></a>
-<FONT color="green">095</FONT>        }<a name="line.95"></a>
-<FONT color="green">096</FONT>    <a name="line.96"></a>
-<FONT color="green">097</FONT>        public int deflateInit(int level, int bits, boolean nowrap) {<a name="line.97"></a>
-<FONT color="green">098</FONT>            dstate = new Deflate();<a name="line.98"></a>
-<FONT color="green">099</FONT>            return dstate.deflateInit(this, level, nowrap ? -bits : bits);<a name="line.99"></a>
-<FONT color="green">100</FONT>        }<a name="line.100"></a>
-<FONT color="green">101</FONT>    <a name="line.101"></a>
-<FONT color="green">102</FONT>        final public int deflate(int flush) {<a name="line.102"></a>
-<FONT color="green">103</FONT>            if (dstate == null) {<a name="line.103"></a>
-<FONT color="green">104</FONT>                return Z_STREAM_ERROR;<a name="line.104"></a>
-<FONT color="green">105</FONT>            }<a name="line.105"></a>
-<FONT color="green">106</FONT>            return dstate.deflate(this, flush);<a name="line.106"></a>
-<FONT color="green">107</FONT>        }<a name="line.107"></a>
-<FONT color="green">108</FONT>    <a name="line.108"></a>
-<FONT color="green">109</FONT>        final public int deflateEnd() {<a name="line.109"></a>
-<FONT color="green">110</FONT>            if (dstate == null) {<a name="line.110"></a>
-<FONT color="green">111</FONT>                return Z_STREAM_ERROR;<a name="line.111"></a>
-<FONT color="green">112</FONT>            }<a name="line.112"></a>
-<FONT color="green">113</FONT>            int ret = dstate.deflateEnd();<a name="line.113"></a>
-<FONT color="green">114</FONT>            dstate = null;<a name="line.114"></a>
-<FONT color="green">115</FONT>            return ret;<a name="line.115"></a>
-<FONT color="green">116</FONT>        }<a name="line.116"></a>
-<FONT color="green">117</FONT>    <a name="line.117"></a>
-<FONT color="green">118</FONT>        final public int deflateParams(int level, int strategy) {<a name="line.118"></a>
-<FONT color="green">119</FONT>            if (dstate == null) {<a name="line.119"></a>
-<FONT color="green">120</FONT>                return Z_STREAM_ERROR;<a name="line.120"></a>
-<FONT color="green">121</FONT>            }<a name="line.121"></a>
-<FONT color="green">122</FONT>            return dstate.deflateParams(this, level, strategy);<a name="line.122"></a>
-<FONT color="green">123</FONT>        }<a name="line.123"></a>
-<FONT color="green">124</FONT>    <a name="line.124"></a>
-<FONT color="green">125</FONT>        final public int deflateSetDictionary(byte[] dictionary, int dictLength) {<a name="line.125"></a>
-<FONT color="green">126</FONT>            if (dstate == null) {<a name="line.126"></a>
-<FONT color="green">127</FONT>                return Z_STREAM_ERROR;<a name="line.127"></a>
-<FONT color="green">128</FONT>            }<a name="line.128"></a>
-<FONT color="green">129</FONT>            return dstate.deflateSetDictionary(this, dictionary, dictLength);<a name="line.129"></a>
-<FONT color="green">130</FONT>        }<a name="line.130"></a>
-<FONT color="green">131</FONT>    <a name="line.131"></a>
-<FONT color="green">132</FONT>        // Flush as much pending output as possible. All deflate() output goes<a name="line.132"></a>
-<FONT color="green">133</FONT>        // through this function so some applications may wish to modify it<a name="line.133"></a>
-<FONT color="green">134</FONT>        // to avoid allocating a large strm-&gt;next_out buffer and copying into it.<a name="line.134"></a>
-<FONT color="green">135</FONT>        // (See also read_buf()).<a name="line.135"></a>
-<FONT color="green">136</FONT>        protected void flushPending() {<a name="line.136"></a>
-<FONT color="green">137</FONT>            int len = dstate.getPending();<a name="line.137"></a>
-<FONT color="green">138</FONT>    <a name="line.138"></a>
-<FONT color="green">139</FONT>            if (len &gt; availout) {<a name="line.139"></a>
-<FONT color="green">140</FONT>                len = availout;<a name="line.140"></a>
-<FONT color="green">141</FONT>            }<a name="line.141"></a>
-<FONT color="green">142</FONT>            if (len == 0) {<a name="line.142"></a>
-<FONT color="green">143</FONT>                return;<a name="line.143"></a>
-<FONT color="green">144</FONT>            }<a name="line.144"></a>
-<FONT color="green">145</FONT>    <a name="line.145"></a>
-<FONT color="green">146</FONT>            System.arraycopy(dstate.getPendingBuf(), dstate.getPendingOut(),<a name="line.146"></a>
-<FONT color="green">147</FONT>                    nextout, nextoutindex, len);<a name="line.147"></a>
-<FONT color="green">148</FONT>    <a name="line.148"></a>
-<FONT color="green">149</FONT>            nextoutindex += len;<a name="line.149"></a>
-<FONT color="green">150</FONT>            dstate.setPendingOut(dstate.getPendingOut() + len);<a name="line.150"></a>
-<FONT color="green">151</FONT>            totalout += len;<a name="line.151"></a>
-<FONT color="green">152</FONT>            availout -= len;<a name="line.152"></a>
-<FONT color="green">153</FONT>            dstate.setPending(dstate.getPending() - len);<a name="line.153"></a>
-<FONT color="green">154</FONT>            if (dstate.getPending() == 0) {<a name="line.154"></a>
-<FONT color="green">155</FONT>                dstate.setPendingOut(0);<a name="line.155"></a>
-<FONT color="green">156</FONT>            }<a name="line.156"></a>
-<FONT color="green">157</FONT>        }<a name="line.157"></a>
-<FONT color="green">158</FONT>    <a name="line.158"></a>
-<FONT color="green">159</FONT>        // Read a new buffer from the current input stream, update the adler32<a name="line.159"></a>
-<FONT color="green">160</FONT>        // and total number of bytes read.  All deflate() input goes through<a name="line.160"></a>
-<FONT color="green">161</FONT>        // this function so some applications may wish to modify it to avoid<a name="line.161"></a>
-<FONT color="green">162</FONT>        // allocating a large strm-&gt;next_in buffer and copying from it.<a name="line.162"></a>
-<FONT color="green">163</FONT>        // (See also flush_pending()).<a name="line.163"></a>
-<FONT color="green">164</FONT>        protected int readBuf(byte[] buf, int start, int size) {<a name="line.164"></a>
-<FONT color="green">165</FONT>            int len = availin;<a name="line.165"></a>
-<FONT color="green">166</FONT>    <a name="line.166"></a>
-<FONT color="green">167</FONT>            if (len &gt; size) {<a name="line.167"></a>
-<FONT color="green">168</FONT>                len = size;<a name="line.168"></a>
-<FONT color="green">169</FONT>            }<a name="line.169"></a>
-<FONT color="green">170</FONT>            if (len == 0) {<a name="line.170"></a>
-<FONT color="green">171</FONT>                return 0;<a name="line.171"></a>
-<FONT color="green">172</FONT>            }<a name="line.172"></a>
-<FONT color="green">173</FONT>    <a name="line.173"></a>
-<FONT color="green">174</FONT>            availin -= len;<a name="line.174"></a>
-<FONT color="green">175</FONT>    <a name="line.175"></a>
-<FONT color="green">176</FONT>            if (dstate.getNoHeader() == 0) {<a name="line.176"></a>
-<FONT color="green">177</FONT>                adler = Adler32.adler32(adler, nextin, nextinindex, len);<a name="line.177"></a>
-<FONT color="green">178</FONT>            }<a name="line.178"></a>
-<FONT color="green">179</FONT>            System.arraycopy(nextin, nextinindex, buf, start, len);<a name="line.179"></a>
-<FONT color="green">180</FONT>            nextinindex += len;<a name="line.180"></a>
-<FONT color="green">181</FONT>            totalin += len;<a name="line.181"></a>
-<FONT color="green">182</FONT>            return len;<a name="line.182"></a>
-<FONT color="green">183</FONT>        }<a name="line.183"></a>
-<FONT color="green">184</FONT>    <a name="line.184"></a>
-<FONT color="green">185</FONT>        public void free() {<a name="line.185"></a>
-<FONT color="green">186</FONT>            nextin = null;<a name="line.186"></a>
-<FONT color="green">187</FONT>            nextout = null;<a name="line.187"></a>
-<FONT color="green">188</FONT>            msg = null;<a name="line.188"></a>
-<FONT color="green">189</FONT>        }<a name="line.189"></a>
-<FONT color="green">190</FONT>    }<a name="line.190"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.zlib;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>public class ZStream {<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>    private final static int MAX_WBITS = 15;        // 32K LZ77 window<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>    private final static int DEF_WBITS = MAX_WBITS;<a name="line.8"></a>
+<span class="sourceLineNo">009</span><a name="line.9"></a>
+<span class="sourceLineNo">010</span>    private final static int Z_STREAM_ERROR = -2;<a name="line.10"></a>
+<span class="sourceLineNo">011</span><a name="line.11"></a>
+<span class="sourceLineNo">012</span>    protected byte[] nextin;     // next input byte<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>    protected int nextinindex;<a name="line.14"></a>
+<span class="sourceLineNo">015</span><a name="line.15"></a>
+<span class="sourceLineNo">016</span>    protected int availin;       // number of bytes available at next_in<a name="line.16"></a>
+<span class="sourceLineNo">017</span><a name="line.17"></a>
+<span class="sourceLineNo">018</span>    protected long totalin;      // total nb of input bytes read so far<a name="line.18"></a>
+<span class="sourceLineNo">019</span><a name="line.19"></a>
+<span class="sourceLineNo">020</span>    protected byte[] nextout;    // next output byte should be put there<a name="line.20"></a>
+<span class="sourceLineNo">021</span><a name="line.21"></a>
+<span class="sourceLineNo">022</span>    protected int nextoutindex;<a name="line.22"></a>
+<span class="sourceLineNo">023</span><a name="line.23"></a>
+<span class="sourceLineNo">024</span>    protected int availout;      // remaining free space at next_out<a name="line.24"></a>
+<span class="sourceLineNo">025</span><a name="line.25"></a>
+<span class="sourceLineNo">026</span>    protected long totalout;     // total nb of bytes output so far<a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>    protected String msg;<a name="line.28"></a>
+<span class="sourceLineNo">029</span><a name="line.29"></a>
+<span class="sourceLineNo">030</span>    protected Deflate dstate;<a name="line.30"></a>
+<span class="sourceLineNo">031</span><a name="line.31"></a>
+<span class="sourceLineNo">032</span>    protected Inflate istate;<a name="line.32"></a>
+<span class="sourceLineNo">033</span><a name="line.33"></a>
+<span class="sourceLineNo">034</span>    protected int dataType; // best guess about the data type: ascii or binary<a name="line.34"></a>
+<span class="sourceLineNo">035</span><a name="line.35"></a>
+<span class="sourceLineNo">036</span>    protected long adler;<a name="line.36"></a>
+<span class="sourceLineNo">037</span><a name="line.37"></a>
+<span class="sourceLineNo">038</span>    public int inflateInit() {<a name="line.38"></a>
+<span class="sourceLineNo">039</span>        return inflateInit(DEF_WBITS);<a name="line.39"></a>
+<span class="sourceLineNo">040</span>    }<a name="line.40"></a>
+<span class="sourceLineNo">041</span><a name="line.41"></a>
+<span class="sourceLineNo">042</span>    public int inflateInit(boolean nowrap) {<a name="line.42"></a>
+<span class="sourceLineNo">043</span>        return inflateInit(DEF_WBITS, nowrap);<a name="line.43"></a>
+<span class="sourceLineNo">044</span>    }<a name="line.44"></a>
+<span class="sourceLineNo">045</span><a name="line.45"></a>
+<span class="sourceLineNo">046</span>    public int inflateInit(int w) {<a name="line.46"></a>
+<span class="sourceLineNo">047</span>        return inflateInit(w, false);<a name="line.47"></a>
+<span class="sourceLineNo">048</span>    }<a name="line.48"></a>
+<span class="sourceLineNo">049</span><a name="line.49"></a>
+<span class="sourceLineNo">050</span>    public int inflateInit(int w, boolean nowrap) {<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        istate = new Inflate();<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        return istate.inflateInit(this, nowrap ? -w : w);<a name="line.52"></a>
+<span class="sourceLineNo">053</span>    }<a name="line.53"></a>
+<span class="sourceLineNo">054</span><a name="line.54"></a>
+<span class="sourceLineNo">055</span>    public int inflate(int f) {<a name="line.55"></a>
+<span class="sourceLineNo">056</span>        if (istate == null) {<a name="line.56"></a>
+<span class="sourceLineNo">057</span>            return Z_STREAM_ERROR;<a name="line.57"></a>
+<span class="sourceLineNo">058</span>        }<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        return istate.inflate(this, f);<a name="line.59"></a>
+<span class="sourceLineNo">060</span>    }<a name="line.60"></a>
+<span class="sourceLineNo">061</span><a name="line.61"></a>
+<span class="sourceLineNo">062</span>    public int inflateEnd() {<a name="line.62"></a>
+<span class="sourceLineNo">063</span>        if (istate == null) {<a name="line.63"></a>
+<span class="sourceLineNo">064</span>            return Z_STREAM_ERROR;<a name="line.64"></a>
+<span class="sourceLineNo">065</span>        }<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        int ret = istate.inflateEnd(this);<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        istate = null;<a name="line.67"></a>
+<span class="sourceLineNo">068</span>        return ret;<a name="line.68"></a>
+<span class="sourceLineNo">069</span>    }<a name="line.69"></a>
+<span class="sourceLineNo">070</span><a name="line.70"></a>
+<span class="sourceLineNo">071</span>    public int inflateSync() {<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        if (istate == null) {<a name="line.72"></a>
+<span class="sourceLineNo">073</span>            return Z_STREAM_ERROR;<a name="line.73"></a>
+<span class="sourceLineNo">074</span>        }<a name="line.74"></a>
+<span class="sourceLineNo">075</span>        return istate.inflateSync(this);<a name="line.75"></a>
+<span class="sourceLineNo">076</span>    }<a name="line.76"></a>
+<span class="sourceLineNo">077</span><a name="line.77"></a>
+<span class="sourceLineNo">078</span>    public int inflateSetDictionary(byte[] dictionary, int dictLength) {<a name="line.78"></a>
+<span class="sourceLineNo">079</span>        if (istate == null) {<a name="line.79"></a>
+<span class="sourceLineNo">080</span>            return Z_STREAM_ERROR;<a name="line.80"></a>
+<span class="sourceLineNo">081</span>        }<a name="line.81"></a>
+<span class="sourceLineNo">082</span>        return istate.inflateSetDictionary(this, dictionary, dictLength);<a name="line.82"></a>
+<span class="sourceLineNo">083</span>    }<a name="line.83"></a>
+<span class="sourceLineNo">084</span><a name="line.84"></a>
+<span class="sourceLineNo">085</span>    public int deflateInit(int level) {<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        return deflateInit(level, MAX_WBITS);<a name="line.86"></a>
+<span class="sourceLineNo">087</span>    }<a name="line.87"></a>
+<span class="sourceLineNo">088</span><a name="line.88"></a>
+<span class="sourceLineNo">089</span>    public int deflateInit(int level, boolean nowrap) {<a name="line.89"></a>
+<span class="sourceLineNo">090</span>        return deflateInit(level, MAX_WBITS, nowrap);<a name="line.90"></a>
+<span class="sourceLineNo">091</span>    }<a name="line.91"></a>
+<span class="sourceLineNo">092</span><a name="line.92"></a>
+<span class="sourceLineNo">093</span>    public int deflateInit(int level, int bits) {<a name="line.93"></a>
+<span class="sourceLineNo">094</span>        return deflateInit(level, bits, false);<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    }<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>    public int deflateInit(int level, int bits, boolean nowrap) {<a name="line.97"></a>
+<span class="sourceLineNo">098</span>        dstate = new Deflate();<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        return dstate.deflateInit(this, level, nowrap ? -bits : bits);<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    }<a name="line.100"></a>
+<span class="sourceLineNo">101</span><a name="line.101"></a>
+<span class="sourceLineNo">102</span>    final public int deflate(int flush) {<a name="line.102"></a>
+<span class="sourceLineNo">103</span>        if (dstate == null) {<a name="line.103"></a>
+<span class="sourceLineNo">104</span>            return Z_STREAM_ERROR;<a name="line.104"></a>
+<span class="sourceLineNo">105</span>        }<a name="line.105"></a>
+<span class="sourceLineNo">106</span>        return dstate.deflate(this, flush);<a name="line.106"></a>
+<span class="sourceLineNo">107</span>    }<a name="line.107"></a>
+<span class="sourceLineNo">108</span><a name="line.108"></a>
+<span class="sourceLineNo">109</span>    final public int deflateEnd() {<a name="line.109"></a>
+<span class="sourceLineNo">110</span>        if (dstate == null) {<a name="line.110"></a>
+<span class="sourceLineNo">111</span>            return Z_STREAM_ERROR;<a name="line.111"></a>
+<span class="sourceLineNo">112</span>        }<a name="line.112"></a>
+<span class="sourceLineNo">113</span>        int ret = dstate.deflateEnd();<a name="line.113"></a>
+<span class="sourceLineNo">114</span>        dstate = null;<a name="line.114"></a>
+<span class="sourceLineNo">115</span>        return ret;<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    }<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    final public int deflateParams(int level, int strategy) {<a name="line.118"></a>
+<span class="sourceLineNo">119</span>        if (dstate == null) {<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            return Z_STREAM_ERROR;<a name="line.120"></a>
+<span class="sourceLineNo">121</span>        }<a name="line.121"></a>
+<span class="sourceLineNo">122</span>        return dstate.deflateParams(this, level, strategy);<a name="line.122"></a>
+<span class="sourceLineNo">123</span>    }<a name="line.123"></a>
+<span class="sourceLineNo">124</span><a name="line.124"></a>
+<span class="sourceLineNo">125</span>    final public int deflateSetDictionary(byte[] dictionary, int dictLength) {<a name="line.125"></a>
+<span class="sourceLineNo">126</span>        if (dstate == null) {<a name="line.126"></a>
+<span class="sourceLineNo">127</span>            return Z_STREAM_ERROR;<a name="line.127"></a>
+<span class="sourceLineNo">128</span>        }<a name="line.128"></a>
+<span class="sourceLineNo">129</span>        return dstate.deflateSetDictionary(this, dictionary, dictLength);<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    }<a name="line.130"></a>
+<span class="sourceLineNo">131</span><a name="line.131"></a>
+<span class="sourceLineNo">132</span>    // Flush as much pending output as possible. All deflate() output goes<a name="line.132"></a>
+<span class="sourceLineNo">133</span>    // through this function so some applications may wish to modify it<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    // to avoid allocating a large strm-&gt;next_out buffer and copying into it.<a name="line.134"></a>
+<span class="sourceLineNo">135</span>    // (See also read_buf()).<a name="line.135"></a>
+<span class="sourceLineNo">136</span>    protected void flushPending() {<a name="line.136"></a>
+<span class="sourceLineNo">137</span>        int len = dstate.getPending();<a name="line.137"></a>
+<span class="sourceLineNo">138</span><a name="line.138"></a>
+<span class="sourceLineNo">139</span>        if (len &gt; availout) {<a name="line.139"></a>
+<span class="sourceLineNo">140</span>            len = availout;<a name="line.140"></a>
+<span class="sourceLineNo">141</span>        }<a name="line.141"></a>
+<span class="sourceLineNo">142</span>        if (len == 0) {<a name="line.142"></a>
+<span class="sourceLineNo">143</span>            return;<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        }<a name="line.144"></a>
+<span class="sourceLineNo">145</span><a name="line.145"></a>
+<span class="sourceLineNo">146</span>        System.arraycopy(dstate.getPendingBuf(), dstate.getPendingOut(),<a name="line.146"></a>
+<span class="sourceLineNo">147</span>                nextout, nextoutindex, len);<a name="line.147"></a>
+<span class="sourceLineNo">148</span><a name="line.148"></a>
+<span class="sourceLineNo">149</span>        nextoutindex += len;<a name="line.149"></a>
+<span class="sourceLineNo">150</span>        dstate.setPendingOut(dstate.getPendingOut() + len);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>        totalout += len;<a name="line.151"></a>
+<span class="sourceLineNo">152</span>        availout -= len;<a name="line.152"></a>
+<span class="sourceLineNo">153</span>        dstate.setPending(dstate.getPending() - len);<a name="line.153"></a>
+<span class="sourceLineNo">154</span>        if (dstate.getPending() == 0) {<a name="line.154"></a>
+<span class="sourceLineNo">155</span>            dstate.setPendingOut(0);<a name="line.155"></a>
+<span class="sourceLineNo">156</span>        }<a name="line.156"></a>
+<span class="sourceLineNo">157</span>    }<a name="line.157"></a>
+<span class="sourceLineNo">158</span><a name="line.158"></a>
+<span class="sourceLineNo">159</span>    // Read a new buffer from the current input stream, update the adler32<a name="line.159"></a>
+<span class="sourceLineNo">160</span>    // and total number of bytes read.  All deflate() input goes through<a name="line.160"></a>
+<span class="sourceLineNo">161</span>    // this function so some applications may wish to modify it to avoid<a name="line.161"></a>
+<span class="sourceLineNo">162</span>    // allocating a large strm-&gt;next_in buffer and copying from it.<a name="line.162"></a>
+<span class="sourceLineNo">163</span>    // (See also flush_pending()).<a name="line.163"></a>
+<span class="sourceLineNo">164</span>    protected int readBuf(byte[] buf, int start, int size) {<a name="line.164"></a>
+<span class="sourceLineNo">165</span>        int len = availin;<a name="line.165"></a>
+<span class="sourceLineNo">166</span><a name="line.166"></a>
+<span class="sourceLineNo">167</span>        if (len &gt; size) {<a name="line.167"></a>
+<span class="sourceLineNo">168</span>            len = size;<a name="line.168"></a>
+<span class="sourceLineNo">169</span>        }<a name="line.169"></a>
+<span class="sourceLineNo">170</span>        if (len == 0) {<a name="line.170"></a>
+<span class="sourceLineNo">171</span>            return 0;<a name="line.171"></a>
+<span class="sourceLineNo">172</span>        }<a name="line.172"></a>
+<span class="sourceLineNo">173</span><a name="line.173"></a>
+<span class="sourceLineNo">174</span>        availin -= len;<a name="line.174"></a>
+<span class="sourceLineNo">175</span><a name="line.175"></a>
+<span class="sourceLineNo">176</span>        if (dstate.getNoHeader() == 0) {<a name="line.176"></a>
+<span class="sourceLineNo">177</span>            adler = Adler32.adler32(adler, nextin, nextinindex, len);<a name="line.177"></a>
+<span class="sourceLineNo">178</span>        }<a name="line.178"></a>
+<span class="sourceLineNo">179</span>        System.arraycopy(nextin, nextinindex, buf, start, len);<a name="line.179"></a>
+<span class="sourceLineNo">180</span>        nextinindex += len;<a name="line.180"></a>
+<span class="sourceLineNo">181</span>        totalin += len;<a name="line.181"></a>
+<span class="sourceLineNo">182</span>        return len;<a name="line.182"></a>
+<span class="sourceLineNo">183</span>    }<a name="line.183"></a>
+<span class="sourceLineNo">184</span><a name="line.184"></a>
+<span class="sourceLineNo">185</span>    public void free() {<a name="line.185"></a>
+<span class="sourceLineNo">186</span>        nextin = null;<a name="line.186"></a>
+<span class="sourceLineNo">187</span>        nextout = null;<a name="line.187"></a>
+<span class="sourceLineNo">188</span>        msg = null;<a name="line.188"></a>
+<span class="sourceLineNo">189</span>    }<a name="line.189"></a>
+<span class="sourceLineNo">190</span>}<a name="line.190"></a>
 
 
 
@@ -251,6 +256,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>

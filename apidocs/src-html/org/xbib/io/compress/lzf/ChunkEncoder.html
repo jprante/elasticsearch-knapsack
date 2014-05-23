@@ -1,366 +1,371 @@
-<HTML>
-<BODY BGCOLOR="white">
-<PRE>
-<FONT color="green">001</FONT>    <a name="line.1"></a>
-<FONT color="green">002</FONT>    package org.xbib.io.compress.lzf;<a name="line.2"></a>
-<FONT color="green">003</FONT>    <a name="line.3"></a>
-<FONT color="green">004</FONT>    import org.xbib.io.compress.BufferRecycler;<a name="line.4"></a>
-<FONT color="green">005</FONT>    <a name="line.5"></a>
-<FONT color="green">006</FONT>    import java.io.IOException;<a name="line.6"></a>
-<FONT color="green">007</FONT>    import java.io.OutputStream;<a name="line.7"></a>
-<FONT color="green">008</FONT>    <a name="line.8"></a>
-<FONT color="green">009</FONT>    /**<a name="line.9"></a>
-<FONT color="green">010</FONT>     * Class that handles actual encoding of individual chunks. Resulting chunks can<a name="line.10"></a>
-<FONT color="green">011</FONT>     * be compressed or non-compressed; compression is only used if it actually<a name="line.11"></a>
-<FONT color="green">012</FONT>     * reduces chunk size (including overhead of additional header bytes)<a name="line.12"></a>
-<FONT color="green">013</FONT>     */<a name="line.13"></a>
-<FONT color="green">014</FONT>    public final class ChunkEncoder {<a name="line.14"></a>
-<FONT color="green">015</FONT>        // Beyond certain point we won't be able to compress; let's use 16 bytes as cut-off<a name="line.15"></a>
-<FONT color="green">016</FONT>    <a name="line.16"></a>
-<FONT color="green">017</FONT>        private static final int MIN_BLOCK_TO_COMPRESS = 16;<a name="line.17"></a>
-<FONT color="green">018</FONT>        private static final int MIN_HASH_SIZE = 256;<a name="line.18"></a>
-<FONT color="green">019</FONT>        // Not much point in bigger tables, with 8k window<a name="line.19"></a>
-<FONT color="green">020</FONT>        private static final int MAX_HASH_SIZE = 16384;<a name="line.20"></a>
-<FONT color="green">021</FONT>        private static final int MAX_OFF = 1 &lt;&lt; 13; // 8k<a name="line.21"></a>
-<FONT color="green">022</FONT>        private static final int MAX_REF = (1 &lt;&lt; 8) + (1 &lt;&lt; 3); // 264<a name="line.22"></a>
-<FONT color="green">023</FONT>        // // Encoding tables etc<a name="line.23"></a>
-<FONT color="green">024</FONT>        private final BufferRecycler _recycler;<a name="line.24"></a>
-<FONT color="green">025</FONT>        /**<a name="line.25"></a>
-<FONT color="green">026</FONT>         * Hash table contains lookup based on 3-byte sequence; key is hash of such<a name="line.26"></a>
-<FONT color="green">027</FONT>         * triplet, value is offset in buffer.<a name="line.27"></a>
-<FONT color="green">028</FONT>         */<a name="line.28"></a>
-<FONT color="green">029</FONT>        private int[] _hashTable;<a name="line.29"></a>
-<FONT color="green">030</FONT>        private final int _hashModulo;<a name="line.30"></a>
-<FONT color="green">031</FONT>        /**<a name="line.31"></a>
-<FONT color="green">032</FONT>         * Buffer in which encoded content is stored during processing<a name="line.32"></a>
-<FONT color="green">033</FONT>         */<a name="line.33"></a>
-<FONT color="green">034</FONT>        private byte[] _encodeBuffer;<a name="line.34"></a>
-<FONT color="green">035</FONT>        /**<a name="line.35"></a>
-<FONT color="green">036</FONT>         * Small buffer passed to LZFChunk, needed for writing chunk header<a name="line.36"></a>
-<FONT color="green">037</FONT>         */<a name="line.37"></a>
-<FONT color="green">038</FONT>        private byte[] _headerBuffer;<a name="line.38"></a>
-<FONT color="green">039</FONT>    <a name="line.39"></a>
-<FONT color="green">040</FONT>        /**<a name="line.40"></a>
-<FONT color="green">041</FONT>         * @param totalLength Total encoded length; used for calculating size of<a name="line.41"></a>
-<FONT color="green">042</FONT>         *                    hash table to use<a name="line.42"></a>
-<FONT color="green">043</FONT>         */<a name="line.43"></a>
-<FONT color="green">044</FONT>        public ChunkEncoder(int totalLength) {<a name="line.44"></a>
-<FONT color="green">045</FONT>            int largestChunkLen = Math.max(totalLength, LZFChunk.MAX_CHUNK_LEN);<a name="line.45"></a>
-<FONT color="green">046</FONT>    <a name="line.46"></a>
-<FONT color="green">047</FONT>            int suggestedHashLen = calcHashLen(largestChunkLen);<a name="line.47"></a>
-<FONT color="green">048</FONT>            _recycler = BufferRecycler.instance();<a name="line.48"></a>
-<FONT color="green">049</FONT>            _hashTable = _recycler.allocEncodingHash(suggestedHashLen);<a name="line.49"></a>
-<FONT color="green">050</FONT>            _hashModulo = _hashTable.length - 1;<a name="line.50"></a>
-<FONT color="green">051</FONT>            // Ok, then, what's the worst case output buffer length?<a name="line.51"></a>
-<FONT color="green">052</FONT>            // length indicator for each 32 literals, so:<a name="line.52"></a>
-<FONT color="green">053</FONT>            int bufferLen = largestChunkLen + ((largestChunkLen + 31) &gt;&gt; 5);<a name="line.53"></a>
-<FONT color="green">054</FONT>            _encodeBuffer = _recycler.allocEncodingBuffer(bufferLen);<a name="line.54"></a>
-<FONT color="green">055</FONT>        }<a name="line.55"></a>
-<FONT color="green">056</FONT>    <a name="line.56"></a>
-<FONT color="green">057</FONT>        /**<a name="line.57"></a>
-<FONT color="green">058</FONT>         * Alternate constructor used when we want to avoid allocation encoding<a name="line.58"></a>
-<FONT color="green">059</FONT>         * buffer, in cases where caller wants full control over allocations.<a name="line.59"></a>
-<FONT color="green">060</FONT>         */<a name="line.60"></a>
-<FONT color="green">061</FONT>        private ChunkEncoder(int totalLength, boolean bogus) {<a name="line.61"></a>
-<FONT color="green">062</FONT>            int largestChunkLen = Math.max(totalLength, LZFChunk.MAX_CHUNK_LEN);<a name="line.62"></a>
-<FONT color="green">063</FONT>            int suggestedHashLen = calcHashLen(largestChunkLen);<a name="line.63"></a>
-<FONT color="green">064</FONT>            _recycler = BufferRecycler.instance();<a name="line.64"></a>
-<FONT color="green">065</FONT>            _hashTable = _recycler.allocEncodingHash(suggestedHashLen);<a name="line.65"></a>
-<FONT color="green">066</FONT>            _hashModulo = _hashTable.length - 1;<a name="line.66"></a>
-<FONT color="green">067</FONT>            _encodeBuffer = null;<a name="line.67"></a>
-<FONT color="green">068</FONT>        }<a name="line.68"></a>
-<FONT color="green">069</FONT>    <a name="line.69"></a>
-<FONT color="green">070</FONT>        public static ChunkEncoder nonAllocatingEncoder(int totalLength) {<a name="line.70"></a>
-<FONT color="green">071</FONT>            return new ChunkEncoder(totalLength, true);<a name="line.71"></a>
-<FONT color="green">072</FONT>        }<a name="line.72"></a>
-<FONT color="green">073</FONT>    <a name="line.73"></a>
-<FONT color="green">074</FONT>        /*<a name="line.74"></a>
-<FONT color="green">075</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.75"></a>
-<FONT color="green">076</FONT>         // Public API<a name="line.76"></a>
-<FONT color="green">077</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.77"></a>
-<FONT color="green">078</FONT>         */<a name="line.78"></a>
-<FONT color="green">079</FONT>    <a name="line.79"></a>
-<FONT color="green">080</FONT>        /**<a name="line.80"></a>
-<FONT color="green">081</FONT>         * Method to close once encoder is no longer in use. Note: after calling<a name="line.81"></a>
-<FONT color="green">082</FONT>         * this method, further calls to {@link #encodeChunk} will fail<a name="line.82"></a>
-<FONT color="green">083</FONT>         */<a name="line.83"></a>
-<FONT color="green">084</FONT>        public void close() {<a name="line.84"></a>
-<FONT color="green">085</FONT>            byte[] buf = _encodeBuffer;<a name="line.85"></a>
-<FONT color="green">086</FONT>            if (buf != null) {<a name="line.86"></a>
-<FONT color="green">087</FONT>                _encodeBuffer = null;<a name="line.87"></a>
-<FONT color="green">088</FONT>                _recycler.releaseEncodeBuffer(buf);<a name="line.88"></a>
-<FONT color="green">089</FONT>            }<a name="line.89"></a>
-<FONT color="green">090</FONT>            int[] ibuf = _hashTable;<a name="line.90"></a>
-<FONT color="green">091</FONT>            if (ibuf != null) {<a name="line.91"></a>
-<FONT color="green">092</FONT>                _hashTable = null;<a name="line.92"></a>
-<FONT color="green">093</FONT>                _recycler.releaseEncodingHash(ibuf);<a name="line.93"></a>
-<FONT color="green">094</FONT>            }<a name="line.94"></a>
-<FONT color="green">095</FONT>        }<a name="line.95"></a>
-<FONT color="green">096</FONT>    <a name="line.96"></a>
-<FONT color="green">097</FONT>        /**<a name="line.97"></a>
-<FONT color="green">098</FONT>         * Method for compressing (or not) individual chunks<a name="line.98"></a>
-<FONT color="green">099</FONT>         */<a name="line.99"></a>
-<FONT color="green">100</FONT>        public LZFChunk encodeChunk(byte[] data, int offset, int len) {<a name="line.100"></a>
-<FONT color="green">101</FONT>            if (len &gt;= MIN_BLOCK_TO_COMPRESS) {<a name="line.101"></a>
-<FONT color="green">102</FONT>                /* If we have non-trivial block, and can compress it by at least<a name="line.102"></a>
-<FONT color="green">103</FONT>                 * 2 bytes (since header is 2 bytes longer), let's compress:<a name="line.103"></a>
-<FONT color="green">104</FONT>                 */<a name="line.104"></a>
-<FONT color="green">105</FONT>                int compLen = tryCompress(data, offset, offset + len, _encodeBuffer, 0);<a name="line.105"></a>
-<FONT color="green">106</FONT>                if (compLen &lt; (len - 2)) { // nah; just return uncompressed<a name="line.106"></a>
-<FONT color="green">107</FONT>                    return LZFChunk.createCompressed(len, _encodeBuffer, 0, compLen);<a name="line.107"></a>
-<FONT color="green">108</FONT>                }<a name="line.108"></a>
-<FONT color="green">109</FONT>            }<a name="line.109"></a>
-<FONT color="green">110</FONT>            // Otherwise leave uncompressed:<a name="line.110"></a>
-<FONT color="green">111</FONT>            return LZFChunk.createNonCompressed(data, offset, len);<a name="line.111"></a>
-<FONT color="green">112</FONT>        }<a name="line.112"></a>
-<FONT color="green">113</FONT>    <a name="line.113"></a>
-<FONT color="green">114</FONT>        /**<a name="line.114"></a>
-<FONT color="green">115</FONT>         * Method for encoding individual chunk, writing it to given output stream.<a name="line.115"></a>
-<FONT color="green">116</FONT>         */<a name="line.116"></a>
-<FONT color="green">117</FONT>        public void encodeAndWriteChunk(byte[] data, int offset, int len, OutputStream out)<a name="line.117"></a>
-<FONT color="green">118</FONT>                throws IOException {<a name="line.118"></a>
-<FONT color="green">119</FONT>            byte[] headerBuf = _headerBuffer;<a name="line.119"></a>
-<FONT color="green">120</FONT>            if (headerBuf == null) {<a name="line.120"></a>
-<FONT color="green">121</FONT>                _headerBuffer = headerBuf = new byte[LZFChunk.MAX_HEADER_LEN];<a name="line.121"></a>
-<FONT color="green">122</FONT>            }<a name="line.122"></a>
-<FONT color="green">123</FONT>            if (len &gt;= MIN_BLOCK_TO_COMPRESS) {<a name="line.123"></a>
-<FONT color="green">124</FONT>                /* If we have non-trivial block, and can compress it by at least<a name="line.124"></a>
-<FONT color="green">125</FONT>                 * 2 bytes (since header is 2 bytes longer), let's compress:<a name="line.125"></a>
-<FONT color="green">126</FONT>                 */<a name="line.126"></a>
-<FONT color="green">127</FONT>                int compLen = tryCompress(data, offset, offset + len, _encodeBuffer, 0);<a name="line.127"></a>
-<FONT color="green">128</FONT>                if (compLen &lt; (len - 2)) { // nah; just return uncompressed<a name="line.128"></a>
-<FONT color="green">129</FONT>                    LZFChunk.writeCompressedHeader(len, compLen, out, headerBuf);<a name="line.129"></a>
-<FONT color="green">130</FONT>                    out.write(_encodeBuffer, 0, compLen);<a name="line.130"></a>
-<FONT color="green">131</FONT>                    return;<a name="line.131"></a>
-<FONT color="green">132</FONT>                }<a name="line.132"></a>
-<FONT color="green">133</FONT>            }<a name="line.133"></a>
-<FONT color="green">134</FONT>            // Otherwise leave uncompressed:<a name="line.134"></a>
-<FONT color="green">135</FONT>            LZFChunk.writeNonCompressedHeader(len, out, headerBuf);<a name="line.135"></a>
-<FONT color="green">136</FONT>            out.write(data, offset, len);<a name="line.136"></a>
-<FONT color="green">137</FONT>        }<a name="line.137"></a>
-<FONT color="green">138</FONT>    <a name="line.138"></a>
-<FONT color="green">139</FONT>        /**<a name="line.139"></a>
-<FONT color="green">140</FONT>         * Main workhorse method that will try to compress given chunk, and return<a name="line.140"></a>
-<FONT color="green">141</FONT>         * end position (offset to byte after last included byte)<a name="line.141"></a>
-<FONT color="green">142</FONT>         */<a name="line.142"></a>
-<FONT color="green">143</FONT>        protected int tryCompress(byte[] in, int inPos, int inEnd, byte[] out, int outPos) {<a name="line.143"></a>
-<FONT color="green">144</FONT>            final int[] hashTable = _hashTable;<a name="line.144"></a>
-<FONT color="green">145</FONT>            ++outPos;<a name="line.145"></a>
-<FONT color="green">146</FONT>            int seen = first(in, 0); // past 4 bytes we have seen... (last one is LSB)<a name="line.146"></a>
-<FONT color="green">147</FONT>            int literals = 0;<a name="line.147"></a>
-<FONT color="green">148</FONT>            inEnd -= 4;<a name="line.148"></a>
-<FONT color="green">149</FONT>            final int firstPos = inPos; // so that we won't have back references across block boundary<a name="line.149"></a>
-<FONT color="green">150</FONT>    <a name="line.150"></a>
-<FONT color="green">151</FONT>            while (inPos &lt; inEnd) {<a name="line.151"></a>
-<FONT color="green">152</FONT>                byte p2 = in[inPos + 2];<a name="line.152"></a>
-<FONT color="green">153</FONT>                // next<a name="line.153"></a>
-<FONT color="green">154</FONT>                seen = (seen &lt;&lt; 8) + (p2 &amp; 255);<a name="line.154"></a>
-<FONT color="green">155</FONT>                int off = hash(seen);<a name="line.155"></a>
-<FONT color="green">156</FONT>                int ref = hashTable[off];<a name="line.156"></a>
-<FONT color="green">157</FONT>                hashTable[off] = inPos;<a name="line.157"></a>
-<FONT color="green">158</FONT>    <a name="line.158"></a>
-<FONT color="green">159</FONT>                // First expected common case: no back-ref (for whatever reason)<a name="line.159"></a>
-<FONT color="green">160</FONT>                if (ref &gt;= inPos // can't refer forward (i.e. leftovers)<a name="line.160"></a>
-<FONT color="green">161</FONT>                        || ref &lt; firstPos // or to previous block<a name="line.161"></a>
-<FONT color="green">162</FONT>                        || (off = inPos - ref) &gt; MAX_OFF<a name="line.162"></a>
-<FONT color="green">163</FONT>                        || in[ref + 2] != p2 // must match hash<a name="line.163"></a>
-<FONT color="green">164</FONT>                        || in[ref + 1] != (byte) (seen &gt;&gt; 8)<a name="line.164"></a>
-<FONT color="green">165</FONT>                        || in[ref] != (byte) (seen &gt;&gt; 16)) {<a name="line.165"></a>
-<FONT color="green">166</FONT>                    out[outPos++] = in[inPos++];<a name="line.166"></a>
-<FONT color="green">167</FONT>                    literals++;<a name="line.167"></a>
-<FONT color="green">168</FONT>                    if (literals == LZFChunk.MAX_LITERAL) {<a name="line.168"></a>
-<FONT color="green">169</FONT>                        out[outPos - 33] = (byte) 31; // &lt;= out[outPos - literals - 1] = MAX_LITERAL_MINUS_1;<a name="line.169"></a>
-<FONT color="green">170</FONT>                        literals = 0;<a name="line.170"></a>
-<FONT color="green">171</FONT>                        outPos++;<a name="line.171"></a>
-<FONT color="green">172</FONT>                    }<a name="line.172"></a>
-<FONT color="green">173</FONT>                    continue;<a name="line.173"></a>
-<FONT color="green">174</FONT>                }<a name="line.174"></a>
-<FONT color="green">175</FONT>                // match<a name="line.175"></a>
-<FONT color="green">176</FONT>                int maxLen = inEnd - inPos + 2;<a name="line.176"></a>
-<FONT color="green">177</FONT>                if (maxLen &gt; MAX_REF) {<a name="line.177"></a>
-<FONT color="green">178</FONT>                    maxLen = MAX_REF;<a name="line.178"></a>
-<FONT color="green">179</FONT>                }<a name="line.179"></a>
-<FONT color="green">180</FONT>                if (literals == 0) {<a name="line.180"></a>
-<FONT color="green">181</FONT>                    outPos--;<a name="line.181"></a>
-<FONT color="green">182</FONT>                } else {<a name="line.182"></a>
-<FONT color="green">183</FONT>                    out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.183"></a>
-<FONT color="green">184</FONT>                    literals = 0;<a name="line.184"></a>
-<FONT color="green">185</FONT>                }<a name="line.185"></a>
-<FONT color="green">186</FONT>                int len = 3;<a name="line.186"></a>
-<FONT color="green">187</FONT>                while (len &lt; maxLen &amp;&amp; in[ref + len] == in[inPos + len]) {<a name="line.187"></a>
-<FONT color="green">188</FONT>                    len++;<a name="line.188"></a>
-<FONT color="green">189</FONT>                }<a name="line.189"></a>
-<FONT color="green">190</FONT>                len -= 2;<a name="line.190"></a>
-<FONT color="green">191</FONT>                --off; // was off by one earlier<a name="line.191"></a>
-<FONT color="green">192</FONT>                if (len &lt; 7) {<a name="line.192"></a>
-<FONT color="green">193</FONT>                    out[outPos++] = (byte) ((off &gt;&gt; 8) + (len &lt;&lt; 5));<a name="line.193"></a>
-<FONT color="green">194</FONT>                } else {<a name="line.194"></a>
-<FONT color="green">195</FONT>                    out[outPos++] = (byte) ((off &gt;&gt; 8) + (7 &lt;&lt; 5));<a name="line.195"></a>
-<FONT color="green">196</FONT>                    out[outPos++] = (byte) (len - 7);<a name="line.196"></a>
-<FONT color="green">197</FONT>                }<a name="line.197"></a>
-<FONT color="green">198</FONT>                out[outPos++] = (byte) off;<a name="line.198"></a>
-<FONT color="green">199</FONT>                outPos++;<a name="line.199"></a>
-<FONT color="green">200</FONT>                inPos += len;<a name="line.200"></a>
-<FONT color="green">201</FONT>                seen = first(in, inPos);<a name="line.201"></a>
-<FONT color="green">202</FONT>                seen = (seen &lt;&lt; 8) + (in[inPos + 2] &amp; 255);<a name="line.202"></a>
-<FONT color="green">203</FONT>                hashTable[hash(seen)] = inPos;<a name="line.203"></a>
-<FONT color="green">204</FONT>                ++inPos;<a name="line.204"></a>
-<FONT color="green">205</FONT>                seen = (seen &lt;&lt; 8) + (in[inPos + 2] &amp; 255); // hash = next(hash, in, inPos);<a name="line.205"></a>
-<FONT color="green">206</FONT>                hashTable[hash(seen)] = inPos;<a name="line.206"></a>
-<FONT color="green">207</FONT>                ++inPos;<a name="line.207"></a>
-<FONT color="green">208</FONT>            }<a name="line.208"></a>
-<FONT color="green">209</FONT>            // try offlining the tail<a name="line.209"></a>
-<FONT color="green">210</FONT>            return handleTail(in, inPos, inEnd + 4, out, outPos, literals);<a name="line.210"></a>
-<FONT color="green">211</FONT>        }<a name="line.211"></a>
-<FONT color="green">212</FONT>    <a name="line.212"></a>
-<FONT color="green">213</FONT>        private final int handleTail(byte[] in, int inPos, int inEnd, byte[] out, int outPos,<a name="line.213"></a>
-<FONT color="green">214</FONT>                                     int literals) {<a name="line.214"></a>
-<FONT color="green">215</FONT>            while (inPos &lt; inEnd) {<a name="line.215"></a>
-<FONT color="green">216</FONT>                out[outPos++] = in[inPos++];<a name="line.216"></a>
-<FONT color="green">217</FONT>                literals++;<a name="line.217"></a>
-<FONT color="green">218</FONT>                if (literals == LZFChunk.MAX_LITERAL) {<a name="line.218"></a>
-<FONT color="green">219</FONT>                    out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.219"></a>
-<FONT color="green">220</FONT>                    literals = 0;<a name="line.220"></a>
-<FONT color="green">221</FONT>                    outPos++;<a name="line.221"></a>
-<FONT color="green">222</FONT>                }<a name="line.222"></a>
-<FONT color="green">223</FONT>            }<a name="line.223"></a>
-<FONT color="green">224</FONT>            out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.224"></a>
-<FONT color="green">225</FONT>            if (literals == 0) {<a name="line.225"></a>
-<FONT color="green">226</FONT>                outPos--;<a name="line.226"></a>
-<FONT color="green">227</FONT>            }<a name="line.227"></a>
-<FONT color="green">228</FONT>            return outPos;<a name="line.228"></a>
-<FONT color="green">229</FONT>        }<a name="line.229"></a>
-<FONT color="green">230</FONT>    <a name="line.230"></a>
-<FONT color="green">231</FONT>        /*<a name="line.231"></a>
-<FONT color="green">232</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.232"></a>
-<FONT color="green">233</FONT>         // Internal methods<a name="line.233"></a>
-<FONT color="green">234</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.234"></a>
-<FONT color="green">235</FONT>         */<a name="line.235"></a>
-<FONT color="green">236</FONT>        private static int calcHashLen(int chunkSize) {<a name="line.236"></a>
-<FONT color="green">237</FONT>            // in general try get hash table size of 2x input size<a name="line.237"></a>
-<FONT color="green">238</FONT>            chunkSize += chunkSize;<a name="line.238"></a>
-<FONT color="green">239</FONT>            // but no larger than max size:<a name="line.239"></a>
-<FONT color="green">240</FONT>            if (chunkSize &gt;= MAX_HASH_SIZE) {<a name="line.240"></a>
-<FONT color="green">241</FONT>                return MAX_HASH_SIZE;<a name="line.241"></a>
-<FONT color="green">242</FONT>            }<a name="line.242"></a>
-<FONT color="green">243</FONT>            // otherwise just need to round up to nearest 2x<a name="line.243"></a>
-<FONT color="green">244</FONT>            int hashLen = MIN_HASH_SIZE;<a name="line.244"></a>
-<FONT color="green">245</FONT>            while (hashLen &lt; chunkSize) {<a name="line.245"></a>
-<FONT color="green">246</FONT>                hashLen += hashLen;<a name="line.246"></a>
-<FONT color="green">247</FONT>            }<a name="line.247"></a>
-<FONT color="green">248</FONT>            return hashLen;<a name="line.248"></a>
-<FONT color="green">249</FONT>        }<a name="line.249"></a>
-<FONT color="green">250</FONT>    <a name="line.250"></a>
-<FONT color="green">251</FONT>        private final int first(byte[] in, int inPos) {<a name="line.251"></a>
-<FONT color="green">252</FONT>            return (in[inPos] &lt;&lt; 8) + (in[inPos + 1] &amp; 0xFF);<a name="line.252"></a>
-<FONT color="green">253</FONT>        }<a name="line.253"></a>
-<FONT color="green">254</FONT>    <a name="line.254"></a>
-<FONT color="green">255</FONT>        /*<a name="line.255"></a>
-<FONT color="green">256</FONT>         private static int next(int v, byte[] in, int inPos) {<a name="line.256"></a>
-<FONT color="green">257</FONT>         return (v &lt;&lt; 8) + (in[inPos + 2] &amp; 255);<a name="line.257"></a>
-<FONT color="green">258</FONT>         }<a name="line.258"></a>
-<FONT color="green">259</FONT>         */<a name="line.259"></a>
-<FONT color="green">260</FONT>        private final int hash(int h) {<a name="line.260"></a>
-<FONT color="green">261</FONT>            // or 184117; but this seems to give better hashing?<a name="line.261"></a>
-<FONT color="green">262</FONT>            return ((h * 57321) &gt;&gt; 9) &amp; _hashModulo;<a name="line.262"></a>
-<FONT color="green">263</FONT>            // original lzf-c.c used this:<a name="line.263"></a>
-<FONT color="green">264</FONT>            //return (((h ^ (h &lt;&lt; 5)) &gt;&gt; (24 - HLOG) - h*5) &amp; _hashModulo;<a name="line.264"></a>
-<FONT color="green">265</FONT>            // but that didn't seem to provide better matches<a name="line.265"></a>
-<FONT color="green">266</FONT>        }<a name="line.266"></a>
-<FONT color="green">267</FONT>        /*<a name="line.267"></a>
-<FONT color="green">268</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.268"></a>
-<FONT color="green">269</FONT>         // Alternative experimental version using Unsafe<a name="line.269"></a>
-<FONT color="green">270</FONT>         // NOTE: not currently used, retained for future inspiration...<a name="line.270"></a>
-<FONT color="green">271</FONT>         ///////////////////////////////////////////////////////////////////////<a name="line.271"></a>
-<FONT color="green">272</FONT>         */<a name="line.272"></a>
-<FONT color="green">273</FONT>    <a name="line.273"></a>
-<FONT color="green">274</FONT>        /*<a name="line.274"></a>
-<FONT color="green">275</FONT>         private static final Unsafe unsafe;<a name="line.275"></a>
-<FONT color="green">276</FONT>         static {<a name="line.276"></a>
-<FONT color="green">277</FONT>         try {<a name="line.277"></a>
-<FONT color="green">278</FONT>         Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");<a name="line.278"></a>
-<FONT color="green">279</FONT>         theUnsafe.setAccessible(true);<a name="line.279"></a>
-<FONT color="green">280</FONT>         unsafe = (Unsafe) theUnsafe.get(null);<a name="line.280"></a>
-<FONT color="green">281</FONT>         }<a name="line.281"></a>
-<FONT color="green">282</FONT>         catch (Exception e) {<a name="line.282"></a>
-<FONT color="green">283</FONT>         throw new RuntimeException(e);<a name="line.283"></a>
-<FONT color="green">284</FONT>         }<a name="line.284"></a>
-<FONT color="green">285</FONT>         }<a name="line.285"></a>
-<FONT color="green">286</FONT>    <a name="line.286"></a>
-<FONT color="green">287</FONT>         private static final long BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);<a name="line.287"></a>
-<FONT color="green">288</FONT>    <a name="line.288"></a>
-<FONT color="green">289</FONT>         private final int MASK = 0xFFFFFF;<a name="line.289"></a>
-<FONT color="green">290</FONT>        <a name="line.290"></a>
-<FONT color="green">291</FONT>         private final int get3Bytes(byte[] src, int srcIndex)<a name="line.291"></a>
-<FONT color="green">292</FONT>         {<a name="line.292"></a>
-<FONT color="green">293</FONT>         return unsafe.getInt(src, BYTE_ARRAY_OFFSET + srcIndex) &amp; MASK;<a name="line.293"></a>
-<FONT color="green">294</FONT>         }<a name="line.294"></a>
-<FONT color="green">295</FONT>    <a name="line.295"></a>
-<FONT color="green">296</FONT>         private int tryCompress(byte[] in, int inPos, int inEnd, byte[] out, int outPos)<a name="line.296"></a>
-<FONT color="green">297</FONT>         {<a name="line.297"></a>
-<FONT color="green">298</FONT>         final int[] hashTable = _hashTable;<a name="line.298"></a>
-<FONT color="green">299</FONT>         ++outPos;<a name="line.299"></a>
-<FONT color="green">300</FONT>         int literals = 0;<a name="line.300"></a>
-<FONT color="green">301</FONT>         inEnd -= 4;<a name="line.301"></a>
-<FONT color="green">302</FONT>         final int firstPos = inPos; // so that we won't have back references across block boundary<a name="line.302"></a>
-<FONT color="green">303</FONT>            <a name="line.303"></a>
-<FONT color="green">304</FONT>         while (inPos &lt; inEnd) {<a name="line.304"></a>
-<FONT color="green">305</FONT>         int seen = get3Bytes(in, inPos);<a name="line.305"></a>
-<FONT color="green">306</FONT>         int off = hash(seen);<a name="line.306"></a>
-<FONT color="green">307</FONT>         int ref = hashTable[off];<a name="line.307"></a>
-<FONT color="green">308</FONT>         hashTable[off] = inPos;<a name="line.308"></a>
-<FONT color="green">309</FONT>      <a name="line.309"></a>
-<FONT color="green">310</FONT>         // First expected common case: no back-ref (for whatever reason)<a name="line.310"></a>
-<FONT color="green">311</FONT>         if (ref &gt;= inPos // can't refer forward (i.e. leftovers)<a name="line.311"></a>
-<FONT color="green">312</FONT>         || ref &lt; firstPos // or to previous block<a name="line.312"></a>
-<FONT color="green">313</FONT>         || (off = inPos - ref) &gt; MAX_OFF<a name="line.313"></a>
-<FONT color="green">314</FONT>         || get3Bytes(in, ref) != seen<a name="line.314"></a>
-<FONT color="green">315</FONT>         ) {<a name="line.315"></a>
-<FONT color="green">316</FONT>         out[outPos++] = in[inPos++];<a name="line.316"></a>
-<FONT color="green">317</FONT>         literals++;<a name="line.317"></a>
-<FONT color="green">318</FONT>         if (literals == LZFChunk.MAX_LITERAL) {<a name="line.318"></a>
-<FONT color="green">319</FONT>         out[outPos - 33] = (byte) 31; // &lt;= out[outPos - literals - 1] = MAX_LITERAL_MINUS_1;<a name="line.319"></a>
-<FONT color="green">320</FONT>         literals = 0;<a name="line.320"></a>
-<FONT color="green">321</FONT>         outPos++;<a name="line.321"></a>
-<FONT color="green">322</FONT>         }<a name="line.322"></a>
-<FONT color="green">323</FONT>         continue;<a name="line.323"></a>
-<FONT color="green">324</FONT>         }<a name="line.324"></a>
-<FONT color="green">325</FONT>         // match<a name="line.325"></a>
-<FONT color="green">326</FONT>         int maxLen = inEnd - inPos + 2;<a name="line.326"></a>
-<FONT color="green">327</FONT>         if (maxLen &gt; MAX_REF) {<a name="line.327"></a>
-<FONT color="green">328</FONT>         maxLen = MAX_REF;<a name="line.328"></a>
-<FONT color="green">329</FONT>         }<a name="line.329"></a>
-<FONT color="green">330</FONT>         if (literals == 0) {<a name="line.330"></a>
-<FONT color="green">331</FONT>         outPos--;<a name="line.331"></a>
-<FONT color="green">332</FONT>         } else {<a name="line.332"></a>
-<FONT color="green">333</FONT>         out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.333"></a>
-<FONT color="green">334</FONT>         literals = 0;<a name="line.334"></a>
-<FONT color="green">335</FONT>         }<a name="line.335"></a>
-<FONT color="green">336</FONT>         int len = 3;<a name="line.336"></a>
-<FONT color="green">337</FONT>         while (len &lt; maxLen &amp;&amp; in[ref + len] == in[inPos + len]) {<a name="line.337"></a>
-<FONT color="green">338</FONT>         len++;<a name="line.338"></a>
-<FONT color="green">339</FONT>         }<a name="line.339"></a>
-<FONT color="green">340</FONT>         len -= 2;<a name="line.340"></a>
-<FONT color="green">341</FONT>         --off; // was off by one earlier<a name="line.341"></a>
-<FONT color="green">342</FONT>         if (len &lt; 7) {<a name="line.342"></a>
-<FONT color="green">343</FONT>         out[outPos++] = (byte) ((off &gt;&gt; 8) + (len &lt;&lt; 5));<a name="line.343"></a>
-<FONT color="green">344</FONT>         } else {<a name="line.344"></a>
-<FONT color="green">345</FONT>         out[outPos++] = (byte) ((off &gt;&gt; 8) + (7 &lt;&lt; 5));<a name="line.345"></a>
-<FONT color="green">346</FONT>         out[outPos++] = (byte) (len - 7);<a name="line.346"></a>
-<FONT color="green">347</FONT>         }<a name="line.347"></a>
-<FONT color="green">348</FONT>         out[outPos] = (byte) off;<a name="line.348"></a>
-<FONT color="green">349</FONT>         outPos += 2;<a name="line.349"></a>
-<FONT color="green">350</FONT>         inPos += len;<a name="line.350"></a>
-<FONT color="green">351</FONT>         hashTable[hash(get3Bytes(in, inPos))] = inPos;<a name="line.351"></a>
-<FONT color="green">352</FONT>         ++inPos;<a name="line.352"></a>
-<FONT color="green">353</FONT>         hashTable[hash(get3Bytes(in, inPos))] = inPos;<a name="line.353"></a>
-<FONT color="green">354</FONT>         ++inPos;<a name="line.354"></a>
-<FONT color="green">355</FONT>         }<a name="line.355"></a>
-<FONT color="green">356</FONT>         // try offlining the tail<a name="line.356"></a>
-<FONT color="green">357</FONT>         return handleTail(in, inPos, inEnd+4, out, outPos, literals);<a name="line.357"></a>
-<FONT color="green">358</FONT>         }<a name="line.358"></a>
-<FONT color="green">359</FONT>         */<a name="line.359"></a>
-<FONT color="green">360</FONT>    }<a name="line.360"></a>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
+<span class="sourceLineNo">002</span>package org.xbib.io.compress.lzf;<a name="line.2"></a>
+<span class="sourceLineNo">003</span><a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.BufferRecycler;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.OutputStream;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>/**<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * Class that handles actual encoding of individual chunks. Resulting chunks can<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * be compressed or non-compressed; compression is only used if it actually<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * reduces chunk size (including overhead of additional header bytes)<a name="line.12"></a>
+<span class="sourceLineNo">013</span> */<a name="line.13"></a>
+<span class="sourceLineNo">014</span>public final class ChunkEncoder {<a name="line.14"></a>
+<span class="sourceLineNo">015</span>    // Beyond certain point we won't be able to compress; let's use 16 bytes as cut-off<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>    private static final int MIN_BLOCK_TO_COMPRESS = 16;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>    private static final int MIN_HASH_SIZE = 256;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>    // Not much point in bigger tables, with 8k window<a name="line.19"></a>
+<span class="sourceLineNo">020</span>    private static final int MAX_HASH_SIZE = 16384;<a name="line.20"></a>
+<span class="sourceLineNo">021</span>    private static final int MAX_OFF = 1 &lt;&lt; 13; // 8k<a name="line.21"></a>
+<span class="sourceLineNo">022</span>    private static final int MAX_REF = (1 &lt;&lt; 8) + (1 &lt;&lt; 3); // 264<a name="line.22"></a>
+<span class="sourceLineNo">023</span>    // // Encoding tables etc<a name="line.23"></a>
+<span class="sourceLineNo">024</span>    private final BufferRecycler _recycler;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>    /**<a name="line.25"></a>
+<span class="sourceLineNo">026</span>     * Hash table contains lookup based on 3-byte sequence; key is hash of such<a name="line.26"></a>
+<span class="sourceLineNo">027</span>     * triplet, value is offset in buffer.<a name="line.27"></a>
+<span class="sourceLineNo">028</span>     */<a name="line.28"></a>
+<span class="sourceLineNo">029</span>    private int[] _hashTable;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>    private final int _hashModulo;<a name="line.30"></a>
+<span class="sourceLineNo">031</span>    /**<a name="line.31"></a>
+<span class="sourceLineNo">032</span>     * Buffer in which encoded content is stored during processing<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     */<a name="line.33"></a>
+<span class="sourceLineNo">034</span>    private byte[] _encodeBuffer;<a name="line.34"></a>
+<span class="sourceLineNo">035</span>    /**<a name="line.35"></a>
+<span class="sourceLineNo">036</span>     * Small buffer passed to LZFChunk, needed for writing chunk header<a name="line.36"></a>
+<span class="sourceLineNo">037</span>     */<a name="line.37"></a>
+<span class="sourceLineNo">038</span>    private byte[] _headerBuffer;<a name="line.38"></a>
+<span class="sourceLineNo">039</span><a name="line.39"></a>
+<span class="sourceLineNo">040</span>    /**<a name="line.40"></a>
+<span class="sourceLineNo">041</span>     * @param totalLength Total encoded length; used for calculating size of<a name="line.41"></a>
+<span class="sourceLineNo">042</span>     *                    hash table to use<a name="line.42"></a>
+<span class="sourceLineNo">043</span>     */<a name="line.43"></a>
+<span class="sourceLineNo">044</span>    public ChunkEncoder(int totalLength) {<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        int largestChunkLen = Math.max(totalLength, LZFChunk.MAX_CHUNK_LEN);<a name="line.45"></a>
+<span class="sourceLineNo">046</span><a name="line.46"></a>
+<span class="sourceLineNo">047</span>        int suggestedHashLen = calcHashLen(largestChunkLen);<a name="line.47"></a>
+<span class="sourceLineNo">048</span>        _recycler = BufferRecycler.instance();<a name="line.48"></a>
+<span class="sourceLineNo">049</span>        _hashTable = _recycler.allocEncodingHash(suggestedHashLen);<a name="line.49"></a>
+<span class="sourceLineNo">050</span>        _hashModulo = _hashTable.length - 1;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        // Ok, then, what's the worst case output buffer length?<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        // length indicator for each 32 literals, so:<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        int bufferLen = largestChunkLen + ((largestChunkLen + 31) &gt;&gt; 5);<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        _encodeBuffer = _recycler.allocEncodingBuffer(bufferLen);<a name="line.54"></a>
+<span class="sourceLineNo">055</span>    }<a name="line.55"></a>
+<span class="sourceLineNo">056</span><a name="line.56"></a>
+<span class="sourceLineNo">057</span>    /**<a name="line.57"></a>
+<span class="sourceLineNo">058</span>     * Alternate constructor used when we want to avoid allocation encoding<a name="line.58"></a>
+<span class="sourceLineNo">059</span>     * buffer, in cases where caller wants full control over allocations.<a name="line.59"></a>
+<span class="sourceLineNo">060</span>     */<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    private ChunkEncoder(int totalLength, boolean bogus) {<a name="line.61"></a>
+<span class="sourceLineNo">062</span>        int largestChunkLen = Math.max(totalLength, LZFChunk.MAX_CHUNK_LEN);<a name="line.62"></a>
+<span class="sourceLineNo">063</span>        int suggestedHashLen = calcHashLen(largestChunkLen);<a name="line.63"></a>
+<span class="sourceLineNo">064</span>        _recycler = BufferRecycler.instance();<a name="line.64"></a>
+<span class="sourceLineNo">065</span>        _hashTable = _recycler.allocEncodingHash(suggestedHashLen);<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        _hashModulo = _hashTable.length - 1;<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        _encodeBuffer = null;<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    }<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>    public static ChunkEncoder nonAllocatingEncoder(int totalLength) {<a name="line.70"></a>
+<span class="sourceLineNo">071</span>        return new ChunkEncoder(totalLength, true);<a name="line.71"></a>
+<span class="sourceLineNo">072</span>    }<a name="line.72"></a>
+<span class="sourceLineNo">073</span><a name="line.73"></a>
+<span class="sourceLineNo">074</span>    /*<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     ///////////////////////////////////////////////////////////////////////<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     // Public API<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     ///////////////////////////////////////////////////////////////////////<a name="line.77"></a>
+<span class="sourceLineNo">078</span>     */<a name="line.78"></a>
+<span class="sourceLineNo">079</span><a name="line.79"></a>
+<span class="sourceLineNo">080</span>    /**<a name="line.80"></a>
+<span class="sourceLineNo">081</span>     * Method to close once encoder is no longer in use. Note: after calling<a name="line.81"></a>
+<span class="sourceLineNo">082</span>     * this method, further calls to {@link #encodeChunk} will fail<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     */<a name="line.83"></a>
+<span class="sourceLineNo">084</span>    public void close() {<a name="line.84"></a>
+<span class="sourceLineNo">085</span>        byte[] buf = _encodeBuffer;<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        if (buf != null) {<a name="line.86"></a>
+<span class="sourceLineNo">087</span>            _encodeBuffer = null;<a name="line.87"></a>
+<span class="sourceLineNo">088</span>            _recycler.releaseEncodeBuffer(buf);<a name="line.88"></a>
+<span class="sourceLineNo">089</span>        }<a name="line.89"></a>
+<span class="sourceLineNo">090</span>        int[] ibuf = _hashTable;<a name="line.90"></a>
+<span class="sourceLineNo">091</span>        if (ibuf != null) {<a name="line.91"></a>
+<span class="sourceLineNo">092</span>            _hashTable = null;<a name="line.92"></a>
+<span class="sourceLineNo">093</span>            _recycler.releaseEncodingHash(ibuf);<a name="line.93"></a>
+<span class="sourceLineNo">094</span>        }<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    }<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>    /**<a name="line.97"></a>
+<span class="sourceLineNo">098</span>     * Method for compressing (or not) individual chunks<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     */<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    public LZFChunk encodeChunk(byte[] data, int offset, int len) {<a name="line.100"></a>
+<span class="sourceLineNo">101</span>        if (len &gt;= MIN_BLOCK_TO_COMPRESS) {<a name="line.101"></a>
+<span class="sourceLineNo">102</span>            /* If we have non-trivial block, and can compress it by at least<a name="line.102"></a>
+<span class="sourceLineNo">103</span>             * 2 bytes (since header is 2 bytes longer), let's compress:<a name="line.103"></a>
+<span class="sourceLineNo">104</span>             */<a name="line.104"></a>
+<span class="sourceLineNo">105</span>            int compLen = tryCompress(data, offset, offset + len, _encodeBuffer, 0);<a name="line.105"></a>
+<span class="sourceLineNo">106</span>            if (compLen &lt; (len - 2)) { // nah; just return uncompressed<a name="line.106"></a>
+<span class="sourceLineNo">107</span>                return LZFChunk.createCompressed(len, _encodeBuffer, 0, compLen);<a name="line.107"></a>
+<span class="sourceLineNo">108</span>            }<a name="line.108"></a>
+<span class="sourceLineNo">109</span>        }<a name="line.109"></a>
+<span class="sourceLineNo">110</span>        // Otherwise leave uncompressed:<a name="line.110"></a>
+<span class="sourceLineNo">111</span>        return LZFChunk.createNonCompressed(data, offset, len);<a name="line.111"></a>
+<span class="sourceLineNo">112</span>    }<a name="line.112"></a>
+<span class="sourceLineNo">113</span><a name="line.113"></a>
+<span class="sourceLineNo">114</span>    /**<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     * Method for encoding individual chunk, writing it to given output stream.<a name="line.115"></a>
+<span class="sourceLineNo">116</span>     */<a name="line.116"></a>
+<span class="sourceLineNo">117</span>    public void encodeAndWriteChunk(byte[] data, int offset, int len, OutputStream out)<a name="line.117"></a>
+<span class="sourceLineNo">118</span>            throws IOException {<a name="line.118"></a>
+<span class="sourceLineNo">119</span>        byte[] headerBuf = _headerBuffer;<a name="line.119"></a>
+<span class="sourceLineNo">120</span>        if (headerBuf == null) {<a name="line.120"></a>
+<span class="sourceLineNo">121</span>            _headerBuffer = headerBuf = new byte[LZFChunk.MAX_HEADER_LEN];<a name="line.121"></a>
+<span class="sourceLineNo">122</span>        }<a name="line.122"></a>
+<span class="sourceLineNo">123</span>        if (len &gt;= MIN_BLOCK_TO_COMPRESS) {<a name="line.123"></a>
+<span class="sourceLineNo">124</span>            /* If we have non-trivial block, and can compress it by at least<a name="line.124"></a>
+<span class="sourceLineNo">125</span>             * 2 bytes (since header is 2 bytes longer), let's compress:<a name="line.125"></a>
+<span class="sourceLineNo">126</span>             */<a name="line.126"></a>
+<span class="sourceLineNo">127</span>            int compLen = tryCompress(data, offset, offset + len, _encodeBuffer, 0);<a name="line.127"></a>
+<span class="sourceLineNo">128</span>            if (compLen &lt; (len - 2)) { // nah; just return uncompressed<a name="line.128"></a>
+<span class="sourceLineNo">129</span>                LZFChunk.writeCompressedHeader(len, compLen, out, headerBuf);<a name="line.129"></a>
+<span class="sourceLineNo">130</span>                out.write(_encodeBuffer, 0, compLen);<a name="line.130"></a>
+<span class="sourceLineNo">131</span>                return;<a name="line.131"></a>
+<span class="sourceLineNo">132</span>            }<a name="line.132"></a>
+<span class="sourceLineNo">133</span>        }<a name="line.133"></a>
+<span class="sourceLineNo">134</span>        // Otherwise leave uncompressed:<a name="line.134"></a>
+<span class="sourceLineNo">135</span>        LZFChunk.writeNonCompressedHeader(len, out, headerBuf);<a name="line.135"></a>
+<span class="sourceLineNo">136</span>        out.write(data, offset, len);<a name="line.136"></a>
+<span class="sourceLineNo">137</span>    }<a name="line.137"></a>
+<span class="sourceLineNo">138</span><a name="line.138"></a>
+<span class="sourceLineNo">139</span>    /**<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * Main workhorse method that will try to compress given chunk, and return<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     * end position (offset to byte after last included byte)<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     */<a name="line.142"></a>
+<span class="sourceLineNo">143</span>    protected int tryCompress(byte[] in, int inPos, int inEnd, byte[] out, int outPos) {<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        final int[] hashTable = _hashTable;<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        ++outPos;<a name="line.145"></a>
+<span class="sourceLineNo">146</span>        int seen = first(in, 0); // past 4 bytes we have seen... (last one is LSB)<a name="line.146"></a>
+<span class="sourceLineNo">147</span>        int literals = 0;<a name="line.147"></a>
+<span class="sourceLineNo">148</span>        inEnd -= 4;<a name="line.148"></a>
+<span class="sourceLineNo">149</span>        final int firstPos = inPos; // so that we won't have back references across block boundary<a name="line.149"></a>
+<span class="sourceLineNo">150</span><a name="line.150"></a>
+<span class="sourceLineNo">151</span>        while (inPos &lt; inEnd) {<a name="line.151"></a>
+<span class="sourceLineNo">152</span>            byte p2 = in[inPos + 2];<a name="line.152"></a>
+<span class="sourceLineNo">153</span>            // next<a name="line.153"></a>
+<span class="sourceLineNo">154</span>            seen = (seen &lt;&lt; 8) + (p2 &amp; 255);<a name="line.154"></a>
+<span class="sourceLineNo">155</span>            int off = hash(seen);<a name="line.155"></a>
+<span class="sourceLineNo">156</span>            int ref = hashTable[off];<a name="line.156"></a>
+<span class="sourceLineNo">157</span>            hashTable[off] = inPos;<a name="line.157"></a>
+<span class="sourceLineNo">158</span><a name="line.158"></a>
+<span class="sourceLineNo">159</span>            // First expected common case: no back-ref (for whatever reason)<a name="line.159"></a>
+<span class="sourceLineNo">160</span>            if (ref &gt;= inPos // can't refer forward (i.e. leftovers)<a name="line.160"></a>
+<span class="sourceLineNo">161</span>                    || ref &lt; firstPos // or to previous block<a name="line.161"></a>
+<span class="sourceLineNo">162</span>                    || (off = inPos - ref) &gt; MAX_OFF<a name="line.162"></a>
+<span class="sourceLineNo">163</span>                    || in[ref + 2] != p2 // must match hash<a name="line.163"></a>
+<span class="sourceLineNo">164</span>                    || in[ref + 1] != (byte) (seen &gt;&gt; 8)<a name="line.164"></a>
+<span class="sourceLineNo">165</span>                    || in[ref] != (byte) (seen &gt;&gt; 16)) {<a name="line.165"></a>
+<span class="sourceLineNo">166</span>                out[outPos++] = in[inPos++];<a name="line.166"></a>
+<span class="sourceLineNo">167</span>                literals++;<a name="line.167"></a>
+<span class="sourceLineNo">168</span>                if (literals == LZFChunk.MAX_LITERAL) {<a name="line.168"></a>
+<span class="sourceLineNo">169</span>                    out[outPos - 33] = (byte) 31; // &lt;= out[outPos - literals - 1] = MAX_LITERAL_MINUS_1;<a name="line.169"></a>
+<span class="sourceLineNo">170</span>                    literals = 0;<a name="line.170"></a>
+<span class="sourceLineNo">171</span>                    outPos++;<a name="line.171"></a>
+<span class="sourceLineNo">172</span>                }<a name="line.172"></a>
+<span class="sourceLineNo">173</span>                continue;<a name="line.173"></a>
+<span class="sourceLineNo">174</span>            }<a name="line.174"></a>
+<span class="sourceLineNo">175</span>            // match<a name="line.175"></a>
+<span class="sourceLineNo">176</span>            int maxLen = inEnd - inPos + 2;<a name="line.176"></a>
+<span class="sourceLineNo">177</span>            if (maxLen &gt; MAX_REF) {<a name="line.177"></a>
+<span class="sourceLineNo">178</span>                maxLen = MAX_REF;<a name="line.178"></a>
+<span class="sourceLineNo">179</span>            }<a name="line.179"></a>
+<span class="sourceLineNo">180</span>            if (literals == 0) {<a name="line.180"></a>
+<span class="sourceLineNo">181</span>                outPos--;<a name="line.181"></a>
+<span class="sourceLineNo">182</span>            } else {<a name="line.182"></a>
+<span class="sourceLineNo">183</span>                out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.183"></a>
+<span class="sourceLineNo">184</span>                literals = 0;<a name="line.184"></a>
+<span class="sourceLineNo">185</span>            }<a name="line.185"></a>
+<span class="sourceLineNo">186</span>            int len = 3;<a name="line.186"></a>
+<span class="sourceLineNo">187</span>            while (len &lt; maxLen &amp;&amp; in[ref + len] == in[inPos + len]) {<a name="line.187"></a>
+<span class="sourceLineNo">188</span>                len++;<a name="line.188"></a>
+<span class="sourceLineNo">189</span>            }<a name="line.189"></a>
+<span class="sourceLineNo">190</span>            len -= 2;<a name="line.190"></a>
+<span class="sourceLineNo">191</span>            --off; // was off by one earlier<a name="line.191"></a>
+<span class="sourceLineNo">192</span>            if (len &lt; 7) {<a name="line.192"></a>
+<span class="sourceLineNo">193</span>                out[outPos++] = (byte) ((off &gt;&gt; 8) + (len &lt;&lt; 5));<a name="line.193"></a>
+<span class="sourceLineNo">194</span>            } else {<a name="line.194"></a>
+<span class="sourceLineNo">195</span>                out[outPos++] = (byte) ((off &gt;&gt; 8) + (7 &lt;&lt; 5));<a name="line.195"></a>
+<span class="sourceLineNo">196</span>                out[outPos++] = (byte) (len - 7);<a name="line.196"></a>
+<span class="sourceLineNo">197</span>            }<a name="line.197"></a>
+<span class="sourceLineNo">198</span>            out[outPos++] = (byte) off;<a name="line.198"></a>
+<span class="sourceLineNo">199</span>            outPos++;<a name="line.199"></a>
+<span class="sourceLineNo">200</span>            inPos += len;<a name="line.200"></a>
+<span class="sourceLineNo">201</span>            seen = first(in, inPos);<a name="line.201"></a>
+<span class="sourceLineNo">202</span>            seen = (seen &lt;&lt; 8) + (in[inPos + 2] &amp; 255);<a name="line.202"></a>
+<span class="sourceLineNo">203</span>            hashTable[hash(seen)] = inPos;<a name="line.203"></a>
+<span class="sourceLineNo">204</span>            ++inPos;<a name="line.204"></a>
+<span class="sourceLineNo">205</span>            seen = (seen &lt;&lt; 8) + (in[inPos + 2] &amp; 255); // hash = next(hash, in, inPos);<a name="line.205"></a>
+<span class="sourceLineNo">206</span>            hashTable[hash(seen)] = inPos;<a name="line.206"></a>
+<span class="sourceLineNo">207</span>            ++inPos;<a name="line.207"></a>
+<span class="sourceLineNo">208</span>        }<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        // try offlining the tail<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        return handleTail(in, inPos, inEnd + 4, out, outPos, literals);<a name="line.210"></a>
+<span class="sourceLineNo">211</span>    }<a name="line.211"></a>
+<span class="sourceLineNo">212</span><a name="line.212"></a>
+<span class="sourceLineNo">213</span>    private final int handleTail(byte[] in, int inPos, int inEnd, byte[] out, int outPos,<a name="line.213"></a>
+<span class="sourceLineNo">214</span>                                 int literals) {<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        while (inPos &lt; inEnd) {<a name="line.215"></a>
+<span class="sourceLineNo">216</span>            out[outPos++] = in[inPos++];<a name="line.216"></a>
+<span class="sourceLineNo">217</span>            literals++;<a name="line.217"></a>
+<span class="sourceLineNo">218</span>            if (literals == LZFChunk.MAX_LITERAL) {<a name="line.218"></a>
+<span class="sourceLineNo">219</span>                out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.219"></a>
+<span class="sourceLineNo">220</span>                literals = 0;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>                outPos++;<a name="line.221"></a>
+<span class="sourceLineNo">222</span>            }<a name="line.222"></a>
+<span class="sourceLineNo">223</span>        }<a name="line.223"></a>
+<span class="sourceLineNo">224</span>        out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.224"></a>
+<span class="sourceLineNo">225</span>        if (literals == 0) {<a name="line.225"></a>
+<span class="sourceLineNo">226</span>            outPos--;<a name="line.226"></a>
+<span class="sourceLineNo">227</span>        }<a name="line.227"></a>
+<span class="sourceLineNo">228</span>        return outPos;<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    }<a name="line.229"></a>
+<span class="sourceLineNo">230</span><a name="line.230"></a>
+<span class="sourceLineNo">231</span>    /*<a name="line.231"></a>
+<span class="sourceLineNo">232</span>     ///////////////////////////////////////////////////////////////////////<a name="line.232"></a>
+<span class="sourceLineNo">233</span>     // Internal methods<a name="line.233"></a>
+<span class="sourceLineNo">234</span>     ///////////////////////////////////////////////////////////////////////<a name="line.234"></a>
+<span class="sourceLineNo">235</span>     */<a name="line.235"></a>
+<span class="sourceLineNo">236</span>    private static int calcHashLen(int chunkSize) {<a name="line.236"></a>
+<span class="sourceLineNo">237</span>        // in general try get hash table size of 2x input size<a name="line.237"></a>
+<span class="sourceLineNo">238</span>        chunkSize += chunkSize;<a name="line.238"></a>
+<span class="sourceLineNo">239</span>        // but no larger than max size:<a name="line.239"></a>
+<span class="sourceLineNo">240</span>        if (chunkSize &gt;= MAX_HASH_SIZE) {<a name="line.240"></a>
+<span class="sourceLineNo">241</span>            return MAX_HASH_SIZE;<a name="line.241"></a>
+<span class="sourceLineNo">242</span>        }<a name="line.242"></a>
+<span class="sourceLineNo">243</span>        // otherwise just need to round up to nearest 2x<a name="line.243"></a>
+<span class="sourceLineNo">244</span>        int hashLen = MIN_HASH_SIZE;<a name="line.244"></a>
+<span class="sourceLineNo">245</span>        while (hashLen &lt; chunkSize) {<a name="line.245"></a>
+<span class="sourceLineNo">246</span>            hashLen += hashLen;<a name="line.246"></a>
+<span class="sourceLineNo">247</span>        }<a name="line.247"></a>
+<span class="sourceLineNo">248</span>        return hashLen;<a name="line.248"></a>
+<span class="sourceLineNo">249</span>    }<a name="line.249"></a>
+<span class="sourceLineNo">250</span><a name="line.250"></a>
+<span class="sourceLineNo">251</span>    private final int first(byte[] in, int inPos) {<a name="line.251"></a>
+<span class="sourceLineNo">252</span>        return (in[inPos] &lt;&lt; 8) + (in[inPos + 1] &amp; 0xFF);<a name="line.252"></a>
+<span class="sourceLineNo">253</span>    }<a name="line.253"></a>
+<span class="sourceLineNo">254</span><a name="line.254"></a>
+<span class="sourceLineNo">255</span>    /*<a name="line.255"></a>
+<span class="sourceLineNo">256</span>     private static int next(int v, byte[] in, int inPos) {<a name="line.256"></a>
+<span class="sourceLineNo">257</span>     return (v &lt;&lt; 8) + (in[inPos + 2] &amp; 255);<a name="line.257"></a>
+<span class="sourceLineNo">258</span>     }<a name="line.258"></a>
+<span class="sourceLineNo">259</span>     */<a name="line.259"></a>
+<span class="sourceLineNo">260</span>    private final int hash(int h) {<a name="line.260"></a>
+<span class="sourceLineNo">261</span>        // or 184117; but this seems to give better hashing?<a name="line.261"></a>
+<span class="sourceLineNo">262</span>        return ((h * 57321) &gt;&gt; 9) &amp; _hashModulo;<a name="line.262"></a>
+<span class="sourceLineNo">263</span>        // original lzf-c.c used this:<a name="line.263"></a>
+<span class="sourceLineNo">264</span>        //return (((h ^ (h &lt;&lt; 5)) &gt;&gt; (24 - HLOG) - h*5) &amp; _hashModulo;<a name="line.264"></a>
+<span class="sourceLineNo">265</span>        // but that didn't seem to provide better matches<a name="line.265"></a>
+<span class="sourceLineNo">266</span>    }<a name="line.266"></a>
+<span class="sourceLineNo">267</span>    /*<a name="line.267"></a>
+<span class="sourceLineNo">268</span>     ///////////////////////////////////////////////////////////////////////<a name="line.268"></a>
+<span class="sourceLineNo">269</span>     // Alternative experimental version using Unsafe<a name="line.269"></a>
+<span class="sourceLineNo">270</span>     // NOTE: not currently used, retained for future inspiration...<a name="line.270"></a>
+<span class="sourceLineNo">271</span>     ///////////////////////////////////////////////////////////////////////<a name="line.271"></a>
+<span class="sourceLineNo">272</span>     */<a name="line.272"></a>
+<span class="sourceLineNo">273</span><a name="line.273"></a>
+<span class="sourceLineNo">274</span>    /*<a name="line.274"></a>
+<span class="sourceLineNo">275</span>     private static final Unsafe unsafe;<a name="line.275"></a>
+<span class="sourceLineNo">276</span>     static {<a name="line.276"></a>
+<span class="sourceLineNo">277</span>     try {<a name="line.277"></a>
+<span class="sourceLineNo">278</span>     Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");<a name="line.278"></a>
+<span class="sourceLineNo">279</span>     theUnsafe.setAccessible(true);<a name="line.279"></a>
+<span class="sourceLineNo">280</span>     unsafe = (Unsafe) theUnsafe.get(null);<a name="line.280"></a>
+<span class="sourceLineNo">281</span>     }<a name="line.281"></a>
+<span class="sourceLineNo">282</span>     catch (Exception e) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>     throw new RuntimeException(e);<a name="line.283"></a>
+<span class="sourceLineNo">284</span>     }<a name="line.284"></a>
+<span class="sourceLineNo">285</span>     }<a name="line.285"></a>
+<span class="sourceLineNo">286</span><a name="line.286"></a>
+<span class="sourceLineNo">287</span>     private static final long BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);<a name="line.287"></a>
+<span class="sourceLineNo">288</span><a name="line.288"></a>
+<span class="sourceLineNo">289</span>     private final int MASK = 0xFFFFFF;<a name="line.289"></a>
+<span class="sourceLineNo">290</span>    <a name="line.290"></a>
+<span class="sourceLineNo">291</span>     private final int get3Bytes(byte[] src, int srcIndex)<a name="line.291"></a>
+<span class="sourceLineNo">292</span>     {<a name="line.292"></a>
+<span class="sourceLineNo">293</span>     return unsafe.getInt(src, BYTE_ARRAY_OFFSET + srcIndex) &amp; MASK;<a name="line.293"></a>
+<span class="sourceLineNo">294</span>     }<a name="line.294"></a>
+<span class="sourceLineNo">295</span><a name="line.295"></a>
+<span class="sourceLineNo">296</span>     private int tryCompress(byte[] in, int inPos, int inEnd, byte[] out, int outPos)<a name="line.296"></a>
+<span class="sourceLineNo">297</span>     {<a name="line.297"></a>
+<span class="sourceLineNo">298</span>     final int[] hashTable = _hashTable;<a name="line.298"></a>
+<span class="sourceLineNo">299</span>     ++outPos;<a name="line.299"></a>
+<span class="sourceLineNo">300</span>     int literals = 0;<a name="line.300"></a>
+<span class="sourceLineNo">301</span>     inEnd -= 4;<a name="line.301"></a>
+<span class="sourceLineNo">302</span>     final int firstPos = inPos; // so that we won't have back references across block boundary<a name="line.302"></a>
+<span class="sourceLineNo">303</span>        <a name="line.303"></a>
+<span class="sourceLineNo">304</span>     while (inPos &lt; inEnd) {<a name="line.304"></a>
+<span class="sourceLineNo">305</span>     int seen = get3Bytes(in, inPos);<a name="line.305"></a>
+<span class="sourceLineNo">306</span>     int off = hash(seen);<a name="line.306"></a>
+<span class="sourceLineNo">307</span>     int ref = hashTable[off];<a name="line.307"></a>
+<span class="sourceLineNo">308</span>     hashTable[off] = inPos;<a name="line.308"></a>
+<span class="sourceLineNo">309</span>  <a name="line.309"></a>
+<span class="sourceLineNo">310</span>     // First expected common case: no back-ref (for whatever reason)<a name="line.310"></a>
+<span class="sourceLineNo">311</span>     if (ref &gt;= inPos // can't refer forward (i.e. leftovers)<a name="line.311"></a>
+<span class="sourceLineNo">312</span>     || ref &lt; firstPos // or to previous block<a name="line.312"></a>
+<span class="sourceLineNo">313</span>     || (off = inPos - ref) &gt; MAX_OFF<a name="line.313"></a>
+<span class="sourceLineNo">314</span>     || get3Bytes(in, ref) != seen<a name="line.314"></a>
+<span class="sourceLineNo">315</span>     ) {<a name="line.315"></a>
+<span class="sourceLineNo">316</span>     out[outPos++] = in[inPos++];<a name="line.316"></a>
+<span class="sourceLineNo">317</span>     literals++;<a name="line.317"></a>
+<span class="sourceLineNo">318</span>     if (literals == LZFChunk.MAX_LITERAL) {<a name="line.318"></a>
+<span class="sourceLineNo">319</span>     out[outPos - 33] = (byte) 31; // &lt;= out[outPos - literals - 1] = MAX_LITERAL_MINUS_1;<a name="line.319"></a>
+<span class="sourceLineNo">320</span>     literals = 0;<a name="line.320"></a>
+<span class="sourceLineNo">321</span>     outPos++;<a name="line.321"></a>
+<span class="sourceLineNo">322</span>     }<a name="line.322"></a>
+<span class="sourceLineNo">323</span>     continue;<a name="line.323"></a>
+<span class="sourceLineNo">324</span>     }<a name="line.324"></a>
+<span class="sourceLineNo">325</span>     // match<a name="line.325"></a>
+<span class="sourceLineNo">326</span>     int maxLen = inEnd - inPos + 2;<a name="line.326"></a>
+<span class="sourceLineNo">327</span>     if (maxLen &gt; MAX_REF) {<a name="line.327"></a>
+<span class="sourceLineNo">328</span>     maxLen = MAX_REF;<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     }<a name="line.329"></a>
+<span class="sourceLineNo">330</span>     if (literals == 0) {<a name="line.330"></a>
+<span class="sourceLineNo">331</span>     outPos--;<a name="line.331"></a>
+<span class="sourceLineNo">332</span>     } else {<a name="line.332"></a>
+<span class="sourceLineNo">333</span>     out[outPos - literals - 1] = (byte) (literals - 1);<a name="line.333"></a>
+<span class="sourceLineNo">334</span>     literals = 0;<a name="line.334"></a>
+<span class="sourceLineNo">335</span>     }<a name="line.335"></a>
+<span class="sourceLineNo">336</span>     int len = 3;<a name="line.336"></a>
+<span class="sourceLineNo">337</span>     while (len &lt; maxLen &amp;&amp; in[ref + len] == in[inPos + len]) {<a name="line.337"></a>
+<span class="sourceLineNo">338</span>     len++;<a name="line.338"></a>
+<span class="sourceLineNo">339</span>     }<a name="line.339"></a>
+<span class="sourceLineNo">340</span>     len -= 2;<a name="line.340"></a>
+<span class="sourceLineNo">341</span>     --off; // was off by one earlier<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     if (len &lt; 7) {<a name="line.342"></a>
+<span class="sourceLineNo">343</span>     out[outPos++] = (byte) ((off &gt;&gt; 8) + (len &lt;&lt; 5));<a name="line.343"></a>
+<span class="sourceLineNo">344</span>     } else {<a name="line.344"></a>
+<span class="sourceLineNo">345</span>     out[outPos++] = (byte) ((off &gt;&gt; 8) + (7 &lt;&lt; 5));<a name="line.345"></a>
+<span class="sourceLineNo">346</span>     out[outPos++] = (byte) (len - 7);<a name="line.346"></a>
+<span class="sourceLineNo">347</span>     }<a name="line.347"></a>
+<span class="sourceLineNo">348</span>     out[outPos] = (byte) off;<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     outPos += 2;<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     inPos += len;<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     hashTable[hash(get3Bytes(in, inPos))] = inPos;<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     ++inPos;<a name="line.352"></a>
+<span class="sourceLineNo">353</span>     hashTable[hash(get3Bytes(in, inPos))] = inPos;<a name="line.353"></a>
+<span class="sourceLineNo">354</span>     ++inPos;<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     }<a name="line.355"></a>
+<span class="sourceLineNo">356</span>     // try offlining the tail<a name="line.356"></a>
+<span class="sourceLineNo">357</span>     return handleTail(in, inPos, inEnd+4, out, outPos, literals);<a name="line.357"></a>
+<span class="sourceLineNo">358</span>     }<a name="line.358"></a>
+<span class="sourceLineNo">359</span>     */<a name="line.359"></a>
+<span class="sourceLineNo">360</span>}<a name="line.360"></a>
 
 
 
@@ -421,6 +426,7 @@
 
 
 
-</PRE>
-</BODY>
-</HTML>
+</pre>
+</div>
+</body>
+</html>
