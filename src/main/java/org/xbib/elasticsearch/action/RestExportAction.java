@@ -6,7 +6,6 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchOperationThreading;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
@@ -37,19 +36,19 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.XContentRestResponse;
-import org.elasticsearch.rest.XContentThrowableRestResponse;
 import org.elasticsearch.rest.action.search.RestSearchAction;
 import org.elasticsearch.search.SearchHit;
 
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;
-import org.xbib.io.ObjectPacket;
-import org.xbib.elasticsearch.support.client.bulk.BulkClient;
+import org.xbib.elasticsearch.rest.action.support.XContentRestResponse;
+import org.xbib.elasticsearch.rest.action.support.XContentThrowableRestResponse;
+import org.xbib.elasticsearch.support.client.bulk.BulkTransportClient;
 import org.xbib.io.Connection;
 import org.xbib.io.ConnectionFactory;
 import org.xbib.io.ConnectionService;
+import org.xbib.io.ObjectPacket;
 import org.xbib.io.Session;
 
 import java.io.IOException;
@@ -68,7 +67,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
 import static org.elasticsearch.rest.RestStatus.BAD_REQUEST;
-import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
+import static org.xbib.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 /**
  * The knapsack export action performs a scan/scroll action over a user defined query
@@ -170,7 +169,7 @@ public class RestExportAction extends BaseRestHandler {
 
         private final RestRequest request;
 
-        private BulkClient bulkClient;
+        private BulkTransportClient bulkClient;
 
         private Connection<Session<KnapsackPacket>> connection;
 
@@ -217,7 +216,7 @@ public class RestExportAction extends BaseRestHandler {
             try {
                 logger.info("start of export: {}", status);
                 knapsackHelper.addExport(status);
-                this.bulkClient = new BulkClient();
+                this.bulkClient = new BulkTransportClient();
                 Map<String,Set<String>> indices = newHashMap();
                 for (String s : Strings.commaDelimitedListToSet(request.param("index", "_all"))) {
                     indices.put(s, Strings.commaDelimitedListToSet(request.param("type")));
@@ -300,14 +299,6 @@ public class RestExportAction extends BaseRestHandler {
                 request.params().put("size", request.param("maxActionsPerBulkRequest", "1000"));
                 searchRequest = RestSearchAction.parseSearchRequest(request);
                 searchRequest.listenerThreaded(false);
-                SearchOperationThreading operationThreading =
-                        SearchOperationThreading.fromString(request.param("operation_threading"), null);
-                if (operationThreading != null) {
-                    if (operationThreading == SearchOperationThreading.NO_THREADS) {
-                        operationThreading = SearchOperationThreading.SINGLE_THREAD;
-                    }
-                    searchRequest.operationThreading(operationThreading);
-                }
                 for (String index : indices.keySet()) {
                     searchRequest.searchType(SearchType.SCAN).scroll(timeout);
                     if (!"_all".equals(index)) {
@@ -377,8 +368,10 @@ public class RestExportAction extends BaseRestHandler {
                     session.close();
                 }
                 if (copy) {
-                    bulkClient.refresh().shutdown();
-                    bulkClient = null;
+                    for (String index : indices.keySet()) {
+                        bulkClient.refresh(index);
+                    }
+                    bulkClient.shutdown();
                 }
                 if (s3 && request.param("uri") != null) {
                     // s3://auth:host, s3://host

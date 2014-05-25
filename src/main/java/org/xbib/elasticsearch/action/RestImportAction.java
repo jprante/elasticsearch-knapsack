@@ -28,14 +28,14 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.XContentRestResponse;
-import org.elasticsearch.rest.XContentThrowableRestResponse;
 
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackException;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackHelper;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackPacket;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackStatus;
-import org.xbib.elasticsearch.support.client.bulk.BulkClient;
+import org.xbib.elasticsearch.rest.action.support.XContentRestResponse;
+import org.xbib.elasticsearch.rest.action.support.XContentThrowableRestResponse;
+import org.xbib.elasticsearch.support.client.bulk.BulkTransportClient;
 import org.xbib.io.Connection;
 import org.xbib.io.ConnectionFactory;
 import org.xbib.io.ConnectionService;
@@ -58,7 +58,7 @@ import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.OK;
-import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
+import static org.xbib.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 /**
  * The knapsack import action opens an archive and transfers the content into Elasticsearch
@@ -166,7 +166,7 @@ public class RestImportAction extends BaseRestHandler {
 
         private TimeValue timeout;
 
-        private BulkClient bulkClient;
+        private BulkTransportClient bulkClient;
 
         private Map<String,Object> map;
 
@@ -205,7 +205,7 @@ public class RestImportAction extends BaseRestHandler {
             try {
                 logger.info("start of import: {}", status);
                 knapsackHelper.addImport(status);
-                this.bulkClient = new BulkClient();
+                this.bulkClient = new BulkTransportClient();
                 Settings settings = KnapsackHelper.clientSettings(environment, destination);
                 bulkClient.flushInterval(TimeValue.timeValueSeconds(5))
                     .maxActionsPerBulkRequest(maxActionsPerBulkRequest)
@@ -308,12 +308,11 @@ public class RestImportAction extends BaseRestHandler {
                 session.close();
                 for (String index : indexReplicaMap.keySet()) {
                     try {
-                        bulkClient.setIndex(index);
                         logger.info("setting refresh rate for index {}", index);
-                        bulkClient.update("index.refresh_interval", 1);
+                        bulkClient.stopBulk(index);
                         Integer replica = Integer.parseInt(indexReplicaMap.get(index));
                         logger.info("setting replica level {} for index {}", replica, index);
-                        bulkClient.update("index.number_of_replicas", replica);
+                        bulkClient.updateReplicaLevel(index, replica);
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
                     }

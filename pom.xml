@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.0.0.1</version>
+    <version>1.2.0.0</version>
 
     <packaging>jar</packaging>
 
@@ -36,21 +36,20 @@
 
     <distributionManagement>
         <repository>
-            <id>bintray-jprante-elasticsearch-plugins-elasticsearch-knapsack</id>
-            <name>jprante-elasticsearch-plugins-elasticsearch-knapsack</name>
-            <url>https://api.bintray.com/maven/jprante/elasticsearch-plugins/elasticsearch-knapsack</url>
+            <id>xbib.org</id>
+            <url>scpexe://xbib.org/repository</url>
         </repository>
     </distributionManagement>
 
     <repositories>
         <repository>
-            <id>bintray-elasticsearch-plugins</id>
-            <url>http://dl.bintray.com/jprante/elasticsearch-plugins</url>
+            <id>xbib</id>
+            <url>http://xbib.org/repository</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
             <snapshots>
-                <enabled>false</enabled>
+                <enabled>true</enabled>
             </snapshots>
         </repository>
     </repositories>
@@ -58,7 +57,9 @@
     <properties>
         <github.global.server>github</github.global.server>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>1.0.0</elasticsearch.version>
+        <elasticsearch.version>1.2.0</elasticsearch.version>
+        <org.xbib.version>1.0.0.Beta3</org.xbib.version>
+        <org.xbib.elasticsearch.support.version>1.2.0.0</org.xbib.elasticsearch.support.version>
     </properties>
 
     <dependencies>
@@ -74,7 +75,7 @@
         <dependency>
             <groupId>org.xbib.elasticsearch.plugin</groupId>
             <artifactId>elasticsearch-support</artifactId>
-            <version>1.0.0.2</version>
+            <version>${org.xbib.elasticsearch.support.version}</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -105,6 +106,13 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-ssh-external</artifactId>
+                <version>2.6</version>
+            </extension>
+        </extensions>
         <resources>
             <resource>
                 <directory>${basedir}/src/main/resources</directory>
