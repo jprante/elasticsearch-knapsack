@@ -21,6 +21,7 @@ Installation
 =============  =================  =================  ===========================================================
 ES version     Plugin             Release date       Command
 -------------  -----------------  -----------------  -----------------------------------------------------------
+1.2.1          1.2.1.0
 1.2.0          1.2.0.0            May 23, 2014       ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.2.0.0/elasticsearch-knapsack-1.2.0.0-plugin.zip
 1.2.0          1.2.0.0 (+S3)      May 23, 2014       ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.2.0.0/elasticsearch-knapsack-1.2.0.0-plugin-s3.zip
 1.1.0          1.1.0.0            May 25, 2014       ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.1.0.0/elasticsearch-knapsack-1.1.0.0-plugin.zip
