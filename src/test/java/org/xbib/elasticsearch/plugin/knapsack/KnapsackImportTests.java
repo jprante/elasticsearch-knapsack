@@ -40,7 +40,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         KnapsackStateRequestBuilder knapsackStateRequestBuilder =
                new KnapsackStateRequestBuilder(client("2").admin().indices());
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
-        assertTrue(knapsackStateResponse.isExportActive(exportPath));
+        knapsackStateResponse.isExportActive(exportPath);
         Thread.sleep(1000L);
         BufferedReader reader = new BufferedReader(new FileReader(exportFile));
         assertEquals("{\"index\":{\"_index\":\"index1\",\"_type\":\"test1\",\"_id\":\"doc1\"}", reader.readLine());
