@@ -82,17 +82,33 @@ Also, you can export a whole index with
 
     curl -XPOST localhost:9200/test/_export
 
-with the result file test.tar.gz, or even all cluster indices with
+with the archive file `test.tar.gz`, or even all cluster indices with
 
     curl -XPOST 'localhost:9200/_export'
 
 to the file `_all.tar.gz`
 
-By default, the archive format is `tar` with compression `gz` (gzip). 
-You can also export to `zip`, `cpio` or `bulk` archive or use another compression scheme.
-Available are `bz2` (bzip2), `xz` (Xz), or `lzf` (LZF)
+## Available suffixes for archive formats
 
-Note: if you use the `bulk` format, you can create Elasticsearch bulk format.
+    .tar
+    .zip
+    .cpio
+    .bulk
+
+## Available suffixes for compression
+
+    .gz
+    .bzip2
+    .xz
+    .lzf
+
+By default, the archive format is `tar` with compression `gz` (gzip). 
+
+You can also export to `zip`, `cpio` or `bulk` archive format.
+
+Available compression codecs are `bz2` (bzip2), `xz` (Xz), or `lzf` (LZF)
+
+Note: if you use the `bulk` format, you create Elasticsearch bulk format.
 
 ## Export search results
 
@@ -115,6 +131,14 @@ You can configure an archive path with the parameter `path`
 
 If Elasticsearch can not write to the path, an error message will appear, and no export will take place.
 You can force overwrite with the parameter `overwrite=true`
+
+## Export split by byte size
+
+You can create multiple archive files with the parameter `bytes`
+
+    curl -XPOST 'localhost:9200/test/_export?path=/tmp/myindex.bulk&bytes=10m'
+
+This creates `myindex.bulk`, `1.myindex.bulk`, `2.myindex.bulk` ... where all archive files are around 10 megabytes.
 
 ## Renaming indexes and index types
 

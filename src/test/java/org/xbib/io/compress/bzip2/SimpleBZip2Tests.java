@@ -10,7 +10,7 @@ import java.io.ObjectOutputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class BZip2Tests {
+public class SimpleBZip2Tests {
 
     @Test
     public void testBZip2HelloWorld() throws Exception {

@@ -8,7 +8,7 @@ import org.xbib.io.compress.bzip2.BZip2BlockDecompressorTests;
 import org.xbib.io.compress.bzip2.BZip2DivSufSortTests;
 import org.xbib.io.compress.bzip2.BZip2HuffmanStageDecoderTests;
 import org.xbib.io.compress.bzip2.BZip2OutputStreamTests;
-import org.xbib.io.compress.bzip2.BZip2Tests;
+import org.xbib.io.compress.bzip2.SimpleBZip2Tests;
 import org.xbib.io.compress.bzip2.HuffmanAllocatorTests;
 
 
@@ -21,7 +21,7 @@ import org.xbib.io.compress.bzip2.HuffmanAllocatorTests;
         BZip2HuffmanStageDecoderTests.class,
         BZip2OutputStreamTests.class,
         HuffmanAllocatorTests.class,
-        BZip2Tests.class
+        SimpleBZip2Tests.class
 })
 public class CompressionTestSuite {
 
