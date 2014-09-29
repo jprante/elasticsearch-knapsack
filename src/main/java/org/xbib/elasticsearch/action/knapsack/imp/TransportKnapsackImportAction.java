@@ -74,7 +74,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
     public TransportKnapsackImportAction(Settings settings,
                                          ThreadPool threadPool,
                                          Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackImportAction.NAME, threadPool);
+        super(settings, threadPool);
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;

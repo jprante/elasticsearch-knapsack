@@ -35,6 +35,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
@@ -77,7 +78,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
     public TransportKnapsackExportAction(Settings settings,
                                          ThreadPool threadPool, SettingsFilter settingsFilter,
                                          Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackExportAction.NAME, threadPool);
+        super(settings, threadPool);
         this.settingsFilter = settingsFilter;
         this.client = client;
         this.nodeService = nodeService;
@@ -206,7 +207,9 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
             }
             SearchRequest searchRequest = request.getSearchRequest();
             if (searchRequest == null) {
-                searchRequest = new SearchRequestBuilder(client).setQuery(QueryBuilders.matchAllQuery()).request();
+                SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+                        .query(QueryBuilders.matchAllQuery());
+                searchRequest = new SearchRequest().source(searchSourceBuilder);
             }
             for (String index : indices.keySet()) {
                 searchRequest.searchType(SearchType.SCAN).scroll(request.getTimeout());

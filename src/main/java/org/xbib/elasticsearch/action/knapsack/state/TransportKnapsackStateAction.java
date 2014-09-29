@@ -36,7 +36,7 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
 
     @Inject
     public TransportKnapsackStateAction(Settings settings, ThreadPool threadPool, Client client, KnapsackService knapsack) {
-        super(settings, KnapsackStateAction.NAME, threadPool);
+        super(settings, threadPool);
         this.client = client;
         this.knapsack = knapsack;
     }

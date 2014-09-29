@@ -76,7 +76,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
     public TransportKnapsackPushAction(Settings settings, Environment environment,
                                        ThreadPool threadPool, SettingsFilter settingsFilter,
                                        Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackPushAction.NAME, threadPool);
+        super(settings, threadPool);
         this.environment = environment;
         this.settingsFilter = settingsFilter;
         this.client = client;

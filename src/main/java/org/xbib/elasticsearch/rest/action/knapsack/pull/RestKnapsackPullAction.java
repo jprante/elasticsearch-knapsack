@@ -56,7 +56,7 @@ public class RestKnapsackPullAction extends BaseRestHandler implements KnapsackP
     }
 
     @Override
-    public void handleRequest(final RestRequest request, RestChannel channel, Client client) {
+    public void handleRequest(final RestRequest request, RestChannel channel) {
         try {
             final String index = request.param(INDEX_PARAM, "_all");
             final String type = request.param(TYPE_PARAM);

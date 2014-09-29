@@ -78,7 +78,7 @@ public class TransportKnapsackPullAction extends TransportAction<KnapsackPullReq
     public TransportKnapsackPullAction(Settings settings, Environment environment, SettingsFilter settingsFilter,
                                        ThreadPool threadPool,
                                        Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackPullAction.NAME, threadPool);
+        super(settings, threadPool);
         this.environment = environment;
         this.settingsFilter = settingsFilter;
         this.client = client;

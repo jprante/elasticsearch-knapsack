@@ -46,7 +46,7 @@ public class RestKnapsackStateAction extends BaseRestHandler implements Knapsack
     }
 
     @Override
-    public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
+    public void handleRequest(final RestRequest request, final RestChannel channel) {
         try {
             KnapsackStateRequest stateRequest = new KnapsackStateRequest();
             client.admin().indices().execute(KnapsackStateAction.INSTANCE, stateRequest,

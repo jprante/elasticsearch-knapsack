@@ -19,6 +19,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
 import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.internal.InternalIndicesAdminClient;
 import org.elasticsearch.common.unit.TimeValue;
 
 import java.util.Map;
@@ -29,7 +30,7 @@ import java.util.Map;
 public class KnapsackPushRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackPushRequest, KnapsackPushResponse, KnapsackPushRequestBuilder> {
 
     public KnapsackPushRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackPushRequest());
+        super((InternalIndicesAdminClient)client, new KnapsackPushRequest());
     }
 
     public KnapsackPushRequestBuilder setTimeout(TimeValue timeValue) {
@@ -99,6 +100,6 @@ public class KnapsackPushRequestBuilder extends SingleCustomOperationRequestBuil
 
     @Override
     protected void doExecute(ActionListener<KnapsackPushResponse> listener) {
-        client.execute(KnapsackPushAction.INSTANCE, request, listener);
+        ((IndicesAdminClient)client).execute(KnapsackPushAction.INSTANCE, request, listener);
     }
 }

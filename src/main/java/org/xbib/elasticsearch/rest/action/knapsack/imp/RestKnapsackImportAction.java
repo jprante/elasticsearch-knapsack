@@ -57,7 +57,7 @@ public class RestKnapsackImportAction extends BaseRestHandler implements Knapsac
     }
 
     @Override
-    public void handleRequest(final RestRequest request, RestChannel channel, Client client) {
+    public void handleRequest(final RestRequest request, RestChannel channel) {
         try {
             final String index = request.param(INDEX_PARAM, "_all");
             final String type = request.param(TYPE_PARAM);

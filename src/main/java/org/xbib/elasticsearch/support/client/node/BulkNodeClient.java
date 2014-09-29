@@ -58,8 +58,6 @@ public class BulkNodeClient implements Ingest {
 
     private ByteSizeValue maxVolume = new ByteSizeValue(10, ByteSizeUnit.MB);
 
-    private TimeValue flushInterval = TimeValue.timeValueSeconds(30);
-
     private final ConfigHelper configHelper = new ConfigHelper();
 
     private final AtomicLong concurrentRequestCounter = new AtomicLong(0L);
@@ -112,7 +110,6 @@ public class BulkNodeClient implements Ingest {
 
     @Override
     public BulkNodeClient flushIngestInterval(TimeValue flushInterval) {
-        this.flushInterval = flushInterval;
         return this;
     }
 
@@ -186,9 +183,9 @@ public class BulkNodeClient implements Ingest {
             }
         };
         BulkProcessor.Builder builder = BulkProcessor.builder(client, listener)
-                .setBulkActions(maxActionsPerBulkRequest)  // off-by-one
-                .setConcurrentRequests(maxConcurrentBulkRequests)
-                .setFlushInterval(flushInterval);
+                .setBulkActions(maxActionsPerBulkRequest-1)  // off-by-one
+                .setConcurrentRequests(maxConcurrentBulkRequests);
+                //.setFlushInterval(flushInterval);
         if (maxVolume != null) {
             builder.setBulkSize(maxVolume);
         }

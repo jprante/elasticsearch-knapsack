@@ -19,6 +19,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
 import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.internal.InternalIndicesAdminClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 
 import java.nio.file.Path;
@@ -30,7 +31,7 @@ import java.util.Map;
 public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackExportRequest, KnapsackExportResponse, KnapsackExportRequestBuilder> {
 
     public KnapsackExportRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackExportRequest());
+        super((InternalIndicesAdminClient)client, new KnapsackExportRequest());
     }
 
     public KnapsackExportRequestBuilder setPath(Path path) {
@@ -85,6 +86,6 @@ public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBu
 
     @Override
     protected void doExecute(ActionListener<KnapsackExportResponse> listener) {
-        client.execute(KnapsackExportAction.INSTANCE, request, listener);
+        ((IndicesAdminClient)client).execute(KnapsackExportAction.INSTANCE, request, listener);
     }
 }

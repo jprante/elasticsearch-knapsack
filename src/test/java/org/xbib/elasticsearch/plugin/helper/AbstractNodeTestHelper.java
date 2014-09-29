@@ -38,7 +38,7 @@ public abstract class AbstractNodeTestHelper {
     @Before
     public void setUp() throws Exception {
         startNode("1");
-        startNode("2"); // two nodes, for testing state
+        //startNode("2"); // two nodes, for testing state
     }
 
     @After

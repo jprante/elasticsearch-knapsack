@@ -45,7 +45,7 @@ public class RestKnapsackAbortAction extends BaseRestHandler {
     }
 
     @Override
-    public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
+    public void handleRequest(final RestRequest request, final RestChannel channel) {
         try {
             KnapsackAbortRequest abortRequest = new KnapsackAbortRequest();
             client.admin().indices().execute(KnapsackAbortAction.INSTANCE, abortRequest,

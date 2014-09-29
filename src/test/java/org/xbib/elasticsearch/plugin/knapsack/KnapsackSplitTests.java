@@ -38,7 +38,7 @@ public class KnapsackSplitTests extends AbstractNodeTestHelper {
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         assertTrue(knapsackExportResponse.isRunning());
         KnapsackStateRequestBuilder knapsackStateRequestBuilder =
-                new KnapsackStateRequestBuilder(client("2").admin().indices());
+                new KnapsackStateRequestBuilder(client("1").admin().indices());
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         assertTrue(knapsackStateResponse.isExportActive(exportPath));
         Thread.sleep(1000L);

@@ -32,7 +32,7 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
 
     @Inject
     public TransportKnapsackAbortAction(Settings settings, ThreadPool threadPool, KnapsackService knapsack) {
-        super(settings, KnapsackAbortAction.NAME, threadPool);
+        super(settings, threadPool);
         this.knapsack = knapsack;
     }
 

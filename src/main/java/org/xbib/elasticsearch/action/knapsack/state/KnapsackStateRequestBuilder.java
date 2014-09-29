@@ -18,13 +18,14 @@ package org.xbib.elasticsearch.action.knapsack.state;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
 import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.internal.InternalIndicesAdminClient;
 
 import java.nio.file.Path;
 
 public class KnapsackStateRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackStateRequest, KnapsackStateResponse, KnapsackStateRequestBuilder> {
 
     public KnapsackStateRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackStateRequest());
+        super((InternalIndicesAdminClient)client, new KnapsackStateRequest());
     }
 
     public KnapsackStateRequestBuilder setPath(Path path) {
@@ -34,6 +35,6 @@ public class KnapsackStateRequestBuilder extends SingleCustomOperationRequestBui
 
     @Override
     protected void doExecute(ActionListener<KnapsackStateResponse> listener) {
-        client.execute(KnapsackStateAction.INSTANCE, request, listener);
+        ((IndicesAdminClient)client).execute(KnapsackStateAction.INSTANCE, request, listener);
     }
 }
