@@ -1,4 +1,18 @@
-
+/*
+ * Copyright (C) 2014 Jörg Prante
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.xbib.io.compress.lzf;
 
 import java.io.IOException;
@@ -15,10 +29,6 @@ public abstract class ChunkDecoder {
 
     public ChunkDecoder() {
     }
-
-    /*
-     * Public API
-     */
 
     /**
      * Method for decompressing a block of input data encoded in LZF block
@@ -115,12 +125,6 @@ public abstract class ChunkDecoder {
     public abstract void decodeChunk(byte[] in, int inPos, byte[] out, int outPos, int outEnd)
             throws IOException;
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Public static methods
-     ///////////////////////////////////////////////////////////////////////
-     */
-
     /**
      * Helper method that will calculate total uncompressed size, for sequence
      * of one or more LZF blocks stored in given byte array. Will do basic
@@ -167,12 +171,7 @@ public abstract class ChunkDecoder {
         return uncompressedSize;
     }
 
-    /*
-     ///////////////////////////////////////////////////////////////////////
-     // Internal methods
-     ///////////////////////////////////////////////////////////////////////
-     */
-    protected final static int uint16(byte[] data, int ptr) {
+    protected static int uint16(byte[] data, int ptr) {
         return ((data[ptr] & 0xFF) << 8) + (data[ptr + 1] & 0xFF);
     }
 
@@ -180,7 +179,7 @@ public abstract class ChunkDecoder {
      * Helper method to forcibly load header bytes that must be read before
      * chunk can be handled.
      */
-    protected final static int readHeader(final InputStream is, final byte[] inputBuffer)
+    protected static int readHeader(final InputStream is, final byte[] inputBuffer)
             throws IOException {
         // Ok: simple case first, where we just get all data we need
         int needed = HEADER_BYTES;
@@ -208,7 +207,7 @@ public abstract class ChunkDecoder {
         return offset;
     }
 
-    protected final static void readFully(InputStream is, boolean compressed,
+    protected static void readFully(InputStream is, boolean compressed,
                                           byte[] outputBuffer, int offset, int len) throws IOException {
         int left = len;
         while (left > 0) {
