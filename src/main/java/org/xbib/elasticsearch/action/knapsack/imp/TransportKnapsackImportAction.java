@@ -147,8 +147,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             String lastCoord = null;
             long count = 0L;
             while ((packet = session.read()) != null && !Thread.interrupted()) {
-            	//ignore directory entries
-            	String payload = (String)packet.payload();
+                //ignore directory entries
+                String payload = (String)packet.payload();
                 if (payload == null || payload.length() == 0) {
                 	continue;
                 }
