@@ -45,7 +45,7 @@ import java.io.InputStream;
  * <p/>
  * <p>Instances of this class are not threadsafe.</p>
  */
-public class Bzip2InputStream extends InputStream {
+public class BZip2InputStream extends InputStream {
 
     /**
      * The stream from which compressed BZip2 data is read and decoded
@@ -87,11 +87,11 @@ public class Bzip2InputStream extends InputStream {
      */
     private BZip2BlockDecompressor blockDecompressor = null;
 
-    public Bzip2InputStream(final InputStream inputStream) {
+    public BZip2InputStream(final InputStream inputStream) {
         this(inputStream, false);
     }
 
-    public Bzip2InputStream(final InputStream inputStream, int bufferSize) {
+    public BZip2InputStream(final InputStream inputStream, int bufferSize) {
         this(inputStream, false);
     }
 
@@ -100,7 +100,7 @@ public class Bzip2InputStream extends InputStream {
      * @param headerless  If {@code true}, the caller is assumed to have read away the stream's
      *                    leading "BZ" identifier bytes
      */
-    public Bzip2InputStream(final InputStream inputStream, final boolean headerless) {
+    public BZip2InputStream(final InputStream inputStream, final boolean headerless) {
 
         if (inputStream == null) {
             throw new IllegalArgumentException("Null input stream");

@@ -26,13 +26,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Test EOF
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		assertEquals (-1, input.read());
 
 	}
@@ -48,13 +48,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -75,13 +75,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -102,13 +102,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -129,7 +129,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		for (int i = 0; i < testData.length; i++) {
 			output.write (testData[i]);
 		}
@@ -137,7 +137,7 @@ public class BZip2OutputStreamTests {
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -158,14 +158,14 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		byte[] compressedData = byteOutput.toByteArray();
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (Arrays.copyOfRange (compressedData, 2, compressedData.length));
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, true);
+		BZip2InputStream input = new BZip2InputStream(byteInput, true);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -186,13 +186,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read(decodedTestData, 0, decodedTestData.length);
 
@@ -213,13 +213,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 
 		// Test
 		input.close();
@@ -246,7 +246,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -257,7 +257,7 @@ public class BZip2OutputStreamTests {
 				throw new IOException();
 			}
 		};
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 
 		// Test
 		input.close();
@@ -275,7 +275,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -302,7 +302,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -329,7 +329,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.finish();
 
@@ -356,7 +356,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.finish();
 
@@ -395,7 +395,7 @@ public class BZip2OutputStreamTests {
 
 		};
 
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -409,7 +409,7 @@ public class BZip2OutputStreamTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void testNullInputStream() throws IOException {
 
-		new Bzip2InputStream(null, false);
+		new BZip2InputStream(null, false);
 
 	}
 
@@ -420,7 +420,7 @@ public class BZip2OutputStreamTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void testNullOutputStream() throws IOException {
 
-		new Bzip2OutputStream(null, 1);
+		new BZip2OutputStream(null, 1);
 
 	}
 
@@ -431,7 +431,7 @@ public class BZip2OutputStreamTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void testOutputStreamInvalidBlockSize1() throws IOException {
 
-		new Bzip2OutputStream(new ByteArrayOutputStream(), 0);
+		new BZip2OutputStream(new ByteArrayOutputStream(), 0);
 
 	}
 
@@ -442,7 +442,7 @@ public class BZip2OutputStreamTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void testOutputStreamInvalidBlockSize2() throws IOException {
 
-		new Bzip2OutputStream(new ByteArrayOutputStream(), 10);
+		new BZip2OutputStream(new ByteArrayOutputStream(), 10);
 
 	}
 
@@ -461,13 +461,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -492,13 +492,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -522,13 +522,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -554,13 +554,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		int remaining = testData.length;
 		while (remaining > 0) {
@@ -593,7 +593,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		for (int i = 0; i < testData.length; i++) {
 			output.write (testData[i]);
 		}
@@ -601,7 +601,7 @@ public class BZip2OutputStreamTests {
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		int remaining = testData.length;
 		while (remaining > 0) {
@@ -635,13 +635,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		for (int i = 0; i < testData.length; i++) {
 			decodedTestData[i] = (byte)input.read();
@@ -671,13 +671,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -704,13 +704,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -732,13 +732,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -762,13 +762,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -801,7 +801,7 @@ public class BZip2OutputStreamTests {
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [uncompressedData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -825,7 +825,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -833,7 +833,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[0] = '1';
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -861,7 +861,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -869,7 +869,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[0] = '1';
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -897,7 +897,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -905,7 +905,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[3] = '1';
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -934,7 +934,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -942,7 +942,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[3] = '1';
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -970,7 +970,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -978,7 +978,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[10] = -1;
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -1006,7 +1006,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -1014,7 +1014,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[14] = -1;
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -1043,7 +1043,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -1051,7 +1051,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[compressedData.length - 2] = -1;
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -1080,7 +1080,7 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
@@ -1088,7 +1088,7 @@ public class BZip2OutputStreamTests {
 		byte[] compressedData = byteOutput.toByteArray();
 		compressedData[compressedData.length - 6] = -1;
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (compressedData);
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		try {
 			input.read (decodedTestData, 0, decodedTestData.length);
@@ -1119,13 +1119,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 
@@ -1146,13 +1146,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 
 		// Compare
 		assertEquals (-1, input.read());
@@ -1171,13 +1171,13 @@ public class BZip2OutputStreamTests {
 
 		// Compress
 		ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-		Bzip2OutputStream output = new Bzip2OutputStream(byteOutput);
+		BZip2OutputStream output = new BZip2OutputStream(byteOutput);
 		output.write (testData);
 		output.close();
 
 		// Decompress
 		ByteArrayInputStream byteInput = new ByteArrayInputStream (byteOutput.toByteArray());
-		Bzip2InputStream input = new Bzip2InputStream(byteInput, false);
+		BZip2InputStream input = new BZip2InputStream(byteInput, false);
 		byte[] decodedTestData = new byte [testData.length];
 		input.read (decodedTestData, 0, decodedTestData.length);
 

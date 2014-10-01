@@ -31,7 +31,7 @@ import java.io.OutputStream;
  * <p/>
  * <p>Instances of this class are not threadsafe.</p>
  */
-public class Bzip2OutputStream extends OutputStream {
+public class BZip2OutputStream extends OutputStream {
 
     /**
      * The stream to which compressed BZip2 data is written
@@ -69,7 +69,7 @@ public class Bzip2OutputStream extends OutputStream {
      * @param outputStream The output stream to write to
      * @throws java.io.IOException on any I/O error writing to the output stream
      */
-    public Bzip2OutputStream(final OutputStream outputStream) throws IOException {
+    public BZip2OutputStream(final OutputStream outputStream) throws IOException {
         this(outputStream, 9);
     }
 
@@ -80,7 +80,7 @@ public class Bzip2OutputStream extends OutputStream {
      *                            but give better compression ratios. <code>9</code> will usually be the best value to use
      * @throws java.io.IOException on any I/O error writing to the output stream
      */
-    public Bzip2OutputStream(final OutputStream outputStream, final int blockSizeMultiplier) throws IOException {
+    public BZip2OutputStream(final OutputStream outputStream, final int blockSizeMultiplier) throws IOException {
         if (outputStream == null) {
             throw new IllegalArgumentException("Null output stream");
         }
