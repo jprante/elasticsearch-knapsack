@@ -15,13 +15,13 @@ public class SimpleBZip2Tests {
     @Test
     public void testBZip2HelloWorld() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BZip2OutputStream zOut = new BZip2OutputStream(out);
+        Bzip2OutputStream zOut = new Bzip2OutputStream(out);
         ObjectOutputStream objOut = new ObjectOutputStream(zOut);
         String helloWorld = "Hello World!";
         objOut.writeObject(helloWorld);
         zOut.close();
         ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
-        BZip2InputStream zIn = new BZip2InputStream(in);
+        Bzip2InputStream zIn = new Bzip2InputStream(in);
         ObjectInputStream objIn = new ObjectInputStream(zIn);
         assertEquals("Hello World!", objIn.readObject());
     }
@@ -29,7 +29,7 @@ public class SimpleBZip2Tests {
     @Test
     public void testEmptyBZip2() throws IOException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
-        try (BZip2OutputStream out = new BZip2OutputStream(b)) {
+        try (Bzip2OutputStream out = new Bzip2OutputStream(b)) {
             out.finish();
         } finally {
             ;

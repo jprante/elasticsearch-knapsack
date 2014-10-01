@@ -3,6 +3,7 @@ package org.xbib.elasticsearch.plugin.knapsack.tar;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.indices.IndexMissingException;
 import org.junit.Test;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
@@ -14,6 +15,7 @@ import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -152,6 +154,36 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
+    }
+
+
+    /**
+     * This test checks if a tar created from OS tools can be processed.
+     * @throws Exception
+     */
+    @Test
+    public void testAlienTar() throws Exception {
+        // delete index
+        try {
+            client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
+        } catch (IndexMissingException e) {
+            // ignore
+        }
+
+        URL testTar = getClass().getResource("/knapsack-tar-test.tar.gz");
+        Path path = Paths.get(testTar.toURI());
+        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1").admin().indices())
+                .setPath(path);
+        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
+        if (!knapsackImportResponse.isRunning()) {
+            logger.error(knapsackImportResponse.getReason());
+        }
+        assertTrue(knapsackImportResponse.isRunning());
+        Thread.sleep(1000L);
+        // count
+        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
+        assertEquals(1L, count);
+
     }
 
 }
