@@ -1,0 +1,4 @@
+org.xbib.io.archive.cpio.CpioArchiveCodec
+org.xbib.io.archive.esbulk.EsBulkArchiveCodec
+org.xbib.io.archive.tar.TarArchiveCodec
+org.xbib.io.archive.zip.ZipArchiveCodec
