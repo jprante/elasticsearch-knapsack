@@ -1,11 +1,25 @@
-
+/*
+ * Copyright (C) 2014 Jörg Prante
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.xbib.elasticsearch.plugin.knapsack;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringReader;
+import java.net.URL;
+import java.util.Enumeration;
 import java.util.Properties;
 
 public class Build {
@@ -20,34 +34,35 @@ public class Build {
         String date = "NA";
 
         try {
-            InputStream in = Build.class.getResourceAsStream("/es-plugin.properties");
-            if (in == null) {
-                System.err.println("no es-plugin.properties in class path");
-            } else {
+            String pluginName = KnapsackPlugin.class.getName();
+            Enumeration<URL> e = KnapsackPlugin.class.getClassLoader().getResources("es-plugin.properties");
+            while (e.hasMoreElements()) {
+                URL url = e.nextElement();
+                InputStream in = url.openStream();
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                copy(in, out);
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, len);
+                }
+                in.close();
                 Properties props = new Properties();
                 props.load(new StringReader(new String(out.toByteArray())));
-                version = props.getProperty("version");
-                hash = props.getProperty("hash");
-                if (!"NA".equals(hash)) {
-                    hashShort = hash.substring(0, 7);
+                String plugin = props.getProperty("plugin");
+                if (pluginName.equals(plugin)) {
+                    version = props.getProperty("version");
+                    hash = props.getProperty("hash");
+                    if (!"NA".equals(hash)) {
+                        hashShort = hash.substring(0, 7);
+                    }
+                    timestamp = props.getProperty("timestamp");
+                    date = props.getProperty("date");
                 }
-                timestamp = props.getProperty("timestamp");
-                date = props.getProperty("date");
             }
         } catch (Throwable e) {
             // just ignore...
         }
         INSTANCE = new Build(version, hash, hashShort, timestamp, date);
-    }
-
-    public static void copy(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[1024];
-        int len;
-        while ((len = in.read(buffer)) != -1) {
-            out.write(buffer, 0, len);
-        }
     }
 
     private String version;
