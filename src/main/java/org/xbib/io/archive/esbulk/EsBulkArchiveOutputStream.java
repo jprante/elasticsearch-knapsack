@@ -24,6 +24,10 @@ public class EsBulkArchiveOutputStream extends ArchiveOutputStream<EsBulkArchive
 
     private final OutputStream out;
 
+    private boolean closed = false;
+
+    private boolean finished;
+
     public EsBulkArchiveOutputStream(OutputStream out) {
         this.out = out;
     }
@@ -58,7 +62,19 @@ public class EsBulkArchiveOutputStream extends ArchiveOutputStream<EsBulkArchive
 
     @Override
     public void finish() throws IOException {
-        out.close();
+        // do nothing
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (!finished) {
+            finish();
+            finished = true;
+        }
+        if (!closed) {
+            out.close();
+            closed = true;
+        }
     }
 
 }

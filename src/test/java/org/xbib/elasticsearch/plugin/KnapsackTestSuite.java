@@ -6,6 +6,7 @@ import org.xbib.elasticsearch.plugin.knapsack.KnapsackExportTests;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackImportTests;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackSimpleTests;
 import org.xbib.elasticsearch.plugin.knapsack.KnapsackSplitTests;
+import org.xbib.elasticsearch.plugin.knapsack.bulk.KnapsackBulkTests;
 import org.xbib.elasticsearch.plugin.knapsack.cpio.KnapsackCpioTests;
 import org.xbib.elasticsearch.plugin.knapsack.tar.KnapsackTarTests;
 import org.xbib.elasticsearch.plugin.knapsack.zip.KnapsackZipTests;
@@ -19,6 +20,7 @@ import org.xbib.elasticsearch.plugin.knapsack.zip.KnapsackZipTests;
         KnapsackTarTests.class,
         KnapsackZipTests.class,
         KnapsackCpioTests.class,
+        KnapsackBulkTests.class,
         KnapsackSplitTests.class
 })
 public class KnapsackTestSuite {
