@@ -1,9 +1,8 @@
-package org.xbib.elasticsearch.plugin.knapsack.tar;
+package org.xbib.elasticsearch.plugin.knapsack.bulk;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.indices.IndexMissingException;
 import org.junit.Test;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
@@ -15,18 +14,17 @@ import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;
 
 import java.io.File;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class KnapsackTarTests extends AbstractNodeTestHelper {
+public class KnapsackBulkTests extends AbstractNodeTestHelper {
 
     @Test
-    public void testTar() throws Exception {
-        File exportFile = File.createTempFile("knapsack-tar-", ".tar");
+    public void testBulk() throws Exception {
+        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
@@ -58,8 +56,8 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
     }
 
     @Test
-    public void testTarGz() throws Exception {
-        File exportFile = File.createTempFile("knapsack-tar-", ".tar.gz");
+    public void testBulkGz() throws Exception {
+        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.gz");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
@@ -91,8 +89,8 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
     }
 
     @Test
-    public void testTarBz2() throws Exception {
-        File exportFile = File.createTempFile("knapsack-tar-", ".tar.bz2");
+    public void testBulkBz2() throws Exception {
+        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.bz2");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
@@ -124,8 +122,8 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
     }
 
     @Test
-    public void testTarXz() throws Exception {
-        File exportFile = File.createTempFile("knapsack-tar-", ".tar.xz");
+    public void testBulkXz() throws Exception {
+        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.xz");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
@@ -154,36 +152,6 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
-    }
-
-
-    /**
-     * This test checks if a tar created from OS tools can be processed.
-     * @throws Exception
-     */
-    @Test
-    public void testAlienTar() throws Exception {
-        // delete index
-        try {
-            client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
-        } catch (IndexMissingException e) {
-            // ignore
-        }
-
-        URL testTar = getClass().getResource("/knapsack-tar-test.tar.gz");
-        Path path = Paths.get(testTar.toURI());
-        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1").admin().indices())
-                .setPath(path);
-        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
-        if (!knapsackImportResponse.isRunning()) {
-            logger.error(knapsackImportResponse.getReason());
-        }
-        assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
-        // count
-        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
-        assertEquals(1L, count);
-
     }
 
 }
