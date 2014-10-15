@@ -216,14 +216,19 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                     aliases.put(type, (String)packet.payload());
                     aliasRequestMap.put(index, aliases);
                 } else {
-                    // normal document fields
-                    String coord = index + File.separator + type + File.separator + id;
-                    if (!coord.equals(lastCoord) && !packets.isEmpty()) {
-                        indexPackets(bulkClient, indexRequestMap, indexCreated, aliasRequestMap, request, packets);
-                        packets.clear();
+                    // index normal document fields. Check for sane entries here.
+                    if (index != null && type != null && id != null && packet.payload() != null) {
+                        // additional check for Mac tar "." artifacts and skip them (should we check for lowercase here?)
+                        if (!type.startsWith(".") && !id.startsWith(".")) {
+                            String coord = index + File.separator + type + File.separator + id;
+                            if (!coord.equals(lastCoord) && !packets.isEmpty()) {
+                                indexPackets(bulkClient, indexRequestMap, indexCreated, aliasRequestMap, request, packets);
+                                packets.clear();
+                            }
+                            packets.put(field, packet);
+                            lastCoord = coord;
+                        }
                     }
-                    packets.put(field, packet);
-                    lastCoord = coord;
                 }
             }
             if (!packets.isEmpty()) {
