@@ -16,9 +16,8 @@
 package org.xbib.elasticsearch.action.knapsack.imp;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.support.BaseIndicesRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.BaseRequestBuilder;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -26,9 +25,9 @@ import org.elasticsearch.common.unit.TimeValue;
 import java.nio.file.Path;
 import java.util.Map;
 
-public class KnapsackImportRequestBuilder extends BaseRequestBuilder<KnapsackImportRequest, KnapsackImportResponse> {
+public class KnapsackImportRequestBuilder extends BaseIndicesRequestBuilder<KnapsackImportRequest, KnapsackImportResponse> {
 
-    public KnapsackImportRequestBuilder(Client client) {
+    public KnapsackImportRequestBuilder(IndicesAdminClient client) {
         super(client, new KnapsackImportRequest());
     }
 
@@ -119,6 +118,6 @@ public class KnapsackImportRequestBuilder extends BaseRequestBuilder<KnapsackImp
 
     @Override
     protected void doExecute(ActionListener<KnapsackImportResponse> listener) {
-        ((IndicesAdminClient)client).execute(KnapsackImportAction.INSTANCE, request, listener);
+        client.execute(KnapsackImportAction.INSTANCE, request, listener);
     }
 }

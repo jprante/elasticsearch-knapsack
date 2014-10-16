@@ -16,18 +16,17 @@
 package org.xbib.elasticsearch.action.knapsack.abort;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.BaseRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.admin.indices.support.BaseIndicesRequestBuilder;
 import org.elasticsearch.client.IndicesAdminClient;
 
-public class KnapsackAbortRequestBuilder extends BaseRequestBuilder<KnapsackAbortRequest, KnapsackAbortResponse> {
+public class KnapsackAbortRequestBuilder extends BaseIndicesRequestBuilder<KnapsackAbortRequest, KnapsackAbortResponse> {
 
-    public KnapsackAbortRequestBuilder(Client client) {
+    public KnapsackAbortRequestBuilder(IndicesAdminClient client) {
         super(client, new KnapsackAbortRequest());
     }
 
     @Override
     protected void doExecute(ActionListener<KnapsackAbortResponse> listener) {
-        ((IndicesAdminClient)client).execute(KnapsackAbortAction.INSTANCE, request, listener);
+        client.execute(KnapsackAbortAction.INSTANCE, request, listener);
     }
 }

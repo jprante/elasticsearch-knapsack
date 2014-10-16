@@ -18,6 +18,7 @@ package org.xbib.elasticsearch.knapsack;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.ImmutableList.Builder;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -50,6 +51,13 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
     public static final String EXPORT_STATE_SETTING_NAME = "plugin.knapsack.export.state";
 
     public static final String IMPORT_STATE_SETTING_NAME = "plugin.knapsack.import.state";
+
+    static {
+        MetaData.addDynamicSettings(
+                EXPORT_STATE_SETTING_NAME,
+                IMPORT_STATE_SETTING_NAME
+        );
+    }
 
     private final ClusterService clusterService;
 

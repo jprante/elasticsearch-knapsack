@@ -16,9 +16,8 @@
 package org.xbib.elasticsearch.action.knapsack.push;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.support.BaseIndicesRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.BaseRequestBuilder;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.common.unit.TimeValue;
 
@@ -27,9 +26,9 @@ import java.util.Map;
 /**
  * Build request for knapsack push action
  */
-public class KnapsackPushRequestBuilder extends BaseRequestBuilder<KnapsackPushRequest, KnapsackPushResponse> {
+public class KnapsackPushRequestBuilder extends BaseIndicesRequestBuilder<KnapsackPushRequest, KnapsackPushResponse> {
 
-    public KnapsackPushRequestBuilder(Client client) {
+    public KnapsackPushRequestBuilder(IndicesAdminClient client) {
         super(client, new KnapsackPushRequest());
     }
 
@@ -100,6 +99,6 @@ public class KnapsackPushRequestBuilder extends BaseRequestBuilder<KnapsackPushR
 
     @Override
     protected void doExecute(ActionListener<KnapsackPushResponse> listener) {
-        ((IndicesAdminClient)client).execute(KnapsackPushAction.INSTANCE, request, listener);
+        client.execute(KnapsackPushAction.INSTANCE, request, listener);
     }
 }

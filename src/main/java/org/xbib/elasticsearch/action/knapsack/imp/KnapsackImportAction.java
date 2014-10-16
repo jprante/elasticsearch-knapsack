@@ -16,7 +16,6 @@
 package org.xbib.elasticsearch.action.knapsack.imp;
 
 import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 
 public class KnapsackImportAction extends IndicesAction<KnapsackImportRequest, KnapsackImportResponse, KnapsackImportRequestBuilder> {
@@ -36,6 +35,6 @@ public class KnapsackImportAction extends IndicesAction<KnapsackImportRequest, K
 
     @Override
     public KnapsackImportRequestBuilder newRequestBuilder(IndicesAdminClient client) {
-        return new KnapsackImportRequestBuilder((Client) client);
+        return new KnapsackImportRequestBuilder(client);
     }
 }

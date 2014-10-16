@@ -15,7 +15,6 @@
  */package org.xbib.elasticsearch.action.knapsack.abort;
 
 import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 
 public class KnapsackAbortAction extends IndicesAction<KnapsackAbortRequest, KnapsackAbortResponse, KnapsackAbortRequestBuilder> {
@@ -35,6 +34,6 @@ public class KnapsackAbortAction extends IndicesAction<KnapsackAbortRequest, Kna
 
     @Override
     public KnapsackAbortRequestBuilder newRequestBuilder(IndicesAdminClient client) {
-        return new KnapsackAbortRequestBuilder((Client) client);
+        return new KnapsackAbortRequestBuilder(client);
     }
 }

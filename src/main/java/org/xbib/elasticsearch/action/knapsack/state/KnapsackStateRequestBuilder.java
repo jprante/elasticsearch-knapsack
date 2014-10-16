@@ -16,15 +16,13 @@
 package org.xbib.elasticsearch.action.knapsack.state;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.BaseRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.admin.indices.support.BaseIndicesRequestBuilder;
 import org.elasticsearch.client.IndicesAdminClient;
-
 import java.nio.file.Path;
 
-public class KnapsackStateRequestBuilder extends BaseRequestBuilder<KnapsackStateRequest, KnapsackStateResponse> {
+public class KnapsackStateRequestBuilder extends BaseIndicesRequestBuilder<KnapsackStateRequest, KnapsackStateResponse> {
 
-    public KnapsackStateRequestBuilder(Client client) {
+    public KnapsackStateRequestBuilder(IndicesAdminClient client) {
         super(client, new KnapsackStateRequest());
     }
 
@@ -35,6 +33,6 @@ public class KnapsackStateRequestBuilder extends BaseRequestBuilder<KnapsackStat
 
     @Override
     protected void doExecute(ActionListener<KnapsackStateResponse> listener) {
-        ((IndicesAdminClient)client).execute(KnapsackStateAction.INSTANCE, request, listener);
+        client.execute(KnapsackStateAction.INSTANCE, request, listener);
     }
 }

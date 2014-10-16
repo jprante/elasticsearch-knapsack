@@ -16,7 +16,6 @@
 package org.xbib.elasticsearch.action.knapsack.state;
 
 import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 
 public class KnapsackStateAction extends IndicesAction<KnapsackStateRequest, KnapsackStateResponse, KnapsackStateRequestBuilder> {
@@ -36,6 +35,6 @@ public class KnapsackStateAction extends IndicesAction<KnapsackStateRequest, Kna
 
     @Override
     public KnapsackStateRequestBuilder newRequestBuilder(IndicesAdminClient client) {
-        return new KnapsackStateRequestBuilder((Client) client);
+        return new KnapsackStateRequestBuilder(client);
     }
 }

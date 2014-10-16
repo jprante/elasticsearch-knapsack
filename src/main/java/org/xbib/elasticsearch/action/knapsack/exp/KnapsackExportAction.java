@@ -16,7 +16,6 @@
 package org.xbib.elasticsearch.action.knapsack.exp;
 
 import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 
 /**
@@ -39,6 +38,6 @@ public class KnapsackExportAction extends IndicesAction<KnapsackExportRequest, K
 
     @Override
     public KnapsackExportRequestBuilder newRequestBuilder(IndicesAdminClient client) {
-        return new KnapsackExportRequestBuilder((Client) client);
+        return new KnapsackExportRequestBuilder(client);
     }
 }

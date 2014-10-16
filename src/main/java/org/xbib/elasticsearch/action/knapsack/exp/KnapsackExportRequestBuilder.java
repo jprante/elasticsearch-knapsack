@@ -16,9 +16,8 @@
 package org.xbib.elasticsearch.action.knapsack.exp;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.support.BaseIndicesRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.BaseRequestBuilder;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 
@@ -28,9 +27,9 @@ import java.util.Map;
 /**
  * Build request for knapsack export action
  */
-public class KnapsackExportRequestBuilder extends BaseRequestBuilder<KnapsackExportRequest, KnapsackExportResponse> {
+public class KnapsackExportRequestBuilder extends BaseIndicesRequestBuilder<KnapsackExportRequest, KnapsackExportResponse> {
 
-    public KnapsackExportRequestBuilder(Client client) {
+    public KnapsackExportRequestBuilder(IndicesAdminClient client) {
         super(client, new KnapsackExportRequest());
     }
 
@@ -86,6 +85,6 @@ public class KnapsackExportRequestBuilder extends BaseRequestBuilder<KnapsackExp
 
     @Override
     protected void doExecute(ActionListener<KnapsackExportResponse> listener) {
-        ((IndicesAdminClient)client).execute(KnapsackExportAction.INSTANCE, request, listener);
+        client.execute(KnapsackExportAction.INSTANCE, request, listener);
     }
 }

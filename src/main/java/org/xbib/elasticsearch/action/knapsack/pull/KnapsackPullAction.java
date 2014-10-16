@@ -16,7 +16,6 @@
 package org.xbib.elasticsearch.action.knapsack.pull;
 
 import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 
 public class KnapsackPullAction extends IndicesAction<KnapsackPullRequest, KnapsackPullResponse, KnapsackPullRequestBuilder> {
@@ -36,6 +35,6 @@ public class KnapsackPullAction extends IndicesAction<KnapsackPullRequest, Knaps
 
     @Override
     public KnapsackPullRequestBuilder newRequestBuilder(IndicesAdminClient client) {
-        return new KnapsackPullRequestBuilder((Client) client);
+        return new KnapsackPullRequestBuilder(client);
     }
 }
