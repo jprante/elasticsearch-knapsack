@@ -1,0 +1,4 @@
+org.xbib.io.compress.gzip.GzipCompressCodec
+org.xbib.io.compress.lzf.LZFCompressCodec
+org.xbib.io.compress.xz.XZCompressCodec
+org.xbib.io.compress.bzip2.BZip2CompressCodec
