@@ -15,9 +15,12 @@
  */
 package org.xbib.elasticsearch.action.knapsack.push;
 
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.count.CountRequest;
+import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
@@ -37,6 +40,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -179,8 +183,17 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                     }
                     // create index
                     logger.info("creating index: {}", mapIndex(request, index));
-                    bulkClient.client().admin().indices().create(createIndexRequest).actionGet();
-                    logger.info("index created: {}", mapIndex(request, index));
+                    try {
+                        bulkClient.client().admin().indices().create(createIndexRequest).actionGet();
+                        logger.info("index created: {}", mapIndex(request, index));
+                    } catch (Exception e) {
+                        // maybe an index already exists exception, check if index is empty, throw exception only if not empty
+                        CountResponse countResponse = bulkClient.client().count(new CountRequest(mapIndex(request, index))).actionGet();
+                        logger.info("count={} status={}", countResponse.getCount(), countResponse.status());
+                        if (countResponse.getCount() > 0L) {
+                            throw e;
+                        }
+                    }
                     logger.info("getting aliases for index {}", index);
                     Map<String,String> aliases = getAliases(client, index);
                     logger.info("found {} aliases", aliases.size());
