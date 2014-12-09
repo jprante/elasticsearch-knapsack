@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import java.io.InputStream;
@@ -6,14 +5,14 @@ import java.io.InputStream;
 /**
  * Delta filter options. The Delta filter can be used only as a non-last
  * filter in the chain, for example Delta + LZMA2.
- * <p/>
+ * <p>
  * Currently only simple byte-wise delta is supported. The only option
  * is the delta distance, which you should set to match your data.
  * It's not possible to provide a generic default value for it.
- * <p/>
+ * <p>
  * For example, with distance = 2 and eight-byte input
  * A1 B1 A2 B3 A3 B5 A4 B7, the output will be A1 B1 01 02 01 02 01 02.
- * <p/>
+ * <p>
  * The Delta filter can be good with uncompressed bitmap images. It can
  * also help with PCM audio, although special-purpose compressors like
  * FLAC will give much smaller result at much better compression speed.

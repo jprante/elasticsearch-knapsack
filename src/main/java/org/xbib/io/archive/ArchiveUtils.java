@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.Locale;
 
 /**
- *  Archive utilities
+ * Archive utilities
  */
 public class ArchiveUtils {
 
@@ -159,10 +159,10 @@ public class ArchiveUtils {
 
     /**
      * Generates a string containing the name, isDirectory setting and size of an entry.
-     * <p/>
-     * For example:<br/>
-     * <tt>-    2000 main.c</tt><br/>
-     * <tt>d     100 testfiles</tt><br/>
+     * <p>
+     * For example:
+     * <tt>-    2000 main.c</tt>
+     * <tt>d     100 testfiles</tt>
      *
      * @return the representation of the entry
      */
@@ -247,18 +247,18 @@ public class ArchiveUtils {
     /**
      * Compare byte buffers, optionally ignoring trailing nulls
      *
-     * @param buffer1 first buffer
-     * @param offset1 offset of first buffer
-     * @param length1 length of first buffer
-     * @param buffer2 second buffer
-     * @param offset2 offset of second buffer
-     * @param length2 length of second buffer
+     * @param buffer1             first buffer
+     * @param offset1             offset of first buffer
+     * @param length1             length of first buffer
+     * @param buffer2             second buffer
+     * @param offset2             offset of second buffer
+     * @param length2             length of second buffer
      * @param ignoreTrailingNulls
      * @return {@code true} if buffer1 and buffer2 have same contents, having regard to trailing nulls
      */
     public static boolean isEqual(final byte[] buffer1, final int offset1, final int length1,
-            final byte[] buffer2, final int offset2, final int length2,
-            boolean ignoreTrailingNulls) {
+                                  final byte[] buffer2, final int offset2, final int length2,
+                                  boolean ignoreTrailingNulls) {
         int minLen = length1 < length2 ? length1 : length2;
         for (int i = 0; i < minLen; i++) {
             if (buffer1[offset1 + i] != buffer2[offset2 + i]) {

@@ -53,9 +53,9 @@ public abstract class ArchiveInputStream<E extends ArchiveEntry> extends InputSt
     /**
      * Reads a byte of data. This method will block until enough input is
      * available.
-     * <p/>
+     * <p>
      * Simply calls the {@link #read(byte[], int, int)} method.
-     * <p/>
+     * <p>
      * MUST be overridden if the {@link #read(byte[], int, int)} method
      * is not overridden; may be overridden otherwise.
      *

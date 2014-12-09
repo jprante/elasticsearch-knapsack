@@ -15,7 +15,6 @@
  */
 package org.xbib.elasticsearch.action.knapsack.push;
 
-import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -26,6 +25,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
@@ -40,7 +40,6 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -79,8 +78,9 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
     @Inject
     public TransportKnapsackPushAction(Settings settings, Environment environment,
                                        ThreadPool threadPool, SettingsFilter settingsFilter,
-                                       Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackPushAction.NAME, threadPool);
+                                       Client client, NodeService nodeService, ActionFilters actionFilters,
+                                       KnapsackService knapsack) {
+        super(settings, KnapsackPushAction.NAME, threadPool, actionFilters);
         this.environment = environment;
         this.settingsFilter = settingsFilter;
         this.client = client;
@@ -124,21 +124,22 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
 
     /**
      * Push action thread
-     * @param request the request
-     * @param state the state
+     *
+     * @param request    the request
+     * @param state      the state
      * @param bulkClient the bulk client
      */
     final void performPush(final KnapsackPushRequest request,
-                            final KnapsackState state,
-                            final BulkTransportClient bulkClient) {
+                           final KnapsackState state,
+                           final BulkTransportClient bulkClient) {
         try {
             logger.info("start of push: {}", state);
             long count = 0L;
-            Map<String,Set<String>> indices = newHashMap();
+            Map<String, Set<String>> indices = newHashMap();
             for (String s : Strings.commaDelimitedListToSet(request.getIndex())) {
                 indices.put(s, Strings.commaDelimitedListToSet(request.getType()));
             }
-            if (request.withMetadata() ) {
+            if (request.withMetadata()) {
                 logger.info("map={}", request.getIndexTypeNames());
                 if (request.getIndexTypeNames() != null) {
                     for (Object spec : request.getIndexTypeNames().keySet()) {
@@ -195,7 +196,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                         }
                     }
                     logger.info("getting aliases for index {}", index);
-                    Map<String,String> aliases = getAliases(client, index);
+                    Map<String, String> aliases = getAliases(client, index);
                     logger.info("found {} aliases", aliases.size());
                     if (!aliases.isEmpty()) {
                         IndicesAliasesRequestBuilder requestBuilder = bulkClient.client().admin().indices().prepareAliases();

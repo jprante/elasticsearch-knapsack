@@ -16,6 +16,7 @@
 package org.xbib.elasticsearch.action.knapsack.abort;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
@@ -31,8 +32,10 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackAbortAction(Settings settings, ThreadPool threadPool, KnapsackService knapsack) {
-        super(settings, KnapsackAbortAction.NAME, threadPool);
+    public TransportKnapsackAbortAction(Settings settings,
+                                        ThreadPool threadPool, ActionFilters actionFilters,
+                                        KnapsackService knapsack) {
+        super(settings, KnapsackAbortAction.NAME, threadPool, actionFilters);
         this.knapsack = knapsack;
     }
 

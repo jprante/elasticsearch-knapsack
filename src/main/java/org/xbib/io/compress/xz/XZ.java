@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 /**
@@ -19,7 +18,7 @@ public class XZ {
 
     /**
      * Integrity check ID indicating that no integrity check is calculated.
-     * <p/>
+     * <p>
      * Omitting the integrity check is strongly discouraged except when
      * the integrity of the data will be verified by other means anyway,
      * and calculating the check twice would be useless.

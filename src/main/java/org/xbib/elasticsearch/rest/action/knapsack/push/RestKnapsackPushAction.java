@@ -47,7 +47,7 @@ public class RestKnapsackPushAction extends BaseRestHandler implements KnapsackP
 
     @Inject
     public RestKnapsackPushAction(Settings settings, Client client, RestController controller) {
-        super(settings, client);
+        super(settings, controller, client);
 
         controller.registerHandler(POST, "/_push", this);
         controller.registerHandler(POST, "/{index}/_push", this);

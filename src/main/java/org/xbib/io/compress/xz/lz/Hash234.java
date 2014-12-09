@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lz;
 
 final class Hash234 extends CRC32Hash {

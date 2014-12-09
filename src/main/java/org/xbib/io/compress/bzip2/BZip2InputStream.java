@@ -28,13 +28,13 @@ import java.io.InputStream;
 
 /**
  * <p>An InputStream wrapper that decompresses BZip2 data</p>
- * <p/>
+ *
  * <p>A BZip2 stream consists of one or more blocks of compressed data. This decompressor reads a
  * whole block at a time, then progressively returns decompressed output.</p>
- * <p/>
+ *
  * <p>On encountering any error decoding the compressed stream, an IOException is thrown, and
  * further reads will return {@code -1}</p>
- * <p/>
+ *
  * <p><b>Note:</b> Each BZip2 compressed block contains a CRC code which is verified after the block
  * has been read completely. If verification fails, an exception is thrown on the final read from
  * the block, <b>potentially after corrupt data has already been returned</b>. The compressed stream
@@ -42,7 +42,7 @@ import java.io.InputStream;
  * <b>This check may fail even if every individual block in the stream passes CRC verification</b>.
  * If this possibility is of concern, you should read and store the entire decompressed stream
  * before further processing.</p>
- * <p/>
+ *
  * <p>Instances of this class are not threadsafe.</p>
  */
 public class BZip2InputStream extends InputStream {
@@ -275,7 +275,6 @@ public class BZip2InputStream extends InputStream {
         throw new BZip2Exception("BZip2 stream format error");
 
     }
-
 
 
 }

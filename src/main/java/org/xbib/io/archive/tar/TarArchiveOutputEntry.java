@@ -750,7 +750,7 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
 
     /**
      * Write an octal long integer into a buffer.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
@@ -772,7 +772,7 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
     /**
      * Write an long integer into a buffer as an octal string if this
      * will fit, or as a binary number otherwise.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
@@ -820,9 +820,9 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
     }
 
     private void formatBigIntegerBinary(final long value, byte[] buf,
-                                               final int offset,
-                                               final int length,
-                                               final boolean negative) {
+                                        final int offset,
+                                        final int length,
+                                        final boolean negative) {
         BigInteger val = BigInteger.valueOf(value);
         final byte[] b = val.toByteArray();
         final int len = b.length;
@@ -836,7 +836,7 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
 
     /**
      * Writes an octal value into a buffer.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by NUL and then space.

@@ -24,7 +24,7 @@ import java.util.Date;
  * A cpio archive consists of a sequence of files. There are several types of
  * headers defided in two categories of new and old format. The headers are
  * recognized by magic numbers:
- * <p/>
+ *
  * <ul>
  * <li>"070701" ASCII for new portable format</li>
  * <li>"070702" ASCII for new portable format with CRC format</li>
@@ -32,30 +32,29 @@ import java.util.Date;
  * character format</li>
  * <li>070707 binary for old binary</li>
  * </ul>
- * <p/>
+ *
  * <p>The old binary format is limited to 16 bits for user id, group
  * id, device, and inode numbers. It is limited to 4 gigabyte file
  * sizes.
- * <p/>
- * The old ASCII format is limited to 18 bits for the user id, group
+ *  * The old ASCII format is limited to 18 bits for the user id, group
  * id, device, and inode numbers. It is limited to 8 gigabyte file
  * sizes.
- * <p/>
+ *
  * The new ASCII format is limited to 4 gigabyte file sizes.
- * <p/>
+ *
  * CPIO 2.5 knows also about tar, but it is not recognized here.</p>
- * <p/>
- * <p/>
+ *
+ *
  * <h3>OLD FORMAT</h3>
- * <p/>
+ *
  * <p>Each file has a 76 (ascii) / 26 (binary) byte header, a variable
  * length, NUL terminated filename, and variable length file data. A
  * header for a filename "TRAILER!!!" indicates the end of the
  * archive.</p>
- * <p/>
+ *
  * <p>All the fields in the header are ISO 646 (approximately ASCII)
  * strings of octal numbers, left padded, not NUL terminated.</p>
- * <p/>
+ *
  * <pre>
  * FIELDNAME        NOTES
  * c_magic          The integer value octal 070707.  This value can be used to deter-
@@ -83,23 +82,23 @@ import java.util.Date;
  * All fields are unsigned short fields with 16-bit integer values
  * apart from c_mtime and c_filesize which are 32-bit integer values
  * </pre>
- * <p/>
+ *
  * <p>If necessary, the filename and file data are padded with a NUL byte to an even length</p>
- * <p/>
+ *
  * <p>Special files, directories, and the trailer are recorded with
  * the h_filesize field equal to 0.</p>
- * <p/>
+ *
  * <p>In the ASCII version of this format, the 16-bit entries are represented as 6-byte octal numbers,
  * and the 32-bit entries are represented as 11-byte octal numbers. No padding is added.</p>
- * <p/>
+ *
  * <h3>NEW FORMAT</h3>
- * <p/>
+ *
  * <p>Each file has a 110 byte header, a variable length, NUL
  * terminated filename, and variable length file data. A header for a
  * filename "TRAILER!!!" indicates the end of the archive. All the
  * fields in the header are ISO 646 (approximately ASCII) strings of
  * hexadecimal numbers, left padded, not NUL terminated.</p>
- * <p/>
+ *
  * <pre>
  * FIELDNAME        NOTES
  * c_magic[6]       The string 070701 for new ASCII, the string 070702 for new ASCII with CRC
@@ -118,22 +117,21 @@ import java.util.Date;
  * c_check[8]       0 for "new" portable format; for CRC format
  *                  the sum of all the bytes in the file
  * </pre>
- * <p/>
+ *
  * <p>New ASCII Format The "new" ASCII format uses 8-byte hexadecimal
  * fields for all numbers and separates device numbers into separate
  * fields for major and minor numbers.</p>
- * <p/>
+ *
  * <p>The pathname is followed by NUL bytes so that the total size of
  * the fixed header plus pathname is a multiple of four. Likewise, the
  * file data is padded to a multiple of four bytes.</p>
- * <p/>
- * <p>This class uses mutable fields and is not considered to be
+ *  * <p>This class uses mutable fields and is not considered to be
  * threadsafe.</p>
- * <p/>
+ *
  * <p>Based on code from the jRPM project (http://jrpm.sourceforge.net).</p>
- * <p/>
+ *
  * <p>The MAGIC numbers and other constants are defined in {@link CpioConstants}</p>
- * <p/>
+ *
  * <p>
  * N.B. does not handle the cpio "tar" format
  * </p>
@@ -195,13 +193,13 @@ public class CpioArchiveEntry implements CpioConstants, ArchiveEntry {
      * Creates a CPIOArchiveEntry with a specified format.
      *
      * @param format The cpio format for this entry.
-     *               <br/>
+     *
      *               Possible format values are:
-     *               <p/>
-     *               CpioConstants.FORMAT_NEW<br/>
-     *               CpioConstants.FORMAT_NEW_CRC<br/>
-     *               CpioConstants.FORMAT_OLD_BINARY<br/>
-     *               CpioConstants.FORMAT_OLD_ASCII<br/>
+     *
+     *               CpioConstants.FORMAT_NEW
+     *               CpioConstants.FORMAT_NEW_CRC
+     *               CpioConstants.FORMAT_OLD_BINARY
+     *               CpioConstants.FORMAT_OLD_ASCII
      */
     public CpioArchiveEntry(final short format) {
         switch (format) {
@@ -242,13 +240,12 @@ public class CpioArchiveEntry implements CpioConstants, ArchiveEntry {
      *
      * @param format The cpio format for this entry.
      * @param name   The name of this entry.
-     *               <br/>
      *               Possible format values are:
-     *               <p/>
-     *               CpioConstants.FORMAT_NEW<br/>
-     *               CpioConstants.FORMAT_NEW_CRC<br/>
-     *               CpioConstants.FORMAT_OLD_BINARY<br/>
-     *               CpioConstants.FORMAT_OLD_ASCII<br/>
+     *
+     *               CpioConstants.FORMAT_NEW
+     *               CpioConstants.FORMAT_NEW_CRC
+     *               CpioConstants.FORMAT_OLD_BINARY
+     *               CpioConstants.FORMAT_OLD_ASCII
      */
     public CpioArchiveEntry(final short format, final String name) {
         this(format);
@@ -273,13 +270,13 @@ public class CpioArchiveEntry implements CpioConstants, ArchiveEntry {
      * @param format The cpio format for this entry.
      * @param name   The name of this entry.
      * @param size   The size of this entry
-     *               <br/>
+     *
      *               Possible format values are:
-     *               <p/>
-     *               CpioConstants.FORMAT_NEW<br/>
-     *               CpioConstants.FORMAT_NEW_CRC<br/>
-     *               CpioConstants.FORMAT_OLD_BINARY<br/>
-     *               CpioConstants.FORMAT_OLD_ASCII<br/>
+     *
+     *               CpioConstants.FORMAT_NEW
+     *               CpioConstants.FORMAT_NEW_CRC
+     *               CpioConstants.FORMAT_OLD_BINARY
+     *               CpioConstants.FORMAT_OLD_ASCII
      */
     public CpioArchiveEntry(final short format, final String name,
                             final long size) {
@@ -306,13 +303,13 @@ public class CpioArchiveEntry implements CpioConstants, ArchiveEntry {
      * @param format    The cpio format for this entry.
      * @param inputFile The file to gather information from.
      * @param entryName The name of this entry.
-     *                  <br/>
+     *
      *                  Possible format values are:
-     *                  <p/>
-     *                  CpioConstants.FORMAT_NEW<br/>
-     *                  CpioConstants.FORMAT_NEW_CRC<br/>
-     *                  CpioConstants.FORMAT_OLD_BINARY<br/>
-     *                  CpioConstants.FORMAT_OLD_ASCII<br/>
+     *
+     *                  CpioConstants.FORMAT_NEW
+     *                  CpioConstants.FORMAT_NEW_CRC
+     *                  CpioConstants.FORMAT_OLD_BINARY
+     *                  CpioConstants.FORMAT_OLD_ASCII
      */
     public CpioArchiveEntry(final short format, File inputFile,
                             String entryName) {
@@ -650,7 +647,7 @@ public class CpioArchiveEntry implements CpioConstants, ArchiveEntry {
 
     /**
      * Set the checksum. The checksum is calculated by adding all bytes of a
-     * file to transfer (crc += buf[pos] & 0xFF).
+     * file to transfer.
      *
      * @param chksum The checksum to set.
      */

@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import java.io.IOException;
@@ -6,7 +5,7 @@ import java.io.OutputStream;
 
 /**
  * Counts the number of bytes written to an output stream.
- * <p/>
+ * <p>
  * The <code>finish</code> method does nothing.
  * This is <code>FinishableOutputStream</code> instead
  * of <code>OutputStream</code> solely because it allows

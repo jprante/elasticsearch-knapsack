@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 class BCJEncoder extends BCJCoder implements FilterEncoder {

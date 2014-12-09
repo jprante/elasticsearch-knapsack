@@ -29,28 +29,28 @@ import java.util.Locale;
  * of the entry's header, as well as the entry's File. Entries
  * can be instantiated in one of three ways, depending on how
  * they are to be used.
- * <p/>
+ * <p>
  * TarEntries that are created from the header bytes read from
  * an archive are instantiated with the TarEntry( byte[] )
  * constructor. These entries will be used when extracting from
  * or listing the contents of an archive. These entries have their
  * header filled in using the header bytes. They also set the File
  * to null, since they reference an archive entry not a file.
- * <p/>
+ * <p>
  * TarEntries that are created from Files that are to be written
  * into an archive are instantiated with the TarEntry( File )
  * constructor. These entries have their header filled in using
  * the File's information. They also keep a reference to the File
  * for convenience when writing entries.
- * <p/>
+ * <p>
  * Finally, TarEntries can be constructed from nothing but a name.
  * This allows the programmer to construct the entry by hand, for
  * instance when only an InputStream is available for writing to
  * the archive, and the header information is constructed from
  * other information. In this case the header fields are set to
  * defaults and the File is set to null.
- * <p/>
- * <p/>
+ * <p>
+ * <p>
  * The C structure for a Tar Entry's header is:
  * <pre>
  * struct header {
@@ -82,8 +82,8 @@ import java.util.Locale;
  * field is the binary representation of the number.
  * See TarUtils.parseOctalOrBinary.
  * </pre>
- * <p/>
- * <p/>
+ * <p>
+ * <p>
  * The C structure for a old GNU Tar Entry's header is:
  * <pre>
  * struct oldgnu_header {
@@ -795,8 +795,8 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
 
     /**
      * Write an entry's header information to a header buffer.
-     * <p/>
-     * <p>This method does not use the star/GNU tar/BSD tar extensions.</p>
+     *
+     * This method does not use the star/GNU tar/BSD tar extensions.
      *
      * @param outbuf The tar entry header buffer to fill in.
      */

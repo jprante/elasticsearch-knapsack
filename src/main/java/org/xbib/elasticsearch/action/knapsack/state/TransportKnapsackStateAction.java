@@ -16,6 +16,7 @@
 package org.xbib.elasticsearch.action.knapsack.state;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
@@ -35,8 +36,10 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackStateAction(Settings settings, ThreadPool threadPool, Client client, KnapsackService knapsack) {
-        super(settings, KnapsackStateAction.NAME, threadPool);
+    public TransportKnapsackStateAction(Settings settings,
+                                        ThreadPool threadPool, Client client, ActionFilters actionFilters,
+                                        KnapsackService knapsack) {
+        super(settings, KnapsackStateAction.NAME, threadPool, actionFilters);
         this.client = client;
         this.knapsack = knapsack;
     }

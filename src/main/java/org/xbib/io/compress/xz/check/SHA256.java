@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.check;
 
 public class SHA256 extends Check {

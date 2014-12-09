@@ -38,7 +38,7 @@ public class RestKnapsackAbortAction extends BaseRestHandler {
 
     @Inject
     public RestKnapsackAbortAction(Settings settings, Client client, RestController controller) {
-        super(settings, client);
+        super(settings, controller, client);
 
         controller.registerHandler(POST, "/_export/abort", this);
         controller.registerHandler(POST, "/_import/abort", this);

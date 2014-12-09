@@ -21,19 +21,19 @@ import java.nio.ByteBuffer;
 /**
  * An interface for encoders that do a pretty encoding of archive
  * filenames.
- * <p/>
+ *
  * <p>There are mostly two implementations, one that uses java.nio
  * {@link java.nio.charset.Charset Charset} and one implementation,
  * which copes with simple 8 bit charsets, because java-1.4 did not
  * support Cp437 in java.nio.</p>
- * <p/>
+ *
  * <p>The main reason for defining an own encoding layer comes from
  * the problems with {@link String#getBytes(String)
  * String.getBytes}, which encodes unknown characters as ASCII
  * quotation marks ('?'). Quotation marks are per definition an
  * invalid filename on some operating systems  like Windows, which
  * leads to ignored ZIP entries.</p>
- * <p/>
+ *
  * <p>All implementations should implement this interface in a
  * reentrant way.</p>
  */
@@ -50,7 +50,7 @@ public interface ArchiveEntryEncoding {
     /**
      * Encode a filename or a comment to a byte array suitable for
      * storing it to a zip entry.
-     * <p/>
+     *
      * <p>Examples for CP 437 (in pseudo-notation, right hand side is
      * C-style notation):</p>
      * <pre>

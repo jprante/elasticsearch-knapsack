@@ -27,7 +27,7 @@ import java.util.Arrays;
  * Java universe, the only real function that this class
  * performs is to ensure that files have the correct "block"
  * size, or other tars will complain.
- * <p/>
+ * <p>
  * You should never have a need to access this class directly.
  * TarBuffers are created by Tar IO Streams.
  */

@@ -67,15 +67,15 @@ public class TarUtils {
 
     /**
      * Parse an octal string from a buffer.
-     * <p/>
+     *
      * <p>Leading spaces are ignored.
      * The buffer must contain a trailing space or NUL,
      * and may contain an additional trailing space or NUL.</p>
-     * <p/>
+     *
      * <p>The input buffer is allowed to contain all NULs,
      * in which case the method returns 0L
      * (this allows for missing fields).</p>
-     * <p/>
+     *
      * <p>To work-around some tar implementations that insert a
      * leading NUL this method returns 0 if it detects a leading NUL.</p>
      *
@@ -383,7 +383,7 @@ public class TarUtils {
 
     /**
      * Write an octal integer into a buffer.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by space and NUL
@@ -408,7 +408,7 @@ public class TarUtils {
 
     /**
      * Write an octal long integer into a buffer.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
@@ -433,7 +433,7 @@ public class TarUtils {
     /**
      * Write an long integer into a buffer as an octal string if this
      * will fit, or as a binary number otherwise.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
@@ -504,7 +504,7 @@ public class TarUtils {
 
     /**
      * Writes an octal value into a buffer.
-     * <p/>
+     * <p>
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by NUL and then space.

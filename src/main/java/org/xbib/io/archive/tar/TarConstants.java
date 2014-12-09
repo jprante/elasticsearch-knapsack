@@ -17,7 +17,7 @@ package org.xbib.io.archive.tar;
 
 /**
  * This interface contains all the definitions used in the package.
- * <p/>
+ * <p>
  * For tar formats (FORMAT_OLDGNU, FORMAT_POSIX, etc.) see GNU tar
  * <I>tar.h</I> type <I>enum archive_format</I>
  */

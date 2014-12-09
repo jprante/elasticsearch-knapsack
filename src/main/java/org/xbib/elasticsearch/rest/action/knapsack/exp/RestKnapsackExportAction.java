@@ -50,7 +50,7 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
 
     @Inject
     public RestKnapsackExportAction(Settings settings, Client client, RestController controller) {
-        super(settings, client);
+        super(settings, controller, client);
 
         controller.registerHandler(POST, "/_export", this);
         controller.registerHandler(POST, "/{index}/_export", this);
@@ -76,7 +76,7 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
                     .setSearchRequest(toSearchRequest(request))
                     .setBytesToTransfer(request.paramAsSize(BYTES_PARAM, ByteSizeValue.parseBytesSizeValue("0")));
             client.admin().indices().execute(KnapsackExportAction.INSTANCE, exportRequest,
-                            new RestToXContentListener<KnapsackExportResponse>(channel));
+                    new RestToXContentListener<KnapsackExportResponse>(channel));
         } catch (Throwable ex) {
             try {
                 logger.error(ex.getMessage(), ex);

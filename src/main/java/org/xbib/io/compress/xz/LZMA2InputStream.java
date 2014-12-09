@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.lz.LZDecoder;
@@ -15,7 +14,7 @@ import java.io.InputStream;
 public class LZMA2InputStream extends InputStream {
     /**
      * Smallest valid LZMA2 dictionary size.
-     * <p/>
+     * <p>
      * Very tiny dictionaries would be a performance problem, so
      * the minimum is 4 KiB.
      */
@@ -23,7 +22,7 @@ public class LZMA2InputStream extends InputStream {
 
     /**
      * Largest dictionary size supported by this implementation.
-     * <p/>
+     * <p>
      * The LZMA2 algorithm allows dictionaries up to one byte less than 4 GiB.
      * This implementation supports only 16 bytes less than 2 GiB for raw
      * LZMA2 streams, and for .xz files the maximum is 1.5 GiB. This
@@ -82,14 +81,14 @@ public class LZMA2InputStream extends InputStream {
     /**
      * Creates a new input stream that decompresses raw LZMA2 data
      * from <code>in</code>.
-     * <p/>
+     * <p>
      * The caller needs to know the dictionary size used when compressing;
      * the dictionary size isn't stored as part of a raw LZMA2 stream.
-     * <p/>
+     * <p>
      * Specifying a too small dictionary size will prevent decompressing
      * the stream. Specifying a too big dictionary is waste of memory but
      * decompression will work.
-     * <p/>
+     * <p>
      * There is no need to specify a dictionary bigger than
      * the uncompressed size of the data even if a bigger dictionary
      * was used when compressing. If you know the uncompressed size
@@ -107,7 +106,7 @@ public class LZMA2InputStream extends InputStream {
 
     /**
      * Creates a new LZMA2 decompressor using a preset dictionary.
-     * <p/>
+     * <p>
      * This is like <code>LZMAInputStream(InputStream, int)</code> except
      * that the dictionary may be initialized using a preset dictionary.
      * If a preset dictionary was used when compressing the data, the
@@ -138,7 +137,7 @@ public class LZMA2InputStream extends InputStream {
 
     /**
      * Decompresses the next byte from this input stream.
-     * <p/>
+     * <p>
      * Reading lots of data with <code>read()</code> from this input stream
      * may be inefficient. Wrap it in <code>java.io.BufferedInputStream</code>
      * if you need to read lots of data one byte at a time.
@@ -147,7 +146,6 @@ public class LZMA2InputStream extends InputStream {
      * to indicate the end of the compressed stream
      * @throws CorruptedInputException
      * @throws XZIOException           if the stream has been closed
-     * @throws EOFException            compressed input is truncated or corrupt
      * @throws java.io.IOException     may be thrown by <code>in</code>
      */
     public int read() throws IOException {
@@ -157,7 +155,7 @@ public class LZMA2InputStream extends InputStream {
 
     /**
      * Decompresses into an array of bytes.
-     * <p/>
+     * <p>
      * If <code>len</code> is zero, no bytes are read and <code>0</code>
      * is returned. Otherwise this will block until <code>len</code>
      * bytes have been decompressed, the end of LZMA2 stream is reached,
@@ -170,7 +168,6 @@ public class LZMA2InputStream extends InputStream {
      * the end of the compressed stream
      * @throws CorruptedInputException
      * @throws XZIOException           if the stream has been closed
-     * @throws EOFException            compressed input is truncated or corrupt
      * @throws java.io.IOException     may be thrown by <code>in</code>
      */
     public int read(byte[] buf, int off, int len) throws IOException {
@@ -307,7 +304,7 @@ public class LZMA2InputStream extends InputStream {
      * data is corrupt, <code>CorruptedInputException</code> may get
      * thrown before the number of bytes claimed to be available have
      * been read from this input stream.
-     * <p/>
+     * <p>
      * In LZMAInputStream, the return value will be non-zero when the
      * decompressor is in the middle of an LZMA2 chunk. The return value
      * will then be the number of uncompressed bytes remaining from that

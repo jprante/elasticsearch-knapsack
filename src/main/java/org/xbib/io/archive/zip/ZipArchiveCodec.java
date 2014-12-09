@@ -15,8 +15,8 @@
  */
 package org.xbib.io.archive.zip;
 
-import org.xbib.io.archive.ArchiveCodec;
 import org.xbib.io.BytesProgressWatcher;
+import org.xbib.io.archive.ArchiveCodec;
 
 import java.io.IOException;
 import java.io.InputStream;

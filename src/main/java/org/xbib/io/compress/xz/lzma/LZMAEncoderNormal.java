@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lzma;
 
 import org.xbib.io.compress.xz.lz.LZEncoder;
@@ -28,11 +27,11 @@ final class LZMAEncoderNormal extends LZMAEncoder {
                       int dictSize, int extraSizeBefore,
                       int niceLen, int mf, int depthLimit) {
         super(rc, LZEncoder.getInstance(dictSize,
-                Math.max(extraSizeBefore,
-                        EXTRA_SIZE_BEFORE),
-                EXTRA_SIZE_AFTER,
-                niceLen, MATCH_LEN_MAX,
-                mf, depthLimit),
+                        Math.max(extraSizeBefore,
+                                EXTRA_SIZE_BEFORE),
+                        EXTRA_SIZE_AFTER,
+                        niceLen, MATCH_LEN_MAX,
+                        mf, depthLimit),
                 lc, lp, pb, dictSize, niceLen);
 
         for (int i = 0; i < OPTS; ++i) {

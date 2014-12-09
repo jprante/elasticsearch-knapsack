@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import java.io.IOException;
@@ -10,14 +9,14 @@ import java.io.InputStream;
 public abstract class SeekableInputStream extends InputStream {
     /**
      * Seeks <code>n</code> bytes forward in this stream.
-     * <p/>
+     * <p>
      * This will not seek past the end of the file. If the current position
      * is already at or past the end of the file, this doesn't seek at all
      * and returns <code>0</code>. Otherwise, if skipping <code>n</code> bytes
      * would cause the position to exceed the stream size, this will do
      * equivalent of <code>seek(length())</code> and the return value will
      * be adjusted accordingly.
-     * <p/>
+     * <p>
      * If <code>n</code> is negative, the position isn't changed and
      * the return value is <code>0</code>. It doesn't seek backward
      * because it would conflict with the specification of
@@ -60,7 +59,7 @@ public abstract class SeekableInputStream extends InputStream {
 
     /**
      * Seeks to the specified absolute position in the stream.
-     * <p/>
+     * <p>
      * Seeking past the end of the file should be supported by the subclasses
      * unless there is a good reason to do otherwise. If one has seeked
      * past the end of the stream, <code>read</code> will return

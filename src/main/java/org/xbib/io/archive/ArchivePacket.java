@@ -28,7 +28,7 @@ public class ArchivePacket implements Packet<Object> {
     /**
      * Meta data for the payload
      */
-    private Map<String,Object> meta =  new HashMap<String,Object>();
+    private Map<String, Object> meta = new HashMap<String, Object>();
 
     /**
      * The payload
@@ -39,7 +39,7 @@ public class ArchivePacket implements Packet<Object> {
     }
 
     @Override
-    public ArchivePacket meta(Map<String,Object> meta) {
+    public ArchivePacket meta(Map<String, Object> meta) {
         this.meta = meta;
         return this;
     }
@@ -51,7 +51,7 @@ public class ArchivePacket implements Packet<Object> {
     }
 
     @Override
-    public Map<String,Object> meta() {
+    public Map<String, Object> meta() {
         return meta;
     }
 

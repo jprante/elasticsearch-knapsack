@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lz;
 
 final class HC4 extends LZEncoder {

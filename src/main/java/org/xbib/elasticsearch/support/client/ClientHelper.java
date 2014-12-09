@@ -97,7 +97,7 @@ public class ClientHelper {
             ClusterStateResponse clusterStateResponse = clusterStateRequestBuilder.execute().actionGet();
             String name = clusterStateResponse.getClusterName().value();
             int nodeCount = clusterStateResponse.getState().getNodes().size();
-            return  name + " (" + nodeCount + " nodes connected)";
+            return name + " (" + nodeCount + " nodes connected)";
         } catch (ElasticsearchTimeoutException e) {
             return "TIMEOUT";
         } catch (NoNodeAvailableException e) {

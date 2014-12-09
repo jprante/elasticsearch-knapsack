@@ -15,8 +15,8 @@
  */
 package org.xbib.classloader.directory;
 
-import org.xbib.classloader.ResourceHandle;
 import org.xbib.classloader.AbstractURLResourceLocation;
+import org.xbib.classloader.ResourceHandle;
 
 import java.io.File;
 import java.io.FileInputStream;

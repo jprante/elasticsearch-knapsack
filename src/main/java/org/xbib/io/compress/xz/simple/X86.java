@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.simple;
 
 public final class X86 implements SimpleFilter {

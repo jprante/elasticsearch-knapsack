@@ -18,10 +18,10 @@ package org.xbib.io.archive;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.Packet;
 import org.xbib.io.Session;
 import org.xbib.io.compress.CompressCodecService;
-import org.xbib.io.BytesProgressWatcher;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -181,7 +181,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         String name = entry.getName();
         packet.meta("name", name);
         decodeArchiveEntryName(packet, name);
-        int size = (int)entry.getEntrySize();
+        int size = (int) entry.getEntrySize();
         if (size >= 0) {
             byte[] b = new byte[size]; // naive but fast, heap may explode
             int num = in.read(b, 0, size); // fill byte array from stream
@@ -268,7 +268,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         open(mode, path, file);
     }
 
-    private final static String[] keys = new String[] {
+    private final static String[] keys = new String[]{
             "index", "type", "id", "field"
     };
 
@@ -302,7 +302,8 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
 
     /**
      * Decode archive entyr name
-     * @param packet the packet
+     *
+     * @param packet           the packet
      * @param archiveEntryName the entry name
      */
     private void decodeArchiveEntryName(Packet packet, String archiveEntryName) {
@@ -336,7 +337,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
      * fragment identifier. This method will translate any escaped characters
      * back to the original.
      *
-     * @param s      the URI to decode
+     * @param s        the URI to decode
      * @param encoding the encoding to decode into
      * @return The decoded URI
      */
@@ -372,6 +373,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         }
         return new String(sb.toString().getBytes(LATIN1), encoding);
     }
+
     /**
      * <p>Escape a string into URI syntax</p>
      * <p>This function applies the URI escaping rules defined in

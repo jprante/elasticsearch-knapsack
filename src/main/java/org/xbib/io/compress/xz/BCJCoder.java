@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 abstract class BCJCoder implements FilterCoder {

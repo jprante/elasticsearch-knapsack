@@ -26,7 +26,6 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-
 import org.elasticsearch.rest.action.support.RestToXContentListener;
 import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportAction;
 import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportRequest;
@@ -49,7 +48,7 @@ public class RestKnapsackImportAction extends BaseRestHandler implements Knapsac
 
     @Inject
     public RestKnapsackImportAction(Settings settings, Client client, RestController controller) {
-        super(settings, client);
+        super(settings, controller, client);
 
         controller.registerHandler(POST, "/_import", this);
         controller.registerHandler(POST, "/{index}/_import", this);
@@ -75,7 +74,7 @@ public class RestKnapsackImportAction extends BaseRestHandler implements Knapsac
                     .withMetadata(request.paramAsBoolean(WITH_METADATA_PARAM, true))
                     .setIndexTypeNames(KnapsackHelper.toMap(request.param(MAP_PARAM), logger));
             // add user-defined settings and mappings
-            for (Map.Entry<String,String> e : request.params().entrySet()) {
+            for (Map.Entry<String, String> e : request.params().entrySet()) {
                 if (e.getKey().endsWith("_settings")) {
                     importRequest.addIndexSettings(e.getKey(), e.getValue());
                 } else if (e.getKey().endsWith("_mapping")) {

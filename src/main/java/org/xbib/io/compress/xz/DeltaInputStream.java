@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.delta.DeltaDecoder;
@@ -9,7 +8,7 @@ import java.io.InputStream;
 
 /**
  * Decodes raw Delta-filtered data (no XZ headers).
- * <p/>
+ * <p>
  * The delta filter doesn't change the size of the data and thus it
  * cannot have an end-of-payload marker. It will simply decode until
  * its input stream indicates end of input.
@@ -64,7 +63,7 @@ public class DeltaInputStream extends InputStream {
 
     /**
      * Decode into an array of bytes.
-     * <p/>
+     * <p>
      * This calls <code>in.read(buf, off, len)</code> and defilters the
      * returned data.
      *

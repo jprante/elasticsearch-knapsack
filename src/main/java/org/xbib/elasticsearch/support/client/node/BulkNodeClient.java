@@ -122,8 +122,8 @@ public class BulkNodeClient implements Ingest {
     }
 
     @Override
-    public BulkNodeClient newClient(Map<String,String> client) {
-            throw new UnsupportedOperationException();
+    public BulkNodeClient newClient(Map<String, String> client) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -320,6 +320,7 @@ public class BulkNodeClient implements Ingest {
         }
         return this;
     }
+
     @Override
     public BulkNodeClient flushIngest() {
         if (closed) {
@@ -419,7 +420,7 @@ public class BulkNodeClient implements Ingest {
     }
 
     @Override
-    public BulkNodeClient newIndex(String index, String type, InputStream settings,  InputStream mappings) throws IOException {
+    public BulkNodeClient newIndex(String index, String type, InputStream settings, InputStream mappings) throws IOException {
         configHelper.reset();
         configHelper.setting(settings);
         configHelper.mapping(type, mappings);
@@ -427,7 +428,7 @@ public class BulkNodeClient implements Ingest {
     }
 
     @Override
-    public BulkNodeClient newIndex(String index, Settings settings, Map<String,String> mappings) {
+    public BulkNodeClient newIndex(String index, Settings settings, Map<String, String> mappings) {
         if (closed) {
             throw new ElasticsearchIllegalStateException("client is closed");
         }

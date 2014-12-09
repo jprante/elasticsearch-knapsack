@@ -21,6 +21,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
@@ -38,12 +39,12 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
+import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.Session;
 import org.xbib.io.archive.ArchivePacket;
 import org.xbib.io.archive.ArchiveService;
 import org.xbib.io.archive.ArchiveSession;
 import org.xbib.io.archive.esbulk.EsBulkSession;
-import org.xbib.io.BytesProgressWatcher;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,8 +77,9 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
     @Inject
     public TransportKnapsackExportAction(Settings settings,
                                          ThreadPool threadPool, SettingsFilter settingsFilter,
-                                         Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackExportAction.NAME, threadPool);
+                                         Client client, NodeService nodeService, ActionFilters actionFilters,
+                                         KnapsackService knapsack) {
+        super(settings, KnapsackExportAction.NAME, threadPool, actionFilters);
         this.settingsFilter = settingsFilter;
         this.client = client;
         this.nodeService = nodeService;
@@ -127,15 +129,15 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
      * Export thread
      *
      * @param request request
-     * @param state state
+     * @param state   state
      * @param session session
      */
     final void performExport(final KnapsackExportRequest request,
-                            final KnapsackState state,
-                            final ArchiveSession session) {
+                             final KnapsackState state,
+                             final ArchiveSession session) {
         try {
             logger.info("start of export: {}", state);
-            Map<String,Set<String>> indices = newHashMap();
+            Map<String, Set<String>> indices = newHashMap();
             for (String s : Strings.commaDelimitedListToSet(request.getIndex())) {
                 indices.put(s, Strings.commaDelimitedListToSet(request.getType()));
             }
@@ -185,20 +187,20 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                         packet = new ArchivePacket();
                         packet.meta("index", mapIndex(request, index));
                         packet.meta("type", mapType(request, index, type));
-                        packet.meta("id",  "_mapping");
+                        packet.meta("id", "_mapping");
                         packet.payload(mappings.get(type));
                         session.write(packet);
                         logger.info("adding mapping: {}", mapType(request, index, type));
                         createIndexRequest.mapping(mapType(request, index, type), mappings.get(type));
                     }
                     logger.info("getting aliases for index {}", index);
-                    Map<String,String> aliases = getAliases(client, index);
+                    Map<String, String> aliases = getAliases(client, index);
                     logger.info("found {} aliases", aliases.size());
                     for (String alias : aliases.keySet()) {
                         packet = new ArchivePacket();
                         packet.meta("index", mapIndex(request, index));
                         packet.meta("type", alias);
-                        packet.meta("id",  "_alias");
+                        packet.meta("id", "_alias");
                         packet.payload(aliases.get(alias));
                         session.write(packet);
                     }

@@ -117,18 +117,18 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     /**
      * Constructor for TarInputStream.
      *
-     * @param out       the output stream to use
+     * @param out      the output stream to use
      * @param encoding name of the encoding to use for file names
      */
     public TarArchiveOutputStream(OutputStream out,
-            String encoding) {
+                                  String encoding) {
         this(out, TarBuffer.DEFAULT_BLKSIZE, TarBuffer.DEFAULT_RCDSIZE, encoding);
     }
 
     /**
      * Constructor for TarInputStream.
      *
-     * @param out        the output stream to use
+     * @param out       the output stream to use
      * @param blockSize the block size to use
      */
     public TarArchiveOutputStream(OutputStream out,
@@ -139,7 +139,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     /**
      * Constructor for TarInputStream.
      *
-     * @param out        the output stream to use
+     * @param out       the output stream to use
      * @param blockSize the block size to use
      * @param encoding  name of the encoding to use for file names
      */
@@ -151,7 +151,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     /**
      * Constructor for TarInputStream.
      *
-     * @param out         the output stream to use
+     * @param out        the output stream to use
      * @param blockSize  the block size to use
      * @param recordSize the record size to use
      */
@@ -163,7 +163,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     /**
      * Constructor for TarInputStream.
      *
-     * @param out         the output stream to use
+     * @param out        the output stream to use
      * @param blockSize  the block size to use
      * @param recordSize the record size to use
      * @param encoding   name of the encoding to use for file names
@@ -181,7 +181,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     /**
      * Set the long file mode.
      * This can be LONGFILE_ERROR(0), LONGFILE_TRUNCATE(1) or LONGFILE_GNU(2).
-     * This specifies the treatment of long file names (names >= TarConstants.NAMELEN).
+     * This specifies the treatment of long file names (names &gt;= TarConstants.NAMELEN).
      * Default is LONGFILE_ERROR.
      *
      * @param longFileMode the mode to use
@@ -211,7 +211,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
 
     /**
      * Ends the TAR archive without closing the underlying OutputStream.
-     * <p/>
+     * <p>
      * An archive consists of a series of file entries terminated by an
      * end-of-archive entry, which consists of two 512 blocks of zero bytes.
      * POSIX.1 requires two EOF records, like some other implementations.
@@ -418,7 +418,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
         //
         while (numToWrite > 0) {
             if (numToWrite < recordBuf.length) {
-                System.arraycopy(wBuf, wOffset, assemBuf, assemLen,numToWrite);
+                System.arraycopy(wBuf, wOffset, assemBuf, assemLen, numToWrite);
                 assemLen += numToWrite;
                 break;
             }
@@ -463,7 +463,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
             }
             w.write(line);
         }
-        byte[] data = w.toString().getBytes(Charset.forName("UTF_8"));
+        byte[] data = w.toString().getBytes(Charset.forName("UTF-8"));
         pex.setEntrySize(data.length);
         putArchiveEntry(pex);
         write(data);

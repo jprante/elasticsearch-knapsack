@@ -39,7 +39,7 @@ public class RestKnapsackStateAction extends BaseRestHandler implements Knapsack
 
     @Inject
     public RestKnapsackStateAction(Settings settings, Client client, RestController controller) {
-        super(settings, client);
+        super(settings, controller, client);
 
         controller.registerHandler(POST, "/_export/state", this);
         controller.registerHandler(POST, "/_import/state", this);

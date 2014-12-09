@@ -29,7 +29,7 @@ import java.io.InputStream;
  * The stream can be read by extracting a cpio entry (containing all
  * informations about a entry) and afterwards reading from the stream the file
  * specified by the entry.
- * <code><pre>
+ * <code>
  * CPIOArchiveInputStream cpioIn = new CPIOArchiveInputStream(
  *         new FileInputStream(new File(&quot;test.cpio&quot;)));
  * CPIOArchiveEntry cpioEntry;
@@ -43,7 +43,7 @@ import java.io.InputStream;
  *     System.out.println(buf.toString());
  * }
  * cpioIn.close();
- * </pre></code>
+ * </code>
  * Note: This implementation should be compatible to cpio 2.5
  */
 
@@ -76,7 +76,7 @@ public class CpioArchiveInputStream extends ArchiveInputStream<CpioArchiveEntry>
     /**
      * Returns 0 after EOF has reached for the current entry data, otherwise
      * always return 1.
-     * <p/>
+     * <p>
      * Programs should not count on this method to return the actual number of
      * bytes that could be read without blocking.
      *
@@ -167,7 +167,7 @@ public class CpioArchiveInputStream extends ArchiveInputStream<CpioArchiveEntry>
             } else if (magicString.equals(MAGIC_OLD_ASCII)) {
                 this.entry = readOldAsciiEntry();
             } else {
-                throw new IOException("unknown magic: "  + magicString);
+                throw new IOException("unknown magic: " + magicString);
             }
         }
 
@@ -369,7 +369,7 @@ public class CpioArchiveInputStream extends ArchiveInputStream<CpioArchiveEntry>
      * @param n the number of bytes to skip
      * @return the actual number of bytes skipped
      * @throws java.io.IOException      if an I/O error has occurred
-     * @throws IllegalArgumentException if n < 0
+     * @throws IllegalArgumentException if n &lt; 0
      */
     @Override
     public long skip(final long n) throws IOException {
@@ -402,15 +402,15 @@ public class CpioArchiveInputStream extends ArchiveInputStream<CpioArchiveEntry>
 
     /**
      * Checks if the signature matches one of the following magic values:
-     * <p/>
+     * <p>
      * Strings:
-     * <p/>
+     * <p>
      * "070701" - MAGIC_NEW
      * "070702" - MAGIC_NEW_CRC
      * "070707" - MAGIC_OLD_ASCII
-     * <p/>
+     * <p>
      * Octal Binary value:
-     * <p/>
+     * <p>
      * 070707 - MAGIC_OLD_BINARY (held as a short) = 0x71C7 or 0xC771
      */
     public static boolean matches(byte[] signature, int length) {

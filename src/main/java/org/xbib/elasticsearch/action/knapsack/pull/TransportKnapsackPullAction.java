@@ -23,6 +23,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
@@ -77,8 +78,9 @@ public class TransportKnapsackPullAction extends TransportAction<KnapsackPullReq
     @Inject
     public TransportKnapsackPullAction(Settings settings, Environment environment, SettingsFilter settingsFilter,
                                        ThreadPool threadPool,
-                                       Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackPullAction.NAME, threadPool);
+                                       Client client, NodeService nodeService, ActionFilters actionFilters,
+                                       KnapsackService knapsack) {
+        super(settings, KnapsackPullAction.NAME, threadPool, actionFilters);
         this.environment = environment;
         this.settingsFilter = settingsFilter;
         this.client = client;
@@ -126,19 +128,19 @@ public class TransportKnapsackPullAction extends TransportAction<KnapsackPullReq
     /**
      * Pull action thread
      *
-     * @param request request
-     * @param state state
+     * @param request         request
+     * @param state           state
      * @param transportClient bulk client for remote cluster access
-     * @param nodeClient bulk client for local cluster access
+     * @param nodeClient      bulk client for local cluster access
      */
     final void performPull(final KnapsackPullRequest request,
-                            final KnapsackState state,
-                            final Ingest transportClient,
-                            final Ingest nodeClient) {
+                           final KnapsackState state,
+                           final Ingest transportClient,
+                           final Ingest nodeClient) {
         try {
             logger.info("start of pull: {}", state);
             long count = 0L;
-            Map<String,Set<String>> indices = newHashMap();
+            Map<String, Set<String>> indices = newHashMap();
             for (String s : Strings.commaDelimitedListToSet(request.getIndex())) {
                 indices.put(s, Strings.commaDelimitedListToSet(request.getType()));
             }
@@ -190,7 +192,7 @@ public class TransportKnapsackPullAction extends TransportAction<KnapsackPullReq
                     nodeClient.client().admin().indices().create(createIndexRequest).actionGet();
                     logger.info("index created: {}", mapIndex(request, index));
                     logger.info("getting aliases for index {}", index);
-                    Map<String,String> aliases = getAliases(client, index);
+                    Map<String, String> aliases = getAliases(client, index);
                     logger.info("found {} aliases", aliases.size());
                     if (!aliases.isEmpty()) {
                         IndicesAliasesRequestBuilder requestBuilder = nodeClient.client().admin().indices().prepareAliases();
@@ -257,7 +259,7 @@ public class TransportKnapsackPullAction extends TransportAction<KnapsackPullReq
         }
     }
 
-    private void indexSearchHit(Ingest nodeBulkClient,  KnapsackPullRequest request, SearchHit hit)
+    private void indexSearchHit(Ingest nodeBulkClient, KnapsackPullRequest request, SearchHit hit)
             throws IOException {
         IndexRequest indexRequest = new IndexRequest(mapIndex(request, hit.getIndex()),
                 mapType(request, hit.getIndex(), hit.getType()), hit.getId());

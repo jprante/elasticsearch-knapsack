@@ -22,9 +22,9 @@ import java.util.Map;
  */
 public interface Packet<P> {
 
-    Map<String,Object> meta();
+    Map<String, Object> meta();
 
-    Packet<P> meta(Map<String,Object> meta);
+    Packet<P> meta(Map<String, Object> meta);
 
     Packet<P> meta(String key, Object value);
 

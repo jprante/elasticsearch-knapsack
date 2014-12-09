@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 class DeltaEncoder extends DeltaCoder implements FilterEncoder {

@@ -108,8 +108,8 @@ public class BZip2DivSufSort {
         final int U1n, U2n; // pointers within T
         int U1, U2;
         for (U1 = depth + SA[p1], U2 = depth + SA[p2], U1n = SA[p1 + 1] + 2, U2n = SA[p2 + 1] + 2;
-                (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
-                ++U1, ++U2
+             (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
+             ++U1, ++U2
                 ) {
             ;
         }
@@ -123,8 +123,8 @@ public class BZip2DivSufSort {
         final byte[] T = this.T;
         int U1, U2, U1n, U2n;
         for (U1 = depth + SA[p1], U2 = depth + SA[p2], U1n = size, U2n = SA[(p2 + 1)] + 2;
-                (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
-                ++U1, ++U2
+             (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
+             ++U1, ++U2
                 ) {
             ;
         }
@@ -134,8 +134,8 @@ public class BZip2DivSufSort {
             return 1;
         }
         for (U1 = U1 % size, U1n = SA[PA] + 2;
-                (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
-                ++U1, ++U2
+             (U1 < U1n) && (U2 < U2n) && (T[U1] == T[U2]);
+             ++U1, ++U2
                 ) {
             ;
         }
@@ -737,7 +737,7 @@ public class BZip2DivSufSort {
     private void ssMergeCheckEqual(final int PA, final int depth, final int a) {
         final int[] SA = this.SA;
         if ((0 <= SA[a])
-                        && (ssCompare(PA + getIDX(SA[a - 1]), PA + SA[a], depth) == 0)) {
+                && (ssCompare(PA + getIDX(SA[a - 1]), PA + SA[a], depth) == 0)) {
             SA[a] = ~SA[a];
         }
     }
@@ -791,8 +791,8 @@ public class BZip2DivSufSort {
                 continue;
             }
             for (m = 0, len = Math.min(middle - first, last - middle), half = len >> 1;
-                    0 < len;
-                    len = half, half >>= 1) {
+                 0 < len;
+                 len = half, half >>= 1) {
                 if (ssCompare(PA + getIDX(SA[middle + m + half]),
                         PA + getIDX(SA[middle - m - half - 1]), depth) < 0) {
                     m += half + 1;
@@ -884,8 +884,8 @@ public class BZip2DivSufSort {
         if (lastsuffix) {
             int r;
             for (a = first, i = SA[first - 1], r = 1;
-                    (a < last) && ((SA[a] < 0) || (0 < (r = ssCompareLast(PA, PA + i, PA + SA[a], depth, size))));
-                    ++a
+                 (a < last) && ((SA[a] < 0) || (0 < (r = ssCompareLast(PA, PA + i, PA + SA[a], depth, size))));
+                 ++a
                     ) {
                 SA[a - 1] = SA[a];
             }
@@ -1998,8 +1998,8 @@ public class BZip2DivSufSort {
         int orig = -1;
         for (c1 = 254; 0 <= c1; --c1) {
             for (i = bucketB[BUCKET_BSTAR(c1, c1 + 1)], j = bucketA[c1 + 1], t = 0, c2 = -1;
-                    i <= j;
-                    --j
+                 i <= j;
+                 --j
                     ) {
                 if (0 <= (s1 = s = SA[j])) {
                     if (--s < 0) {

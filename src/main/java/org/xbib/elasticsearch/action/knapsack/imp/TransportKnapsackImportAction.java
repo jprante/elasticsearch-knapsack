@@ -20,6 +20,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
@@ -39,10 +40,10 @@ import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.elasticsearch.support.client.Ingest;
 import org.xbib.elasticsearch.support.client.node.BulkNodeClient;
+import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.Session;
 import org.xbib.io.archive.ArchivePacket;
 import org.xbib.io.archive.ArchiveService;
-import org.xbib.io.BytesProgressWatcher;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -73,8 +74,9 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
     @Inject
     public TransportKnapsackImportAction(Settings settings,
                                          ThreadPool threadPool,
-                                         Client client, NodeService nodeService, KnapsackService knapsack) {
-        super(settings, KnapsackImportAction.NAME, threadPool);
+                                         Client client, NodeService nodeService, ActionFilters actionFilters,
+                                         KnapsackService knapsack) {
+        super(settings, KnapsackImportAction.NAME, threadPool, actionFilters);
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;
@@ -128,19 +130,19 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
      * Import thread
      *
      * @param request request
-     * @param state state
+     * @param state   state
      * @param session session
      */
     final void performImport(final KnapsackImportRequest request,
-                            final KnapsackState state,
-                            final Session<ArchivePacket> session,
-                            final Ingest bulkClient) {
+                             final KnapsackState state,
+                             final Session<ArchivePacket> session,
+                             final Ingest bulkClient) {
         try {
             logger.info("start of import: {}", state);
             final Map<String, CreateIndexRequest> indexRequestMap = newHashMap();
             final Set<String> indexCreated = newHashSet();
             final Map<String, String> indexReplicaMap = newHashMap();
-            final Map<String, Map<String,String>> aliasRequestMap = newHashMap();
+            final Map<String, Map<String, String>> aliasRequestMap = newHashMap();
             // per field
             Map<String, ArchivePacket> packets = newLinkedHashMap();
             ArchivePacket packet;
@@ -148,10 +150,10 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             long count = 0L;
             while ((packet = session.read()) != null && !Thread.interrupted()) {
                 count++;
-                String index = (String)packet.meta().get("index");
-                String type = (String)packet.meta().get("type");
-                String id =  (String)packet.meta().get("id");
-                String field =  (String)packet.meta().get("field");
+                String index = (String) packet.meta().get("index");
+                String type = (String) packet.meta().get("type");
+                String id = (String) packet.meta().get("id");
+                String field = (String) packet.meta().get("field");
                 if (field == null) {
                     field = "_source";
                 }
@@ -209,11 +211,11 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                         createIndexRequest.mapping(type, mapping);
                     }
                 } else if ("_alias".equals(id)) {
-                    Map<String,String> aliases = newHashMap();
+                    Map<String, String> aliases = newHashMap();
                     if (aliasRequestMap.containsKey(index)) {
                         aliases = aliasRequestMap.get(index);
                     }
-                    aliases.put(type, (String)packet.payload());
+                    aliases.put(type, (String) packet.payload());
                     aliasRequestMap.put(index, aliases);
                 } else {
                     // index normal document fields. Check for sane entries here.
@@ -265,12 +267,12 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
     }
 
     private void indexPackets(Ingest bulkClient, Map<String, CreateIndexRequest> indexRequestMap, Set<String> indexCreated,
-                              Map<String,Map<String,String>> aliasRequestMap,
-                              KnapsackImportRequest request, Map<String, ArchivePacket> packets)  {
+                              Map<String, Map<String, String>> aliasRequestMap,
+                              KnapsackImportRequest request, Map<String, ArchivePacket> packets) {
         ArchivePacket packet = packets.values().iterator().next(); // first packet
-        String index = (String)packet.meta().get("index");
-        String type = (String)packet.meta().get("type");
-        String id = (String)packet.meta().get("id");
+        String index = (String) packet.meta().get("index");
+        String type = (String) packet.meta().get("type");
+        String id = (String) packet.meta().get("id");
         // check if index must be created
         if (indexRequestMap.containsKey(index)) {
             CreateIndexRequest createIndexRequest = indexRequestMap.remove(index);
@@ -293,7 +295,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             indexCreated.add(index);
         }
         if (aliasRequestMap.containsKey(index)) {
-            Map<String,String> aliases = aliasRequestMap.remove(index);
+            Map<String, String> aliases = aliasRequestMap.remove(index);
             if (request.withMetadata()) {
                 IndicesAliasesRequestBuilder requestBuilder = bulkClient.client().admin().indices().prepareAliases();
                 for (String alias : aliases.keySet()) {

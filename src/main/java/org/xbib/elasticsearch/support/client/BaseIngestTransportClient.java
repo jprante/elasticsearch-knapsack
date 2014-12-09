@@ -51,7 +51,7 @@ public abstract class BaseIngestTransportClient extends BaseTransportClient
 
     @Override
     public BaseIngestTransportClient newIndex(String index) {
-        return newIndex(index, (Settings)null, (Map<String,String>)null);
+        return newIndex(index, (Settings) null, (Map<String, String>) null);
     }
 
     @Override
@@ -63,7 +63,7 @@ public abstract class BaseIngestTransportClient extends BaseTransportClient
     }
 
     @Override
-    public BaseIngestTransportClient newIndex(String index, Settings settings, Map<String,String> mappings) {
+    public BaseIngestTransportClient newIndex(String index, Settings settings, Map<String, String> mappings) {
         if (client == null) {
             logger.warn("no client for create index");
             return this;

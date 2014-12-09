@@ -16,8 +16,8 @@
 package org.xbib.classloader.jar;
 
 import org.xbib.classloader.AbstractResourceHandle;
-import org.xbib.classloader.ResourceHandle;
 import org.xbib.classloader.AbstractURLResourceLocation;
+import org.xbib.classloader.ResourceHandle;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -71,7 +71,7 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
                 try {
                     return new JarResourceHandle(jarFile, jarEntry, getCodeSource());
                 } catch (MalformedURLException e) {
-                   e.printStackTrace();
+                    e.printStackTrace();
                 }
             }
         } else {
@@ -88,7 +88,7 @@ public class JarResourceLocation extends AbstractURLResourceLocation {
                     }
                 }
             } catch (IOException e) {
-               e.printStackTrace();
+                e.printStackTrace();
             }
         }
         return null;

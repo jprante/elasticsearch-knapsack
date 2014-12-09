@@ -176,10 +176,10 @@ public class KnapsackState implements Streamable, ToXContent {
     public String id() {
         StringBuilder sb = new StringBuilder();
         sb.append(mode)
-            .append(timestamp)
-            .append(path)
-            .append(address)
-            .append(nodeName);
+                .append(timestamp)
+                .append(path)
+                .append(address)
+                .append(nodeName);
         return sb.toString();
     }
 
