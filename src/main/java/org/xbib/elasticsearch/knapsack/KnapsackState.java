@@ -31,6 +31,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -114,8 +115,18 @@ public class KnapsackState implements Streamable, ToXContent {
         return nodeName;
     }
 
+    private static Callable<Long> now() {
+        return new Callable<Long>() {
+            @Override
+            public Long call() {
+                return 0L;
+            }
+        };
+    }
+
+    private final static DateMathParser dateParser = new DateMathParser(Joda.forPattern("dateOptionalTime"), TimeUnit.MILLISECONDS);
+
     public KnapsackState fromXContent(XContentParser parser) throws IOException {
-        DateMathParser dateParser = new DateMathParser(Joda.forPattern("dateOptionalTime"), TimeUnit.MILLISECONDS);
         Long startTimestamp = new Date().getTime();
         Path path = null;
         String address = null;
@@ -131,7 +142,7 @@ public class KnapsackState implements Streamable, ToXContent {
                         mode = parser.text();
                         break;
                     case "started":
-                        startTimestamp = parser.text() != null ? dateParser.parse(parser.text(), 0) : null;
+                        startTimestamp = parser.text() != null ? dateParser.parse(parser.text(), now()) : null;
                         break;
                     case "path":
                         path = parser.text() != null ? Paths.get(URI.create(parser.text())) : null;
