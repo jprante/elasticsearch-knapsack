@@ -18,11 +18,6 @@ package org.xbib.elasticsearch.knapsack;
 public interface KnapsackParameter {
 
     /**
-     * The knapsack mode: export, import, push or pull
-     */
-    String MODE_PARAM = "mode";
-
-    /**
      * The indices used for knapsack
      */
     String INDEX_PARAM = "index";
@@ -93,5 +88,7 @@ public interface KnapsackParameter {
     String WITH_ENCODED_ENTRY_PARAM = "with_encoded_entry";
 
     String BYTES_PARAM = "bytes";
+
+    String WITH_ALIASES = "with_aliases";
 
 }

@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.4.4.0</version>
+    <version>1.5.1.0</version>
 
     <packaging>jar</packaging>
 
@@ -59,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.source.version>1.7</java.source.version>
         <java.target.version>1.7</java.target.version>
-        <elasticsearch.version>1.4.4</elasticsearch.version>
+        <elasticsearch.version>1.5.1</elasticsearch.version>
     </properties>
 
     <dependencies>

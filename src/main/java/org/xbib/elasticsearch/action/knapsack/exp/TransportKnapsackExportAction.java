@@ -142,7 +142,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                 indices.put(s, Strings.commaDelimitedListToSet(request.getType()));
             }
             // never write _settings / _mapping to bulk format
-            if (request.withMetadata() && !(session instanceof EsBulkSession)) {
+            if (request.isWithMetadata() && !(session instanceof EsBulkSession)) {
                 if (request.getIndexTypeNames() != null) {
                     for (Object spec : request.getIndexTypeNames().keySet()) {
                         if (spec == null) {
@@ -193,16 +193,18 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                         logger.info("adding mapping: {}", mapType(request, index, type));
                         createIndexRequest.mapping(mapType(request, index, type), mappings.get(type));
                     }
-                    logger.info("getting aliases for index {}", index);
-                    Map<String, String> aliases = getAliases(client, index);
-                    logger.info("found {} aliases", aliases.size());
-                    for (String alias : aliases.keySet()) {
-                        packet = new ArchivePacket();
-                        packet.meta("index", mapIndex(request, index));
-                        packet.meta("type", alias);
-                        packet.meta("id", "_alias");
-                        packet.payload(aliases.get(alias));
-                        session.write(packet);
+                    if (request.isWithAliases()) {
+                        logger.info("getting aliases for index {}", index);
+                        Map<String, String> aliases = getAliases(client, index);
+                        logger.info("found {} aliases", aliases.size());
+                        for (String alias : aliases.keySet()) {
+                            packet = new ArchivePacket();
+                            packet.meta("index", mapIndex(request, index));
+                            packet.meta("type", alias);
+                            packet.meta("id", "_alias");
+                            packet.payload(aliases.get(alias));
+                            session.write(packet);
+                        }
                     }
                 }
             }

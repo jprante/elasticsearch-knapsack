@@ -72,6 +72,7 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
                     .setOverwriteAllowed(request.paramAsBoolean(OVERWRITE_PARAM, false))
                     .setEncodeEntry(request.paramAsBoolean(WITH_ENCODED_ENTRY_PARAM, false))
                     .withMetadata(request.paramAsBoolean(WITH_METADATA_PARAM, true))
+                    .withAliases(request.paramAsBoolean(WITH_ALIASES, true))
                     .setIndexTypeNames(KnapsackHelper.toMap(request.param(MAP_PARAM), logger))
                     .setSearchRequest(toSearchRequest(request))
                     .setBytesToTransfer(request.paramAsSize(BYTES_PARAM, ByteSizeValue.parseBytesSizeValue("0")));

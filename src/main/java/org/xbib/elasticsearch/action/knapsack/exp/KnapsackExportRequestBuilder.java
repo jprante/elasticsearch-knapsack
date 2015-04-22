@@ -58,13 +58,18 @@ public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBu
         return this;
     }
 
-    public KnapsackExportRequestBuilder withMetadata(boolean withMetadata) {
-        request.withMetadata(withMetadata);
+    public KnapsackExportRequestBuilder setSearchRequest(SearchRequest searchRequest) {
+        request.setSearchRequest(searchRequest);
         return this;
     }
 
-    public KnapsackExportRequestBuilder setSearchRequest(SearchRequest searchRequest) {
-        request.setSearchRequest(searchRequest);
+    public KnapsackExportRequestBuilder setBytesToTransfer(ByteSizeValue bytesToTransfer) {
+        request.setBytesToTransfer(bytesToTransfer);
+        return this;
+    }
+
+    public KnapsackExportRequestBuilder withMetadata(boolean withMetadata) {
+        request.withMetadata(withMetadata);
         return this;
     }
 
@@ -73,13 +78,13 @@ public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBu
         return this;
     }
 
-    public KnapsackExportRequestBuilder withEncodedEntry(boolean encodeEntry) {
+    public KnapsackExportRequestBuilder setEncodeEntry(boolean encodeEntry) {
         request.setEncodeEntry(encodeEntry);
         return this;
     }
 
-    public KnapsackExportRequestBuilder setBytesToTransfer(ByteSizeValue bytesToTransfer) {
-        request.setBytesToTransfer(bytesToTransfer);
+    public KnapsackExportRequestBuilder withAliases(boolean withAliases) {
+        request.withAliases(withAliases);
         return this;
     }
 
