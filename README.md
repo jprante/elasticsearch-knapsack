@@ -47,7 +47,7 @@ When importing archive files again, this information is reapplied.
 
 ## Installation
 
-    ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.5.1.0/elasticsearch-knapsack-1.5.1.0-plugin.zip
+    ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.5.2.0/elasticsearch-knapsack-1.5.2.0-plugin.zip
 
 Do not forget to restart the node after installation.
 
