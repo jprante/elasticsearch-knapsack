@@ -101,8 +101,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());
             final ArchiveSession session = ArchiveService.newSession(path, watcher);
-            EnumSet<Session.Mode> mode = EnumSet.of(request.isOverwriteAllowed() ?
-                            Session.Mode.OVERWRITE : Session.Mode.WRITE,
+            EnumSet<Session.Mode> mode = EnumSet.of(request.isOverwriteAllowed() ? Session.Mode.OVERWRITE : Session.Mode.WRITE,
                     request.isEncodeEntry() ? Session.Mode.URI_ENCODED : Session.Mode.NONE);
             session.open(mode, path, path.toFile());
             if (session.isOpen()) {
