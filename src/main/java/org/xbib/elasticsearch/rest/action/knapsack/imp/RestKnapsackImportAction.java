@@ -71,6 +71,7 @@ public class RestKnapsackImportAction extends BaseRestHandler implements Knapsac
                     .setMaxActionsPerBulkRequest(request.paramAsInt(MAX_BULK_ACTIONS_PER_REQUEST_PARAM, 1000))
                     .setMaxBulkConcurrency(request.paramAsInt(MAX_BULK_CONCURRENCY_PARAM,
                             Runtime.getRuntime().availableProcessors() * 2))
+                    .setDecodeEntry(request.paramAsBoolean(WITH_ENCODED_ENTRY_PARAM, true))
                     .withMetadata(request.paramAsBoolean(WITH_METADATA_PARAM, true))
                     .setIndexTypeNames(KnapsackHelper.toMap(request.param(MAP_PARAM), logger));
             // add user-defined settings and mappings
