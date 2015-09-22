@@ -6,60 +6,60 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.lzf;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import java.io.IOException;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import java.io.InputStream;<a name="line.5"></a>
-<span class="sourceLineNo">006</span><a name="line.6"></a>
-<span class="sourceLineNo">007</span>/**<a name="line.7"></a>
-<span class="sourceLineNo">008</span> * Decoder that handles decoding of sequence of encoded LZF chunks, combining<a name="line.8"></a>
-<span class="sourceLineNo">009</span> * them into a single contiguous result byte array.<a name="line.9"></a>
-<span class="sourceLineNo">010</span> */<a name="line.10"></a>
-<span class="sourceLineNo">011</span>public abstract class ChunkDecoder {<a name="line.11"></a>
-<span class="sourceLineNo">012</span><a name="line.12"></a>
-<span class="sourceLineNo">013</span>    protected final static byte BYTE_NULL = 0;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>    protected final static int HEADER_BYTES = 5;<a name="line.14"></a>
-<span class="sourceLineNo">015</span><a name="line.15"></a>
-<span class="sourceLineNo">016</span>    public ChunkDecoder() {<a name="line.16"></a>
-<span class="sourceLineNo">017</span>    }<a name="line.17"></a>
-<span class="sourceLineNo">018</span><a name="line.18"></a>
-<span class="sourceLineNo">019</span>    /*<a name="line.19"></a>
-<span class="sourceLineNo">020</span>     * Public API<a name="line.20"></a>
-<span class="sourceLineNo">021</span>     */<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>    /**<a name="line.23"></a>
-<span class="sourceLineNo">024</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.25"></a>
-<span class="sourceLineNo">026</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.26"></a>
-<span class="sourceLineNo">027</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.27"></a>
-<span class="sourceLineNo">028</span>     */<a name="line.28"></a>
-<span class="sourceLineNo">029</span>    public final byte[] decode(final byte[] inputBuffer) throws IOException {<a name="line.29"></a>
-<span class="sourceLineNo">030</span>        byte[] result = new byte[calculateUncompressedSize(inputBuffer, 0, inputBuffer.length)];<a name="line.30"></a>
-<span class="sourceLineNo">031</span>        decode(inputBuffer, 0, inputBuffer.length, result);<a name="line.31"></a>
-<span class="sourceLineNo">032</span>        return result;<a name="line.32"></a>
-<span class="sourceLineNo">033</span>    }<a name="line.33"></a>
-<span class="sourceLineNo">034</span><a name="line.34"></a>
-<span class="sourceLineNo">035</span>    /**<a name="line.35"></a>
-<span class="sourceLineNo">036</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.36"></a>
-<span class="sourceLineNo">037</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.37"></a>
-<span class="sourceLineNo">038</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.38"></a>
-<span class="sourceLineNo">039</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.39"></a>
-<span class="sourceLineNo">040</span>     */<a name="line.40"></a>
-<span class="sourceLineNo">041</span>    public final byte[] decode(final byte[] inputBuffer, int inputPtr, int inputLen) throws IOException {<a name="line.41"></a>
-<span class="sourceLineNo">042</span>        byte[] result = new byte[calculateUncompressedSize(inputBuffer, inputPtr, inputLen)];<a name="line.42"></a>
-<span class="sourceLineNo">043</span>        decode(inputBuffer, inputPtr, inputLen, result);<a name="line.43"></a>
-<span class="sourceLineNo">044</span>        return result;<a name="line.44"></a>
-<span class="sourceLineNo">045</span>    }<a name="line.45"></a>
-<span class="sourceLineNo">046</span><a name="line.46"></a>
-<span class="sourceLineNo">047</span>    /**<a name="line.47"></a>
-<span class="sourceLineNo">048</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.48"></a>
-<span class="sourceLineNo">049</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.49"></a>
-<span class="sourceLineNo">050</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.50"></a>
-<span class="sourceLineNo">051</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.51"></a>
-<span class="sourceLineNo">052</span>     */<a name="line.52"></a>
-<span class="sourceLineNo">053</span>    public final int decode(final byte[] inputBuffer, final byte[] targetBuffer) throws IOException {<a name="line.53"></a>
-<span class="sourceLineNo">054</span>        return decode(inputBuffer, 0, inputBuffer.length, targetBuffer);<a name="line.54"></a>
+<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
+<span class="sourceLineNo">002</span> * Copyright (C) 2014 Jörg Prante<a name="line.2"></a>
+<span class="sourceLineNo">003</span> *<a name="line.3"></a>
+<span class="sourceLineNo">004</span> * Licensed under the Apache License, Version 2.0 (the "License");<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * you may not use this file except in compliance with the License.<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * You may obtain a copy of the License at<a name="line.6"></a>
+<span class="sourceLineNo">007</span> *<a name="line.7"></a>
+<span class="sourceLineNo">008</span> *      http://www.apache.org/licenses/LICENSE-2.0<a name="line.8"></a>
+<span class="sourceLineNo">009</span> *<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * Unless required by applicable law or agreed to in writing, software<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * distributed under the License is distributed on an "AS IS" BASIS,<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * See the License for the specific language governing permissions and<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * limitations under the License.<a name="line.14"></a>
+<span class="sourceLineNo">015</span> */<a name="line.15"></a>
+<span class="sourceLineNo">016</span>package org.xbib.io.compress.lzf;<a name="line.16"></a>
+<span class="sourceLineNo">017</span><a name="line.17"></a>
+<span class="sourceLineNo">018</span>import java.io.IOException;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import java.io.InputStream;<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>/**<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * Decoder that handles decoding of sequence of encoded LZF chunks, combining<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * them into a single contiguous result byte array.<a name="line.23"></a>
+<span class="sourceLineNo">024</span> */<a name="line.24"></a>
+<span class="sourceLineNo">025</span>public abstract class ChunkDecoder {<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>    protected final static byte BYTE_NULL = 0;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>    protected final static int HEADER_BYTES = 5;<a name="line.28"></a>
+<span class="sourceLineNo">029</span><a name="line.29"></a>
+<span class="sourceLineNo">030</span>    public ChunkDecoder() {<a name="line.30"></a>
+<span class="sourceLineNo">031</span>    }<a name="line.31"></a>
+<span class="sourceLineNo">032</span><a name="line.32"></a>
+<span class="sourceLineNo">033</span>    /**<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.34"></a>
+<span class="sourceLineNo">035</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.35"></a>
+<span class="sourceLineNo">036</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.36"></a>
+<span class="sourceLineNo">037</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.37"></a>
+<span class="sourceLineNo">038</span>     */<a name="line.38"></a>
+<span class="sourceLineNo">039</span>    public final byte[] decode(final byte[] inputBuffer) throws IOException {<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        byte[] result = new byte[calculateUncompressedSize(inputBuffer, 0, inputBuffer.length)];<a name="line.40"></a>
+<span class="sourceLineNo">041</span>        decode(inputBuffer, 0, inputBuffer.length, result);<a name="line.41"></a>
+<span class="sourceLineNo">042</span>        return result;<a name="line.42"></a>
+<span class="sourceLineNo">043</span>    }<a name="line.43"></a>
+<span class="sourceLineNo">044</span><a name="line.44"></a>
+<span class="sourceLineNo">045</span>    /**<a name="line.45"></a>
+<span class="sourceLineNo">046</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.46"></a>
+<span class="sourceLineNo">047</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.47"></a>
+<span class="sourceLineNo">048</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.48"></a>
+<span class="sourceLineNo">049</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.49"></a>
+<span class="sourceLineNo">050</span>     */<a name="line.50"></a>
+<span class="sourceLineNo">051</span>    public final byte[] decode(final byte[] inputBuffer, int inputPtr, int inputLen) throws IOException {<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        byte[] result = new byte[calculateUncompressedSize(inputBuffer, inputPtr, inputLen)];<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        decode(inputBuffer, inputPtr, inputLen, result);<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        return result;<a name="line.54"></a>
 <span class="sourceLineNo">055</span>    }<a name="line.55"></a>
 <span class="sourceLineNo">056</span><a name="line.56"></a>
 <span class="sourceLineNo">057</span>    /**<a name="line.57"></a>
@@ -68,179 +68,178 @@
 <span class="sourceLineNo">060</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.60"></a>
 <span class="sourceLineNo">061</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.61"></a>
 <span class="sourceLineNo">062</span>     */<a name="line.62"></a>
-<span class="sourceLineNo">063</span>    public int decode(final byte[] sourceBuffer, int inPtr, int inLength,<a name="line.63"></a>
-<span class="sourceLineNo">064</span>                      final byte[] targetBuffer) throws IOException {<a name="line.64"></a>
-<span class="sourceLineNo">065</span>        int outPtr = 0;<a name="line.65"></a>
-<span class="sourceLineNo">066</span>        int blockNr = 0;<a name="line.66"></a>
-<span class="sourceLineNo">067</span><a name="line.67"></a>
-<span class="sourceLineNo">068</span>        final int end = inPtr + inLength - 1; // -1 to offset possible end marker<a name="line.68"></a>
-<span class="sourceLineNo">069</span><a name="line.69"></a>
-<span class="sourceLineNo">070</span>        while (inPtr &lt; end) {<a name="line.70"></a>
-<span class="sourceLineNo">071</span>            // let's do basic sanity checks; no point in skimping with these checks<a name="line.71"></a>
-<span class="sourceLineNo">072</span>            if (sourceBuffer[inPtr] != LZFChunk.BYTE_Z || sourceBuffer[inPtr + 1] != LZFChunk.BYTE_V) {<a name="line.72"></a>
-<span class="sourceLineNo">073</span>                throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + inPtr + "): did not start with 'ZV' signature bytes");<a name="line.73"></a>
-<span class="sourceLineNo">074</span>            }<a name="line.74"></a>
-<span class="sourceLineNo">075</span>            inPtr += 2;<a name="line.75"></a>
-<span class="sourceLineNo">076</span>            int type = sourceBuffer[inPtr++];<a name="line.76"></a>
-<span class="sourceLineNo">077</span>            int len = uint16(sourceBuffer, inPtr);<a name="line.77"></a>
-<span class="sourceLineNo">078</span>            inPtr += 2;<a name="line.78"></a>
-<span class="sourceLineNo">079</span>            if (type == LZFChunk.BLOCK_TYPE_NON_COMPRESSED) { // uncompressed<a name="line.79"></a>
-<span class="sourceLineNo">080</span>                if ((outPtr + len) &gt; targetBuffer.length) {<a name="line.80"></a>
-<span class="sourceLineNo">081</span>                    _reportArrayOverflow(targetBuffer, outPtr, len);<a name="line.81"></a>
-<span class="sourceLineNo">082</span>                }<a name="line.82"></a>
-<span class="sourceLineNo">083</span>                System.arraycopy(sourceBuffer, inPtr, targetBuffer, outPtr, len);<a name="line.83"></a>
-<span class="sourceLineNo">084</span>                outPtr += len;<a name="line.84"></a>
-<span class="sourceLineNo">085</span>            } else { // compressed<a name="line.85"></a>
-<span class="sourceLineNo">086</span>                int uncompLen = uint16(sourceBuffer, inPtr);<a name="line.86"></a>
-<span class="sourceLineNo">087</span>                if ((outPtr + uncompLen) &gt; targetBuffer.length) {<a name="line.87"></a>
-<span class="sourceLineNo">088</span>                    _reportArrayOverflow(targetBuffer, outPtr, uncompLen);<a name="line.88"></a>
-<span class="sourceLineNo">089</span>                }<a name="line.89"></a>
-<span class="sourceLineNo">090</span>                inPtr += 2;<a name="line.90"></a>
-<span class="sourceLineNo">091</span>                decodeChunk(sourceBuffer, inPtr, targetBuffer, outPtr, outPtr + uncompLen);<a name="line.91"></a>
-<span class="sourceLineNo">092</span>                outPtr += uncompLen;<a name="line.92"></a>
-<span class="sourceLineNo">093</span>            }<a name="line.93"></a>
-<span class="sourceLineNo">094</span>            inPtr += len;<a name="line.94"></a>
-<span class="sourceLineNo">095</span>            ++blockNr;<a name="line.95"></a>
-<span class="sourceLineNo">096</span>        }<a name="line.96"></a>
-<span class="sourceLineNo">097</span>        return outPtr;<a name="line.97"></a>
-<span class="sourceLineNo">098</span>    }<a name="line.98"></a>
-<span class="sourceLineNo">099</span><a name="line.99"></a>
-<span class="sourceLineNo">100</span>    /**<a name="line.100"></a>
-<span class="sourceLineNo">101</span>     * Main decode from a stream. Decompressed bytes are placed in the<a name="line.101"></a>
-<span class="sourceLineNo">102</span>     * outputBuffer, inputBuffer is a "scratch-area".<a name="line.102"></a>
-<span class="sourceLineNo">103</span>     *<a name="line.103"></a>
-<span class="sourceLineNo">104</span>     * @param is           An input stream of LZF compressed bytes<a name="line.104"></a>
-<span class="sourceLineNo">105</span>     * @param inputBuffer  A byte array used as a scratch area.<a name="line.105"></a>
-<span class="sourceLineNo">106</span>     * @param outputBuffer A byte array in which the result is returned<a name="line.106"></a>
-<span class="sourceLineNo">107</span>     * @return The number of bytes placed in the outputBuffer.<a name="line.107"></a>
-<span class="sourceLineNo">108</span>     */<a name="line.108"></a>
-<span class="sourceLineNo">109</span>    public abstract int decodeChunk(final InputStream is, final byte[] inputBuffer, final byte[] outputBuffer)<a name="line.109"></a>
-<span class="sourceLineNo">110</span>            throws IOException;<a name="line.110"></a>
-<span class="sourceLineNo">111</span><a name="line.111"></a>
-<span class="sourceLineNo">112</span>    /**<a name="line.112"></a>
-<span class="sourceLineNo">113</span>     * Main decode method for individual chunks.<a name="line.113"></a>
-<span class="sourceLineNo">114</span>     */<a name="line.114"></a>
-<span class="sourceLineNo">115</span>    public abstract void decodeChunk(byte[] in, int inPos, byte[] out, int outPos, int outEnd)<a name="line.115"></a>
-<span class="sourceLineNo">116</span>            throws IOException;<a name="line.116"></a>
-<span class="sourceLineNo">117</span><a name="line.117"></a>
-<span class="sourceLineNo">118</span>    /*<a name="line.118"></a>
-<span class="sourceLineNo">119</span>     ///////////////////////////////////////////////////////////////////////<a name="line.119"></a>
-<span class="sourceLineNo">120</span>     // Public static methods<a name="line.120"></a>
-<span class="sourceLineNo">121</span>     ///////////////////////////////////////////////////////////////////////<a name="line.121"></a>
-<span class="sourceLineNo">122</span>     */<a name="line.122"></a>
-<span class="sourceLineNo">123</span><a name="line.123"></a>
-<span class="sourceLineNo">124</span>    /**<a name="line.124"></a>
-<span class="sourceLineNo">125</span>     * Helper method that will calculate total uncompressed size, for sequence<a name="line.125"></a>
-<span class="sourceLineNo">126</span>     * of one or more LZF blocks stored in given byte array. Will do basic<a name="line.126"></a>
-<span class="sourceLineNo">127</span>     * sanity checking, so that this method can be called to verify against some<a name="line.127"></a>
-<span class="sourceLineNo">128</span>     * types of corruption.<a name="line.128"></a>
-<span class="sourceLineNo">129</span>     */<a name="line.129"></a>
-<span class="sourceLineNo">130</span>    public static int calculateUncompressedSize(byte[] data, int ptr, int length) throws IOException {<a name="line.130"></a>
-<span class="sourceLineNo">131</span>        int uncompressedSize = 0;<a name="line.131"></a>
-<span class="sourceLineNo">132</span>        int blockNr = 0;<a name="line.132"></a>
-<span class="sourceLineNo">133</span>        final int end = ptr + length;<a name="line.133"></a>
-<span class="sourceLineNo">134</span><a name="line.134"></a>
-<span class="sourceLineNo">135</span>        while (ptr &lt; end) {<a name="line.135"></a>
-<span class="sourceLineNo">136</span>            // can use optional end marker<a name="line.136"></a>
-<span class="sourceLineNo">137</span>            if (ptr == (data.length + 1) &amp;&amp; data[ptr] == BYTE_NULL) {<a name="line.137"></a>
-<span class="sourceLineNo">138</span>                ++ptr; // so that we'll be at end<a name="line.138"></a>
-<span class="sourceLineNo">139</span>                break;<a name="line.139"></a>
-<span class="sourceLineNo">140</span>            }<a name="line.140"></a>
-<span class="sourceLineNo">141</span>            // simpler to handle bounds checks by catching exception here...<a name="line.141"></a>
-<span class="sourceLineNo">142</span>            try {<a name="line.142"></a>
-<span class="sourceLineNo">143</span>                if (data[ptr] != LZFChunk.BYTE_Z || data[ptr + 1] != LZFChunk.BYTE_V) {<a name="line.143"></a>
-<span class="sourceLineNo">144</span>                    throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): did not start with 'ZV' signature bytes");<a name="line.144"></a>
-<span class="sourceLineNo">145</span>                }<a name="line.145"></a>
-<span class="sourceLineNo">146</span>                int type = (int) data[ptr + 2];<a name="line.146"></a>
-<span class="sourceLineNo">147</span>                int blockLen = uint16(data, ptr + 3);<a name="line.147"></a>
-<span class="sourceLineNo">148</span>                if (type == LZFChunk.BLOCK_TYPE_NON_COMPRESSED) { // uncompressed<a name="line.148"></a>
-<span class="sourceLineNo">149</span>                    ptr += 5;<a name="line.149"></a>
-<span class="sourceLineNo">150</span>                    uncompressedSize += blockLen;<a name="line.150"></a>
-<span class="sourceLineNo">151</span>                } else if (type == LZFChunk.BLOCK_TYPE_COMPRESSED) { // compressed<a name="line.151"></a>
-<span class="sourceLineNo">152</span>                    uncompressedSize += uint16(data, ptr + 5);<a name="line.152"></a>
-<span class="sourceLineNo">153</span>                    ptr += 7;<a name="line.153"></a>
-<span class="sourceLineNo">154</span>                } else { // unknown... CRC-32 would be 2, but that's not implemented by cli tool<a name="line.154"></a>
-<span class="sourceLineNo">155</span>                    throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): unrecognized block type " + (type &amp; 0xFF));<a name="line.155"></a>
-<span class="sourceLineNo">156</span>                }<a name="line.156"></a>
-<span class="sourceLineNo">157</span>                ptr += blockLen;<a name="line.157"></a>
-<span class="sourceLineNo">158</span>            } catch (ArrayIndexOutOfBoundsException e) {<a name="line.158"></a>
-<span class="sourceLineNo">159</span>                throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): truncated block header");<a name="line.159"></a>
-<span class="sourceLineNo">160</span>            }<a name="line.160"></a>
-<span class="sourceLineNo">161</span>            ++blockNr;<a name="line.161"></a>
-<span class="sourceLineNo">162</span>        }<a name="line.162"></a>
-<span class="sourceLineNo">163</span>        // one more sanity check:<a name="line.163"></a>
-<span class="sourceLineNo">164</span>        if (ptr != end) {<a name="line.164"></a>
-<span class="sourceLineNo">165</span>            throw new IOException("Corrupt input data: block #" + blockNr + " extends " + (data.length - ptr) + " beyond end of input");<a name="line.165"></a>
+<span class="sourceLineNo">063</span>    public final int decode(final byte[] inputBuffer, final byte[] targetBuffer) throws IOException {<a name="line.63"></a>
+<span class="sourceLineNo">064</span>        return decode(inputBuffer, 0, inputBuffer.length, targetBuffer);<a name="line.64"></a>
+<span class="sourceLineNo">065</span>    }<a name="line.65"></a>
+<span class="sourceLineNo">066</span><a name="line.66"></a>
+<span class="sourceLineNo">067</span>    /**<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * Method for decompressing a block of input data encoded in LZF block<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     * structure (compatible with lzf command line utility), and can consist of<a name="line.69"></a>
+<span class="sourceLineNo">070</span>     * any number of blocks. Note that input MUST consists of a sequence of one<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * or more complete chunks; partial chunks can not be handled.<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     */<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    public int decode(final byte[] sourceBuffer, int inPtr, int inLength,<a name="line.73"></a>
+<span class="sourceLineNo">074</span>                      final byte[] targetBuffer) throws IOException {<a name="line.74"></a>
+<span class="sourceLineNo">075</span>        int outPtr = 0;<a name="line.75"></a>
+<span class="sourceLineNo">076</span>        int blockNr = 0;<a name="line.76"></a>
+<span class="sourceLineNo">077</span><a name="line.77"></a>
+<span class="sourceLineNo">078</span>        final int end = inPtr + inLength - 1; // -1 to offset possible end marker<a name="line.78"></a>
+<span class="sourceLineNo">079</span><a name="line.79"></a>
+<span class="sourceLineNo">080</span>        while (inPtr &lt; end) {<a name="line.80"></a>
+<span class="sourceLineNo">081</span>            // let's do basic sanity checks; no point in skimping with these checks<a name="line.81"></a>
+<span class="sourceLineNo">082</span>            if (sourceBuffer[inPtr] != LZFChunk.BYTE_Z || sourceBuffer[inPtr + 1] != LZFChunk.BYTE_V) {<a name="line.82"></a>
+<span class="sourceLineNo">083</span>                throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + inPtr + "): did not start with 'ZV' signature bytes");<a name="line.83"></a>
+<span class="sourceLineNo">084</span>            }<a name="line.84"></a>
+<span class="sourceLineNo">085</span>            inPtr += 2;<a name="line.85"></a>
+<span class="sourceLineNo">086</span>            int type = sourceBuffer[inPtr++];<a name="line.86"></a>
+<span class="sourceLineNo">087</span>            int len = uint16(sourceBuffer, inPtr);<a name="line.87"></a>
+<span class="sourceLineNo">088</span>            inPtr += 2;<a name="line.88"></a>
+<span class="sourceLineNo">089</span>            if (type == LZFChunk.BLOCK_TYPE_NON_COMPRESSED) { // uncompressed<a name="line.89"></a>
+<span class="sourceLineNo">090</span>                if ((outPtr + len) &gt; targetBuffer.length) {<a name="line.90"></a>
+<span class="sourceLineNo">091</span>                    _reportArrayOverflow(targetBuffer, outPtr, len);<a name="line.91"></a>
+<span class="sourceLineNo">092</span>                }<a name="line.92"></a>
+<span class="sourceLineNo">093</span>                System.arraycopy(sourceBuffer, inPtr, targetBuffer, outPtr, len);<a name="line.93"></a>
+<span class="sourceLineNo">094</span>                outPtr += len;<a name="line.94"></a>
+<span class="sourceLineNo">095</span>            } else { // compressed<a name="line.95"></a>
+<span class="sourceLineNo">096</span>                int uncompLen = uint16(sourceBuffer, inPtr);<a name="line.96"></a>
+<span class="sourceLineNo">097</span>                if ((outPtr + uncompLen) &gt; targetBuffer.length) {<a name="line.97"></a>
+<span class="sourceLineNo">098</span>                    _reportArrayOverflow(targetBuffer, outPtr, uncompLen);<a name="line.98"></a>
+<span class="sourceLineNo">099</span>                }<a name="line.99"></a>
+<span class="sourceLineNo">100</span>                inPtr += 2;<a name="line.100"></a>
+<span class="sourceLineNo">101</span>                decodeChunk(sourceBuffer, inPtr, targetBuffer, outPtr, outPtr + uncompLen);<a name="line.101"></a>
+<span class="sourceLineNo">102</span>                outPtr += uncompLen;<a name="line.102"></a>
+<span class="sourceLineNo">103</span>            }<a name="line.103"></a>
+<span class="sourceLineNo">104</span>            inPtr += len;<a name="line.104"></a>
+<span class="sourceLineNo">105</span>            ++blockNr;<a name="line.105"></a>
+<span class="sourceLineNo">106</span>        }<a name="line.106"></a>
+<span class="sourceLineNo">107</span>        return outPtr;<a name="line.107"></a>
+<span class="sourceLineNo">108</span>    }<a name="line.108"></a>
+<span class="sourceLineNo">109</span><a name="line.109"></a>
+<span class="sourceLineNo">110</span>    /**<a name="line.110"></a>
+<span class="sourceLineNo">111</span>     * Main decode from a stream. Decompressed bytes are placed in the<a name="line.111"></a>
+<span class="sourceLineNo">112</span>     * outputBuffer, inputBuffer is a "scratch-area".<a name="line.112"></a>
+<span class="sourceLineNo">113</span>     *<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * @param is           An input stream of LZF compressed bytes<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     * @param inputBuffer  A byte array used as a scratch area.<a name="line.115"></a>
+<span class="sourceLineNo">116</span>     * @param outputBuffer A byte array in which the result is returned<a name="line.116"></a>
+<span class="sourceLineNo">117</span>     * @return The number of bytes placed in the outputBuffer.<a name="line.117"></a>
+<span class="sourceLineNo">118</span>     */<a name="line.118"></a>
+<span class="sourceLineNo">119</span>    public abstract int decodeChunk(final InputStream is, final byte[] inputBuffer, final byte[] outputBuffer)<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            throws IOException;<a name="line.120"></a>
+<span class="sourceLineNo">121</span><a name="line.121"></a>
+<span class="sourceLineNo">122</span>    /**<a name="line.122"></a>
+<span class="sourceLineNo">123</span>     * Main decode method for individual chunks.<a name="line.123"></a>
+<span class="sourceLineNo">124</span>     */<a name="line.124"></a>
+<span class="sourceLineNo">125</span>    public abstract void decodeChunk(byte[] in, int inPos, byte[] out, int outPos, int outEnd)<a name="line.125"></a>
+<span class="sourceLineNo">126</span>            throws IOException;<a name="line.126"></a>
+<span class="sourceLineNo">127</span><a name="line.127"></a>
+<span class="sourceLineNo">128</span>    /**<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     * Helper method that will calculate total uncompressed size, for sequence<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     * of one or more LZF blocks stored in given byte array. Will do basic<a name="line.130"></a>
+<span class="sourceLineNo">131</span>     * sanity checking, so that this method can be called to verify against some<a name="line.131"></a>
+<span class="sourceLineNo">132</span>     * types of corruption.<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     */<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    public static int calculateUncompressedSize(byte[] data, int ptr, int length) throws IOException {<a name="line.134"></a>
+<span class="sourceLineNo">135</span>        int uncompressedSize = 0;<a name="line.135"></a>
+<span class="sourceLineNo">136</span>        int blockNr = 0;<a name="line.136"></a>
+<span class="sourceLineNo">137</span>        final int end = ptr + length;<a name="line.137"></a>
+<span class="sourceLineNo">138</span><a name="line.138"></a>
+<span class="sourceLineNo">139</span>        while (ptr &lt; end) {<a name="line.139"></a>
+<span class="sourceLineNo">140</span>            // can use optional end marker<a name="line.140"></a>
+<span class="sourceLineNo">141</span>            if (ptr == (data.length + 1) &amp;&amp; data[ptr] == BYTE_NULL) {<a name="line.141"></a>
+<span class="sourceLineNo">142</span>                ++ptr; // so that we'll be at end<a name="line.142"></a>
+<span class="sourceLineNo">143</span>                break;<a name="line.143"></a>
+<span class="sourceLineNo">144</span>            }<a name="line.144"></a>
+<span class="sourceLineNo">145</span>            // simpler to handle bounds checks by catching exception here...<a name="line.145"></a>
+<span class="sourceLineNo">146</span>            try {<a name="line.146"></a>
+<span class="sourceLineNo">147</span>                if (data[ptr] != LZFChunk.BYTE_Z || data[ptr + 1] != LZFChunk.BYTE_V) {<a name="line.147"></a>
+<span class="sourceLineNo">148</span>                    throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): did not start with 'ZV' signature bytes");<a name="line.148"></a>
+<span class="sourceLineNo">149</span>                }<a name="line.149"></a>
+<span class="sourceLineNo">150</span>                int type = (int) data[ptr + 2];<a name="line.150"></a>
+<span class="sourceLineNo">151</span>                int blockLen = uint16(data, ptr + 3);<a name="line.151"></a>
+<span class="sourceLineNo">152</span>                if (type == LZFChunk.BLOCK_TYPE_NON_COMPRESSED) { // uncompressed<a name="line.152"></a>
+<span class="sourceLineNo">153</span>                    ptr += 5;<a name="line.153"></a>
+<span class="sourceLineNo">154</span>                    uncompressedSize += blockLen;<a name="line.154"></a>
+<span class="sourceLineNo">155</span>                } else if (type == LZFChunk.BLOCK_TYPE_COMPRESSED) { // compressed<a name="line.155"></a>
+<span class="sourceLineNo">156</span>                    uncompressedSize += uint16(data, ptr + 5);<a name="line.156"></a>
+<span class="sourceLineNo">157</span>                    ptr += 7;<a name="line.157"></a>
+<span class="sourceLineNo">158</span>                } else { // unknown... CRC-32 would be 2, but that's not implemented by cli tool<a name="line.158"></a>
+<span class="sourceLineNo">159</span>                    throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): unrecognized block type " + (type &amp; 0xFF));<a name="line.159"></a>
+<span class="sourceLineNo">160</span>                }<a name="line.160"></a>
+<span class="sourceLineNo">161</span>                ptr += blockLen;<a name="line.161"></a>
+<span class="sourceLineNo">162</span>            } catch (ArrayIndexOutOfBoundsException e) {<a name="line.162"></a>
+<span class="sourceLineNo">163</span>                throw new IOException("Corrupt input data, block #" + blockNr + " (at offset " + ptr + "): truncated block header");<a name="line.163"></a>
+<span class="sourceLineNo">164</span>            }<a name="line.164"></a>
+<span class="sourceLineNo">165</span>            ++blockNr;<a name="line.165"></a>
 <span class="sourceLineNo">166</span>        }<a name="line.166"></a>
-<span class="sourceLineNo">167</span>        return uncompressedSize;<a name="line.167"></a>
-<span class="sourceLineNo">168</span>    }<a name="line.168"></a>
-<span class="sourceLineNo">169</span><a name="line.169"></a>
-<span class="sourceLineNo">170</span>    /*<a name="line.170"></a>
-<span class="sourceLineNo">171</span>     ///////////////////////////////////////////////////////////////////////<a name="line.171"></a>
-<span class="sourceLineNo">172</span>     // Internal methods<a name="line.172"></a>
-<span class="sourceLineNo">173</span>     ///////////////////////////////////////////////////////////////////////<a name="line.173"></a>
-<span class="sourceLineNo">174</span>     */<a name="line.174"></a>
-<span class="sourceLineNo">175</span>    protected final static int uint16(byte[] data, int ptr) {<a name="line.175"></a>
-<span class="sourceLineNo">176</span>        return ((data[ptr] &amp; 0xFF) &lt;&lt; 8) + (data[ptr + 1] &amp; 0xFF);<a name="line.176"></a>
-<span class="sourceLineNo">177</span>    }<a name="line.177"></a>
-<span class="sourceLineNo">178</span><a name="line.178"></a>
-<span class="sourceLineNo">179</span>    /**<a name="line.179"></a>
-<span class="sourceLineNo">180</span>     * Helper method to forcibly load header bytes that must be read before<a name="line.180"></a>
-<span class="sourceLineNo">181</span>     * chunk can be handled.<a name="line.181"></a>
-<span class="sourceLineNo">182</span>     */<a name="line.182"></a>
-<span class="sourceLineNo">183</span>    protected final static int readHeader(final InputStream is, final byte[] inputBuffer)<a name="line.183"></a>
-<span class="sourceLineNo">184</span>            throws IOException {<a name="line.184"></a>
-<span class="sourceLineNo">185</span>        // Ok: simple case first, where we just get all data we need<a name="line.185"></a>
-<span class="sourceLineNo">186</span>        int needed = HEADER_BYTES;<a name="line.186"></a>
-<span class="sourceLineNo">187</span>        int count = is.read(inputBuffer, 0, needed);<a name="line.187"></a>
-<span class="sourceLineNo">188</span><a name="line.188"></a>
-<span class="sourceLineNo">189</span>        if (count == needed) {<a name="line.189"></a>
-<span class="sourceLineNo">190</span>            return count;<a name="line.190"></a>
-<span class="sourceLineNo">191</span>        }<a name="line.191"></a>
-<span class="sourceLineNo">192</span>        if (count &lt;= 0) {<a name="line.192"></a>
-<span class="sourceLineNo">193</span>            return 0;<a name="line.193"></a>
-<span class="sourceLineNo">194</span>        }<a name="line.194"></a>
-<span class="sourceLineNo">195</span><a name="line.195"></a>
-<span class="sourceLineNo">196</span>        // if not, a source that trickles data (network etc); must loop<a name="line.196"></a>
-<span class="sourceLineNo">197</span>        int offset = count;<a name="line.197"></a>
-<span class="sourceLineNo">198</span>        needed -= count;<a name="line.198"></a>
-<span class="sourceLineNo">199</span><a name="line.199"></a>
-<span class="sourceLineNo">200</span>        do {<a name="line.200"></a>
-<span class="sourceLineNo">201</span>            count = is.read(inputBuffer, offset, needed);<a name="line.201"></a>
-<span class="sourceLineNo">202</span>            if (count &lt;= 0) {<a name="line.202"></a>
-<span class="sourceLineNo">203</span>                break;<a name="line.203"></a>
-<span class="sourceLineNo">204</span>            }<a name="line.204"></a>
-<span class="sourceLineNo">205</span>            offset += count;<a name="line.205"></a>
-<span class="sourceLineNo">206</span>            needed -= count;<a name="line.206"></a>
-<span class="sourceLineNo">207</span>        } while (needed &gt; 0);<a name="line.207"></a>
-<span class="sourceLineNo">208</span>        return offset;<a name="line.208"></a>
-<span class="sourceLineNo">209</span>    }<a name="line.209"></a>
-<span class="sourceLineNo">210</span><a name="line.210"></a>
-<span class="sourceLineNo">211</span>    protected final static void readFully(InputStream is, boolean compressed,<a name="line.211"></a>
-<span class="sourceLineNo">212</span>                                          byte[] outputBuffer, int offset, int len) throws IOException {<a name="line.212"></a>
-<span class="sourceLineNo">213</span>        int left = len;<a name="line.213"></a>
-<span class="sourceLineNo">214</span>        while (left &gt; 0) {<a name="line.214"></a>
-<span class="sourceLineNo">215</span>            int count = is.read(outputBuffer, offset, left);<a name="line.215"></a>
-<span class="sourceLineNo">216</span>            if (count &lt; 0) { // EOF not allowed here<a name="line.216"></a>
-<span class="sourceLineNo">217</span>                throw new IOException("EOF in " + len + " byte ("<a name="line.217"></a>
-<span class="sourceLineNo">218</span>                        + (compressed ? "" : "un") + "compressed) block: could only read "<a name="line.218"></a>
-<span class="sourceLineNo">219</span>                        + (len - left) + " bytes");<a name="line.219"></a>
-<span class="sourceLineNo">220</span>            }<a name="line.220"></a>
-<span class="sourceLineNo">221</span>            offset += count;<a name="line.221"></a>
-<span class="sourceLineNo">222</span>            left -= count;<a name="line.222"></a>
-<span class="sourceLineNo">223</span>        }<a name="line.223"></a>
-<span class="sourceLineNo">224</span>    }<a name="line.224"></a>
-<span class="sourceLineNo">225</span><a name="line.225"></a>
-<span class="sourceLineNo">226</span>    /**<a name="line.226"></a>
-<span class="sourceLineNo">227</span>     * Helper method called when it is determined that the target buffer can not<a name="line.227"></a>
-<span class="sourceLineNo">228</span>     * hold all data to copy or uncompress<a name="line.228"></a>
-<span class="sourceLineNo">229</span>     */<a name="line.229"></a>
-<span class="sourceLineNo">230</span>    protected void _reportArrayOverflow(byte[] targetBuffer, int outPtr, int dataLen)<a name="line.230"></a>
-<span class="sourceLineNo">231</span>            throws IOException {<a name="line.231"></a>
-<span class="sourceLineNo">232</span>        throw new IOException("Target buffer too small (" + targetBuffer.length + "): can not copy/uncompress "<a name="line.232"></a>
-<span class="sourceLineNo">233</span>                + dataLen + " bytes to offset " + outPtr);<a name="line.233"></a>
-<span class="sourceLineNo">234</span>    }<a name="line.234"></a>
-<span class="sourceLineNo">235</span>}<a name="line.235"></a>
+<span class="sourceLineNo">167</span>        // one more sanity check:<a name="line.167"></a>
+<span class="sourceLineNo">168</span>        if (ptr != end) {<a name="line.168"></a>
+<span class="sourceLineNo">169</span>            throw new IOException("Corrupt input data: block #" + blockNr + " extends " + (data.length - ptr) + " beyond end of input");<a name="line.169"></a>
+<span class="sourceLineNo">170</span>        }<a name="line.170"></a>
+<span class="sourceLineNo">171</span>        return uncompressedSize;<a name="line.171"></a>
+<span class="sourceLineNo">172</span>    }<a name="line.172"></a>
+<span class="sourceLineNo">173</span><a name="line.173"></a>
+<span class="sourceLineNo">174</span>    protected static int uint16(byte[] data, int ptr) {<a name="line.174"></a>
+<span class="sourceLineNo">175</span>        return ((data[ptr] &amp; 0xFF) &lt;&lt; 8) + (data[ptr + 1] &amp; 0xFF);<a name="line.175"></a>
+<span class="sourceLineNo">176</span>    }<a name="line.176"></a>
+<span class="sourceLineNo">177</span><a name="line.177"></a>
+<span class="sourceLineNo">178</span>    /**<a name="line.178"></a>
+<span class="sourceLineNo">179</span>     * Helper method to forcibly load header bytes that must be read before<a name="line.179"></a>
+<span class="sourceLineNo">180</span>     * chunk can be handled.<a name="line.180"></a>
+<span class="sourceLineNo">181</span>     */<a name="line.181"></a>
+<span class="sourceLineNo">182</span>    protected static int readHeader(final InputStream is, final byte[] inputBuffer)<a name="line.182"></a>
+<span class="sourceLineNo">183</span>            throws IOException {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>        // Ok: simple case first, where we just get all data we need<a name="line.184"></a>
+<span class="sourceLineNo">185</span>        int needed = HEADER_BYTES;<a name="line.185"></a>
+<span class="sourceLineNo">186</span>        int count = is.read(inputBuffer, 0, needed);<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>        if (count == needed) {<a name="line.188"></a>
+<span class="sourceLineNo">189</span>            return count;<a name="line.189"></a>
+<span class="sourceLineNo">190</span>        }<a name="line.190"></a>
+<span class="sourceLineNo">191</span>        if (count &lt;= 0) {<a name="line.191"></a>
+<span class="sourceLineNo">192</span>            return 0;<a name="line.192"></a>
+<span class="sourceLineNo">193</span>        }<a name="line.193"></a>
+<span class="sourceLineNo">194</span><a name="line.194"></a>
+<span class="sourceLineNo">195</span>        // if not, a source that trickles data (network etc); must loop<a name="line.195"></a>
+<span class="sourceLineNo">196</span>        int offset = count;<a name="line.196"></a>
+<span class="sourceLineNo">197</span>        needed -= count;<a name="line.197"></a>
+<span class="sourceLineNo">198</span><a name="line.198"></a>
+<span class="sourceLineNo">199</span>        do {<a name="line.199"></a>
+<span class="sourceLineNo">200</span>            count = is.read(inputBuffer, offset, needed);<a name="line.200"></a>
+<span class="sourceLineNo">201</span>            if (count &lt;= 0) {<a name="line.201"></a>
+<span class="sourceLineNo">202</span>                break;<a name="line.202"></a>
+<span class="sourceLineNo">203</span>            }<a name="line.203"></a>
+<span class="sourceLineNo">204</span>            offset += count;<a name="line.204"></a>
+<span class="sourceLineNo">205</span>            needed -= count;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>        } while (needed &gt; 0);<a name="line.206"></a>
+<span class="sourceLineNo">207</span>        return offset;<a name="line.207"></a>
+<span class="sourceLineNo">208</span>    }<a name="line.208"></a>
+<span class="sourceLineNo">209</span><a name="line.209"></a>
+<span class="sourceLineNo">210</span>    protected static void readFully(InputStream is, boolean compressed,<a name="line.210"></a>
+<span class="sourceLineNo">211</span>                                    byte[] outputBuffer, int offset, int len) throws IOException {<a name="line.211"></a>
+<span class="sourceLineNo">212</span>        int left = len;<a name="line.212"></a>
+<span class="sourceLineNo">213</span>        while (left &gt; 0) {<a name="line.213"></a>
+<span class="sourceLineNo">214</span>            int count = is.read(outputBuffer, offset, left);<a name="line.214"></a>
+<span class="sourceLineNo">215</span>            if (count &lt; 0) { // EOF not allowed here<a name="line.215"></a>
+<span class="sourceLineNo">216</span>                throw new IOException("EOF in " + len + " byte ("<a name="line.216"></a>
+<span class="sourceLineNo">217</span>                        + (compressed ? "" : "un") + "compressed) block: could only read "<a name="line.217"></a>
+<span class="sourceLineNo">218</span>                        + (len - left) + " bytes");<a name="line.218"></a>
+<span class="sourceLineNo">219</span>            }<a name="line.219"></a>
+<span class="sourceLineNo">220</span>            offset += count;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>            left -= count;<a name="line.221"></a>
+<span class="sourceLineNo">222</span>        }<a name="line.222"></a>
+<span class="sourceLineNo">223</span>    }<a name="line.223"></a>
+<span class="sourceLineNo">224</span><a name="line.224"></a>
+<span class="sourceLineNo">225</span>    /**<a name="line.225"></a>
+<span class="sourceLineNo">226</span>     * Helper method called when it is determined that the target buffer can not<a name="line.226"></a>
+<span class="sourceLineNo">227</span>     * hold all data to copy or uncompress<a name="line.227"></a>
+<span class="sourceLineNo">228</span>     */<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    protected void _reportArrayOverflow(byte[] targetBuffer, int outPtr, int dataLen)<a name="line.229"></a>
+<span class="sourceLineNo">230</span>            throws IOException {<a name="line.230"></a>
+<span class="sourceLineNo">231</span>        throw new IOException("Target buffer too small (" + targetBuffer.length + "): can not copy/uncompress "<a name="line.231"></a>
+<span class="sourceLineNo">232</span>                + dataLen + " bytes to offset " + outPtr);<a name="line.232"></a>
+<span class="sourceLineNo">233</span>    }<a name="line.233"></a>
+<span class="sourceLineNo">234</span>}<a name="line.234"></a>
 
 
 

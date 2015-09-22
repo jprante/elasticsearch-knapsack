@@ -6,686 +6,685 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.check.Check;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.5"></a>
-<span class="sourceLineNo">006</span>import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.6"></a>
-<span class="sourceLineNo">007</span>import org.xbib.io.compress.xz.index.BlockInfo;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>import org.xbib.io.compress.xz.index.IndexDecoder;<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>import java.io.DataInputStream;<a name="line.10"></a>
-<span class="sourceLineNo">011</span>import java.io.EOFException;<a name="line.11"></a>
-<span class="sourceLineNo">012</span>import java.io.IOException;<a name="line.12"></a>
-<span class="sourceLineNo">013</span>import java.util.ArrayList;<a name="line.13"></a>
-<span class="sourceLineNo">014</span>import java.util.Arrays;<a name="line.14"></a>
-<span class="sourceLineNo">015</span><a name="line.15"></a>
-<span class="sourceLineNo">016</span>/**<a name="line.16"></a>
-<span class="sourceLineNo">017</span> * Decompresses a .xz file in random access mode.<a name="line.17"></a>
-<span class="sourceLineNo">018</span> * This supports decompressing concatenated .xz files.<a name="line.18"></a>
-<span class="sourceLineNo">019</span> * &lt;p/&gt;<a name="line.19"></a>
-<span class="sourceLineNo">020</span> * Each .xz file consist of one or more Streams. Each Stream consist of zero<a name="line.20"></a>
-<span class="sourceLineNo">021</span> * or more Blocks. Each Stream contains an Index of Streams' Blocks.<a name="line.21"></a>
-<span class="sourceLineNo">022</span> * The Indexes from all Streams are loaded in RAM by a constructor of this<a name="line.22"></a>
-<span class="sourceLineNo">023</span> * class. A typical .xz file has only one Stream, and parsing its Index will<a name="line.23"></a>
-<span class="sourceLineNo">024</span> * need only three or four seeks.<a name="line.24"></a>
-<span class="sourceLineNo">025</span> * &lt;p/&gt;<a name="line.25"></a>
-<span class="sourceLineNo">026</span> * To make random access possible, the data in a .xz file must be splitted<a name="line.26"></a>
-<span class="sourceLineNo">027</span> * into multiple Blocks of reasonable size. Decompression can only start at<a name="line.27"></a>
-<span class="sourceLineNo">028</span> * a Block boundary. When seeking to an uncompressed offset that is not at<a name="line.28"></a>
-<span class="sourceLineNo">029</span> * a Block boundary, decompression starts at the beginning of the Block and<a name="line.29"></a>
-<span class="sourceLineNo">030</span> * throws away data until the target offset is reached. Thus, smaller Blocks<a name="line.30"></a>
-<span class="sourceLineNo">031</span> * mean faster seeks to arbitrary uncompressed offsets. On the other hand,<a name="line.31"></a>
-<span class="sourceLineNo">032</span> * smaller Blocks mean worse compression. So one has to make a compromise<a name="line.32"></a>
-<span class="sourceLineNo">033</span> * between random access speed and compression ratio.<a name="line.33"></a>
-<span class="sourceLineNo">034</span> * &lt;p/&gt;<a name="line.34"></a>
-<span class="sourceLineNo">035</span> * Implementation note: This class uses linear search to locate the correct<a name="line.35"></a>
-<span class="sourceLineNo">036</span> * Stream from the data structures in RAM. It was the simplest to implement<a name="line.36"></a>
-<span class="sourceLineNo">037</span> * and should be fine as long as there aren't too many Streams. The correct<a name="line.37"></a>
-<span class="sourceLineNo">038</span> * Block inside a Stream is located using binary search and thus is fast<a name="line.38"></a>
-<span class="sourceLineNo">039</span> * even with a huge number of Blocks.<a name="line.39"></a>
-<span class="sourceLineNo">040</span> * &lt;p/&gt;<a name="line.40"></a>
-<span class="sourceLineNo">041</span> * &lt;h4&gt;Memory usage&lt;/h4&gt;<a name="line.41"></a>
-<span class="sourceLineNo">042</span> * &lt;p/&gt;<a name="line.42"></a>
-<span class="sourceLineNo">043</span> * The amount of memory needed for the Indexes is taken into account when<a name="line.43"></a>
-<span class="sourceLineNo">044</span> * checking the memory usage limit. Each Stream is calculated to need at<a name="line.44"></a>
-<span class="sourceLineNo">045</span> * least 1&amp;nbsp;KiB of memory and each Block 16 bytes of memory, rounded up<a name="line.45"></a>
-<span class="sourceLineNo">046</span> * to the next kibibyte. So unless the file has a huge number of Streams or<a name="line.46"></a>
-<span class="sourceLineNo">047</span> * Blocks, these don't take significant amount of memory.<a name="line.47"></a>
-<span class="sourceLineNo">048</span> * &lt;p/&gt;<a name="line.48"></a>
-<span class="sourceLineNo">049</span> * &lt;h4&gt;Creating random-accessible .xz files&lt;/h4&gt;<a name="line.49"></a>
-<span class="sourceLineNo">050</span> * &lt;p/&gt;<a name="line.50"></a>
-<span class="sourceLineNo">051</span> * When using {@link XZOutputStream}, a new Block can be started by calling<a name="line.51"></a>
-<span class="sourceLineNo">052</span> * its {@link XZOutputStream#endBlock() endBlock} method. If you know<a name="line.52"></a>
-<span class="sourceLineNo">053</span> * that the decompressor will need to seek only to certain offsets, it can<a name="line.53"></a>
-<span class="sourceLineNo">054</span> * be a good idea to start a new Block at (some of) these offsets (and<a name="line.54"></a>
-<span class="sourceLineNo">055</span> * perhaps only at these offsets to get better compression ratio).<a name="line.55"></a>
-<span class="sourceLineNo">056</span> * &lt;p/&gt;<a name="line.56"></a>
-<span class="sourceLineNo">057</span> * liblzma in XZ Utils supports starting a new Block with<a name="line.57"></a>
-<span class="sourceLineNo">058</span> * &lt;code&gt;LZMA_FULL_FLUSH&lt;/code&gt;. XZ Utils 5.1.1alpha added threaded<a name="line.58"></a>
-<span class="sourceLineNo">059</span> * compression which creates multi-Block .xz files. XZ Utils 5.1.1alpha<a name="line.59"></a>
-<span class="sourceLineNo">060</span> * also added the option &lt;code&gt;--block-size=SIZE&lt;/code&gt; to the xz command<a name="line.60"></a>
-<span class="sourceLineNo">061</span> * line tool.<a name="line.61"></a>
-<span class="sourceLineNo">062</span> *<a name="line.62"></a>
-<span class="sourceLineNo">063</span> * @see SeekableFileInputStream<a name="line.63"></a>
-<span class="sourceLineNo">064</span> * @see XZInputStream<a name="line.64"></a>
-<span class="sourceLineNo">065</span> * @see XZOutputStream<a name="line.65"></a>
-<span class="sourceLineNo">066</span> */<a name="line.66"></a>
-<span class="sourceLineNo">067</span>public class SeekableXZInputStream extends SeekableInputStream {<a name="line.67"></a>
-<span class="sourceLineNo">068</span>    /**<a name="line.68"></a>
-<span class="sourceLineNo">069</span>     * The input stream containing XZ compressed data.<a name="line.69"></a>
-<span class="sourceLineNo">070</span>     */<a name="line.70"></a>
-<span class="sourceLineNo">071</span>    private SeekableInputStream in;<a name="line.71"></a>
-<span class="sourceLineNo">072</span><a name="line.72"></a>
-<span class="sourceLineNo">073</span>    /**<a name="line.73"></a>
-<span class="sourceLineNo">074</span>     * Memory usage limit after the memory usage of the IndexDecoders have<a name="line.74"></a>
-<span class="sourceLineNo">075</span>     * been substracted.<a name="line.75"></a>
-<span class="sourceLineNo">076</span>     */<a name="line.76"></a>
-<span class="sourceLineNo">077</span>    private final int memoryLimit;<a name="line.77"></a>
-<span class="sourceLineNo">078</span><a name="line.78"></a>
-<span class="sourceLineNo">079</span>    /**<a name="line.79"></a>
-<span class="sourceLineNo">080</span>     * Memory usage of the IndexDecoders.<a name="line.80"></a>
-<span class="sourceLineNo">081</span>     * &lt;code&gt;memoryLimit + indexMemoryUsage&lt;/code&gt; equals the original<a name="line.81"></a>
-<span class="sourceLineNo">082</span>     * memory usage limit that was passed to the constructor.<a name="line.82"></a>
-<span class="sourceLineNo">083</span>     */<a name="line.83"></a>
-<span class="sourceLineNo">084</span>    private int indexMemoryUsage = 0;<a name="line.84"></a>
-<span class="sourceLineNo">085</span><a name="line.85"></a>
-<span class="sourceLineNo">086</span>    /**<a name="line.86"></a>
-<span class="sourceLineNo">087</span>     * List of IndexDecoders, one for each Stream in the file.<a name="line.87"></a>
-<span class="sourceLineNo">088</span>     */<a name="line.88"></a>
-<span class="sourceLineNo">089</span>    private final ArrayList&lt;IndexDecoder&gt; streams = new ArrayList&lt;IndexDecoder&gt;();<a name="line.89"></a>
-<span class="sourceLineNo">090</span><a name="line.90"></a>
-<span class="sourceLineNo">091</span>    /**<a name="line.91"></a>
-<span class="sourceLineNo">092</span>     * IndexDecoder from which the current Block is being decoded.<a name="line.92"></a>
-<span class="sourceLineNo">093</span>     * The constructor leaves this to point the IndexDecoder of<a name="line.93"></a>
-<span class="sourceLineNo">094</span>     * the first Stream.<a name="line.94"></a>
-<span class="sourceLineNo">095</span>     */<a name="line.95"></a>
-<span class="sourceLineNo">096</span>    private IndexDecoder index;<a name="line.96"></a>
-<span class="sourceLineNo">097</span><a name="line.97"></a>
-<span class="sourceLineNo">098</span>    /**<a name="line.98"></a>
-<span class="sourceLineNo">099</span>     * Bitmask of all Check IDs seen.<a name="line.99"></a>
-<span class="sourceLineNo">100</span>     */<a name="line.100"></a>
-<span class="sourceLineNo">101</span>    private int checkTypes = 0;<a name="line.101"></a>
-<span class="sourceLineNo">102</span><a name="line.102"></a>
-<span class="sourceLineNo">103</span>    /**<a name="line.103"></a>
-<span class="sourceLineNo">104</span>     * Integrity Check in the current XZ Stream. The constructor leaves<a name="line.104"></a>
-<span class="sourceLineNo">105</span>     * this to point to the Check of the first Stream.<a name="line.105"></a>
-<span class="sourceLineNo">106</span>     */<a name="line.106"></a>
-<span class="sourceLineNo">107</span>    private Check check;<a name="line.107"></a>
-<span class="sourceLineNo">108</span><a name="line.108"></a>
-<span class="sourceLineNo">109</span>    /**<a name="line.109"></a>
-<span class="sourceLineNo">110</span>     * Decoder of the current XZ Block, if any.<a name="line.110"></a>
-<span class="sourceLineNo">111</span>     */<a name="line.111"></a>
-<span class="sourceLineNo">112</span>    private BlockInputStream blockDecoder = null;<a name="line.112"></a>
-<span class="sourceLineNo">113</span><a name="line.113"></a>
-<span class="sourceLineNo">114</span>    /**<a name="line.114"></a>
-<span class="sourceLineNo">115</span>     * Compressed size of the file (all Streams).<a name="line.115"></a>
-<span class="sourceLineNo">116</span>     */<a name="line.116"></a>
-<span class="sourceLineNo">117</span>    private long uncompressedSize = 0;<a name="line.117"></a>
-<span class="sourceLineNo">118</span><a name="line.118"></a>
-<span class="sourceLineNo">119</span>    /**<a name="line.119"></a>
-<span class="sourceLineNo">120</span>     * Uncompressed size of the largest XZ Block in the file.<a name="line.120"></a>
-<span class="sourceLineNo">121</span>     */<a name="line.121"></a>
-<span class="sourceLineNo">122</span>    private long largestBlockSize = 0;<a name="line.122"></a>
-<span class="sourceLineNo">123</span><a name="line.123"></a>
-<span class="sourceLineNo">124</span>    /**<a name="line.124"></a>
-<span class="sourceLineNo">125</span>     * Current uncompressed position.<a name="line.125"></a>
-<span class="sourceLineNo">126</span>     */<a name="line.126"></a>
-<span class="sourceLineNo">127</span>    private long curPos = 0;<a name="line.127"></a>
-<span class="sourceLineNo">128</span><a name="line.128"></a>
-<span class="sourceLineNo">129</span>    /**<a name="line.129"></a>
-<span class="sourceLineNo">130</span>     * Target position for seeking.<a name="line.130"></a>
-<span class="sourceLineNo">131</span>     */<a name="line.131"></a>
-<span class="sourceLineNo">132</span>    private long seekPos;<a name="line.132"></a>
-<span class="sourceLineNo">133</span><a name="line.133"></a>
-<span class="sourceLineNo">134</span>    /**<a name="line.134"></a>
-<span class="sourceLineNo">135</span>     * True when &lt;code&gt;seek(long)&lt;/code&gt; has been called but the actual<a name="line.135"></a>
-<span class="sourceLineNo">136</span>     * seeking hasn't been done yet.<a name="line.136"></a>
-<span class="sourceLineNo">137</span>     */<a name="line.137"></a>
-<span class="sourceLineNo">138</span>    private boolean seekNeeded = false;<a name="line.138"></a>
-<span class="sourceLineNo">139</span><a name="line.139"></a>
-<span class="sourceLineNo">140</span>    /**<a name="line.140"></a>
-<span class="sourceLineNo">141</span>     * True when end of the file was reached. This can be cleared by<a name="line.141"></a>
-<span class="sourceLineNo">142</span>     * calling &lt;code&gt;seek(long)&lt;/code&gt;.<a name="line.142"></a>
-<span class="sourceLineNo">143</span>     */<a name="line.143"></a>
-<span class="sourceLineNo">144</span>    private boolean endReached = false;<a name="line.144"></a>
-<span class="sourceLineNo">145</span><a name="line.145"></a>
-<span class="sourceLineNo">146</span>    /**<a name="line.146"></a>
-<span class="sourceLineNo">147</span>     * Pending exception from an earlier error.<a name="line.147"></a>
-<span class="sourceLineNo">148</span>     */<a name="line.148"></a>
-<span class="sourceLineNo">149</span>    private IOException exception = null;<a name="line.149"></a>
-<span class="sourceLineNo">150</span><a name="line.150"></a>
-<span class="sourceLineNo">151</span>    /**<a name="line.151"></a>
-<span class="sourceLineNo">152</span>     * Creates a new seekable XZ decompressor without a memory usage limit.<a name="line.152"></a>
-<span class="sourceLineNo">153</span>     *<a name="line.153"></a>
-<span class="sourceLineNo">154</span>     * @param in seekable input stream containing one or more<a name="line.154"></a>
-<span class="sourceLineNo">155</span>     *           XZ Streams; the whole input stream is used<a name="line.155"></a>
-<span class="sourceLineNo">156</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.156"></a>
-<span class="sourceLineNo">157</span>     * @throws CorruptedInputException     XZ data is corrupt or truncated<a name="line.157"></a>
-<span class="sourceLineNo">158</span>     * @throws UnsupportedOptionsException XZ headers seem valid but they specify<a name="line.158"></a>
-<span class="sourceLineNo">159</span>     *                                     options not supported by this implementation<a name="line.159"></a>
-<span class="sourceLineNo">160</span>     * @throws java.io.EOFException        less than 6 bytes of input was available<a name="line.160"></a>
-<span class="sourceLineNo">161</span>     *                                     from &lt;code&gt;in&lt;/code&gt;, or (unlikely) the size<a name="line.161"></a>
-<span class="sourceLineNo">162</span>     *                                     of the underlying stream got smaller while<a name="line.162"></a>
-<span class="sourceLineNo">163</span>     *                                     this was reading from it<a name="line.163"></a>
-<span class="sourceLineNo">164</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.164"></a>
-<span class="sourceLineNo">165</span>     */<a name="line.165"></a>
-<span class="sourceLineNo">166</span>    public SeekableXZInputStream(SeekableInputStream in)<a name="line.166"></a>
-<span class="sourceLineNo">167</span>            throws IOException {<a name="line.167"></a>
-<span class="sourceLineNo">168</span>        this(in, -1);<a name="line.168"></a>
-<span class="sourceLineNo">169</span>    }<a name="line.169"></a>
-<span class="sourceLineNo">170</span><a name="line.170"></a>
-<span class="sourceLineNo">171</span>    /**<a name="line.171"></a>
-<span class="sourceLineNo">172</span>     * Creates a new seekable XZ decomporessor with an optional<a name="line.172"></a>
-<span class="sourceLineNo">173</span>     * memory usage limit.<a name="line.173"></a>
-<span class="sourceLineNo">174</span>     *<a name="line.174"></a>
-<span class="sourceLineNo">175</span>     * @param in          seekable input stream containing one or more<a name="line.175"></a>
-<span class="sourceLineNo">176</span>     *                    XZ Streams; the whole input stream is used<a name="line.176"></a>
-<span class="sourceLineNo">177</span>     * @param memoryLimit memory usage limit in kibibytes (KiB)<a name="line.177"></a>
-<span class="sourceLineNo">178</span>     *                    or &lt;code&gt;-1&lt;/code&gt; to impose no<a name="line.178"></a>
-<span class="sourceLineNo">179</span>     *                    memory usage limit<a name="line.179"></a>
-<span class="sourceLineNo">180</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.180"></a>
-<span class="sourceLineNo">181</span>     * @throws CorruptedInputException     XZ data is corrupt or truncated<a name="line.181"></a>
-<span class="sourceLineNo">182</span>     * @throws UnsupportedOptionsException XZ headers seem valid but they specify<a name="line.182"></a>
-<span class="sourceLineNo">183</span>     *                                     options not supported by this implementation<a name="line.183"></a>
-<span class="sourceLineNo">184</span>     * @throws MemoryLimitException        decoded XZ Indexes would need more memory<a name="line.184"></a>
-<span class="sourceLineNo">185</span>     *                                     than allowed by the memory usage limit<a name="line.185"></a>
-<span class="sourceLineNo">186</span>     * @throws java.io.EOFException        less than 6 bytes of input was available<a name="line.186"></a>
-<span class="sourceLineNo">187</span>     *                                     from &lt;code&gt;in&lt;/code&gt;, or (unlikely) the size<a name="line.187"></a>
-<span class="sourceLineNo">188</span>     *                                     of the underlying stream got smaller while<a name="line.188"></a>
-<span class="sourceLineNo">189</span>     *                                     this was reading from it<a name="line.189"></a>
-<span class="sourceLineNo">190</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.190"></a>
-<span class="sourceLineNo">191</span>     */<a name="line.191"></a>
-<span class="sourceLineNo">192</span>    public SeekableXZInputStream(SeekableInputStream in, int memoryLimit)<a name="line.192"></a>
-<span class="sourceLineNo">193</span>            throws IOException {<a name="line.193"></a>
-<span class="sourceLineNo">194</span>        this.in = in;<a name="line.194"></a>
-<span class="sourceLineNo">195</span>        DataInputStream inData = new DataInputStream(in);<a name="line.195"></a>
-<span class="sourceLineNo">196</span><a name="line.196"></a>
-<span class="sourceLineNo">197</span>        // Check the magic bytes in the beginning of the file.<a name="line.197"></a>
-<span class="sourceLineNo">198</span>        {<a name="line.198"></a>
-<span class="sourceLineNo">199</span>            in.seek(0);<a name="line.199"></a>
-<span class="sourceLineNo">200</span>            byte[] buf = new byte[XZ.HEADER_MAGIC.length];<a name="line.200"></a>
-<span class="sourceLineNo">201</span>            inData.readFully(buf);<a name="line.201"></a>
-<span class="sourceLineNo">202</span>            if (!Arrays.equals(buf, XZ.HEADER_MAGIC)) {<a name="line.202"></a>
-<span class="sourceLineNo">203</span>                throw new XZFormatException();<a name="line.203"></a>
-<span class="sourceLineNo">204</span>            }<a name="line.204"></a>
-<span class="sourceLineNo">205</span>        }<a name="line.205"></a>
-<span class="sourceLineNo">206</span><a name="line.206"></a>
-<span class="sourceLineNo">207</span>        // Get the file size and verify that it is a multiple of 4 bytes.<a name="line.207"></a>
-<span class="sourceLineNo">208</span>        long pos = in.length();<a name="line.208"></a>
-<span class="sourceLineNo">209</span>        if ((pos &amp; 3) != 0) {<a name="line.209"></a>
-<span class="sourceLineNo">210</span>            throw new CorruptedInputException(<a name="line.210"></a>
-<span class="sourceLineNo">211</span>                    "XZ file size is not a multiple of 4 bytes");<a name="line.211"></a>
-<span class="sourceLineNo">212</span>        }<a name="line.212"></a>
-<span class="sourceLineNo">213</span><a name="line.213"></a>
-<span class="sourceLineNo">214</span>        // Parse the headers starting from the end of the file.<a name="line.214"></a>
-<span class="sourceLineNo">215</span>        byte[] buf = new byte[DecoderUtil.STREAM_HEADER_SIZE];<a name="line.215"></a>
-<span class="sourceLineNo">216</span>        long streamPadding = 0;<a name="line.216"></a>
-<span class="sourceLineNo">217</span><a name="line.217"></a>
-<span class="sourceLineNo">218</span>        while (pos &gt; 0) {<a name="line.218"></a>
-<span class="sourceLineNo">219</span>            if (pos &lt; DecoderUtil.STREAM_HEADER_SIZE) {<a name="line.219"></a>
-<span class="sourceLineNo">220</span>                throw new CorruptedInputException();<a name="line.220"></a>
-<span class="sourceLineNo">221</span>            }<a name="line.221"></a>
-<span class="sourceLineNo">222</span><a name="line.222"></a>
-<span class="sourceLineNo">223</span>            // Read the potential Stream Footer.<a name="line.223"></a>
-<span class="sourceLineNo">224</span>            in.seek(pos - DecoderUtil.STREAM_HEADER_SIZE);<a name="line.224"></a>
-<span class="sourceLineNo">225</span>            inData.readFully(buf);<a name="line.225"></a>
-<span class="sourceLineNo">226</span><a name="line.226"></a>
-<span class="sourceLineNo">227</span>            // Skip Stream Padding four bytes at a time.<a name="line.227"></a>
-<span class="sourceLineNo">228</span>            // Skipping more at once would be faster,<a name="line.228"></a>
-<span class="sourceLineNo">229</span>            // but usually there isn't much Stream Padding.<a name="line.229"></a>
-<span class="sourceLineNo">230</span>            if (buf[8] == 0x00 &amp;&amp; buf[9] == 0x00 &amp;&amp; buf[10] == 0x00<a name="line.230"></a>
-<span class="sourceLineNo">231</span>                    &amp;&amp; buf[11] == 0x00) {<a name="line.231"></a>
-<span class="sourceLineNo">232</span>                streamPadding += 4;<a name="line.232"></a>
-<span class="sourceLineNo">233</span>                pos -= 4;<a name="line.233"></a>
-<span class="sourceLineNo">234</span>                continue;<a name="line.234"></a>
-<span class="sourceLineNo">235</span>            }<a name="line.235"></a>
-<span class="sourceLineNo">236</span><a name="line.236"></a>
-<span class="sourceLineNo">237</span>            // It's not Stream Padding. Update pos.<a name="line.237"></a>
-<span class="sourceLineNo">238</span>            pos -= DecoderUtil.STREAM_HEADER_SIZE;<a name="line.238"></a>
-<span class="sourceLineNo">239</span><a name="line.239"></a>
-<span class="sourceLineNo">240</span>            // Decode the Stream Footer and check if Backward Size<a name="line.240"></a>
-<span class="sourceLineNo">241</span>            // looks reasonable.<a name="line.241"></a>
-<span class="sourceLineNo">242</span>            StreamFlags streamFooter = DecoderUtil.decodeStreamFooter(buf);<a name="line.242"></a>
-<span class="sourceLineNo">243</span>            if (streamFooter.backwardSize &gt;= pos) {<a name="line.243"></a>
-<span class="sourceLineNo">244</span>                throw new CorruptedInputException(<a name="line.244"></a>
-<span class="sourceLineNo">245</span>                        "Backward Size in XZ Stream Footer is too big");<a name="line.245"></a>
-<span class="sourceLineNo">246</span>            }<a name="line.246"></a>
-<span class="sourceLineNo">247</span><a name="line.247"></a>
-<span class="sourceLineNo">248</span>            // Check that the Check ID is supported. Store it in case this<a name="line.248"></a>
-<span class="sourceLineNo">249</span>            // is the first Stream in the file.<a name="line.249"></a>
-<span class="sourceLineNo">250</span>            check = Check.getInstance(streamFooter.checkType);<a name="line.250"></a>
-<span class="sourceLineNo">251</span><a name="line.251"></a>
-<span class="sourceLineNo">252</span>            // Remember which Check IDs have been seen.<a name="line.252"></a>
-<span class="sourceLineNo">253</span>            checkTypes |= 1 &lt;&lt; streamFooter.checkType;<a name="line.253"></a>
-<span class="sourceLineNo">254</span><a name="line.254"></a>
-<span class="sourceLineNo">255</span>            // Seek to the beginning of the Index.<a name="line.255"></a>
-<span class="sourceLineNo">256</span>            in.seek(pos - streamFooter.backwardSize);<a name="line.256"></a>
-<span class="sourceLineNo">257</span><a name="line.257"></a>
-<span class="sourceLineNo">258</span>            // Decode the Index field.<a name="line.258"></a>
-<span class="sourceLineNo">259</span>            try {<a name="line.259"></a>
-<span class="sourceLineNo">260</span>                index = new IndexDecoder(in, streamFooter, streamPadding,<a name="line.260"></a>
-<span class="sourceLineNo">261</span>                        memoryLimit);<a name="line.261"></a>
-<span class="sourceLineNo">262</span>            } catch (MemoryLimitException e) {<a name="line.262"></a>
-<span class="sourceLineNo">263</span>                // IndexDecoder doesn't know how much memory we had<a name="line.263"></a>
-<span class="sourceLineNo">264</span>                // already needed so we need to recreate the exception.<a name="line.264"></a>
-<span class="sourceLineNo">265</span>                assert memoryLimit &gt;= 0;<a name="line.265"></a>
-<span class="sourceLineNo">266</span>                throw new MemoryLimitException(<a name="line.266"></a>
-<span class="sourceLineNo">267</span>                        e.getMemoryNeeded() + indexMemoryUsage,<a name="line.267"></a>
-<span class="sourceLineNo">268</span>                        memoryLimit + indexMemoryUsage);<a name="line.268"></a>
-<span class="sourceLineNo">269</span>            }<a name="line.269"></a>
-<span class="sourceLineNo">270</span><a name="line.270"></a>
-<span class="sourceLineNo">271</span>            // Update the memory usage and limit counters.<a name="line.271"></a>
-<span class="sourceLineNo">272</span>            indexMemoryUsage += index.getMemoryUsage();<a name="line.272"></a>
-<span class="sourceLineNo">273</span>            if (memoryLimit &gt;= 0) {<a name="line.273"></a>
-<span class="sourceLineNo">274</span>                memoryLimit -= index.getMemoryUsage();<a name="line.274"></a>
-<span class="sourceLineNo">275</span>                assert memoryLimit &gt;= 0;<a name="line.275"></a>
-<span class="sourceLineNo">276</span>            }<a name="line.276"></a>
-<span class="sourceLineNo">277</span><a name="line.277"></a>
-<span class="sourceLineNo">278</span>            // Remember the uncompressed size of the largest Block.<a name="line.278"></a>
-<span class="sourceLineNo">279</span>            if (largestBlockSize &lt; index.getLargestBlockSize()) {<a name="line.279"></a>
-<span class="sourceLineNo">280</span>                largestBlockSize = index.getLargestBlockSize();<a name="line.280"></a>
-<span class="sourceLineNo">281</span>            }<a name="line.281"></a>
-<span class="sourceLineNo">282</span><a name="line.282"></a>
-<span class="sourceLineNo">283</span>            // Calculate the offset to the beginning of this XZ Stream and<a name="line.283"></a>
-<span class="sourceLineNo">284</span>            // check that it looks sane.<a name="line.284"></a>
-<span class="sourceLineNo">285</span>            long off = index.getStreamSize() - DecoderUtil.STREAM_HEADER_SIZE;<a name="line.285"></a>
-<span class="sourceLineNo">286</span>            if (pos &lt; off) {<a name="line.286"></a>
-<span class="sourceLineNo">287</span>                throw new CorruptedInputException("XZ Index indicates "<a name="line.287"></a>
-<span class="sourceLineNo">288</span>                        + "too big compressed size for the XZ Stream");<a name="line.288"></a>
-<span class="sourceLineNo">289</span>            }<a name="line.289"></a>
-<span class="sourceLineNo">290</span><a name="line.290"></a>
-<span class="sourceLineNo">291</span>            // Seek to the beginning of this Stream.<a name="line.291"></a>
-<span class="sourceLineNo">292</span>            pos -= off;<a name="line.292"></a>
-<span class="sourceLineNo">293</span>            in.seek(pos);<a name="line.293"></a>
-<span class="sourceLineNo">294</span><a name="line.294"></a>
-<span class="sourceLineNo">295</span>            // Decode the Stream Header.<a name="line.295"></a>
-<span class="sourceLineNo">296</span>            inData.readFully(buf);<a name="line.296"></a>
-<span class="sourceLineNo">297</span>            StreamFlags streamHeader = DecoderUtil.decodeStreamHeader(buf);<a name="line.297"></a>
-<span class="sourceLineNo">298</span><a name="line.298"></a>
-<span class="sourceLineNo">299</span>            // Verify that the Stream Header matches the Stream Footer.<a name="line.299"></a>
-<span class="sourceLineNo">300</span>            if (!DecoderUtil.areStreamFlagsEqual(streamHeader, streamFooter)) {<a name="line.300"></a>
-<span class="sourceLineNo">301</span>                throw new CorruptedInputException(<a name="line.301"></a>
-<span class="sourceLineNo">302</span>                        "XZ Stream Footer does not match Stream Header");<a name="line.302"></a>
-<span class="sourceLineNo">303</span>            }<a name="line.303"></a>
-<span class="sourceLineNo">304</span><a name="line.304"></a>
-<span class="sourceLineNo">305</span>            // Update the total uncompressed size of the file and check that<a name="line.305"></a>
-<span class="sourceLineNo">306</span>            // it doesn't overflow.<a name="line.306"></a>
-<span class="sourceLineNo">307</span>            uncompressedSize += index.getUncompressedSize();<a name="line.307"></a>
-<span class="sourceLineNo">308</span>            if (uncompressedSize &lt; 0) {<a name="line.308"></a>
-<span class="sourceLineNo">309</span>                throw new UnsupportedOptionsException("XZ file is too big");<a name="line.309"></a>
-<span class="sourceLineNo">310</span>            }<a name="line.310"></a>
-<span class="sourceLineNo">311</span><a name="line.311"></a>
-<span class="sourceLineNo">312</span>            // Add this Stream to the list of Streams.<a name="line.312"></a>
-<span class="sourceLineNo">313</span>            streams.add(index);<a name="line.313"></a>
-<span class="sourceLineNo">314</span><a name="line.314"></a>
-<span class="sourceLineNo">315</span>            // Reset to be ready to parse the next Stream.<a name="line.315"></a>
-<span class="sourceLineNo">316</span>            streamPadding = 0;<a name="line.316"></a>
-<span class="sourceLineNo">317</span>        }<a name="line.317"></a>
-<span class="sourceLineNo">318</span><a name="line.318"></a>
-<span class="sourceLineNo">319</span>        assert pos == 0;<a name="line.319"></a>
-<span class="sourceLineNo">320</span><a name="line.320"></a>
-<span class="sourceLineNo">321</span>        // Save it now that indexMemoryUsage has been substracted from it.<a name="line.321"></a>
-<span class="sourceLineNo">322</span>        this.memoryLimit = memoryLimit;<a name="line.322"></a>
-<span class="sourceLineNo">323</span>    }<a name="line.323"></a>
-<span class="sourceLineNo">324</span><a name="line.324"></a>
-<span class="sourceLineNo">325</span>    /**<a name="line.325"></a>
-<span class="sourceLineNo">326</span>     * Gets the types of integrity checks used in the .xz file.<a name="line.326"></a>
-<span class="sourceLineNo">327</span>     * Multiple checks are possible only if there are multiple<a name="line.327"></a>
-<span class="sourceLineNo">328</span>     * concatenated XZ Streams.<a name="line.328"></a>
-<span class="sourceLineNo">329</span>     * &lt;p/&gt;<a name="line.329"></a>
-<span class="sourceLineNo">330</span>     * The returned value has a bit set for every check type that is present.<a name="line.330"></a>
-<span class="sourceLineNo">331</span>     * For example, if CRC64 and SHA-256 were used, the return value is<a name="line.331"></a>
-<span class="sourceLineNo">332</span>     * &lt;code&gt;(1&amp;nbsp;&amp;lt;&amp;lt;&amp;nbsp;XZ.CHECK_CRC64)<a name="line.332"></a>
-<span class="sourceLineNo">333</span>     * | (1&amp;nbsp;&amp;lt;&amp;lt;&amp;nbsp;XZ.CHECK_SHA256)&lt;/code&gt;.<a name="line.333"></a>
-<span class="sourceLineNo">334</span>     */<a name="line.334"></a>
-<span class="sourceLineNo">335</span>    public int getCheckTypes() {<a name="line.335"></a>
-<span class="sourceLineNo">336</span>        return checkTypes;<a name="line.336"></a>
-<span class="sourceLineNo">337</span>    }<a name="line.337"></a>
-<span class="sourceLineNo">338</span><a name="line.338"></a>
-<span class="sourceLineNo">339</span>    /**<a name="line.339"></a>
-<span class="sourceLineNo">340</span>     * Gets the amount of memory in kibibytes (KiB) used by<a name="line.340"></a>
-<span class="sourceLineNo">341</span>     * the data structures needed to locate the XZ Blocks.<a name="line.341"></a>
-<span class="sourceLineNo">342</span>     * This is usually useless information but since it is calculated<a name="line.342"></a>
-<span class="sourceLineNo">343</span>     * for memory usage limit anyway, it is nice to make it available to too.<a name="line.343"></a>
-<span class="sourceLineNo">344</span>     */<a name="line.344"></a>
-<span class="sourceLineNo">345</span>    public int getIndexMemoryUsage() {<a name="line.345"></a>
-<span class="sourceLineNo">346</span>        return indexMemoryUsage;<a name="line.346"></a>
-<span class="sourceLineNo">347</span>    }<a name="line.347"></a>
-<span class="sourceLineNo">348</span><a name="line.348"></a>
-<span class="sourceLineNo">349</span>    /**<a name="line.349"></a>
-<span class="sourceLineNo">350</span>     * Gets the uncompressed size of the largest XZ Block in bytes.<a name="line.350"></a>
-<span class="sourceLineNo">351</span>     * This can be useful if you want to check that the file doesn't<a name="line.351"></a>
-<span class="sourceLineNo">352</span>     * have huge XZ Blocks which could make seeking to arbitrary offsets<a name="line.352"></a>
-<span class="sourceLineNo">353</span>     * very slow. Note that huge Blocks don't automatically mean that<a name="line.353"></a>
-<span class="sourceLineNo">354</span>     * seeking would be slow, for example, seeking to the beginning of<a name="line.354"></a>
-<span class="sourceLineNo">355</span>     * any Block is always fast.<a name="line.355"></a>
-<span class="sourceLineNo">356</span>     */<a name="line.356"></a>
-<span class="sourceLineNo">357</span>    public long getLargestBlockSize() {<a name="line.357"></a>
-<span class="sourceLineNo">358</span>        return largestBlockSize;<a name="line.358"></a>
-<span class="sourceLineNo">359</span>    }<a name="line.359"></a>
-<span class="sourceLineNo">360</span><a name="line.360"></a>
-<span class="sourceLineNo">361</span>    /**<a name="line.361"></a>
-<span class="sourceLineNo">362</span>     * Decompresses the next byte from this input stream.<a name="line.362"></a>
-<span class="sourceLineNo">363</span>     *<a name="line.363"></a>
-<span class="sourceLineNo">364</span>     * @return the next decompressed byte, or &lt;code&gt;-1&lt;/code&gt;<a name="line.364"></a>
-<span class="sourceLineNo">365</span>     * to indicate the end of the compressed stream<a name="line.365"></a>
-<span class="sourceLineNo">366</span>     * @throws CorruptedInputException<a name="line.366"></a>
-<span class="sourceLineNo">367</span>     * @throws UnsupportedOptionsException<a name="line.367"></a>
-<span class="sourceLineNo">368</span>     * @throws MemoryLimitException<a name="line.368"></a>
-<span class="sourceLineNo">369</span>     * @throws XZIOException               if the stream has been closed<a name="line.369"></a>
-<span class="sourceLineNo">370</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.370"></a>
-<span class="sourceLineNo">371</span>     */<a name="line.371"></a>
-<span class="sourceLineNo">372</span>    public int read() throws IOException {<a name="line.372"></a>
-<span class="sourceLineNo">373</span>        byte[] buf = new byte[1];<a name="line.373"></a>
-<span class="sourceLineNo">374</span>        return read(buf, 0, 1) == -1 ? -1 : (buf[0] &amp; 0xFF);<a name="line.374"></a>
-<span class="sourceLineNo">375</span>    }<a name="line.375"></a>
-<span class="sourceLineNo">376</span><a name="line.376"></a>
-<span class="sourceLineNo">377</span>    /**<a name="line.377"></a>
-<span class="sourceLineNo">378</span>     * Decompresses into an array of bytes.<a name="line.378"></a>
-<span class="sourceLineNo">379</span>     * &lt;p/&gt;<a name="line.379"></a>
-<span class="sourceLineNo">380</span>     * If &lt;code&gt;len&lt;/code&gt; is zero, no bytes are read and &lt;code&gt;0&lt;/code&gt;<a name="line.380"></a>
-<span class="sourceLineNo">381</span>     * is returned. Otherwise this will try to decompress &lt;code&gt;len&lt;/code&gt;<a name="line.381"></a>
-<span class="sourceLineNo">382</span>     * bytes of uncompressed data. Less than &lt;code&gt;len&lt;/code&gt; bytes may<a name="line.382"></a>
-<span class="sourceLineNo">383</span>     * be read only in the following situations:<a name="line.383"></a>
-<span class="sourceLineNo">384</span>     * &lt;ul&gt;<a name="line.384"></a>
-<span class="sourceLineNo">385</span>     * &lt;li&gt;The end of the compressed data was reached successfully.&lt;/li&gt;<a name="line.385"></a>
-<span class="sourceLineNo">386</span>     * &lt;li&gt;An error is detected after at least one but less &lt;code&gt;len&lt;/code&gt;<a name="line.386"></a>
-<span class="sourceLineNo">387</span>     * bytes have already been successfully decompressed.<a name="line.387"></a>
-<span class="sourceLineNo">388</span>     * The next call with non-zero &lt;code&gt;len&lt;/code&gt; will immediately<a name="line.388"></a>
-<span class="sourceLineNo">389</span>     * throw the pending exception.&lt;/li&gt;<a name="line.389"></a>
-<span class="sourceLineNo">390</span>     * &lt;li&gt;An exception is thrown.&lt;/li&gt;<a name="line.390"></a>
-<span class="sourceLineNo">391</span>     * &lt;/ul&gt;<a name="line.391"></a>
-<span class="sourceLineNo">392</span>     *<a name="line.392"></a>
-<span class="sourceLineNo">393</span>     * @param buf target buffer for uncompressed data<a name="line.393"></a>
-<span class="sourceLineNo">394</span>     * @param off start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.394"></a>
-<span class="sourceLineNo">395</span>     * @param len maximum number of uncompressed bytes to read<a name="line.395"></a>
-<span class="sourceLineNo">396</span>     * @return number of bytes read, or &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.396"></a>
-<span class="sourceLineNo">397</span>     * the end of the compressed stream<a name="line.397"></a>
-<span class="sourceLineNo">398</span>     * @throws CorruptedInputException<a name="line.398"></a>
-<span class="sourceLineNo">399</span>     * @throws UnsupportedOptionsException<a name="line.399"></a>
-<span class="sourceLineNo">400</span>     * @throws MemoryLimitException<a name="line.400"></a>
-<span class="sourceLineNo">401</span>     * @throws XZIOException               if the stream has been closed<a name="line.401"></a>
-<span class="sourceLineNo">402</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.402"></a>
-<span class="sourceLineNo">403</span>     */<a name="line.403"></a>
-<span class="sourceLineNo">404</span>    public int read(byte[] buf, int off, int len) throws IOException {<a name="line.404"></a>
-<span class="sourceLineNo">405</span>        if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length) {<a name="line.405"></a>
-<span class="sourceLineNo">406</span>            throw new IndexOutOfBoundsException();<a name="line.406"></a>
-<span class="sourceLineNo">407</span>        }<a name="line.407"></a>
-<span class="sourceLineNo">408</span><a name="line.408"></a>
-<span class="sourceLineNo">409</span>        if (len == 0) {<a name="line.409"></a>
-<span class="sourceLineNo">410</span>            return 0;<a name="line.410"></a>
-<span class="sourceLineNo">411</span>        }<a name="line.411"></a>
-<span class="sourceLineNo">412</span><a name="line.412"></a>
-<span class="sourceLineNo">413</span>        if (in == null) {<a name="line.413"></a>
-<span class="sourceLineNo">414</span>            throw new XZIOException("Stream closed");<a name="line.414"></a>
-<span class="sourceLineNo">415</span>        }<a name="line.415"></a>
-<span class="sourceLineNo">416</span><a name="line.416"></a>
-<span class="sourceLineNo">417</span>        if (exception != null) {<a name="line.417"></a>
-<span class="sourceLineNo">418</span>            throw exception;<a name="line.418"></a>
-<span class="sourceLineNo">419</span>        }<a name="line.419"></a>
-<span class="sourceLineNo">420</span><a name="line.420"></a>
-<span class="sourceLineNo">421</span>        int size = 0;<a name="line.421"></a>
-<span class="sourceLineNo">422</span><a name="line.422"></a>
-<span class="sourceLineNo">423</span>        try {<a name="line.423"></a>
-<span class="sourceLineNo">424</span>            if (seekNeeded) {<a name="line.424"></a>
-<span class="sourceLineNo">425</span>                seek();<a name="line.425"></a>
-<span class="sourceLineNo">426</span>            }<a name="line.426"></a>
-<span class="sourceLineNo">427</span><a name="line.427"></a>
-<span class="sourceLineNo">428</span>            if (endReached) {<a name="line.428"></a>
-<span class="sourceLineNo">429</span>                return -1;<a name="line.429"></a>
-<span class="sourceLineNo">430</span>            }<a name="line.430"></a>
-<span class="sourceLineNo">431</span><a name="line.431"></a>
-<span class="sourceLineNo">432</span>            while (len &gt; 0) {<a name="line.432"></a>
-<span class="sourceLineNo">433</span>                if (blockDecoder == null) {<a name="line.433"></a>
-<span class="sourceLineNo">434</span>                    seek();<a name="line.434"></a>
-<span class="sourceLineNo">435</span>                    if (endReached) {<a name="line.435"></a>
-<span class="sourceLineNo">436</span>                        break;<a name="line.436"></a>
-<span class="sourceLineNo">437</span>                    }<a name="line.437"></a>
-<span class="sourceLineNo">438</span>                }<a name="line.438"></a>
-<span class="sourceLineNo">439</span><a name="line.439"></a>
-<span class="sourceLineNo">440</span>                int ret = blockDecoder.read(buf, off, len);<a name="line.440"></a>
-<span class="sourceLineNo">441</span><a name="line.441"></a>
-<span class="sourceLineNo">442</span>                if (ret &gt; 0) {<a name="line.442"></a>
-<span class="sourceLineNo">443</span>                    curPos += ret;<a name="line.443"></a>
-<span class="sourceLineNo">444</span>                    size += ret;<a name="line.444"></a>
-<span class="sourceLineNo">445</span>                    off += ret;<a name="line.445"></a>
-<span class="sourceLineNo">446</span>                    len -= ret;<a name="line.446"></a>
-<span class="sourceLineNo">447</span>                } else if (ret == -1) {<a name="line.447"></a>
-<span class="sourceLineNo">448</span>                    blockDecoder = null;<a name="line.448"></a>
-<span class="sourceLineNo">449</span>                }<a name="line.449"></a>
-<span class="sourceLineNo">450</span>            }<a name="line.450"></a>
-<span class="sourceLineNo">451</span>        } catch (IOException e) {<a name="line.451"></a>
-<span class="sourceLineNo">452</span>            // We know that the file isn't simply truncated because we could<a name="line.452"></a>
-<span class="sourceLineNo">453</span>            // parse the Indexes in the constructor. So convert EOFException<a name="line.453"></a>
-<span class="sourceLineNo">454</span>            // to CorruptedInputException.<a name="line.454"></a>
-<span class="sourceLineNo">455</span>            if (e instanceof EOFException) {<a name="line.455"></a>
-<span class="sourceLineNo">456</span>                e = new CorruptedInputException();<a name="line.456"></a>
-<span class="sourceLineNo">457</span>            }<a name="line.457"></a>
-<span class="sourceLineNo">458</span><a name="line.458"></a>
-<span class="sourceLineNo">459</span>            exception = e;<a name="line.459"></a>
-<span class="sourceLineNo">460</span>            if (size == 0) {<a name="line.460"></a>
-<span class="sourceLineNo">461</span>                throw e;<a name="line.461"></a>
-<span class="sourceLineNo">462</span>            }<a name="line.462"></a>
-<span class="sourceLineNo">463</span>        }<a name="line.463"></a>
-<span class="sourceLineNo">464</span><a name="line.464"></a>
-<span class="sourceLineNo">465</span>        return size;<a name="line.465"></a>
-<span class="sourceLineNo">466</span>    }<a name="line.466"></a>
-<span class="sourceLineNo">467</span><a name="line.467"></a>
-<span class="sourceLineNo">468</span>    /**<a name="line.468"></a>
-<span class="sourceLineNo">469</span>     * Returns the number of uncompressed bytes that can be read<a name="line.469"></a>
-<span class="sourceLineNo">470</span>     * without blocking. The value is returned with an assumption<a name="line.470"></a>
-<span class="sourceLineNo">471</span>     * that the compressed input data will be valid. If the compressed<a name="line.471"></a>
-<span class="sourceLineNo">472</span>     * data is corrupt, &lt;code&gt;CorruptedInputException&lt;/code&gt; may get<a name="line.472"></a>
-<span class="sourceLineNo">473</span>     * thrown before the number of bytes claimed to be available have<a name="line.473"></a>
-<span class="sourceLineNo">474</span>     * been read from this input stream.<a name="line.474"></a>
-<span class="sourceLineNo">475</span>     *<a name="line.475"></a>
-<span class="sourceLineNo">476</span>     * @return the number of uncompressed bytes that can be read<a name="line.476"></a>
-<span class="sourceLineNo">477</span>     * without blocking<a name="line.477"></a>
-<span class="sourceLineNo">478</span>     */<a name="line.478"></a>
-<span class="sourceLineNo">479</span>    public int available() throws IOException {<a name="line.479"></a>
-<span class="sourceLineNo">480</span>        if (in == null) {<a name="line.480"></a>
-<span class="sourceLineNo">481</span>            throw new XZIOException("Stream closed");<a name="line.481"></a>
-<span class="sourceLineNo">482</span>        }<a name="line.482"></a>
-<span class="sourceLineNo">483</span><a name="line.483"></a>
-<span class="sourceLineNo">484</span>        if (exception != null) {<a name="line.484"></a>
-<span class="sourceLineNo">485</span>            throw exception;<a name="line.485"></a>
-<span class="sourceLineNo">486</span>        }<a name="line.486"></a>
-<span class="sourceLineNo">487</span><a name="line.487"></a>
-<span class="sourceLineNo">488</span>        if (endReached || seekNeeded || blockDecoder == null) {<a name="line.488"></a>
-<span class="sourceLineNo">489</span>            return 0;<a name="line.489"></a>
-<span class="sourceLineNo">490</span>        }<a name="line.490"></a>
-<span class="sourceLineNo">491</span><a name="line.491"></a>
-<span class="sourceLineNo">492</span>        return blockDecoder.available();<a name="line.492"></a>
-<span class="sourceLineNo">493</span>    }<a name="line.493"></a>
-<span class="sourceLineNo">494</span><a name="line.494"></a>
-<span class="sourceLineNo">495</span>    /**<a name="line.495"></a>
-<span class="sourceLineNo">496</span>     * Closes the stream and calls &lt;code&gt;in.close()&lt;/code&gt;.<a name="line.496"></a>
-<span class="sourceLineNo">497</span>     * If the stream was already closed, this does nothing.<a name="line.497"></a>
-<span class="sourceLineNo">498</span>     *<a name="line.498"></a>
-<span class="sourceLineNo">499</span>     * @throws java.io.IOException if thrown by &lt;code&gt;in.close()&lt;/code&gt;<a name="line.499"></a>
-<span class="sourceLineNo">500</span>     */<a name="line.500"></a>
-<span class="sourceLineNo">501</span>    public void close() throws IOException {<a name="line.501"></a>
-<span class="sourceLineNo">502</span>        if (in != null) {<a name="line.502"></a>
-<span class="sourceLineNo">503</span>            try {<a name="line.503"></a>
-<span class="sourceLineNo">504</span>                in.close();<a name="line.504"></a>
-<span class="sourceLineNo">505</span>            } finally {<a name="line.505"></a>
-<span class="sourceLineNo">506</span>                in = null;<a name="line.506"></a>
-<span class="sourceLineNo">507</span>            }<a name="line.507"></a>
-<span class="sourceLineNo">508</span>        }<a name="line.508"></a>
-<span class="sourceLineNo">509</span>    }<a name="line.509"></a>
-<span class="sourceLineNo">510</span><a name="line.510"></a>
-<span class="sourceLineNo">511</span>    /**<a name="line.511"></a>
-<span class="sourceLineNo">512</span>     * Gets the uncompressed size of this input stream. If there are multiple<a name="line.512"></a>
-<span class="sourceLineNo">513</span>     * XZ Streams, the total uncompressed size of all XZ Streams is returned.<a name="line.513"></a>
-<span class="sourceLineNo">514</span>     */<a name="line.514"></a>
-<span class="sourceLineNo">515</span>    public long length() {<a name="line.515"></a>
-<span class="sourceLineNo">516</span>        return uncompressedSize;<a name="line.516"></a>
-<span class="sourceLineNo">517</span>    }<a name="line.517"></a>
-<span class="sourceLineNo">518</span><a name="line.518"></a>
-<span class="sourceLineNo">519</span>    /**<a name="line.519"></a>
-<span class="sourceLineNo">520</span>     * Gets the uncompressed position in this input stream.<a name="line.520"></a>
-<span class="sourceLineNo">521</span>     *<a name="line.521"></a>
-<span class="sourceLineNo">522</span>     * @throws XZIOException if the stream has been closed<a name="line.522"></a>
-<span class="sourceLineNo">523</span>     */<a name="line.523"></a>
-<span class="sourceLineNo">524</span>    public long position() throws IOException {<a name="line.524"></a>
-<span class="sourceLineNo">525</span>        if (in == null) {<a name="line.525"></a>
-<span class="sourceLineNo">526</span>            throw new XZIOException("Stream closed");<a name="line.526"></a>
-<span class="sourceLineNo">527</span>        }<a name="line.527"></a>
-<span class="sourceLineNo">528</span><a name="line.528"></a>
-<span class="sourceLineNo">529</span>        return seekNeeded ? seekPos : curPos;<a name="line.529"></a>
-<span class="sourceLineNo">530</span>    }<a name="line.530"></a>
-<span class="sourceLineNo">531</span><a name="line.531"></a>
-<span class="sourceLineNo">532</span>    /**<a name="line.532"></a>
-<span class="sourceLineNo">533</span>     * Seeks to the specified absolute uncompressed position in the stream.<a name="line.533"></a>
-<span class="sourceLineNo">534</span>     * This only stores the new position, so this function itself is always<a name="line.534"></a>
-<span class="sourceLineNo">535</span>     * very fast. The actual seek is done when &lt;code&gt;read&lt;/code&gt; is called<a name="line.535"></a>
-<span class="sourceLineNo">536</span>     * to read at least one byte.<a name="line.536"></a>
-<span class="sourceLineNo">537</span>     * &lt;p/&gt;<a name="line.537"></a>
-<span class="sourceLineNo">538</span>     * Seeking past the end of the stream is possible. In that case<a name="line.538"></a>
-<span class="sourceLineNo">539</span>     * &lt;code&gt;read&lt;/code&gt; will return &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.539"></a>
-<span class="sourceLineNo">540</span>     * the end of the stream.<a name="line.540"></a>
-<span class="sourceLineNo">541</span>     *<a name="line.541"></a>
-<span class="sourceLineNo">542</span>     * @param pos new uncompressed read position<a name="line.542"></a>
-<span class="sourceLineNo">543</span>     * @throws XZIOException if &lt;code&gt;pos&lt;/code&gt; is negative, or<a name="line.543"></a>
-<span class="sourceLineNo">544</span>     *                       if stream has been closed<a name="line.544"></a>
-<span class="sourceLineNo">545</span>     */<a name="line.545"></a>
-<span class="sourceLineNo">546</span>    public void seek(long pos) throws IOException {<a name="line.546"></a>
-<span class="sourceLineNo">547</span>        if (in == null) {<a name="line.547"></a>
-<span class="sourceLineNo">548</span>            throw new XZIOException("Stream closed");<a name="line.548"></a>
-<span class="sourceLineNo">549</span>        }<a name="line.549"></a>
-<span class="sourceLineNo">550</span><a name="line.550"></a>
-<span class="sourceLineNo">551</span>        if (pos &lt; 0) {<a name="line.551"></a>
-<span class="sourceLineNo">552</span>            throw new XZIOException("Negative seek position: " + pos);<a name="line.552"></a>
-<span class="sourceLineNo">553</span>        }<a name="line.553"></a>
-<span class="sourceLineNo">554</span><a name="line.554"></a>
-<span class="sourceLineNo">555</span>        seekPos = pos;<a name="line.555"></a>
-<span class="sourceLineNo">556</span>        seekNeeded = true;<a name="line.556"></a>
-<span class="sourceLineNo">557</span>    }<a name="line.557"></a>
-<span class="sourceLineNo">558</span><a name="line.558"></a>
-<span class="sourceLineNo">559</span>    /**<a name="line.559"></a>
-<span class="sourceLineNo">560</span>     * Does the actual seeking. This is also called when &lt;code&gt;read&lt;/code&gt;<a name="line.560"></a>
-<span class="sourceLineNo">561</span>     * needs a new Block to decode.<a name="line.561"></a>
-<span class="sourceLineNo">562</span>     */<a name="line.562"></a>
-<span class="sourceLineNo">563</span>    private void seek() throws IOException {<a name="line.563"></a>
-<span class="sourceLineNo">564</span>        // If seek(long) wasn't called, we simply need to get the next Block<a name="line.564"></a>
-<span class="sourceLineNo">565</span>        // from the same Stream. If there are no more Blocks in this Stream,<a name="line.565"></a>
-<span class="sourceLineNo">566</span>        // then we behave as if seek(long) had been called.<a name="line.566"></a>
-<span class="sourceLineNo">567</span>        if (!seekNeeded) {<a name="line.567"></a>
-<span class="sourceLineNo">568</span>            if (index.hasNext()) {<a name="line.568"></a>
-<span class="sourceLineNo">569</span>                BlockInfo info = index.getNext();<a name="line.569"></a>
-<span class="sourceLineNo">570</span>                initBlockDecoder(info);<a name="line.570"></a>
-<span class="sourceLineNo">571</span>                return;<a name="line.571"></a>
-<span class="sourceLineNo">572</span>            }<a name="line.572"></a>
-<span class="sourceLineNo">573</span><a name="line.573"></a>
-<span class="sourceLineNo">574</span>            seekPos = curPos;<a name="line.574"></a>
-<span class="sourceLineNo">575</span>        }<a name="line.575"></a>
-<span class="sourceLineNo">576</span><a name="line.576"></a>
-<span class="sourceLineNo">577</span>        seekNeeded = false;<a name="line.577"></a>
-<span class="sourceLineNo">578</span><a name="line.578"></a>
-<span class="sourceLineNo">579</span>        // Check if we are seeking to or past the end of the file.<a name="line.579"></a>
-<span class="sourceLineNo">580</span>        if (seekPos &gt;= uncompressedSize) {<a name="line.580"></a>
-<span class="sourceLineNo">581</span>            curPos = seekPos;<a name="line.581"></a>
-<span class="sourceLineNo">582</span>            blockDecoder = null;<a name="line.582"></a>
-<span class="sourceLineNo">583</span>            endReached = true;<a name="line.583"></a>
-<span class="sourceLineNo">584</span>            return;<a name="line.584"></a>
-<span class="sourceLineNo">585</span>        }<a name="line.585"></a>
-<span class="sourceLineNo">586</span><a name="line.586"></a>
-<span class="sourceLineNo">587</span>        endReached = false;<a name="line.587"></a>
-<span class="sourceLineNo">588</span><a name="line.588"></a>
-<span class="sourceLineNo">589</span>        // Locate the Stream that contains the uncompressed target position.<a name="line.589"></a>
-<span class="sourceLineNo">590</span>        int i = streams.size();<a name="line.590"></a>
-<span class="sourceLineNo">591</span>        assert i &gt;= 1;<a name="line.591"></a>
-<span class="sourceLineNo">592</span><a name="line.592"></a>
-<span class="sourceLineNo">593</span>        long uncompressedSum = 0;<a name="line.593"></a>
-<span class="sourceLineNo">594</span>        long compressedSum = 0;<a name="line.594"></a>
-<span class="sourceLineNo">595</span><a name="line.595"></a>
-<span class="sourceLineNo">596</span>        while (true) {<a name="line.596"></a>
-<span class="sourceLineNo">597</span>            index = streams.get(--i);<a name="line.597"></a>
-<span class="sourceLineNo">598</span>            if (uncompressedSum + index.getUncompressedSize() &gt; seekPos) {<a name="line.598"></a>
-<span class="sourceLineNo">599</span>                break;<a name="line.599"></a>
-<span class="sourceLineNo">600</span>            }<a name="line.600"></a>
-<span class="sourceLineNo">601</span><a name="line.601"></a>
-<span class="sourceLineNo">602</span>            uncompressedSum += index.getUncompressedSize();<a name="line.602"></a>
-<span class="sourceLineNo">603</span>            compressedSum += index.getStreamAndPaddingSize();<a name="line.603"></a>
-<span class="sourceLineNo">604</span>            assert (compressedSum &amp; 3) == 0;<a name="line.604"></a>
-<span class="sourceLineNo">605</span>        }<a name="line.605"></a>
-<span class="sourceLineNo">606</span><a name="line.606"></a>
-<span class="sourceLineNo">607</span>        // Locate the Block from the Stream that contains<a name="line.607"></a>
-<span class="sourceLineNo">608</span>        // the uncompressed target position.<a name="line.608"></a>
-<span class="sourceLineNo">609</span>        BlockInfo info = index.locate(seekPos - uncompressedSum);<a name="line.609"></a>
-<span class="sourceLineNo">610</span>        assert (info.compressedOffset &amp; 3) == 0 : info.compressedOffset;<a name="line.610"></a>
-<span class="sourceLineNo">611</span><a name="line.611"></a>
-<span class="sourceLineNo">612</span>        // Adjust the Stream-specific offsets to file offsets.<a name="line.612"></a>
-<span class="sourceLineNo">613</span>        info.compressedOffset += compressedSum;<a name="line.613"></a>
-<span class="sourceLineNo">614</span>        info.uncompressedOffset += uncompressedSum;<a name="line.614"></a>
-<span class="sourceLineNo">615</span>        assert seekPos &gt;= info.uncompressedOffset;<a name="line.615"></a>
-<span class="sourceLineNo">616</span>        assert seekPos &lt; info.uncompressedOffset + info.uncompressedSize;<a name="line.616"></a>
-<span class="sourceLineNo">617</span><a name="line.617"></a>
-<span class="sourceLineNo">618</span>        // Seek in the underlying stream and create a new Block decoder<a name="line.618"></a>
-<span class="sourceLineNo">619</span>        // only if really needed. We can skip it if the current position<a name="line.619"></a>
-<span class="sourceLineNo">620</span>        // is already in the correct Block and the target position hasn't<a name="line.620"></a>
-<span class="sourceLineNo">621</span>        // been decompressed yet.<a name="line.621"></a>
-<span class="sourceLineNo">622</span>        //<a name="line.622"></a>
-<span class="sourceLineNo">623</span>        // NOTE: If curPos points to the beginning of this Block, it's<a name="line.623"></a>
-<span class="sourceLineNo">624</span>        // because it was left there after decompressing an earlier Block.<a name="line.624"></a>
-<span class="sourceLineNo">625</span>        // In that case, decoding of the current Block hasn't been started<a name="line.625"></a>
-<span class="sourceLineNo">626</span>        // yet. (Decoding of a Block won't be started until at least one<a name="line.626"></a>
-<span class="sourceLineNo">627</span>        // byte will also be read from it.)<a name="line.627"></a>
-<span class="sourceLineNo">628</span>        if (!(curPos &gt; info.uncompressedOffset &amp;&amp; curPos &lt;= seekPos)) {<a name="line.628"></a>
-<span class="sourceLineNo">629</span>            // Seek to the beginning of the Block.<a name="line.629"></a>
-<span class="sourceLineNo">630</span>            in.seek(info.compressedOffset);<a name="line.630"></a>
-<span class="sourceLineNo">631</span><a name="line.631"></a>
-<span class="sourceLineNo">632</span>            // Since it is possible that this Block is from a different<a name="line.632"></a>
-<span class="sourceLineNo">633</span>            // Stream than the previous Block, initialize a new Check.<a name="line.633"></a>
-<span class="sourceLineNo">634</span>            check = Check.getInstance(info.streamFlags.checkType);<a name="line.634"></a>
-<span class="sourceLineNo">635</span><a name="line.635"></a>
-<span class="sourceLineNo">636</span>            // Create a new Block decoder.<a name="line.636"></a>
-<span class="sourceLineNo">637</span>            initBlockDecoder(info);<a name="line.637"></a>
-<span class="sourceLineNo">638</span>            curPos = info.uncompressedOffset;<a name="line.638"></a>
-<span class="sourceLineNo">639</span>        }<a name="line.639"></a>
-<span class="sourceLineNo">640</span><a name="line.640"></a>
-<span class="sourceLineNo">641</span>        // If the target wasn't at a Block boundary, decompress and throw<a name="line.641"></a>
-<span class="sourceLineNo">642</span>        // away data to reach the target position.<a name="line.642"></a>
-<span class="sourceLineNo">643</span>        if (seekPos &gt; curPos) {<a name="line.643"></a>
-<span class="sourceLineNo">644</span>            // NOTE: The "if" below is there just in case. In this situation,<a name="line.644"></a>
-<span class="sourceLineNo">645</span>            // blockDecoder.skip will always skip the requested amount<a name="line.645"></a>
-<span class="sourceLineNo">646</span>            // or throw an exception.<a name="line.646"></a>
-<span class="sourceLineNo">647</span>            long skipAmount = seekPos - curPos;<a name="line.647"></a>
-<span class="sourceLineNo">648</span>            if (blockDecoder.skip(skipAmount) != skipAmount) {<a name="line.648"></a>
-<span class="sourceLineNo">649</span>                throw new CorruptedInputException();<a name="line.649"></a>
-<span class="sourceLineNo">650</span>            }<a name="line.650"></a>
-<span class="sourceLineNo">651</span>        }<a name="line.651"></a>
-<span class="sourceLineNo">652</span><a name="line.652"></a>
-<span class="sourceLineNo">653</span>        curPos = seekPos;<a name="line.653"></a>
-<span class="sourceLineNo">654</span>    }<a name="line.654"></a>
-<span class="sourceLineNo">655</span><a name="line.655"></a>
-<span class="sourceLineNo">656</span>    /**<a name="line.656"></a>
-<span class="sourceLineNo">657</span>     * Initializes a new BlockInputStream. This is a helper function for<a name="line.657"></a>
-<span class="sourceLineNo">658</span>     * &lt;code&gt;seek()&lt;/code&gt;.<a name="line.658"></a>
-<span class="sourceLineNo">659</span>     */<a name="line.659"></a>
-<span class="sourceLineNo">660</span>    private void initBlockDecoder(BlockInfo info) throws IOException {<a name="line.660"></a>
-<span class="sourceLineNo">661</span>        try {<a name="line.661"></a>
-<span class="sourceLineNo">662</span>            // Set it to null first so that GC can collect it if memory<a name="line.662"></a>
-<span class="sourceLineNo">663</span>            // runs tight when initializing a new BlockInputStream.<a name="line.663"></a>
-<span class="sourceLineNo">664</span>            blockDecoder = null;<a name="line.664"></a>
-<span class="sourceLineNo">665</span>            blockDecoder = new BlockInputStream(in, check, memoryLimit,<a name="line.665"></a>
-<span class="sourceLineNo">666</span>                    info.unpaddedSize,<a name="line.666"></a>
-<span class="sourceLineNo">667</span>                    info.uncompressedSize);<a name="line.667"></a>
-<span class="sourceLineNo">668</span>        } catch (MemoryLimitException e) {<a name="line.668"></a>
-<span class="sourceLineNo">669</span>            // BlockInputStream doesn't know how much memory we had<a name="line.669"></a>
-<span class="sourceLineNo">670</span>            // already needed so we need to recreate the exception.<a name="line.670"></a>
-<span class="sourceLineNo">671</span>            assert memoryLimit &gt;= 0;<a name="line.671"></a>
-<span class="sourceLineNo">672</span>            throw new MemoryLimitException(<a name="line.672"></a>
-<span class="sourceLineNo">673</span>                    e.getMemoryNeeded() + indexMemoryUsage,<a name="line.673"></a>
-<span class="sourceLineNo">674</span>                    memoryLimit + indexMemoryUsage);<a name="line.674"></a>
-<span class="sourceLineNo">675</span>        } catch (IndexIndicatorException e) {<a name="line.675"></a>
-<span class="sourceLineNo">676</span>            // It cannot be Index so the file must be corrupt.<a name="line.676"></a>
-<span class="sourceLineNo">677</span>            throw new CorruptedInputException();<a name="line.677"></a>
-<span class="sourceLineNo">678</span>        }<a name="line.678"></a>
-<span class="sourceLineNo">679</span>    }<a name="line.679"></a>
-<span class="sourceLineNo">680</span>}<a name="line.680"></a>
+<pre><span class="sourceLineNo">001</span>package org.xbib.io.compress.xz;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import org.xbib.io.compress.xz.check.Check;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.common.DecoderUtil;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.common.StreamFlags;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.xbib.io.compress.xz.index.BlockInfo;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import org.xbib.io.compress.xz.index.IndexDecoder;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.DataInputStream;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.io.EOFException;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.io.IOException;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import java.util.ArrayList;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import java.util.Arrays;<a name="line.13"></a>
+<span class="sourceLineNo">014</span><a name="line.14"></a>
+<span class="sourceLineNo">015</span>/**<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * Decompresses a .xz file in random access mode.<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * This supports decompressing concatenated .xz files.<a name="line.17"></a>
+<span class="sourceLineNo">018</span> *<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * Each .xz file consist of one or more Streams. Each Stream consist of zero<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * or more Blocks. Each Stream contains an Index of Streams' Blocks.<a name="line.20"></a>
+<span class="sourceLineNo">021</span> * The Indexes from all Streams are loaded in RAM by a constructor of this<a name="line.21"></a>
+<span class="sourceLineNo">022</span> * class. A typical .xz file has only one Stream, and parsing its Index will<a name="line.22"></a>
+<span class="sourceLineNo">023</span> * need only three or four seeks.<a name="line.23"></a>
+<span class="sourceLineNo">024</span> *<a name="line.24"></a>
+<span class="sourceLineNo">025</span> * To make random access possible, the data in a .xz file must be splitted<a name="line.25"></a>
+<span class="sourceLineNo">026</span> * into multiple Blocks of reasonable size. Decompression can only start at<a name="line.26"></a>
+<span class="sourceLineNo">027</span> * a Block boundary. When seeking to an uncompressed offset that is not at<a name="line.27"></a>
+<span class="sourceLineNo">028</span> * a Block boundary, decompression starts at the beginning of the Block and<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * throws away data until the target offset is reached. Thus, smaller Blocks<a name="line.29"></a>
+<span class="sourceLineNo">030</span> * mean faster seeks to arbitrary uncompressed offsets. On the other hand,<a name="line.30"></a>
+<span class="sourceLineNo">031</span> * smaller Blocks mean worse compression. So one has to make a compromise<a name="line.31"></a>
+<span class="sourceLineNo">032</span> * between random access speed and compression ratio.<a name="line.32"></a>
+<span class="sourceLineNo">033</span> * &lt;p&gt;<a name="line.33"></a>
+<span class="sourceLineNo">034</span> * Implementation note: This class uses linear search to locate the correct<a name="line.34"></a>
+<span class="sourceLineNo">035</span> * Stream from the data structures in RAM. It was the simplest to implement<a name="line.35"></a>
+<span class="sourceLineNo">036</span> * and should be fine as long as there aren't too many Streams. The correct<a name="line.36"></a>
+<span class="sourceLineNo">037</span> * Block inside a Stream is located using binary search and thus is fast<a name="line.37"></a>
+<span class="sourceLineNo">038</span> * even with a huge number of Blocks.<a name="line.38"></a>
+<span class="sourceLineNo">039</span> * &lt;p&gt;<a name="line.39"></a>
+<span class="sourceLineNo">040</span> * Memory usage<a name="line.40"></a>
+<span class="sourceLineNo">041</span> * &lt;p&gt;<a name="line.41"></a>
+<span class="sourceLineNo">042</span> * The amount of memory needed for the Indexes is taken into account when<a name="line.42"></a>
+<span class="sourceLineNo">043</span> * checking the memory usage limit. Each Stream is calculated to need at<a name="line.43"></a>
+<span class="sourceLineNo">044</span> * least 1&amp;nbsp;KiB of memory and each Block 16 bytes of memory, rounded up<a name="line.44"></a>
+<span class="sourceLineNo">045</span> * to the next kibibyte. So unless the file has a huge number of Streams or<a name="line.45"></a>
+<span class="sourceLineNo">046</span> * Blocks, these don't take significant amount of memory.<a name="line.46"></a>
+<span class="sourceLineNo">047</span> * &lt;p&gt;<a name="line.47"></a>
+<span class="sourceLineNo">048</span> * Creating random-accessible .xz files<a name="line.48"></a>
+<span class="sourceLineNo">049</span> * &lt;p&gt;<a name="line.49"></a>
+<span class="sourceLineNo">050</span> * When using {@link XZOutputStream}, a new Block can be started by calling<a name="line.50"></a>
+<span class="sourceLineNo">051</span> * its {@link XZOutputStream#endBlock() endBlock} method. If you know<a name="line.51"></a>
+<span class="sourceLineNo">052</span> * that the decompressor will need to seek only to certain offsets, it can<a name="line.52"></a>
+<span class="sourceLineNo">053</span> * be a good idea to start a new Block at (some of) these offsets (and<a name="line.53"></a>
+<span class="sourceLineNo">054</span> * perhaps only at these offsets to get better compression ratio).<a name="line.54"></a>
+<span class="sourceLineNo">055</span> * &lt;p&gt;<a name="line.55"></a>
+<span class="sourceLineNo">056</span> * liblzma in XZ Utils supports starting a new Block with<a name="line.56"></a>
+<span class="sourceLineNo">057</span> * &lt;code&gt;LZMA_FULL_FLUSH&lt;/code&gt;. XZ Utils 5.1.1alpha added threaded<a name="line.57"></a>
+<span class="sourceLineNo">058</span> * compression which creates multi-Block .xz files. XZ Utils 5.1.1alpha<a name="line.58"></a>
+<span class="sourceLineNo">059</span> * also added the option &lt;code&gt;--block-size=SIZE&lt;/code&gt; to the xz command<a name="line.59"></a>
+<span class="sourceLineNo">060</span> * line tool.<a name="line.60"></a>
+<span class="sourceLineNo">061</span> *<a name="line.61"></a>
+<span class="sourceLineNo">062</span> * @see SeekableFileInputStream<a name="line.62"></a>
+<span class="sourceLineNo">063</span> * @see XZInputStream<a name="line.63"></a>
+<span class="sourceLineNo">064</span> * @see XZOutputStream<a name="line.64"></a>
+<span class="sourceLineNo">065</span> */<a name="line.65"></a>
+<span class="sourceLineNo">066</span>public class SeekableXZInputStream extends SeekableInputStream {<a name="line.66"></a>
+<span class="sourceLineNo">067</span>    /**<a name="line.67"></a>
+<span class="sourceLineNo">068</span>     * The input stream containing XZ compressed data.<a name="line.68"></a>
+<span class="sourceLineNo">069</span>     */<a name="line.69"></a>
+<span class="sourceLineNo">070</span>    private SeekableInputStream in;<a name="line.70"></a>
+<span class="sourceLineNo">071</span><a name="line.71"></a>
+<span class="sourceLineNo">072</span>    /**<a name="line.72"></a>
+<span class="sourceLineNo">073</span>     * Memory usage limit after the memory usage of the IndexDecoders have<a name="line.73"></a>
+<span class="sourceLineNo">074</span>     * been substracted.<a name="line.74"></a>
+<span class="sourceLineNo">075</span>     */<a name="line.75"></a>
+<span class="sourceLineNo">076</span>    private final int memoryLimit;<a name="line.76"></a>
+<span class="sourceLineNo">077</span><a name="line.77"></a>
+<span class="sourceLineNo">078</span>    /**<a name="line.78"></a>
+<span class="sourceLineNo">079</span>     * Memory usage of the IndexDecoders.<a name="line.79"></a>
+<span class="sourceLineNo">080</span>     * &lt;code&gt;memoryLimit + indexMemoryUsage&lt;/code&gt; equals the original<a name="line.80"></a>
+<span class="sourceLineNo">081</span>     * memory usage limit that was passed to the constructor.<a name="line.81"></a>
+<span class="sourceLineNo">082</span>     */<a name="line.82"></a>
+<span class="sourceLineNo">083</span>    private int indexMemoryUsage = 0;<a name="line.83"></a>
+<span class="sourceLineNo">084</span><a name="line.84"></a>
+<span class="sourceLineNo">085</span>    /**<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     * List of IndexDecoders, one for each Stream in the file.<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     */<a name="line.87"></a>
+<span class="sourceLineNo">088</span>    private final ArrayList&lt;IndexDecoder&gt; streams = new ArrayList&lt;IndexDecoder&gt;();<a name="line.88"></a>
+<span class="sourceLineNo">089</span><a name="line.89"></a>
+<span class="sourceLineNo">090</span>    /**<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     * IndexDecoder from which the current Block is being decoded.<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     * The constructor leaves this to point the IndexDecoder of<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     * the first Stream.<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     */<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    private IndexDecoder index;<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>    /**<a name="line.97"></a>
+<span class="sourceLineNo">098</span>     * Bitmask of all Check IDs seen.<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     */<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    private int checkTypes = 0;<a name="line.100"></a>
+<span class="sourceLineNo">101</span><a name="line.101"></a>
+<span class="sourceLineNo">102</span>    /**<a name="line.102"></a>
+<span class="sourceLineNo">103</span>     * Integrity Check in the current XZ Stream. The constructor leaves<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     * this to point to the Check of the first Stream.<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     */<a name="line.105"></a>
+<span class="sourceLineNo">106</span>    private Check check;<a name="line.106"></a>
+<span class="sourceLineNo">107</span><a name="line.107"></a>
+<span class="sourceLineNo">108</span>    /**<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * Decoder of the current XZ Block, if any.<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     */<a name="line.110"></a>
+<span class="sourceLineNo">111</span>    private BlockInputStream blockDecoder = null;<a name="line.111"></a>
+<span class="sourceLineNo">112</span><a name="line.112"></a>
+<span class="sourceLineNo">113</span>    /**<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * Compressed size of the file (all Streams).<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     */<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    private long uncompressedSize = 0;<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    /**<a name="line.118"></a>
+<span class="sourceLineNo">119</span>     * Uncompressed size of the largest XZ Block in the file.<a name="line.119"></a>
+<span class="sourceLineNo">120</span>     */<a name="line.120"></a>
+<span class="sourceLineNo">121</span>    private long largestBlockSize = 0;<a name="line.121"></a>
+<span class="sourceLineNo">122</span><a name="line.122"></a>
+<span class="sourceLineNo">123</span>    /**<a name="line.123"></a>
+<span class="sourceLineNo">124</span>     * Current uncompressed position.<a name="line.124"></a>
+<span class="sourceLineNo">125</span>     */<a name="line.125"></a>
+<span class="sourceLineNo">126</span>    private long curPos = 0;<a name="line.126"></a>
+<span class="sourceLineNo">127</span><a name="line.127"></a>
+<span class="sourceLineNo">128</span>    /**<a name="line.128"></a>
+<span class="sourceLineNo">129</span>     * Target position for seeking.<a name="line.129"></a>
+<span class="sourceLineNo">130</span>     */<a name="line.130"></a>
+<span class="sourceLineNo">131</span>    private long seekPos;<a name="line.131"></a>
+<span class="sourceLineNo">132</span><a name="line.132"></a>
+<span class="sourceLineNo">133</span>    /**<a name="line.133"></a>
+<span class="sourceLineNo">134</span>     * True when &lt;code&gt;seek(long)&lt;/code&gt; has been called but the actual<a name="line.134"></a>
+<span class="sourceLineNo">135</span>     * seeking hasn't been done yet.<a name="line.135"></a>
+<span class="sourceLineNo">136</span>     */<a name="line.136"></a>
+<span class="sourceLineNo">137</span>    private boolean seekNeeded = false;<a name="line.137"></a>
+<span class="sourceLineNo">138</span><a name="line.138"></a>
+<span class="sourceLineNo">139</span>    /**<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * True when end of the file was reached. This can be cleared by<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     * calling &lt;code&gt;seek(long)&lt;/code&gt;.<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     */<a name="line.142"></a>
+<span class="sourceLineNo">143</span>    private boolean endReached = false;<a name="line.143"></a>
+<span class="sourceLineNo">144</span><a name="line.144"></a>
+<span class="sourceLineNo">145</span>    /**<a name="line.145"></a>
+<span class="sourceLineNo">146</span>     * Pending exception from an earlier error.<a name="line.146"></a>
+<span class="sourceLineNo">147</span>     */<a name="line.147"></a>
+<span class="sourceLineNo">148</span>    private IOException exception = null;<a name="line.148"></a>
+<span class="sourceLineNo">149</span><a name="line.149"></a>
+<span class="sourceLineNo">150</span>    /**<a name="line.150"></a>
+<span class="sourceLineNo">151</span>     * Creates a new seekable XZ decompressor without a memory usage limit.<a name="line.151"></a>
+<span class="sourceLineNo">152</span>     *<a name="line.152"></a>
+<span class="sourceLineNo">153</span>     * @param in seekable input stream containing one or more<a name="line.153"></a>
+<span class="sourceLineNo">154</span>     *           XZ Streams; the whole input stream is used<a name="line.154"></a>
+<span class="sourceLineNo">155</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.155"></a>
+<span class="sourceLineNo">156</span>     * @throws CorruptedInputException     XZ data is corrupt or truncated<a name="line.156"></a>
+<span class="sourceLineNo">157</span>     * @throws UnsupportedOptionsException XZ headers seem valid but they specify<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     *                                     options not supported by this implementation<a name="line.158"></a>
+<span class="sourceLineNo">159</span>     * @throws java.io.EOFException        less than 6 bytes of input was available<a name="line.159"></a>
+<span class="sourceLineNo">160</span>     *                                     from &lt;code&gt;in&lt;/code&gt;, or (unlikely) the size<a name="line.160"></a>
+<span class="sourceLineNo">161</span>     *                                     of the underlying stream got smaller while<a name="line.161"></a>
+<span class="sourceLineNo">162</span>     *                                     this was reading from it<a name="line.162"></a>
+<span class="sourceLineNo">163</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.163"></a>
+<span class="sourceLineNo">164</span>     */<a name="line.164"></a>
+<span class="sourceLineNo">165</span>    public SeekableXZInputStream(SeekableInputStream in)<a name="line.165"></a>
+<span class="sourceLineNo">166</span>            throws IOException {<a name="line.166"></a>
+<span class="sourceLineNo">167</span>        this(in, -1);<a name="line.167"></a>
+<span class="sourceLineNo">168</span>    }<a name="line.168"></a>
+<span class="sourceLineNo">169</span><a name="line.169"></a>
+<span class="sourceLineNo">170</span>    /**<a name="line.170"></a>
+<span class="sourceLineNo">171</span>     * Creates a new seekable XZ decomporessor with an optional<a name="line.171"></a>
+<span class="sourceLineNo">172</span>     * memory usage limit.<a name="line.172"></a>
+<span class="sourceLineNo">173</span>     *<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     * @param in          seekable input stream containing one or more<a name="line.174"></a>
+<span class="sourceLineNo">175</span>     *                    XZ Streams; the whole input stream is used<a name="line.175"></a>
+<span class="sourceLineNo">176</span>     * @param memoryLimit memory usage limit in kibibytes (KiB)<a name="line.176"></a>
+<span class="sourceLineNo">177</span>     *                    or &lt;code&gt;-1&lt;/code&gt; to impose no<a name="line.177"></a>
+<span class="sourceLineNo">178</span>     *                    memory usage limit<a name="line.178"></a>
+<span class="sourceLineNo">179</span>     * @throws XZFormatException           input is not in the XZ format<a name="line.179"></a>
+<span class="sourceLineNo">180</span>     * @throws CorruptedInputException     XZ data is corrupt or truncated<a name="line.180"></a>
+<span class="sourceLineNo">181</span>     * @throws UnsupportedOptionsException XZ headers seem valid but they specify<a name="line.181"></a>
+<span class="sourceLineNo">182</span>     *                                     options not supported by this implementation<a name="line.182"></a>
+<span class="sourceLineNo">183</span>     * @throws MemoryLimitException        decoded XZ Indexes would need more memory<a name="line.183"></a>
+<span class="sourceLineNo">184</span>     *                                     than allowed by the memory usage limit<a name="line.184"></a>
+<span class="sourceLineNo">185</span>     * @throws java.io.EOFException        less than 6 bytes of input was available<a name="line.185"></a>
+<span class="sourceLineNo">186</span>     *                                     from &lt;code&gt;in&lt;/code&gt;, or (unlikely) the size<a name="line.186"></a>
+<span class="sourceLineNo">187</span>     *                                     of the underlying stream got smaller while<a name="line.187"></a>
+<span class="sourceLineNo">188</span>     *                                     this was reading from it<a name="line.188"></a>
+<span class="sourceLineNo">189</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.189"></a>
+<span class="sourceLineNo">190</span>     */<a name="line.190"></a>
+<span class="sourceLineNo">191</span>    public SeekableXZInputStream(SeekableInputStream in, int memoryLimit)<a name="line.191"></a>
+<span class="sourceLineNo">192</span>            throws IOException {<a name="line.192"></a>
+<span class="sourceLineNo">193</span>        this.in = in;<a name="line.193"></a>
+<span class="sourceLineNo">194</span>        DataInputStream inData = new DataInputStream(in);<a name="line.194"></a>
+<span class="sourceLineNo">195</span><a name="line.195"></a>
+<span class="sourceLineNo">196</span>        // Check the magic bytes in the beginning of the file.<a name="line.196"></a>
+<span class="sourceLineNo">197</span>        {<a name="line.197"></a>
+<span class="sourceLineNo">198</span>            in.seek(0);<a name="line.198"></a>
+<span class="sourceLineNo">199</span>            byte[] buf = new byte[XZ.HEADER_MAGIC.length];<a name="line.199"></a>
+<span class="sourceLineNo">200</span>            inData.readFully(buf);<a name="line.200"></a>
+<span class="sourceLineNo">201</span>            if (!Arrays.equals(buf, XZ.HEADER_MAGIC)) {<a name="line.201"></a>
+<span class="sourceLineNo">202</span>                throw new XZFormatException();<a name="line.202"></a>
+<span class="sourceLineNo">203</span>            }<a name="line.203"></a>
+<span class="sourceLineNo">204</span>        }<a name="line.204"></a>
+<span class="sourceLineNo">205</span><a name="line.205"></a>
+<span class="sourceLineNo">206</span>        // Get the file size and verify that it is a multiple of 4 bytes.<a name="line.206"></a>
+<span class="sourceLineNo">207</span>        long pos = in.length();<a name="line.207"></a>
+<span class="sourceLineNo">208</span>        if ((pos &amp; 3) != 0) {<a name="line.208"></a>
+<span class="sourceLineNo">209</span>            throw new CorruptedInputException(<a name="line.209"></a>
+<span class="sourceLineNo">210</span>                    "XZ file size is not a multiple of 4 bytes");<a name="line.210"></a>
+<span class="sourceLineNo">211</span>        }<a name="line.211"></a>
+<span class="sourceLineNo">212</span><a name="line.212"></a>
+<span class="sourceLineNo">213</span>        // Parse the headers starting from the end of the file.<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        byte[] buf = new byte[DecoderUtil.STREAM_HEADER_SIZE];<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        long streamPadding = 0;<a name="line.215"></a>
+<span class="sourceLineNo">216</span><a name="line.216"></a>
+<span class="sourceLineNo">217</span>        while (pos &gt; 0) {<a name="line.217"></a>
+<span class="sourceLineNo">218</span>            if (pos &lt; DecoderUtil.STREAM_HEADER_SIZE) {<a name="line.218"></a>
+<span class="sourceLineNo">219</span>                throw new CorruptedInputException();<a name="line.219"></a>
+<span class="sourceLineNo">220</span>            }<a name="line.220"></a>
+<span class="sourceLineNo">221</span><a name="line.221"></a>
+<span class="sourceLineNo">222</span>            // Read the potential Stream Footer.<a name="line.222"></a>
+<span class="sourceLineNo">223</span>            in.seek(pos - DecoderUtil.STREAM_HEADER_SIZE);<a name="line.223"></a>
+<span class="sourceLineNo">224</span>            inData.readFully(buf);<a name="line.224"></a>
+<span class="sourceLineNo">225</span><a name="line.225"></a>
+<span class="sourceLineNo">226</span>            // Skip Stream Padding four bytes at a time.<a name="line.226"></a>
+<span class="sourceLineNo">227</span>            // Skipping more at once would be faster,<a name="line.227"></a>
+<span class="sourceLineNo">228</span>            // but usually there isn't much Stream Padding.<a name="line.228"></a>
+<span class="sourceLineNo">229</span>            if (buf[8] == 0x00 &amp;&amp; buf[9] == 0x00 &amp;&amp; buf[10] == 0x00<a name="line.229"></a>
+<span class="sourceLineNo">230</span>                    &amp;&amp; buf[11] == 0x00) {<a name="line.230"></a>
+<span class="sourceLineNo">231</span>                streamPadding += 4;<a name="line.231"></a>
+<span class="sourceLineNo">232</span>                pos -= 4;<a name="line.232"></a>
+<span class="sourceLineNo">233</span>                continue;<a name="line.233"></a>
+<span class="sourceLineNo">234</span>            }<a name="line.234"></a>
+<span class="sourceLineNo">235</span><a name="line.235"></a>
+<span class="sourceLineNo">236</span>            // It's not Stream Padding. Update pos.<a name="line.236"></a>
+<span class="sourceLineNo">237</span>            pos -= DecoderUtil.STREAM_HEADER_SIZE;<a name="line.237"></a>
+<span class="sourceLineNo">238</span><a name="line.238"></a>
+<span class="sourceLineNo">239</span>            // Decode the Stream Footer and check if Backward Size<a name="line.239"></a>
+<span class="sourceLineNo">240</span>            // looks reasonable.<a name="line.240"></a>
+<span class="sourceLineNo">241</span>            StreamFlags streamFooter = DecoderUtil.decodeStreamFooter(buf);<a name="line.241"></a>
+<span class="sourceLineNo">242</span>            if (streamFooter.backwardSize &gt;= pos) {<a name="line.242"></a>
+<span class="sourceLineNo">243</span>                throw new CorruptedInputException(<a name="line.243"></a>
+<span class="sourceLineNo">244</span>                        "Backward Size in XZ Stream Footer is too big");<a name="line.244"></a>
+<span class="sourceLineNo">245</span>            }<a name="line.245"></a>
+<span class="sourceLineNo">246</span><a name="line.246"></a>
+<span class="sourceLineNo">247</span>            // Check that the Check ID is supported. Store it in case this<a name="line.247"></a>
+<span class="sourceLineNo">248</span>            // is the first Stream in the file.<a name="line.248"></a>
+<span class="sourceLineNo">249</span>            check = Check.getInstance(streamFooter.checkType);<a name="line.249"></a>
+<span class="sourceLineNo">250</span><a name="line.250"></a>
+<span class="sourceLineNo">251</span>            // Remember which Check IDs have been seen.<a name="line.251"></a>
+<span class="sourceLineNo">252</span>            checkTypes |= 1 &lt;&lt; streamFooter.checkType;<a name="line.252"></a>
+<span class="sourceLineNo">253</span><a name="line.253"></a>
+<span class="sourceLineNo">254</span>            // Seek to the beginning of the Index.<a name="line.254"></a>
+<span class="sourceLineNo">255</span>            in.seek(pos - streamFooter.backwardSize);<a name="line.255"></a>
+<span class="sourceLineNo">256</span><a name="line.256"></a>
+<span class="sourceLineNo">257</span>            // Decode the Index field.<a name="line.257"></a>
+<span class="sourceLineNo">258</span>            try {<a name="line.258"></a>
+<span class="sourceLineNo">259</span>                index = new IndexDecoder(in, streamFooter, streamPadding,<a name="line.259"></a>
+<span class="sourceLineNo">260</span>                        memoryLimit);<a name="line.260"></a>
+<span class="sourceLineNo">261</span>            } catch (MemoryLimitException e) {<a name="line.261"></a>
+<span class="sourceLineNo">262</span>                // IndexDecoder doesn't know how much memory we had<a name="line.262"></a>
+<span class="sourceLineNo">263</span>                // already needed so we need to recreate the exception.<a name="line.263"></a>
+<span class="sourceLineNo">264</span>                assert memoryLimit &gt;= 0;<a name="line.264"></a>
+<span class="sourceLineNo">265</span>                throw new MemoryLimitException(<a name="line.265"></a>
+<span class="sourceLineNo">266</span>                        e.getMemoryNeeded() + indexMemoryUsage,<a name="line.266"></a>
+<span class="sourceLineNo">267</span>                        memoryLimit + indexMemoryUsage);<a name="line.267"></a>
+<span class="sourceLineNo">268</span>            }<a name="line.268"></a>
+<span class="sourceLineNo">269</span><a name="line.269"></a>
+<span class="sourceLineNo">270</span>            // Update the memory usage and limit counters.<a name="line.270"></a>
+<span class="sourceLineNo">271</span>            indexMemoryUsage += index.getMemoryUsage();<a name="line.271"></a>
+<span class="sourceLineNo">272</span>            if (memoryLimit &gt;= 0) {<a name="line.272"></a>
+<span class="sourceLineNo">273</span>                memoryLimit -= index.getMemoryUsage();<a name="line.273"></a>
+<span class="sourceLineNo">274</span>                assert memoryLimit &gt;= 0;<a name="line.274"></a>
+<span class="sourceLineNo">275</span>            }<a name="line.275"></a>
+<span class="sourceLineNo">276</span><a name="line.276"></a>
+<span class="sourceLineNo">277</span>            // Remember the uncompressed size of the largest Block.<a name="line.277"></a>
+<span class="sourceLineNo">278</span>            if (largestBlockSize &lt; index.getLargestBlockSize()) {<a name="line.278"></a>
+<span class="sourceLineNo">279</span>                largestBlockSize = index.getLargestBlockSize();<a name="line.279"></a>
+<span class="sourceLineNo">280</span>            }<a name="line.280"></a>
+<span class="sourceLineNo">281</span><a name="line.281"></a>
+<span class="sourceLineNo">282</span>            // Calculate the offset to the beginning of this XZ Stream and<a name="line.282"></a>
+<span class="sourceLineNo">283</span>            // check that it looks sane.<a name="line.283"></a>
+<span class="sourceLineNo">284</span>            long off = index.getStreamSize() - DecoderUtil.STREAM_HEADER_SIZE;<a name="line.284"></a>
+<span class="sourceLineNo">285</span>            if (pos &lt; off) {<a name="line.285"></a>
+<span class="sourceLineNo">286</span>                throw new CorruptedInputException("XZ Index indicates "<a name="line.286"></a>
+<span class="sourceLineNo">287</span>                        + "too big compressed size for the XZ Stream");<a name="line.287"></a>
+<span class="sourceLineNo">288</span>            }<a name="line.288"></a>
+<span class="sourceLineNo">289</span><a name="line.289"></a>
+<span class="sourceLineNo">290</span>            // Seek to the beginning of this Stream.<a name="line.290"></a>
+<span class="sourceLineNo">291</span>            pos -= off;<a name="line.291"></a>
+<span class="sourceLineNo">292</span>            in.seek(pos);<a name="line.292"></a>
+<span class="sourceLineNo">293</span><a name="line.293"></a>
+<span class="sourceLineNo">294</span>            // Decode the Stream Header.<a name="line.294"></a>
+<span class="sourceLineNo">295</span>            inData.readFully(buf);<a name="line.295"></a>
+<span class="sourceLineNo">296</span>            StreamFlags streamHeader = DecoderUtil.decodeStreamHeader(buf);<a name="line.296"></a>
+<span class="sourceLineNo">297</span><a name="line.297"></a>
+<span class="sourceLineNo">298</span>            // Verify that the Stream Header matches the Stream Footer.<a name="line.298"></a>
+<span class="sourceLineNo">299</span>            if (!DecoderUtil.areStreamFlagsEqual(streamHeader, streamFooter)) {<a name="line.299"></a>
+<span class="sourceLineNo">300</span>                throw new CorruptedInputException(<a name="line.300"></a>
+<span class="sourceLineNo">301</span>                        "XZ Stream Footer does not match Stream Header");<a name="line.301"></a>
+<span class="sourceLineNo">302</span>            }<a name="line.302"></a>
+<span class="sourceLineNo">303</span><a name="line.303"></a>
+<span class="sourceLineNo">304</span>            // Update the total uncompressed size of the file and check that<a name="line.304"></a>
+<span class="sourceLineNo">305</span>            // it doesn't overflow.<a name="line.305"></a>
+<span class="sourceLineNo">306</span>            uncompressedSize += index.getUncompressedSize();<a name="line.306"></a>
+<span class="sourceLineNo">307</span>            if (uncompressedSize &lt; 0) {<a name="line.307"></a>
+<span class="sourceLineNo">308</span>                throw new UnsupportedOptionsException("XZ file is too big");<a name="line.308"></a>
+<span class="sourceLineNo">309</span>            }<a name="line.309"></a>
+<span class="sourceLineNo">310</span><a name="line.310"></a>
+<span class="sourceLineNo">311</span>            // Add this Stream to the list of Streams.<a name="line.311"></a>
+<span class="sourceLineNo">312</span>            streams.add(index);<a name="line.312"></a>
+<span class="sourceLineNo">313</span><a name="line.313"></a>
+<span class="sourceLineNo">314</span>            // Reset to be ready to parse the next Stream.<a name="line.314"></a>
+<span class="sourceLineNo">315</span>            streamPadding = 0;<a name="line.315"></a>
+<span class="sourceLineNo">316</span>        }<a name="line.316"></a>
+<span class="sourceLineNo">317</span><a name="line.317"></a>
+<span class="sourceLineNo">318</span>        assert pos == 0;<a name="line.318"></a>
+<span class="sourceLineNo">319</span><a name="line.319"></a>
+<span class="sourceLineNo">320</span>        // Save it now that indexMemoryUsage has been substracted from it.<a name="line.320"></a>
+<span class="sourceLineNo">321</span>        this.memoryLimit = memoryLimit;<a name="line.321"></a>
+<span class="sourceLineNo">322</span>    }<a name="line.322"></a>
+<span class="sourceLineNo">323</span><a name="line.323"></a>
+<span class="sourceLineNo">324</span>    /**<a name="line.324"></a>
+<span class="sourceLineNo">325</span>     * Gets the types of integrity checks used in the .xz file.<a name="line.325"></a>
+<span class="sourceLineNo">326</span>     * Multiple checks are possible only if there are multiple<a name="line.326"></a>
+<span class="sourceLineNo">327</span>     * concatenated XZ Streams.<a name="line.327"></a>
+<span class="sourceLineNo">328</span>     * &lt;p&gt;<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     * The returned value has a bit set for every check type that is present.<a name="line.329"></a>
+<span class="sourceLineNo">330</span>     * For example, if CRC64 and SHA-256 were used, the return value is<a name="line.330"></a>
+<span class="sourceLineNo">331</span>     * &lt;code&gt;(1&amp;nbsp;&amp;lt;&amp;lt;&amp;nbsp;XZ.CHECK_CRC64)<a name="line.331"></a>
+<span class="sourceLineNo">332</span>     * | (1&amp;nbsp;&amp;lt;&amp;lt;&amp;nbsp;XZ.CHECK_SHA256)&lt;/code&gt;.<a name="line.332"></a>
+<span class="sourceLineNo">333</span>     */<a name="line.333"></a>
+<span class="sourceLineNo">334</span>    public int getCheckTypes() {<a name="line.334"></a>
+<span class="sourceLineNo">335</span>        return checkTypes;<a name="line.335"></a>
+<span class="sourceLineNo">336</span>    }<a name="line.336"></a>
+<span class="sourceLineNo">337</span><a name="line.337"></a>
+<span class="sourceLineNo">338</span>    /**<a name="line.338"></a>
+<span class="sourceLineNo">339</span>     * Gets the amount of memory in kibibytes (KiB) used by<a name="line.339"></a>
+<span class="sourceLineNo">340</span>     * the data structures needed to locate the XZ Blocks.<a name="line.340"></a>
+<span class="sourceLineNo">341</span>     * This is usually useless information but since it is calculated<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     * for memory usage limit anyway, it is nice to make it available to too.<a name="line.342"></a>
+<span class="sourceLineNo">343</span>     */<a name="line.343"></a>
+<span class="sourceLineNo">344</span>    public int getIndexMemoryUsage() {<a name="line.344"></a>
+<span class="sourceLineNo">345</span>        return indexMemoryUsage;<a name="line.345"></a>
+<span class="sourceLineNo">346</span>    }<a name="line.346"></a>
+<span class="sourceLineNo">347</span><a name="line.347"></a>
+<span class="sourceLineNo">348</span>    /**<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     * Gets the uncompressed size of the largest XZ Block in bytes.<a name="line.349"></a>
+<span class="sourceLineNo">350</span>     * This can be useful if you want to check that the file doesn't<a name="line.350"></a>
+<span class="sourceLineNo">351</span>     * have huge XZ Blocks which could make seeking to arbitrary offsets<a name="line.351"></a>
+<span class="sourceLineNo">352</span>     * very slow. Note that huge Blocks don't automatically mean that<a name="line.352"></a>
+<span class="sourceLineNo">353</span>     * seeking would be slow, for example, seeking to the beginning of<a name="line.353"></a>
+<span class="sourceLineNo">354</span>     * any Block is always fast.<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     */<a name="line.355"></a>
+<span class="sourceLineNo">356</span>    public long getLargestBlockSize() {<a name="line.356"></a>
+<span class="sourceLineNo">357</span>        return largestBlockSize;<a name="line.357"></a>
+<span class="sourceLineNo">358</span>    }<a name="line.358"></a>
+<span class="sourceLineNo">359</span><a name="line.359"></a>
+<span class="sourceLineNo">360</span>    /**<a name="line.360"></a>
+<span class="sourceLineNo">361</span>     * Decompresses the next byte from this input stream.<a name="line.361"></a>
+<span class="sourceLineNo">362</span>     *<a name="line.362"></a>
+<span class="sourceLineNo">363</span>     * @return the next decompressed byte, or &lt;code&gt;-1&lt;/code&gt;<a name="line.363"></a>
+<span class="sourceLineNo">364</span>     * to indicate the end of the compressed stream<a name="line.364"></a>
+<span class="sourceLineNo">365</span>     * @throws CorruptedInputException<a name="line.365"></a>
+<span class="sourceLineNo">366</span>     * @throws UnsupportedOptionsException<a name="line.366"></a>
+<span class="sourceLineNo">367</span>     * @throws MemoryLimitException<a name="line.367"></a>
+<span class="sourceLineNo">368</span>     * @throws XZIOException               if the stream has been closed<a name="line.368"></a>
+<span class="sourceLineNo">369</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.369"></a>
+<span class="sourceLineNo">370</span>     */<a name="line.370"></a>
+<span class="sourceLineNo">371</span>    public int read() throws IOException {<a name="line.371"></a>
+<span class="sourceLineNo">372</span>        byte[] buf = new byte[1];<a name="line.372"></a>
+<span class="sourceLineNo">373</span>        return read(buf, 0, 1) == -1 ? -1 : (buf[0] &amp; 0xFF);<a name="line.373"></a>
+<span class="sourceLineNo">374</span>    }<a name="line.374"></a>
+<span class="sourceLineNo">375</span><a name="line.375"></a>
+<span class="sourceLineNo">376</span>    /**<a name="line.376"></a>
+<span class="sourceLineNo">377</span>     * Decompresses into an array of bytes.<a name="line.377"></a>
+<span class="sourceLineNo">378</span>     * &lt;p&gt;<a name="line.378"></a>
+<span class="sourceLineNo">379</span>     * If &lt;code&gt;len&lt;/code&gt; is zero, no bytes are read and &lt;code&gt;0&lt;/code&gt;<a name="line.379"></a>
+<span class="sourceLineNo">380</span>     * is returned. Otherwise this will try to decompress &lt;code&gt;len&lt;/code&gt;<a name="line.380"></a>
+<span class="sourceLineNo">381</span>     * bytes of uncompressed data. Less than &lt;code&gt;len&lt;/code&gt; bytes may<a name="line.381"></a>
+<span class="sourceLineNo">382</span>     * be read only in the following situations:<a name="line.382"></a>
+<span class="sourceLineNo">383</span>     * &lt;ul&gt;<a name="line.383"></a>
+<span class="sourceLineNo">384</span>     * &lt;li&gt;The end of the compressed data was reached successfully.&lt;/li&gt;<a name="line.384"></a>
+<span class="sourceLineNo">385</span>     * &lt;li&gt;An error is detected after at least one but less &lt;code&gt;len&lt;/code&gt;<a name="line.385"></a>
+<span class="sourceLineNo">386</span>     * bytes have already been successfully decompressed.<a name="line.386"></a>
+<span class="sourceLineNo">387</span>     * The next call with non-zero &lt;code&gt;len&lt;/code&gt; will immediately<a name="line.387"></a>
+<span class="sourceLineNo">388</span>     * throw the pending exception.&lt;/li&gt;<a name="line.388"></a>
+<span class="sourceLineNo">389</span>     * &lt;li&gt;An exception is thrown.&lt;/li&gt;<a name="line.389"></a>
+<span class="sourceLineNo">390</span>     * &lt;/ul&gt;<a name="line.390"></a>
+<span class="sourceLineNo">391</span>     *<a name="line.391"></a>
+<span class="sourceLineNo">392</span>     * @param buf target buffer for uncompressed data<a name="line.392"></a>
+<span class="sourceLineNo">393</span>     * @param off start offset in &lt;code&gt;buf&lt;/code&gt;<a name="line.393"></a>
+<span class="sourceLineNo">394</span>     * @param len maximum number of uncompressed bytes to read<a name="line.394"></a>
+<span class="sourceLineNo">395</span>     * @return number of bytes read, or &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.395"></a>
+<span class="sourceLineNo">396</span>     * the end of the compressed stream<a name="line.396"></a>
+<span class="sourceLineNo">397</span>     * @throws CorruptedInputException<a name="line.397"></a>
+<span class="sourceLineNo">398</span>     * @throws UnsupportedOptionsException<a name="line.398"></a>
+<span class="sourceLineNo">399</span>     * @throws MemoryLimitException<a name="line.399"></a>
+<span class="sourceLineNo">400</span>     * @throws XZIOException               if the stream has been closed<a name="line.400"></a>
+<span class="sourceLineNo">401</span>     * @throws java.io.IOException         may be thrown by &lt;code&gt;in&lt;/code&gt;<a name="line.401"></a>
+<span class="sourceLineNo">402</span>     */<a name="line.402"></a>
+<span class="sourceLineNo">403</span>    public int read(byte[] buf, int off, int len) throws IOException {<a name="line.403"></a>
+<span class="sourceLineNo">404</span>        if (off &lt; 0 || len &lt; 0 || off + len &lt; 0 || off + len &gt; buf.length) {<a name="line.404"></a>
+<span class="sourceLineNo">405</span>            throw new IndexOutOfBoundsException();<a name="line.405"></a>
+<span class="sourceLineNo">406</span>        }<a name="line.406"></a>
+<span class="sourceLineNo">407</span><a name="line.407"></a>
+<span class="sourceLineNo">408</span>        if (len == 0) {<a name="line.408"></a>
+<span class="sourceLineNo">409</span>            return 0;<a name="line.409"></a>
+<span class="sourceLineNo">410</span>        }<a name="line.410"></a>
+<span class="sourceLineNo">411</span><a name="line.411"></a>
+<span class="sourceLineNo">412</span>        if (in == null) {<a name="line.412"></a>
+<span class="sourceLineNo">413</span>            throw new XZIOException("Stream closed");<a name="line.413"></a>
+<span class="sourceLineNo">414</span>        }<a name="line.414"></a>
+<span class="sourceLineNo">415</span><a name="line.415"></a>
+<span class="sourceLineNo">416</span>        if (exception != null) {<a name="line.416"></a>
+<span class="sourceLineNo">417</span>            throw exception;<a name="line.417"></a>
+<span class="sourceLineNo">418</span>        }<a name="line.418"></a>
+<span class="sourceLineNo">419</span><a name="line.419"></a>
+<span class="sourceLineNo">420</span>        int size = 0;<a name="line.420"></a>
+<span class="sourceLineNo">421</span><a name="line.421"></a>
+<span class="sourceLineNo">422</span>        try {<a name="line.422"></a>
+<span class="sourceLineNo">423</span>            if (seekNeeded) {<a name="line.423"></a>
+<span class="sourceLineNo">424</span>                seek();<a name="line.424"></a>
+<span class="sourceLineNo">425</span>            }<a name="line.425"></a>
+<span class="sourceLineNo">426</span><a name="line.426"></a>
+<span class="sourceLineNo">427</span>            if (endReached) {<a name="line.427"></a>
+<span class="sourceLineNo">428</span>                return -1;<a name="line.428"></a>
+<span class="sourceLineNo">429</span>            }<a name="line.429"></a>
+<span class="sourceLineNo">430</span><a name="line.430"></a>
+<span class="sourceLineNo">431</span>            while (len &gt; 0) {<a name="line.431"></a>
+<span class="sourceLineNo">432</span>                if (blockDecoder == null) {<a name="line.432"></a>
+<span class="sourceLineNo">433</span>                    seek();<a name="line.433"></a>
+<span class="sourceLineNo">434</span>                    if (endReached) {<a name="line.434"></a>
+<span class="sourceLineNo">435</span>                        break;<a name="line.435"></a>
+<span class="sourceLineNo">436</span>                    }<a name="line.436"></a>
+<span class="sourceLineNo">437</span>                }<a name="line.437"></a>
+<span class="sourceLineNo">438</span><a name="line.438"></a>
+<span class="sourceLineNo">439</span>                int ret = blockDecoder.read(buf, off, len);<a name="line.439"></a>
+<span class="sourceLineNo">440</span><a name="line.440"></a>
+<span class="sourceLineNo">441</span>                if (ret &gt; 0) {<a name="line.441"></a>
+<span class="sourceLineNo">442</span>                    curPos += ret;<a name="line.442"></a>
+<span class="sourceLineNo">443</span>                    size += ret;<a name="line.443"></a>
+<span class="sourceLineNo">444</span>                    off += ret;<a name="line.444"></a>
+<span class="sourceLineNo">445</span>                    len -= ret;<a name="line.445"></a>
+<span class="sourceLineNo">446</span>                } else if (ret == -1) {<a name="line.446"></a>
+<span class="sourceLineNo">447</span>                    blockDecoder = null;<a name="line.447"></a>
+<span class="sourceLineNo">448</span>                }<a name="line.448"></a>
+<span class="sourceLineNo">449</span>            }<a name="line.449"></a>
+<span class="sourceLineNo">450</span>        } catch (IOException e) {<a name="line.450"></a>
+<span class="sourceLineNo">451</span>            // We know that the file isn't simply truncated because we could<a name="line.451"></a>
+<span class="sourceLineNo">452</span>            // parse the Indexes in the constructor. So convert EOFException<a name="line.452"></a>
+<span class="sourceLineNo">453</span>            // to CorruptedInputException.<a name="line.453"></a>
+<span class="sourceLineNo">454</span>            if (e instanceof EOFException) {<a name="line.454"></a>
+<span class="sourceLineNo">455</span>                e = new CorruptedInputException();<a name="line.455"></a>
+<span class="sourceLineNo">456</span>            }<a name="line.456"></a>
+<span class="sourceLineNo">457</span><a name="line.457"></a>
+<span class="sourceLineNo">458</span>            exception = e;<a name="line.458"></a>
+<span class="sourceLineNo">459</span>            if (size == 0) {<a name="line.459"></a>
+<span class="sourceLineNo">460</span>                throw e;<a name="line.460"></a>
+<span class="sourceLineNo">461</span>            }<a name="line.461"></a>
+<span class="sourceLineNo">462</span>        }<a name="line.462"></a>
+<span class="sourceLineNo">463</span><a name="line.463"></a>
+<span class="sourceLineNo">464</span>        return size;<a name="line.464"></a>
+<span class="sourceLineNo">465</span>    }<a name="line.465"></a>
+<span class="sourceLineNo">466</span><a name="line.466"></a>
+<span class="sourceLineNo">467</span>    /**<a name="line.467"></a>
+<span class="sourceLineNo">468</span>     * Returns the number of uncompressed bytes that can be read<a name="line.468"></a>
+<span class="sourceLineNo">469</span>     * without blocking. The value is returned with an assumption<a name="line.469"></a>
+<span class="sourceLineNo">470</span>     * that the compressed input data will be valid. If the compressed<a name="line.470"></a>
+<span class="sourceLineNo">471</span>     * data is corrupt, &lt;code&gt;CorruptedInputException&lt;/code&gt; may get<a name="line.471"></a>
+<span class="sourceLineNo">472</span>     * thrown before the number of bytes claimed to be available have<a name="line.472"></a>
+<span class="sourceLineNo">473</span>     * been read from this input stream.<a name="line.473"></a>
+<span class="sourceLineNo">474</span>     *<a name="line.474"></a>
+<span class="sourceLineNo">475</span>     * @return the number of uncompressed bytes that can be read<a name="line.475"></a>
+<span class="sourceLineNo">476</span>     * without blocking<a name="line.476"></a>
+<span class="sourceLineNo">477</span>     */<a name="line.477"></a>
+<span class="sourceLineNo">478</span>    public int available() throws IOException {<a name="line.478"></a>
+<span class="sourceLineNo">479</span>        if (in == null) {<a name="line.479"></a>
+<span class="sourceLineNo">480</span>            throw new XZIOException("Stream closed");<a name="line.480"></a>
+<span class="sourceLineNo">481</span>        }<a name="line.481"></a>
+<span class="sourceLineNo">482</span><a name="line.482"></a>
+<span class="sourceLineNo">483</span>        if (exception != null) {<a name="line.483"></a>
+<span class="sourceLineNo">484</span>            throw exception;<a name="line.484"></a>
+<span class="sourceLineNo">485</span>        }<a name="line.485"></a>
+<span class="sourceLineNo">486</span><a name="line.486"></a>
+<span class="sourceLineNo">487</span>        if (endReached || seekNeeded || blockDecoder == null) {<a name="line.487"></a>
+<span class="sourceLineNo">488</span>            return 0;<a name="line.488"></a>
+<span class="sourceLineNo">489</span>        }<a name="line.489"></a>
+<span class="sourceLineNo">490</span><a name="line.490"></a>
+<span class="sourceLineNo">491</span>        return blockDecoder.available();<a name="line.491"></a>
+<span class="sourceLineNo">492</span>    }<a name="line.492"></a>
+<span class="sourceLineNo">493</span><a name="line.493"></a>
+<span class="sourceLineNo">494</span>    /**<a name="line.494"></a>
+<span class="sourceLineNo">495</span>     * Closes the stream and calls &lt;code&gt;in.close()&lt;/code&gt;.<a name="line.495"></a>
+<span class="sourceLineNo">496</span>     * If the stream was already closed, this does nothing.<a name="line.496"></a>
+<span class="sourceLineNo">497</span>     *<a name="line.497"></a>
+<span class="sourceLineNo">498</span>     * @throws java.io.IOException if thrown by &lt;code&gt;in.close()&lt;/code&gt;<a name="line.498"></a>
+<span class="sourceLineNo">499</span>     */<a name="line.499"></a>
+<span class="sourceLineNo">500</span>    public void close() throws IOException {<a name="line.500"></a>
+<span class="sourceLineNo">501</span>        if (in != null) {<a name="line.501"></a>
+<span class="sourceLineNo">502</span>            try {<a name="line.502"></a>
+<span class="sourceLineNo">503</span>                in.close();<a name="line.503"></a>
+<span class="sourceLineNo">504</span>            } finally {<a name="line.504"></a>
+<span class="sourceLineNo">505</span>                in = null;<a name="line.505"></a>
+<span class="sourceLineNo">506</span>            }<a name="line.506"></a>
+<span class="sourceLineNo">507</span>        }<a name="line.507"></a>
+<span class="sourceLineNo">508</span>    }<a name="line.508"></a>
+<span class="sourceLineNo">509</span><a name="line.509"></a>
+<span class="sourceLineNo">510</span>    /**<a name="line.510"></a>
+<span class="sourceLineNo">511</span>     * Gets the uncompressed size of this input stream. If there are multiple<a name="line.511"></a>
+<span class="sourceLineNo">512</span>     * XZ Streams, the total uncompressed size of all XZ Streams is returned.<a name="line.512"></a>
+<span class="sourceLineNo">513</span>     */<a name="line.513"></a>
+<span class="sourceLineNo">514</span>    public long length() {<a name="line.514"></a>
+<span class="sourceLineNo">515</span>        return uncompressedSize;<a name="line.515"></a>
+<span class="sourceLineNo">516</span>    }<a name="line.516"></a>
+<span class="sourceLineNo">517</span><a name="line.517"></a>
+<span class="sourceLineNo">518</span>    /**<a name="line.518"></a>
+<span class="sourceLineNo">519</span>     * Gets the uncompressed position in this input stream.<a name="line.519"></a>
+<span class="sourceLineNo">520</span>     *<a name="line.520"></a>
+<span class="sourceLineNo">521</span>     * @throws XZIOException if the stream has been closed<a name="line.521"></a>
+<span class="sourceLineNo">522</span>     */<a name="line.522"></a>
+<span class="sourceLineNo">523</span>    public long position() throws IOException {<a name="line.523"></a>
+<span class="sourceLineNo">524</span>        if (in == null) {<a name="line.524"></a>
+<span class="sourceLineNo">525</span>            throw new XZIOException("Stream closed");<a name="line.525"></a>
+<span class="sourceLineNo">526</span>        }<a name="line.526"></a>
+<span class="sourceLineNo">527</span><a name="line.527"></a>
+<span class="sourceLineNo">528</span>        return seekNeeded ? seekPos : curPos;<a name="line.528"></a>
+<span class="sourceLineNo">529</span>    }<a name="line.529"></a>
+<span class="sourceLineNo">530</span><a name="line.530"></a>
+<span class="sourceLineNo">531</span>    /**<a name="line.531"></a>
+<span class="sourceLineNo">532</span>     * Seeks to the specified absolute uncompressed position in the stream.<a name="line.532"></a>
+<span class="sourceLineNo">533</span>     * This only stores the new position, so this function itself is always<a name="line.533"></a>
+<span class="sourceLineNo">534</span>     * very fast. The actual seek is done when &lt;code&gt;read&lt;/code&gt; is called<a name="line.534"></a>
+<span class="sourceLineNo">535</span>     * to read at least one byte.<a name="line.535"></a>
+<span class="sourceLineNo">536</span>     * &lt;p&gt;<a name="line.536"></a>
+<span class="sourceLineNo">537</span>     * Seeking past the end of the stream is possible. In that case<a name="line.537"></a>
+<span class="sourceLineNo">538</span>     * &lt;code&gt;read&lt;/code&gt; will return &lt;code&gt;-1&lt;/code&gt; to indicate<a name="line.538"></a>
+<span class="sourceLineNo">539</span>     * the end of the stream.<a name="line.539"></a>
+<span class="sourceLineNo">540</span>     *<a name="line.540"></a>
+<span class="sourceLineNo">541</span>     * @param pos new uncompressed read position<a name="line.541"></a>
+<span class="sourceLineNo">542</span>     * @throws XZIOException if &lt;code&gt;pos&lt;/code&gt; is negative, or<a name="line.542"></a>
+<span class="sourceLineNo">543</span>     *                       if stream has been closed<a name="line.543"></a>
+<span class="sourceLineNo">544</span>     */<a name="line.544"></a>
+<span class="sourceLineNo">545</span>    public void seek(long pos) throws IOException {<a name="line.545"></a>
+<span class="sourceLineNo">546</span>        if (in == null) {<a name="line.546"></a>
+<span class="sourceLineNo">547</span>            throw new XZIOException("Stream closed");<a name="line.547"></a>
+<span class="sourceLineNo">548</span>        }<a name="line.548"></a>
+<span class="sourceLineNo">549</span><a name="line.549"></a>
+<span class="sourceLineNo">550</span>        if (pos &lt; 0) {<a name="line.550"></a>
+<span class="sourceLineNo">551</span>            throw new XZIOException("Negative seek position: " + pos);<a name="line.551"></a>
+<span class="sourceLineNo">552</span>        }<a name="line.552"></a>
+<span class="sourceLineNo">553</span><a name="line.553"></a>
+<span class="sourceLineNo">554</span>        seekPos = pos;<a name="line.554"></a>
+<span class="sourceLineNo">555</span>        seekNeeded = true;<a name="line.555"></a>
+<span class="sourceLineNo">556</span>    }<a name="line.556"></a>
+<span class="sourceLineNo">557</span><a name="line.557"></a>
+<span class="sourceLineNo">558</span>    /**<a name="line.558"></a>
+<span class="sourceLineNo">559</span>     * Does the actual seeking. This is also called when &lt;code&gt;read&lt;/code&gt;<a name="line.559"></a>
+<span class="sourceLineNo">560</span>     * needs a new Block to decode.<a name="line.560"></a>
+<span class="sourceLineNo">561</span>     */<a name="line.561"></a>
+<span class="sourceLineNo">562</span>    private void seek() throws IOException {<a name="line.562"></a>
+<span class="sourceLineNo">563</span>        // If seek(long) wasn't called, we simply need to get the next Block<a name="line.563"></a>
+<span class="sourceLineNo">564</span>        // from the same Stream. If there are no more Blocks in this Stream,<a name="line.564"></a>
+<span class="sourceLineNo">565</span>        // then we behave as if seek(long) had been called.<a name="line.565"></a>
+<span class="sourceLineNo">566</span>        if (!seekNeeded) {<a name="line.566"></a>
+<span class="sourceLineNo">567</span>            if (index.hasNext()) {<a name="line.567"></a>
+<span class="sourceLineNo">568</span>                BlockInfo info = index.getNext();<a name="line.568"></a>
+<span class="sourceLineNo">569</span>                initBlockDecoder(info);<a name="line.569"></a>
+<span class="sourceLineNo">570</span>                return;<a name="line.570"></a>
+<span class="sourceLineNo">571</span>            }<a name="line.571"></a>
+<span class="sourceLineNo">572</span><a name="line.572"></a>
+<span class="sourceLineNo">573</span>            seekPos = curPos;<a name="line.573"></a>
+<span class="sourceLineNo">574</span>        }<a name="line.574"></a>
+<span class="sourceLineNo">575</span><a name="line.575"></a>
+<span class="sourceLineNo">576</span>        seekNeeded = false;<a name="line.576"></a>
+<span class="sourceLineNo">577</span><a name="line.577"></a>
+<span class="sourceLineNo">578</span>        // Check if we are seeking to or past the end of the file.<a name="line.578"></a>
+<span class="sourceLineNo">579</span>        if (seekPos &gt;= uncompressedSize) {<a name="line.579"></a>
+<span class="sourceLineNo">580</span>            curPos = seekPos;<a name="line.580"></a>
+<span class="sourceLineNo">581</span>            blockDecoder = null;<a name="line.581"></a>
+<span class="sourceLineNo">582</span>            endReached = true;<a name="line.582"></a>
+<span class="sourceLineNo">583</span>            return;<a name="line.583"></a>
+<span class="sourceLineNo">584</span>        }<a name="line.584"></a>
+<span class="sourceLineNo">585</span><a name="line.585"></a>
+<span class="sourceLineNo">586</span>        endReached = false;<a name="line.586"></a>
+<span class="sourceLineNo">587</span><a name="line.587"></a>
+<span class="sourceLineNo">588</span>        // Locate the Stream that contains the uncompressed target position.<a name="line.588"></a>
+<span class="sourceLineNo">589</span>        int i = streams.size();<a name="line.589"></a>
+<span class="sourceLineNo">590</span>        assert i &gt;= 1;<a name="line.590"></a>
+<span class="sourceLineNo">591</span><a name="line.591"></a>
+<span class="sourceLineNo">592</span>        long uncompressedSum = 0;<a name="line.592"></a>
+<span class="sourceLineNo">593</span>        long compressedSum = 0;<a name="line.593"></a>
+<span class="sourceLineNo">594</span><a name="line.594"></a>
+<span class="sourceLineNo">595</span>        while (true) {<a name="line.595"></a>
+<span class="sourceLineNo">596</span>            index = streams.get(--i);<a name="line.596"></a>
+<span class="sourceLineNo">597</span>            if (uncompressedSum + index.getUncompressedSize() &gt; seekPos) {<a name="line.597"></a>
+<span class="sourceLineNo">598</span>                break;<a name="line.598"></a>
+<span class="sourceLineNo">599</span>            }<a name="line.599"></a>
+<span class="sourceLineNo">600</span><a name="line.600"></a>
+<span class="sourceLineNo">601</span>            uncompressedSum += index.getUncompressedSize();<a name="line.601"></a>
+<span class="sourceLineNo">602</span>            compressedSum += index.getStreamAndPaddingSize();<a name="line.602"></a>
+<span class="sourceLineNo">603</span>            assert (compressedSum &amp; 3) == 0;<a name="line.603"></a>
+<span class="sourceLineNo">604</span>        }<a name="line.604"></a>
+<span class="sourceLineNo">605</span><a name="line.605"></a>
+<span class="sourceLineNo">606</span>        // Locate the Block from the Stream that contains<a name="line.606"></a>
+<span class="sourceLineNo">607</span>        // the uncompressed target position.<a name="line.607"></a>
+<span class="sourceLineNo">608</span>        BlockInfo info = index.locate(seekPos - uncompressedSum);<a name="line.608"></a>
+<span class="sourceLineNo">609</span>        assert (info.compressedOffset &amp; 3) == 0 : info.compressedOffset;<a name="line.609"></a>
+<span class="sourceLineNo">610</span><a name="line.610"></a>
+<span class="sourceLineNo">611</span>        // Adjust the Stream-specific offsets to file offsets.<a name="line.611"></a>
+<span class="sourceLineNo">612</span>        info.compressedOffset += compressedSum;<a name="line.612"></a>
+<span class="sourceLineNo">613</span>        info.uncompressedOffset += uncompressedSum;<a name="line.613"></a>
+<span class="sourceLineNo">614</span>        assert seekPos &gt;= info.uncompressedOffset;<a name="line.614"></a>
+<span class="sourceLineNo">615</span>        assert seekPos &lt; info.uncompressedOffset + info.uncompressedSize;<a name="line.615"></a>
+<span class="sourceLineNo">616</span><a name="line.616"></a>
+<span class="sourceLineNo">617</span>        // Seek in the underlying stream and create a new Block decoder<a name="line.617"></a>
+<span class="sourceLineNo">618</span>        // only if really needed. We can skip it if the current position<a name="line.618"></a>
+<span class="sourceLineNo">619</span>        // is already in the correct Block and the target position hasn't<a name="line.619"></a>
+<span class="sourceLineNo">620</span>        // been decompressed yet.<a name="line.620"></a>
+<span class="sourceLineNo">621</span>        //<a name="line.621"></a>
+<span class="sourceLineNo">622</span>        // NOTE: If curPos points to the beginning of this Block, it's<a name="line.622"></a>
+<span class="sourceLineNo">623</span>        // because it was left there after decompressing an earlier Block.<a name="line.623"></a>
+<span class="sourceLineNo">624</span>        // In that case, decoding of the current Block hasn't been started<a name="line.624"></a>
+<span class="sourceLineNo">625</span>        // yet. (Decoding of a Block won't be started until at least one<a name="line.625"></a>
+<span class="sourceLineNo">626</span>        // byte will also be read from it.)<a name="line.626"></a>
+<span class="sourceLineNo">627</span>        if (!(curPos &gt; info.uncompressedOffset &amp;&amp; curPos &lt;= seekPos)) {<a name="line.627"></a>
+<span class="sourceLineNo">628</span>            // Seek to the beginning of the Block.<a name="line.628"></a>
+<span class="sourceLineNo">629</span>            in.seek(info.compressedOffset);<a name="line.629"></a>
+<span class="sourceLineNo">630</span><a name="line.630"></a>
+<span class="sourceLineNo">631</span>            // Since it is possible that this Block is from a different<a name="line.631"></a>
+<span class="sourceLineNo">632</span>            // Stream than the previous Block, initialize a new Check.<a name="line.632"></a>
+<span class="sourceLineNo">633</span>            check = Check.getInstance(info.streamFlags.checkType);<a name="line.633"></a>
+<span class="sourceLineNo">634</span><a name="line.634"></a>
+<span class="sourceLineNo">635</span>            // Create a new Block decoder.<a name="line.635"></a>
+<span class="sourceLineNo">636</span>            initBlockDecoder(info);<a name="line.636"></a>
+<span class="sourceLineNo">637</span>            curPos = info.uncompressedOffset;<a name="line.637"></a>
+<span class="sourceLineNo">638</span>        }<a name="line.638"></a>
+<span class="sourceLineNo">639</span><a name="line.639"></a>
+<span class="sourceLineNo">640</span>        // If the target wasn't at a Block boundary, decompress and throw<a name="line.640"></a>
+<span class="sourceLineNo">641</span>        // away data to reach the target position.<a name="line.641"></a>
+<span class="sourceLineNo">642</span>        if (seekPos &gt; curPos) {<a name="line.642"></a>
+<span class="sourceLineNo">643</span>            // NOTE: The "if" below is there just in case. In this situation,<a name="line.643"></a>
+<span class="sourceLineNo">644</span>            // blockDecoder.skip will always skip the requested amount<a name="line.644"></a>
+<span class="sourceLineNo">645</span>            // or throw an exception.<a name="line.645"></a>
+<span class="sourceLineNo">646</span>            long skipAmount = seekPos - curPos;<a name="line.646"></a>
+<span class="sourceLineNo">647</span>            if (blockDecoder.skip(skipAmount) != skipAmount) {<a name="line.647"></a>
+<span class="sourceLineNo">648</span>                throw new CorruptedInputException();<a name="line.648"></a>
+<span class="sourceLineNo">649</span>            }<a name="line.649"></a>
+<span class="sourceLineNo">650</span>        }<a name="line.650"></a>
+<span class="sourceLineNo">651</span><a name="line.651"></a>
+<span class="sourceLineNo">652</span>        curPos = seekPos;<a name="line.652"></a>
+<span class="sourceLineNo">653</span>    }<a name="line.653"></a>
+<span class="sourceLineNo">654</span><a name="line.654"></a>
+<span class="sourceLineNo">655</span>    /**<a name="line.655"></a>
+<span class="sourceLineNo">656</span>     * Initializes a new BlockInputStream. This is a helper function for<a name="line.656"></a>
+<span class="sourceLineNo">657</span>     * &lt;code&gt;seek()&lt;/code&gt;.<a name="line.657"></a>
+<span class="sourceLineNo">658</span>     */<a name="line.658"></a>
+<span class="sourceLineNo">659</span>    private void initBlockDecoder(BlockInfo info) throws IOException {<a name="line.659"></a>
+<span class="sourceLineNo">660</span>        try {<a name="line.660"></a>
+<span class="sourceLineNo">661</span>            // Set it to null first so that GC can collect it if memory<a name="line.661"></a>
+<span class="sourceLineNo">662</span>            // runs tight when initializing a new BlockInputStream.<a name="line.662"></a>
+<span class="sourceLineNo">663</span>            blockDecoder = null;<a name="line.663"></a>
+<span class="sourceLineNo">664</span>            blockDecoder = new BlockInputStream(in, check, memoryLimit,<a name="line.664"></a>
+<span class="sourceLineNo">665</span>                    info.unpaddedSize,<a name="line.665"></a>
+<span class="sourceLineNo">666</span>                    info.uncompressedSize);<a name="line.666"></a>
+<span class="sourceLineNo">667</span>        } catch (MemoryLimitException e) {<a name="line.667"></a>
+<span class="sourceLineNo">668</span>            // BlockInputStream doesn't know how much memory we had<a name="line.668"></a>
+<span class="sourceLineNo">669</span>            // already needed so we need to recreate the exception.<a name="line.669"></a>
+<span class="sourceLineNo">670</span>            assert memoryLimit &gt;= 0;<a name="line.670"></a>
+<span class="sourceLineNo">671</span>            throw new MemoryLimitException(<a name="line.671"></a>
+<span class="sourceLineNo">672</span>                    e.getMemoryNeeded() + indexMemoryUsage,<a name="line.672"></a>
+<span class="sourceLineNo">673</span>                    memoryLimit + indexMemoryUsage);<a name="line.673"></a>
+<span class="sourceLineNo">674</span>        } catch (IndexIndicatorException e) {<a name="line.674"></a>
+<span class="sourceLineNo">675</span>            // It cannot be Index so the file must be corrupt.<a name="line.675"></a>
+<span class="sourceLineNo">676</span>            throw new CorruptedInputException();<a name="line.676"></a>
+<span class="sourceLineNo">677</span>        }<a name="line.677"></a>
+<span class="sourceLineNo">678</span>    }<a name="line.678"></a>
+<span class="sourceLineNo">679</span>}<a name="line.679"></a>
 
 
 

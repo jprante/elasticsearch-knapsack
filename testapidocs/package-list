@@ -1,0 +1,9 @@
+org.xbib.elasticsearch.plugin
+org.xbib.elasticsearch.plugin.helper
+org.xbib.elasticsearch.plugin.knapsack
+org.xbib.elasticsearch.plugin.knapsack.bulk
+org.xbib.elasticsearch.plugin.knapsack.cpio
+org.xbib.elasticsearch.plugin.knapsack.tar
+org.xbib.elasticsearch.plugin.knapsack.zip
+org.xbib.io.compress
+org.xbib.io.compress.bzip2

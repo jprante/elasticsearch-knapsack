@@ -1,0 +1,234 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package org.xbib.elasticsearch.plugin.knapsack.bulk;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.elasticsearch.action.index.IndexRequest;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import org.elasticsearch.common.logging.ESLogger;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import org.elasticsearch.common.logging.ESLoggerFactory;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import org.elasticsearch.index.query.QueryBuilders;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import org.junit.Test;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportRequestBuilder;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportResponse;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateRequestBuilder;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateResponse;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>import java.io.File;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>import java.net.URI;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import java.nio.file.Path;<a name="line.19"></a>
+<span class="sourceLineNo">020</span>import java.nio.file.Paths;<a name="line.20"></a>
+<span class="sourceLineNo">021</span><a name="line.21"></a>
+<span class="sourceLineNo">022</span>import static org.junit.Assert.assertEquals;<a name="line.22"></a>
+<span class="sourceLineNo">023</span>import static org.junit.Assert.assertTrue;<a name="line.23"></a>
+<span class="sourceLineNo">024</span><a name="line.24"></a>
+<span class="sourceLineNo">025</span>public class KnapsackBulkTests extends AbstractNodeTestHelper {<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>    private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackBulkTests.class.getName());<a name="line.27"></a>
+<span class="sourceLineNo">028</span><a name="line.28"></a>
+<span class="sourceLineNo">029</span>    @Test<a name="line.29"></a>
+<span class="sourceLineNo">030</span>    public void testBulk() throws Exception {<a name="line.30"></a>
+<span class="sourceLineNo">031</span>        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk");<a name="line.31"></a>
+<span class="sourceLineNo">032</span>        Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));<a name="line.32"></a>
+<span class="sourceLineNo">033</span>        client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();<a name="line.33"></a>
+<span class="sourceLineNo">034</span>        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))<a name="line.34"></a>
+<span class="sourceLineNo">035</span>                .setPath(exportPath)<a name="line.35"></a>
+<span class="sourceLineNo">036</span>                .setOverwriteAllowed(true);<a name="line.36"></a>
+<span class="sourceLineNo">037</span>        KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();<a name="line.37"></a>
+<span class="sourceLineNo">038</span>        if (!knapsackExportResponse.isRunning()) {<a name="line.38"></a>
+<span class="sourceLineNo">039</span>            logger.error(knapsackExportResponse.getReason());<a name="line.39"></a>
+<span class="sourceLineNo">040</span>        }<a name="line.40"></a>
+<span class="sourceLineNo">041</span>        assertTrue(knapsackExportResponse.isRunning());<a name="line.41"></a>
+<span class="sourceLineNo">042</span>        KnapsackStateRequestBuilder knapsackStateRequestBuilder =<a name="line.42"></a>
+<span class="sourceLineNo">043</span>               new KnapsackStateRequestBuilder(client("1"));<a name="line.43"></a>
+<span class="sourceLineNo">044</span>        KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        knapsackStateResponse.isExportActive(exportPath);<a name="line.45"></a>
+<span class="sourceLineNo">046</span>        Thread.sleep(1000L);<a name="line.46"></a>
+<span class="sourceLineNo">047</span>        // delete index<a name="line.47"></a>
+<span class="sourceLineNo">048</span>        client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();<a name="line.48"></a>
+<span class="sourceLineNo">049</span>        KnapsackImportRequestBuilder knapsackImportRequestBuilder =<a name="line.49"></a>
+<span class="sourceLineNo">050</span>                new KnapsackImportRequestBuilder(client("1"))<a name="line.50"></a>
+<span class="sourceLineNo">051</span>                .setPath(exportPath);<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        if (!knapsackImportResponse.isRunning()) {<a name="line.53"></a>
+<span class="sourceLineNo">054</span>            logger.error(knapsackImportResponse.getReason());<a name="line.54"></a>
+<span class="sourceLineNo">055</span>        }<a name="line.55"></a>
+<span class="sourceLineNo">056</span>        assertTrue(knapsackImportResponse.isRunning());<a name="line.56"></a>
+<span class="sourceLineNo">057</span>        Thread.sleep(1000L);<a name="line.57"></a>
+<span class="sourceLineNo">058</span>        // count<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();<a name="line.59"></a>
+<span class="sourceLineNo">060</span>        assertEquals(1L, count);<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    }<a name="line.61"></a>
+<span class="sourceLineNo">062</span><a name="line.62"></a>
+<span class="sourceLineNo">063</span>    @Test<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    public void testBulkGz() throws Exception {<a name="line.64"></a>
+<span class="sourceLineNo">065</span>        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.gz");<a name="line.65"></a>
+<span class="sourceLineNo">066</span>        Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();<a name="line.67"></a>
+<span class="sourceLineNo">068</span>        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))<a name="line.68"></a>
+<span class="sourceLineNo">069</span>                .setPath(exportPath)<a name="line.69"></a>
+<span class="sourceLineNo">070</span>                .setOverwriteAllowed(true);<a name="line.70"></a>
+<span class="sourceLineNo">071</span>        KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        if (!knapsackExportResponse.isRunning()) {<a name="line.72"></a>
+<span class="sourceLineNo">073</span>            logger.error(knapsackExportResponse.getReason());<a name="line.73"></a>
+<span class="sourceLineNo">074</span>        }<a name="line.74"></a>
+<span class="sourceLineNo">075</span>        assertTrue(knapsackExportResponse.isRunning());<a name="line.75"></a>
+<span class="sourceLineNo">076</span>        KnapsackStateRequestBuilder knapsackStateRequestBuilder =<a name="line.76"></a>
+<span class="sourceLineNo">077</span>                new KnapsackStateRequestBuilder(client("1"));<a name="line.77"></a>
+<span class="sourceLineNo">078</span>        KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();<a name="line.78"></a>
+<span class="sourceLineNo">079</span>        knapsackStateResponse.isExportActive(exportPath);<a name="line.79"></a>
+<span class="sourceLineNo">080</span>        Thread.sleep(1000L);<a name="line.80"></a>
+<span class="sourceLineNo">081</span>        // delete index<a name="line.81"></a>
+<span class="sourceLineNo">082</span>        client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();<a name="line.82"></a>
+<span class="sourceLineNo">083</span>        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))<a name="line.83"></a>
+<span class="sourceLineNo">084</span>                .setPath(exportPath);<a name="line.84"></a>
+<span class="sourceLineNo">085</span>        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        if (!knapsackImportResponse.isRunning()) {<a name="line.86"></a>
+<span class="sourceLineNo">087</span>            logger.error(knapsackImportResponse.getReason());<a name="line.87"></a>
+<span class="sourceLineNo">088</span>        }<a name="line.88"></a>
+<span class="sourceLineNo">089</span>        assertTrue(knapsackImportResponse.isRunning());<a name="line.89"></a>
+<span class="sourceLineNo">090</span>        Thread.sleep(1000L);<a name="line.90"></a>
+<span class="sourceLineNo">091</span>        // count<a name="line.91"></a>
+<span class="sourceLineNo">092</span>        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();<a name="line.92"></a>
+<span class="sourceLineNo">093</span>        assertEquals(1L, count);<a name="line.93"></a>
+<span class="sourceLineNo">094</span>    }<a name="line.94"></a>
+<span class="sourceLineNo">095</span><a name="line.95"></a>
+<span class="sourceLineNo">096</span>    @Test<a name="line.96"></a>
+<span class="sourceLineNo">097</span>    public void testBulkBz2() throws Exception {<a name="line.97"></a>
+<span class="sourceLineNo">098</span>        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.bz2");<a name="line.98"></a>
+<span class="sourceLineNo">099</span>        Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));<a name="line.99"></a>
+<span class="sourceLineNo">100</span>        client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();<a name="line.100"></a>
+<span class="sourceLineNo">101</span>        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))<a name="line.101"></a>
+<span class="sourceLineNo">102</span>                .setPath(exportPath)<a name="line.102"></a>
+<span class="sourceLineNo">103</span>                .setOverwriteAllowed(true);<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();<a name="line.104"></a>
+<span class="sourceLineNo">105</span>        if (!knapsackExportResponse.isRunning()) {<a name="line.105"></a>
+<span class="sourceLineNo">106</span>            logger.error(knapsackExportResponse.getReason());<a name="line.106"></a>
+<span class="sourceLineNo">107</span>        }<a name="line.107"></a>
+<span class="sourceLineNo">108</span>        assertTrue(knapsackExportResponse.isRunning());<a name="line.108"></a>
+<span class="sourceLineNo">109</span>        KnapsackStateRequestBuilder knapsackStateRequestBuilder =<a name="line.109"></a>
+<span class="sourceLineNo">110</span>                new KnapsackStateRequestBuilder(client("1"));<a name="line.110"></a>
+<span class="sourceLineNo">111</span>        KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();<a name="line.111"></a>
+<span class="sourceLineNo">112</span>        knapsackStateResponse.isExportActive(exportPath);<a name="line.112"></a>
+<span class="sourceLineNo">113</span>        Thread.sleep(1000L);<a name="line.113"></a>
+<span class="sourceLineNo">114</span>        // delete index<a name="line.114"></a>
+<span class="sourceLineNo">115</span>        client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();<a name="line.115"></a>
+<span class="sourceLineNo">116</span>        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))<a name="line.116"></a>
+<span class="sourceLineNo">117</span>                .setPath(exportPath);<a name="line.117"></a>
+<span class="sourceLineNo">118</span>        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();<a name="line.118"></a>
+<span class="sourceLineNo">119</span>        if (!knapsackImportResponse.isRunning()) {<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            logger.error(knapsackImportResponse.getReason());<a name="line.120"></a>
+<span class="sourceLineNo">121</span>        }<a name="line.121"></a>
+<span class="sourceLineNo">122</span>        assertTrue(knapsackImportResponse.isRunning());<a name="line.122"></a>
+<span class="sourceLineNo">123</span>        Thread.sleep(1000L);<a name="line.123"></a>
+<span class="sourceLineNo">124</span>        // count<a name="line.124"></a>
+<span class="sourceLineNo">125</span>        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();<a name="line.125"></a>
+<span class="sourceLineNo">126</span>        assertEquals(1L, count);<a name="line.126"></a>
+<span class="sourceLineNo">127</span>    }<a name="line.127"></a>
+<span class="sourceLineNo">128</span><a name="line.128"></a>
+<span class="sourceLineNo">129</span>    @Test<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    public void testBulkXz() throws Exception {<a name="line.130"></a>
+<span class="sourceLineNo">131</span>        File exportFile = File.createTempFile("knapsack-bulk-", ".bulk.xz");<a name="line.131"></a>
+<span class="sourceLineNo">132</span>        Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));<a name="line.132"></a>
+<span class="sourceLineNo">133</span>        client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();<a name="line.133"></a>
+<span class="sourceLineNo">134</span>        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))<a name="line.134"></a>
+<span class="sourceLineNo">135</span>                .setPath(exportPath)<a name="line.135"></a>
+<span class="sourceLineNo">136</span>                .setOverwriteAllowed(true);<a name="line.136"></a>
+<span class="sourceLineNo">137</span>        KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();<a name="line.137"></a>
+<span class="sourceLineNo">138</span>        if (!knapsackExportResponse.isRunning()) {<a name="line.138"></a>
+<span class="sourceLineNo">139</span>            logger.error(knapsackExportResponse.getReason());<a name="line.139"></a>
+<span class="sourceLineNo">140</span>        }<a name="line.140"></a>
+<span class="sourceLineNo">141</span>        assertTrue(knapsackExportResponse.isRunning());<a name="line.141"></a>
+<span class="sourceLineNo">142</span>        KnapsackStateRequestBuilder knapsackStateRequestBuilder =<a name="line.142"></a>
+<span class="sourceLineNo">143</span>                new KnapsackStateRequestBuilder(client("1"));<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        knapsackStateResponse.isExportActive(exportPath);<a name="line.145"></a>
+<span class="sourceLineNo">146</span>        Thread.sleep(1000L);<a name="line.146"></a>
+<span class="sourceLineNo">147</span>        // delete index<a name="line.147"></a>
+<span class="sourceLineNo">148</span>        client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();<a name="line.148"></a>
+<span class="sourceLineNo">149</span>        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))<a name="line.149"></a>
+<span class="sourceLineNo">150</span>                .setPath(exportPath);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();<a name="line.151"></a>
+<span class="sourceLineNo">152</span>        if (!knapsackImportResponse.isRunning()) {<a name="line.152"></a>
+<span class="sourceLineNo">153</span>            logger.error(knapsackImportResponse.getReason());<a name="line.153"></a>
+<span class="sourceLineNo">154</span>        }<a name="line.154"></a>
+<span class="sourceLineNo">155</span>        assertTrue(knapsackImportResponse.isRunning());<a name="line.155"></a>
+<span class="sourceLineNo">156</span>        Thread.sleep(1000L);<a name="line.156"></a>
+<span class="sourceLineNo">157</span>        // count<a name="line.157"></a>
+<span class="sourceLineNo">158</span>        long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();<a name="line.158"></a>
+<span class="sourceLineNo">159</span>        assertEquals(1L, count);<a name="line.159"></a>
+<span class="sourceLineNo">160</span>    }<a name="line.160"></a>
+<span class="sourceLineNo">161</span><a name="line.161"></a>
+<span class="sourceLineNo">162</span>}<a name="line.162"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

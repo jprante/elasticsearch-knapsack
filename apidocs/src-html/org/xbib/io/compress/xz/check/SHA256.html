@@ -6,28 +6,27 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.check;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public class SHA256 extends Check {<a name="line.4"></a>
-<span class="sourceLineNo">005</span>    private final java.security.MessageDigest sha256;<a name="line.5"></a>
-<span class="sourceLineNo">006</span><a name="line.6"></a>
-<span class="sourceLineNo">007</span>    public SHA256() throws java.security.NoSuchAlgorithmException {<a name="line.7"></a>
-<span class="sourceLineNo">008</span>        size = 32;<a name="line.8"></a>
-<span class="sourceLineNo">009</span>        name = "SHA-256";<a name="line.9"></a>
-<span class="sourceLineNo">010</span>        sha256 = java.security.MessageDigest.getInstance("SHA-256");<a name="line.10"></a>
-<span class="sourceLineNo">011</span>    }<a name="line.11"></a>
-<span class="sourceLineNo">012</span><a name="line.12"></a>
-<span class="sourceLineNo">013</span>    public void update(byte[] buf, int off, int len) {<a name="line.13"></a>
-<span class="sourceLineNo">014</span>        sha256.update(buf, off, len);<a name="line.14"></a>
-<span class="sourceLineNo">015</span>    }<a name="line.15"></a>
-<span class="sourceLineNo">016</span><a name="line.16"></a>
-<span class="sourceLineNo">017</span>    public byte[] finish() {<a name="line.17"></a>
-<span class="sourceLineNo">018</span>        byte[] buf = sha256.digest();<a name="line.18"></a>
-<span class="sourceLineNo">019</span>        sha256.reset();<a name="line.19"></a>
-<span class="sourceLineNo">020</span>        return buf;<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    }<a name="line.21"></a>
-<span class="sourceLineNo">022</span>}<a name="line.22"></a>
+<pre><span class="sourceLineNo">001</span>package org.xbib.io.compress.xz.check;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>public class SHA256 extends Check {<a name="line.3"></a>
+<span class="sourceLineNo">004</span>    private final java.security.MessageDigest sha256;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>    public SHA256() throws java.security.NoSuchAlgorithmException {<a name="line.6"></a>
+<span class="sourceLineNo">007</span>        size = 32;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>        name = "SHA-256";<a name="line.8"></a>
+<span class="sourceLineNo">009</span>        sha256 = java.security.MessageDigest.getInstance("SHA-256");<a name="line.9"></a>
+<span class="sourceLineNo">010</span>    }<a name="line.10"></a>
+<span class="sourceLineNo">011</span><a name="line.11"></a>
+<span class="sourceLineNo">012</span>    public void update(byte[] buf, int off, int len) {<a name="line.12"></a>
+<span class="sourceLineNo">013</span>        sha256.update(buf, off, len);<a name="line.13"></a>
+<span class="sourceLineNo">014</span>    }<a name="line.14"></a>
+<span class="sourceLineNo">015</span><a name="line.15"></a>
+<span class="sourceLineNo">016</span>    public byte[] finish() {<a name="line.16"></a>
+<span class="sourceLineNo">017</span>        byte[] buf = sha256.digest();<a name="line.17"></a>
+<span class="sourceLineNo">018</span>        sha256.reset();<a name="line.18"></a>
+<span class="sourceLineNo">019</span>        return buf;<a name="line.19"></a>
+<span class="sourceLineNo">020</span>    }<a name="line.20"></a>
+<span class="sourceLineNo">021</span>}<a name="line.21"></a>
 
 
 

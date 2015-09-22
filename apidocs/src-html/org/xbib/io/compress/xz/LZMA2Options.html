@@ -6,579 +6,578 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.lz.LZEncoder;<a name="line.4"></a>
-<span class="sourceLineNo">005</span>import org.xbib.io.compress.xz.lzma.LZMAEncoder;<a name="line.5"></a>
-<span class="sourceLineNo">006</span><a name="line.6"></a>
-<span class="sourceLineNo">007</span>import java.io.IOException;<a name="line.7"></a>
-<span class="sourceLineNo">008</span>import java.io.InputStream;<a name="line.8"></a>
-<span class="sourceLineNo">009</span><a name="line.9"></a>
-<span class="sourceLineNo">010</span>/**<a name="line.10"></a>
-<span class="sourceLineNo">011</span> * LZMA2 compression options.<a name="line.11"></a>
-<span class="sourceLineNo">012</span> * &lt;p/&gt;<a name="line.12"></a>
-<span class="sourceLineNo">013</span> * While this allows setting the LZMA2 compression options in detail,<a name="line.13"></a>
-<span class="sourceLineNo">014</span> * often you only need &lt;code&gt;LZMA2Options()&lt;/code&gt; or<a name="line.14"></a>
-<span class="sourceLineNo">015</span> * &lt;code&gt;LZMA2Options(int)&lt;/code&gt;.<a name="line.15"></a>
-<span class="sourceLineNo">016</span> */<a name="line.16"></a>
-<span class="sourceLineNo">017</span>public class LZMA2Options extends FilterOptions {<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    /**<a name="line.18"></a>
-<span class="sourceLineNo">019</span>     * Minimum valid compression preset level is 0.<a name="line.19"></a>
-<span class="sourceLineNo">020</span>     */<a name="line.20"></a>
-<span class="sourceLineNo">021</span>    public static final int PRESET_MIN = 0;<a name="line.21"></a>
-<span class="sourceLineNo">022</span><a name="line.22"></a>
-<span class="sourceLineNo">023</span>    /**<a name="line.23"></a>
-<span class="sourceLineNo">024</span>     * Maximum valid compression preset level is 9.<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     */<a name="line.25"></a>
-<span class="sourceLineNo">026</span>    public static final int PRESET_MAX = 9;<a name="line.26"></a>
-<span class="sourceLineNo">027</span><a name="line.27"></a>
-<span class="sourceLineNo">028</span>    /**<a name="line.28"></a>
-<span class="sourceLineNo">029</span>     * Default compression preset level is 6.<a name="line.29"></a>
-<span class="sourceLineNo">030</span>     */<a name="line.30"></a>
-<span class="sourceLineNo">031</span>    public static final int PRESET_DEFAULT = 6;<a name="line.31"></a>
-<span class="sourceLineNo">032</span><a name="line.32"></a>
-<span class="sourceLineNo">033</span>    /**<a name="line.33"></a>
-<span class="sourceLineNo">034</span>     * Minimum dictionary size is 4 KiB.<a name="line.34"></a>
-<span class="sourceLineNo">035</span>     */<a name="line.35"></a>
-<span class="sourceLineNo">036</span>    public static final int DICT_SIZE_MIN = 4096;<a name="line.36"></a>
-<span class="sourceLineNo">037</span><a name="line.37"></a>
-<span class="sourceLineNo">038</span>    /**<a name="line.38"></a>
-<span class="sourceLineNo">039</span>     * Maximum dictionary size for compression is 768 MiB.<a name="line.39"></a>
-<span class="sourceLineNo">040</span>     * &lt;p/&gt;<a name="line.40"></a>
-<span class="sourceLineNo">041</span>     * The decompressor supports bigger dictionaries, up to almost 2 GiB.<a name="line.41"></a>
-<span class="sourceLineNo">042</span>     * With HC4 the encoder would support dictionaries bigger than 768 MiB.<a name="line.42"></a>
-<span class="sourceLineNo">043</span>     * The 768 MiB limit comes from the current implementation of BT4 where<a name="line.43"></a>
-<span class="sourceLineNo">044</span>     * we would otherwise hit the limits of signed ints in array indexing.<a name="line.44"></a>
-<span class="sourceLineNo">045</span>     * &lt;p/&gt;<a name="line.45"></a>
-<span class="sourceLineNo">046</span>     * If you really need bigger dictionary for decompression,<a name="line.46"></a>
-<span class="sourceLineNo">047</span>     * use {@link LZMA2InputStream} directly.<a name="line.47"></a>
-<span class="sourceLineNo">048</span>     */<a name="line.48"></a>
-<span class="sourceLineNo">049</span>    public static final int DICT_SIZE_MAX = 768 &lt;&lt; 20;<a name="line.49"></a>
-<span class="sourceLineNo">050</span><a name="line.50"></a>
-<span class="sourceLineNo">051</span>    /**<a name="line.51"></a>
-<span class="sourceLineNo">052</span>     * The default dictionary size is 8 MiB.<a name="line.52"></a>
-<span class="sourceLineNo">053</span>     */<a name="line.53"></a>
-<span class="sourceLineNo">054</span>    public static final int DICT_SIZE_DEFAULT = 8 &lt;&lt; 20;<a name="line.54"></a>
-<span class="sourceLineNo">055</span><a name="line.55"></a>
-<span class="sourceLineNo">056</span>    /**<a name="line.56"></a>
-<span class="sourceLineNo">057</span>     * Maximum value for lc + lp is 4.<a name="line.57"></a>
-<span class="sourceLineNo">058</span>     */<a name="line.58"></a>
-<span class="sourceLineNo">059</span>    public static final int LC_LP_MAX = 4;<a name="line.59"></a>
-<span class="sourceLineNo">060</span><a name="line.60"></a>
-<span class="sourceLineNo">061</span>    /**<a name="line.61"></a>
-<span class="sourceLineNo">062</span>     * The default number of literal context bits is 3.<a name="line.62"></a>
-<span class="sourceLineNo">063</span>     */<a name="line.63"></a>
-<span class="sourceLineNo">064</span>    public static final int LC_DEFAULT = 3;<a name="line.64"></a>
-<span class="sourceLineNo">065</span><a name="line.65"></a>
-<span class="sourceLineNo">066</span>    /**<a name="line.66"></a>
-<span class="sourceLineNo">067</span>     * The default number of literal position bits is 0.<a name="line.67"></a>
-<span class="sourceLineNo">068</span>     */<a name="line.68"></a>
-<span class="sourceLineNo">069</span>    public static final int LP_DEFAULT = 0;<a name="line.69"></a>
-<span class="sourceLineNo">070</span><a name="line.70"></a>
-<span class="sourceLineNo">071</span>    /**<a name="line.71"></a>
-<span class="sourceLineNo">072</span>     * Maximum value for pb is 4.<a name="line.72"></a>
-<span class="sourceLineNo">073</span>     */<a name="line.73"></a>
-<span class="sourceLineNo">074</span>    public static final int PB_MAX = 4;<a name="line.74"></a>
-<span class="sourceLineNo">075</span><a name="line.75"></a>
-<span class="sourceLineNo">076</span>    /**<a name="line.76"></a>
-<span class="sourceLineNo">077</span>     * The default number of position bits is 2.<a name="line.77"></a>
-<span class="sourceLineNo">078</span>     */<a name="line.78"></a>
-<span class="sourceLineNo">079</span>    public static final int PB_DEFAULT = 2;<a name="line.79"></a>
-<span class="sourceLineNo">080</span><a name="line.80"></a>
-<span class="sourceLineNo">081</span>    /**<a name="line.81"></a>
-<span class="sourceLineNo">082</span>     * Compression mode: uncompressed.<a name="line.82"></a>
-<span class="sourceLineNo">083</span>     * The data is wrapped into a LZMA2 stream without compression.<a name="line.83"></a>
-<span class="sourceLineNo">084</span>     */<a name="line.84"></a>
-<span class="sourceLineNo">085</span>    public static final int MODE_UNCOMPRESSED = 0;<a name="line.85"></a>
-<span class="sourceLineNo">086</span><a name="line.86"></a>
-<span class="sourceLineNo">087</span>    /**<a name="line.87"></a>
-<span class="sourceLineNo">088</span>     * Compression mode: fast.<a name="line.88"></a>
-<span class="sourceLineNo">089</span>     * This is usually combined with a hash chain match finder.<a name="line.89"></a>
-<span class="sourceLineNo">090</span>     */<a name="line.90"></a>
-<span class="sourceLineNo">091</span>    public static final int MODE_FAST = LZMAEncoder.MODE_FAST;<a name="line.91"></a>
-<span class="sourceLineNo">092</span><a name="line.92"></a>
-<span class="sourceLineNo">093</span>    /**<a name="line.93"></a>
-<span class="sourceLineNo">094</span>     * Compression mode: normal.<a name="line.94"></a>
-<span class="sourceLineNo">095</span>     * This is usually combined with a binary tree match finder.<a name="line.95"></a>
-<span class="sourceLineNo">096</span>     */<a name="line.96"></a>
-<span class="sourceLineNo">097</span>    public static final int MODE_NORMAL = LZMAEncoder.MODE_NORMAL;<a name="line.97"></a>
-<span class="sourceLineNo">098</span><a name="line.98"></a>
-<span class="sourceLineNo">099</span>    /**<a name="line.99"></a>
-<span class="sourceLineNo">100</span>     * Minimum value for &lt;code&gt;niceLen&lt;/code&gt; is 8.<a name="line.100"></a>
-<span class="sourceLineNo">101</span>     */<a name="line.101"></a>
-<span class="sourceLineNo">102</span>    public static final int NICE_LEN_MIN = 8;<a name="line.102"></a>
-<span class="sourceLineNo">103</span><a name="line.103"></a>
-<span class="sourceLineNo">104</span>    /**<a name="line.104"></a>
-<span class="sourceLineNo">105</span>     * Maximum value for &lt;code&gt;niceLen&lt;/code&gt; is 273.<a name="line.105"></a>
-<span class="sourceLineNo">106</span>     */<a name="line.106"></a>
-<span class="sourceLineNo">107</span>    public static final int NICE_LEN_MAX = 273;<a name="line.107"></a>
-<span class="sourceLineNo">108</span><a name="line.108"></a>
-<span class="sourceLineNo">109</span>    /**<a name="line.109"></a>
-<span class="sourceLineNo">110</span>     * Match finder: Hash Chain 2-3-4<a name="line.110"></a>
-<span class="sourceLineNo">111</span>     */<a name="line.111"></a>
-<span class="sourceLineNo">112</span>    public static final int MF_HC4 = LZEncoder.MF_HC4;<a name="line.112"></a>
-<span class="sourceLineNo">113</span><a name="line.113"></a>
-<span class="sourceLineNo">114</span>    /**<a name="line.114"></a>
-<span class="sourceLineNo">115</span>     * Match finder: Binary tree 2-3-4<a name="line.115"></a>
-<span class="sourceLineNo">116</span>     */<a name="line.116"></a>
-<span class="sourceLineNo">117</span>    public static final int MF_BT4 = LZEncoder.MF_BT4;<a name="line.117"></a>
-<span class="sourceLineNo">118</span><a name="line.118"></a>
-<span class="sourceLineNo">119</span>    private static final int[] presetToDictSize = {<a name="line.119"></a>
-<span class="sourceLineNo">120</span>            1 &lt;&lt; 18, 1 &lt;&lt; 20, 1 &lt;&lt; 21, 1 &lt;&lt; 22, 1 &lt;&lt; 22,<a name="line.120"></a>
-<span class="sourceLineNo">121</span>            1 &lt;&lt; 23, 1 &lt;&lt; 23, 1 &lt;&lt; 24, 1 &lt;&lt; 25, 1 &lt;&lt; 26};<a name="line.121"></a>
-<span class="sourceLineNo">122</span><a name="line.122"></a>
-<span class="sourceLineNo">123</span>    private static final int[] presetToDepthLimit = {4, 8, 24, 48};<a name="line.123"></a>
-<span class="sourceLineNo">124</span><a name="line.124"></a>
-<span class="sourceLineNo">125</span>    private int dictSize;<a name="line.125"></a>
-<span class="sourceLineNo">126</span>    private byte[] presetDict = null;<a name="line.126"></a>
-<span class="sourceLineNo">127</span>    private int lc;<a name="line.127"></a>
-<span class="sourceLineNo">128</span>    private int lp;<a name="line.128"></a>
-<span class="sourceLineNo">129</span>    private int pb;<a name="line.129"></a>
-<span class="sourceLineNo">130</span>    private int mode;<a name="line.130"></a>
-<span class="sourceLineNo">131</span>    private int niceLen;<a name="line.131"></a>
-<span class="sourceLineNo">132</span>    private int mf;<a name="line.132"></a>
-<span class="sourceLineNo">133</span>    private int depthLimit;<a name="line.133"></a>
-<span class="sourceLineNo">134</span><a name="line.134"></a>
-<span class="sourceLineNo">135</span>    /**<a name="line.135"></a>
-<span class="sourceLineNo">136</span>     * Creates new LZMA2 options and sets them to the default values.<a name="line.136"></a>
-<span class="sourceLineNo">137</span>     * This is equivalent to &lt;code&gt;LZMA2Options(PRESET_DEFAULT)&lt;/code&gt;.<a name="line.137"></a>
-<span class="sourceLineNo">138</span>     */<a name="line.138"></a>
-<span class="sourceLineNo">139</span>    public LZMA2Options() {<a name="line.139"></a>
-<span class="sourceLineNo">140</span>        try {<a name="line.140"></a>
-<span class="sourceLineNo">141</span>            setPreset(PRESET_DEFAULT);<a name="line.141"></a>
-<span class="sourceLineNo">142</span>        } catch (UnsupportedOptionsException e) {<a name="line.142"></a>
-<span class="sourceLineNo">143</span>            assert false;<a name="line.143"></a>
-<span class="sourceLineNo">144</span>            throw new RuntimeException();<a name="line.144"></a>
-<span class="sourceLineNo">145</span>        }<a name="line.145"></a>
-<span class="sourceLineNo">146</span>    }<a name="line.146"></a>
-<span class="sourceLineNo">147</span><a name="line.147"></a>
-<span class="sourceLineNo">148</span>    /**<a name="line.148"></a>
-<span class="sourceLineNo">149</span>     * Creates new LZMA2 options and sets them to the given preset.<a name="line.149"></a>
-<span class="sourceLineNo">150</span>     *<a name="line.150"></a>
-<span class="sourceLineNo">151</span>     * @throws UnsupportedOptionsException &lt;code&gt;preset&lt;/code&gt; is not supported<a name="line.151"></a>
-<span class="sourceLineNo">152</span>     */<a name="line.152"></a>
-<span class="sourceLineNo">153</span>    public LZMA2Options(int preset) throws UnsupportedOptionsException {<a name="line.153"></a>
-<span class="sourceLineNo">154</span>        setPreset(preset);<a name="line.154"></a>
-<span class="sourceLineNo">155</span>    }<a name="line.155"></a>
-<span class="sourceLineNo">156</span><a name="line.156"></a>
-<span class="sourceLineNo">157</span>    /**<a name="line.157"></a>
-<span class="sourceLineNo">158</span>     * Creates new LZMA2 options and sets them to the given custom values.<a name="line.158"></a>
-<span class="sourceLineNo">159</span>     *<a name="line.159"></a>
-<span class="sourceLineNo">160</span>     * @throws UnsupportedOptionsException unsupported options were specified<a name="line.160"></a>
-<span class="sourceLineNo">161</span>     */<a name="line.161"></a>
-<span class="sourceLineNo">162</span>    public LZMA2Options(int dictSize, int lc, int lp, int pb, int mode,<a name="line.162"></a>
-<span class="sourceLineNo">163</span>                        int niceLen, int mf, int depthLimit)<a name="line.163"></a>
-<span class="sourceLineNo">164</span>            throws UnsupportedOptionsException {<a name="line.164"></a>
-<span class="sourceLineNo">165</span>        setDictSize(dictSize);<a name="line.165"></a>
-<span class="sourceLineNo">166</span>        setLcLp(lc, lp);<a name="line.166"></a>
-<span class="sourceLineNo">167</span>        setPb(pb);<a name="line.167"></a>
-<span class="sourceLineNo">168</span>        setMode(mode);<a name="line.168"></a>
-<span class="sourceLineNo">169</span>        setNiceLen(niceLen);<a name="line.169"></a>
-<span class="sourceLineNo">170</span>        setMatchFinder(mf);<a name="line.170"></a>
-<span class="sourceLineNo">171</span>        setDepthLimit(depthLimit);<a name="line.171"></a>
-<span class="sourceLineNo">172</span>    }<a name="line.172"></a>
-<span class="sourceLineNo">173</span><a name="line.173"></a>
-<span class="sourceLineNo">174</span>    /**<a name="line.174"></a>
-<span class="sourceLineNo">175</span>     * Sets the compression options to the given preset.<a name="line.175"></a>
-<span class="sourceLineNo">176</span>     * &lt;p/&gt;<a name="line.176"></a>
-<span class="sourceLineNo">177</span>     * The presets 0-3 are fast presets with medium compression.<a name="line.177"></a>
-<span class="sourceLineNo">178</span>     * The presets 4-6 are fairly slow presets with high compression.<a name="line.178"></a>
-<span class="sourceLineNo">179</span>     * The default preset (&lt;code&gt;PRESET_DEFAULT&lt;/code&gt;) is 6.<a name="line.179"></a>
-<span class="sourceLineNo">180</span>     * &lt;p/&gt;<a name="line.180"></a>
-<span class="sourceLineNo">181</span>     * The presets 7-9 are like the preset 6 but use bigger dictionaries<a name="line.181"></a>
-<span class="sourceLineNo">182</span>     * and have higher compressor and decompressor memory requirements.<a name="line.182"></a>
-<span class="sourceLineNo">183</span>     * Unless the uncompressed size of the file exceeds 8&amp;nbsp;MiB,<a name="line.183"></a>
-<span class="sourceLineNo">184</span>     * 16&amp;nbsp;MiB, or 32&amp;nbsp;MiB, it is waste of memory to use the<a name="line.184"></a>
-<span class="sourceLineNo">185</span>     * presets 7, 8, or 9, respectively.<a name="line.185"></a>
-<span class="sourceLineNo">186</span>     *<a name="line.186"></a>
-<span class="sourceLineNo">187</span>     * @throws UnsupportedOptionsException &lt;code&gt;preset&lt;/code&gt; is not supported<a name="line.187"></a>
-<span class="sourceLineNo">188</span>     */<a name="line.188"></a>
-<span class="sourceLineNo">189</span>    public void setPreset(int preset) throws UnsupportedOptionsException {<a name="line.189"></a>
-<span class="sourceLineNo">190</span>        if (preset &lt; 0 || preset &gt; 9) {<a name="line.190"></a>
-<span class="sourceLineNo">191</span>            throw new UnsupportedOptionsException(<a name="line.191"></a>
-<span class="sourceLineNo">192</span>                    "Unsupported preset: " + preset);<a name="line.192"></a>
-<span class="sourceLineNo">193</span>        }<a name="line.193"></a>
-<span class="sourceLineNo">194</span><a name="line.194"></a>
-<span class="sourceLineNo">195</span>        lc = LC_DEFAULT;<a name="line.195"></a>
-<span class="sourceLineNo">196</span>        lp = LP_DEFAULT;<a name="line.196"></a>
-<span class="sourceLineNo">197</span>        pb = PB_DEFAULT;<a name="line.197"></a>
-<span class="sourceLineNo">198</span>        dictSize = presetToDictSize[preset];<a name="line.198"></a>
-<span class="sourceLineNo">199</span><a name="line.199"></a>
-<span class="sourceLineNo">200</span>        if (preset &lt;= 3) {<a name="line.200"></a>
-<span class="sourceLineNo">201</span>            mode = MODE_FAST;<a name="line.201"></a>
-<span class="sourceLineNo">202</span>            mf = MF_HC4;<a name="line.202"></a>
-<span class="sourceLineNo">203</span>            niceLen = preset &lt;= 1 ? 128 : NICE_LEN_MAX;<a name="line.203"></a>
-<span class="sourceLineNo">204</span>            depthLimit = presetToDepthLimit[preset];<a name="line.204"></a>
-<span class="sourceLineNo">205</span>        } else {<a name="line.205"></a>
-<span class="sourceLineNo">206</span>            mode = MODE_NORMAL;<a name="line.206"></a>
-<span class="sourceLineNo">207</span>            mf = MF_BT4;<a name="line.207"></a>
-<span class="sourceLineNo">208</span>            niceLen = (preset == 4) ? 16 : (preset == 5) ? 32 : 64;<a name="line.208"></a>
-<span class="sourceLineNo">209</span>            depthLimit = 0;<a name="line.209"></a>
-<span class="sourceLineNo">210</span>        }<a name="line.210"></a>
-<span class="sourceLineNo">211</span>    }<a name="line.211"></a>
-<span class="sourceLineNo">212</span><a name="line.212"></a>
-<span class="sourceLineNo">213</span>    /**<a name="line.213"></a>
-<span class="sourceLineNo">214</span>     * Sets the dictionary size in bytes.<a name="line.214"></a>
-<span class="sourceLineNo">215</span>     * &lt;p/&gt;<a name="line.215"></a>
-<span class="sourceLineNo">216</span>     * The dictionary (or history buffer) holds the most recently seen<a name="line.216"></a>
-<span class="sourceLineNo">217</span>     * uncompressed data. Bigger dictionary usually means better compression.<a name="line.217"></a>
-<span class="sourceLineNo">218</span>     * However, using a dictioanary bigger than the size of the uncompressed<a name="line.218"></a>
-<span class="sourceLineNo">219</span>     * data is waste of memory.<a name="line.219"></a>
-<span class="sourceLineNo">220</span>     * &lt;p/&gt;<a name="line.220"></a>
-<span class="sourceLineNo">221</span>     * Any value in the range [DICT_SIZE_MIN, DICT_SIZE_MAX] is valid,<a name="line.221"></a>
-<span class="sourceLineNo">222</span>     * but sizes of 2^n and 2^n&amp;nbsp;+&amp;nbsp;2^(n-1) bytes are somewhat<a name="line.222"></a>
-<span class="sourceLineNo">223</span>     * recommended.<a name="line.223"></a>
-<span class="sourceLineNo">224</span>     *<a name="line.224"></a>
-<span class="sourceLineNo">225</span>     * @throws UnsupportedOptionsException &lt;code&gt;dictSize&lt;/code&gt; is not supported<a name="line.225"></a>
-<span class="sourceLineNo">226</span>     */<a name="line.226"></a>
-<span class="sourceLineNo">227</span>    public void setDictSize(int dictSize) throws UnsupportedOptionsException {<a name="line.227"></a>
-<span class="sourceLineNo">228</span>        if (dictSize &lt; DICT_SIZE_MIN) {<a name="line.228"></a>
-<span class="sourceLineNo">229</span>            throw new UnsupportedOptionsException(<a name="line.229"></a>
-<span class="sourceLineNo">230</span>                    "LZMA2 dictionary size must be at least 4 KiB: "<a name="line.230"></a>
-<span class="sourceLineNo">231</span>                            + dictSize + " B");<a name="line.231"></a>
-<span class="sourceLineNo">232</span>        }<a name="line.232"></a>
-<span class="sourceLineNo">233</span><a name="line.233"></a>
-<span class="sourceLineNo">234</span>        if (dictSize &gt; DICT_SIZE_MAX) {<a name="line.234"></a>
-<span class="sourceLineNo">235</span>            throw new UnsupportedOptionsException(<a name="line.235"></a>
-<span class="sourceLineNo">236</span>                    "LZMA2 dictionary size must not exceed "<a name="line.236"></a>
-<span class="sourceLineNo">237</span>                            + (DICT_SIZE_MAX &gt;&gt; 20) + " MiB: " + dictSize + " B");<a name="line.237"></a>
-<span class="sourceLineNo">238</span>        }<a name="line.238"></a>
-<span class="sourceLineNo">239</span><a name="line.239"></a>
-<span class="sourceLineNo">240</span>        this.dictSize = dictSize;<a name="line.240"></a>
-<span class="sourceLineNo">241</span>    }<a name="line.241"></a>
-<span class="sourceLineNo">242</span><a name="line.242"></a>
-<span class="sourceLineNo">243</span>    /**<a name="line.243"></a>
-<span class="sourceLineNo">244</span>     * Gets the dictionary size in bytes.<a name="line.244"></a>
-<span class="sourceLineNo">245</span>     */<a name="line.245"></a>
-<span class="sourceLineNo">246</span>    public int getDictSize() {<a name="line.246"></a>
-<span class="sourceLineNo">247</span>        return dictSize;<a name="line.247"></a>
-<span class="sourceLineNo">248</span>    }<a name="line.248"></a>
-<span class="sourceLineNo">249</span><a name="line.249"></a>
-<span class="sourceLineNo">250</span>    /**<a name="line.250"></a>
-<span class="sourceLineNo">251</span>     * Sets a preset dictionary. Use null to disable the use of<a name="line.251"></a>
-<span class="sourceLineNo">252</span>     * a preset dictionary. By default there is no preset dictionary.<a name="line.252"></a>
-<span class="sourceLineNo">253</span>     * &lt;p/&gt;<a name="line.253"></a>
-<span class="sourceLineNo">254</span>     * &lt;b&gt;The .xz format doesn't support a preset dictionary for now.<a name="line.254"></a>
-<span class="sourceLineNo">255</span>     * Do not set a preset dictionary unless you use raw LZMA2.&lt;/b&gt;<a name="line.255"></a>
-<span class="sourceLineNo">256</span>     * &lt;p/&gt;<a name="line.256"></a>
-<span class="sourceLineNo">257</span>     * Preset dictionary can be useful when compressing many similar,<a name="line.257"></a>
-<span class="sourceLineNo">258</span>     * relatively small chunks of data independently from each other.<a name="line.258"></a>
-<span class="sourceLineNo">259</span>     * A preset dictionary should contain typical strings that occur in<a name="line.259"></a>
-<span class="sourceLineNo">260</span>     * the files being compressed. The most probable strings should be<a name="line.260"></a>
-<span class="sourceLineNo">261</span>     * near the end of the preset dictionary. The preset dictionary used<a name="line.261"></a>
-<span class="sourceLineNo">262</span>     * for compression is also needed for decompression.<a name="line.262"></a>
-<span class="sourceLineNo">263</span>     */<a name="line.263"></a>
-<span class="sourceLineNo">264</span>    public void setPresetDict(byte[] presetDict) {<a name="line.264"></a>
-<span class="sourceLineNo">265</span>        this.presetDict = presetDict;<a name="line.265"></a>
-<span class="sourceLineNo">266</span>    }<a name="line.266"></a>
-<span class="sourceLineNo">267</span><a name="line.267"></a>
-<span class="sourceLineNo">268</span>    /**<a name="line.268"></a>
-<span class="sourceLineNo">269</span>     * Gets the preset dictionary.<a name="line.269"></a>
-<span class="sourceLineNo">270</span>     */<a name="line.270"></a>
-<span class="sourceLineNo">271</span>    public byte[] getPresetDict() {<a name="line.271"></a>
-<span class="sourceLineNo">272</span>        return presetDict;<a name="line.272"></a>
-<span class="sourceLineNo">273</span>    }<a name="line.273"></a>
-<span class="sourceLineNo">274</span><a name="line.274"></a>
-<span class="sourceLineNo">275</span>    /**<a name="line.275"></a>
-<span class="sourceLineNo">276</span>     * Sets the number of literal context bits and literal position bits.<a name="line.276"></a>
-<span class="sourceLineNo">277</span>     * &lt;p/&gt;<a name="line.277"></a>
-<span class="sourceLineNo">278</span>     * The sum of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt; is limited to 4.<a name="line.278"></a>
-<span class="sourceLineNo">279</span>     * Trying to exceed it will throw an exception. This function lets<a name="line.279"></a>
-<span class="sourceLineNo">280</span>     * you change both at the same time.<a name="line.280"></a>
-<span class="sourceLineNo">281</span>     *<a name="line.281"></a>
-<span class="sourceLineNo">282</span>     * @throws UnsupportedOptionsException &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.282"></a>
-<span class="sourceLineNo">283</span>     *                                     are invalid<a name="line.283"></a>
-<span class="sourceLineNo">284</span>     */<a name="line.284"></a>
-<span class="sourceLineNo">285</span>    public void setLcLp(int lc, int lp) throws UnsupportedOptionsException {<a name="line.285"></a>
-<span class="sourceLineNo">286</span>        if (lc &lt; 0 || lp &lt; 0 || lc &gt; LC_LP_MAX || lp &gt; LC_LP_MAX<a name="line.286"></a>
-<span class="sourceLineNo">287</span>                || lc + lp &gt; LC_LP_MAX) {<a name="line.287"></a>
-<span class="sourceLineNo">288</span>            throw new UnsupportedOptionsException(<a name="line.288"></a>
-<span class="sourceLineNo">289</span>                    "lc + lp must not exceed " + LC_LP_MAX + ": "<a name="line.289"></a>
-<span class="sourceLineNo">290</span>                            + lc + " + " + lp);<a name="line.290"></a>
-<span class="sourceLineNo">291</span>        }<a name="line.291"></a>
-<span class="sourceLineNo">292</span><a name="line.292"></a>
-<span class="sourceLineNo">293</span>        this.lc = lc;<a name="line.293"></a>
-<span class="sourceLineNo">294</span>        this.lp = lp;<a name="line.294"></a>
-<span class="sourceLineNo">295</span>    }<a name="line.295"></a>
-<span class="sourceLineNo">296</span><a name="line.296"></a>
-<span class="sourceLineNo">297</span>    /**<a name="line.297"></a>
-<span class="sourceLineNo">298</span>     * Sets the number of literal context bits.<a name="line.298"></a>
-<span class="sourceLineNo">299</span>     * &lt;p/&gt;<a name="line.299"></a>
-<span class="sourceLineNo">300</span>     * All bytes that cannot be encoded as matches are encoded as literals.<a name="line.300"></a>
-<span class="sourceLineNo">301</span>     * That is, literals are simply 8-bit bytes that are encoded one at<a name="line.301"></a>
-<span class="sourceLineNo">302</span>     * a time.<a name="line.302"></a>
-<span class="sourceLineNo">303</span>     * &lt;p/&gt;<a name="line.303"></a>
-<span class="sourceLineNo">304</span>     * The literal coding makes an assumption that the highest &lt;code&gt;lc&lt;/code&gt;<a name="line.304"></a>
-<span class="sourceLineNo">305</span>     * bits of the previous uncompressed byte correlate with the next byte.<a name="line.305"></a>
-<span class="sourceLineNo">306</span>     * For example, in typical English text, an upper-case letter is often<a name="line.306"></a>
-<span class="sourceLineNo">307</span>     * followed by a lower-case letter, and a lower-case letter is usually<a name="line.307"></a>
-<span class="sourceLineNo">308</span>     * followed by another lower-case letter. In the US-ASCII character set,<a name="line.308"></a>
-<span class="sourceLineNo">309</span>     * the highest three bits are 010 for upper-case letters and 011 for<a name="line.309"></a>
-<span class="sourceLineNo">310</span>     * lower-case letters. When &lt;code&gt;lc&lt;/code&gt; is at least 3, the literal<a name="line.310"></a>
-<span class="sourceLineNo">311</span>     * coding can take advantage of this property in the  uncompressed data.<a name="line.311"></a>
-<span class="sourceLineNo">312</span>     * &lt;p/&gt;<a name="line.312"></a>
-<span class="sourceLineNo">313</span>     * The default value (3) is usually good. If you want maximum compression,<a name="line.313"></a>
-<span class="sourceLineNo">314</span>     * try &lt;code&gt;setLc(4)&lt;/code&gt;. Sometimes it helps a little, and sometimes it<a name="line.314"></a>
-<span class="sourceLineNo">315</span>     * makes compression worse. If it makes it worse, test for example<a name="line.315"></a>
-<span class="sourceLineNo">316</span>     * &lt;code&gt;setLc(2)&lt;/code&gt; too.<a name="line.316"></a>
-<span class="sourceLineNo">317</span>     *<a name="line.317"></a>
-<span class="sourceLineNo">318</span>     * @throws UnsupportedOptionsException &lt;code&gt;lc&lt;/code&gt; is invalid, or the sum<a name="line.318"></a>
-<span class="sourceLineNo">319</span>     *                                     of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.319"></a>
-<span class="sourceLineNo">320</span>     *                                     exceed LC_LP_MAX<a name="line.320"></a>
-<span class="sourceLineNo">321</span>     */<a name="line.321"></a>
-<span class="sourceLineNo">322</span>    public void setLc(int lc) throws UnsupportedOptionsException {<a name="line.322"></a>
-<span class="sourceLineNo">323</span>        setLcLp(lc, lp);<a name="line.323"></a>
-<span class="sourceLineNo">324</span>    }<a name="line.324"></a>
-<span class="sourceLineNo">325</span><a name="line.325"></a>
-<span class="sourceLineNo">326</span>    /**<a name="line.326"></a>
-<span class="sourceLineNo">327</span>     * Sets the number of literal position bits.<a name="line.327"></a>
-<span class="sourceLineNo">328</span>     * &lt;p/&gt;<a name="line.328"></a>
-<span class="sourceLineNo">329</span>     * This affets what kind of alignment in the uncompressed data is<a name="line.329"></a>
-<span class="sourceLineNo">330</span>     * assumed when encoding literals. See {@link #setPb(int) setPb} for<a name="line.330"></a>
-<span class="sourceLineNo">331</span>     * more information about alignment.<a name="line.331"></a>
-<span class="sourceLineNo">332</span>     *<a name="line.332"></a>
-<span class="sourceLineNo">333</span>     * @throws UnsupportedOptionsException &lt;code&gt;lp&lt;/code&gt; is invalid, or the sum<a name="line.333"></a>
-<span class="sourceLineNo">334</span>     *                                     of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.334"></a>
-<span class="sourceLineNo">335</span>     *                                     exceed LC_LP_MAX<a name="line.335"></a>
-<span class="sourceLineNo">336</span>     */<a name="line.336"></a>
-<span class="sourceLineNo">337</span>    public void setLp(int lp) throws UnsupportedOptionsException {<a name="line.337"></a>
-<span class="sourceLineNo">338</span>        setLcLp(lc, lp);<a name="line.338"></a>
-<span class="sourceLineNo">339</span>    }<a name="line.339"></a>
-<span class="sourceLineNo">340</span><a name="line.340"></a>
-<span class="sourceLineNo">341</span>    /**<a name="line.341"></a>
-<span class="sourceLineNo">342</span>     * Gets the number of literal context bits.<a name="line.342"></a>
-<span class="sourceLineNo">343</span>     */<a name="line.343"></a>
-<span class="sourceLineNo">344</span>    public int getLc() {<a name="line.344"></a>
-<span class="sourceLineNo">345</span>        return lc;<a name="line.345"></a>
-<span class="sourceLineNo">346</span>    }<a name="line.346"></a>
-<span class="sourceLineNo">347</span><a name="line.347"></a>
-<span class="sourceLineNo">348</span>    /**<a name="line.348"></a>
-<span class="sourceLineNo">349</span>     * Gets the number of literal position bits.<a name="line.349"></a>
-<span class="sourceLineNo">350</span>     */<a name="line.350"></a>
-<span class="sourceLineNo">351</span>    public int getLp() {<a name="line.351"></a>
-<span class="sourceLineNo">352</span>        return lp;<a name="line.352"></a>
-<span class="sourceLineNo">353</span>    }<a name="line.353"></a>
-<span class="sourceLineNo">354</span><a name="line.354"></a>
-<span class="sourceLineNo">355</span>    /**<a name="line.355"></a>
-<span class="sourceLineNo">356</span>     * Sets the number of position bits.<a name="line.356"></a>
-<span class="sourceLineNo">357</span>     * &lt;p/&gt;<a name="line.357"></a>
-<span class="sourceLineNo">358</span>     * This affects what kind of alignment in the uncompressed data is<a name="line.358"></a>
-<span class="sourceLineNo">359</span>     * assumed in general. The default (2) means four-byte alignment<a name="line.359"></a>
-<span class="sourceLineNo">360</span>     * (2^&lt;code&gt;pb&lt;/code&gt; = 2^2 = 4), which is often a good choice when<a name="line.360"></a>
-<span class="sourceLineNo">361</span>     * there's no better guess.<a name="line.361"></a>
-<span class="sourceLineNo">362</span>     * &lt;p/&gt;<a name="line.362"></a>
-<span class="sourceLineNo">363</span>     * When the alignment is known, setting the number of position bits<a name="line.363"></a>
-<span class="sourceLineNo">364</span>     * accordingly may reduce the file size a little. For example with text<a name="line.364"></a>
-<span class="sourceLineNo">365</span>     * files having one-byte alignment (US-ASCII, ISO-8859-*, UTF-8), using<a name="line.365"></a>
-<span class="sourceLineNo">366</span>     * &lt;code&gt;setPb(0)&lt;/code&gt; can improve compression slightly. For UTF-16<a name="line.366"></a>
-<span class="sourceLineNo">367</span>     * text, &lt;code&gt;setPb(1)&lt;/code&gt; is a good choice. If the alignment is<a name="line.367"></a>
-<span class="sourceLineNo">368</span>     * an odd number like 3 bytes, &lt;code&gt;setPb(0)&lt;/code&gt; might be the best<a name="line.368"></a>
-<span class="sourceLineNo">369</span>     * choice.<a name="line.369"></a>
-<span class="sourceLineNo">370</span>     * &lt;p/&gt;<a name="line.370"></a>
-<span class="sourceLineNo">371</span>     * Even though the assumed alignment can be adjusted with<a name="line.371"></a>
-<span class="sourceLineNo">372</span>     * &lt;code&gt;setPb&lt;/code&gt; and &lt;code&gt;setLp&lt;/code&gt;, LZMA2 still slightly favors<a name="line.372"></a>
-<span class="sourceLineNo">373</span>     * 16-byte alignment. It might be worth taking into account when designing<a name="line.373"></a>
-<span class="sourceLineNo">374</span>     * file formats that are likely to be often compressed with LZMA2.<a name="line.374"></a>
-<span class="sourceLineNo">375</span>     *<a name="line.375"></a>
-<span class="sourceLineNo">376</span>     * @throws UnsupportedOptionsException &lt;code&gt;pb&lt;/code&gt; is invalid<a name="line.376"></a>
-<span class="sourceLineNo">377</span>     */<a name="line.377"></a>
-<span class="sourceLineNo">378</span>    public void setPb(int pb) throws UnsupportedOptionsException {<a name="line.378"></a>
-<span class="sourceLineNo">379</span>        if (pb &lt; 0 || pb &gt; PB_MAX) {<a name="line.379"></a>
-<span class="sourceLineNo">380</span>            throw new UnsupportedOptionsException(<a name="line.380"></a>
-<span class="sourceLineNo">381</span>                    "pb must not exceed " + PB_MAX + ": " + pb);<a name="line.381"></a>
-<span class="sourceLineNo">382</span>        }<a name="line.382"></a>
-<span class="sourceLineNo">383</span><a name="line.383"></a>
-<span class="sourceLineNo">384</span>        this.pb = pb;<a name="line.384"></a>
-<span class="sourceLineNo">385</span>    }<a name="line.385"></a>
-<span class="sourceLineNo">386</span><a name="line.386"></a>
-<span class="sourceLineNo">387</span>    /**<a name="line.387"></a>
-<span class="sourceLineNo">388</span>     * Gets the number of position bits.<a name="line.388"></a>
-<span class="sourceLineNo">389</span>     */<a name="line.389"></a>
-<span class="sourceLineNo">390</span>    public int getPb() {<a name="line.390"></a>
-<span class="sourceLineNo">391</span>        return pb;<a name="line.391"></a>
-<span class="sourceLineNo">392</span>    }<a name="line.392"></a>
-<span class="sourceLineNo">393</span><a name="line.393"></a>
-<span class="sourceLineNo">394</span>    /**<a name="line.394"></a>
-<span class="sourceLineNo">395</span>     * Sets the compression mode.<a name="line.395"></a>
-<span class="sourceLineNo">396</span>     * &lt;p/&gt;<a name="line.396"></a>
-<span class="sourceLineNo">397</span>     * This specifies the method to analyze the data produced by<a name="line.397"></a>
-<span class="sourceLineNo">398</span>     * a match finder. The default is &lt;code&gt;MODE_FAST&lt;/code&gt; for presets<a name="line.398"></a>
-<span class="sourceLineNo">399</span>     * 0-3 and &lt;code&gt;MODE_NORMAL&lt;/code&gt; for presets 4-9.<a name="line.399"></a>
-<span class="sourceLineNo">400</span>     * &lt;p/&gt;<a name="line.400"></a>
-<span class="sourceLineNo">401</span>     * Usually &lt;code&gt;MODE_FAST&lt;/code&gt; is used with Hash Chain match finders<a name="line.401"></a>
-<span class="sourceLineNo">402</span>     * and &lt;code&gt;MODE_NORMAL&lt;/code&gt; with Binary Tree match finders. This is<a name="line.402"></a>
-<span class="sourceLineNo">403</span>     * also what the presets do.<a name="line.403"></a>
-<span class="sourceLineNo">404</span>     * &lt;p/&gt;<a name="line.404"></a>
-<span class="sourceLineNo">405</span>     * The special mode &lt;code&gt;MODE_UNCOMPRESSED&lt;/code&gt; doesn't try to<a name="line.405"></a>
-<span class="sourceLineNo">406</span>     * compress the data at all (and doesn't use a match finder) and will<a name="line.406"></a>
-<span class="sourceLineNo">407</span>     * simply wrap it in uncompressed LZMA2 chunks.<a name="line.407"></a>
-<span class="sourceLineNo">408</span>     *<a name="line.408"></a>
-<span class="sourceLineNo">409</span>     * @throws UnsupportedOptionsException &lt;code&gt;mode&lt;/code&gt; is not supported<a name="line.409"></a>
-<span class="sourceLineNo">410</span>     */<a name="line.410"></a>
-<span class="sourceLineNo">411</span>    public void setMode(int mode) throws UnsupportedOptionsException {<a name="line.411"></a>
-<span class="sourceLineNo">412</span>        if (mode &lt; MODE_UNCOMPRESSED || mode &gt; MODE_NORMAL) {<a name="line.412"></a>
-<span class="sourceLineNo">413</span>            throw new UnsupportedOptionsException(<a name="line.413"></a>
-<span class="sourceLineNo">414</span>                    "Unsupported compression mode: " + mode);<a name="line.414"></a>
-<span class="sourceLineNo">415</span>        }<a name="line.415"></a>
-<span class="sourceLineNo">416</span><a name="line.416"></a>
-<span class="sourceLineNo">417</span>        this.mode = mode;<a name="line.417"></a>
-<span class="sourceLineNo">418</span>    }<a name="line.418"></a>
-<span class="sourceLineNo">419</span><a name="line.419"></a>
-<span class="sourceLineNo">420</span>    /**<a name="line.420"></a>
-<span class="sourceLineNo">421</span>     * Gets the compression mode.<a name="line.421"></a>
-<span class="sourceLineNo">422</span>     */<a name="line.422"></a>
-<span class="sourceLineNo">423</span>    public int getMode() {<a name="line.423"></a>
-<span class="sourceLineNo">424</span>        return mode;<a name="line.424"></a>
-<span class="sourceLineNo">425</span>    }<a name="line.425"></a>
-<span class="sourceLineNo">426</span><a name="line.426"></a>
-<span class="sourceLineNo">427</span>    /**<a name="line.427"></a>
-<span class="sourceLineNo">428</span>     * Sets the nice length of matches.<a name="line.428"></a>
-<span class="sourceLineNo">429</span>     * Once a match of at least &lt;code&gt;niceLen&lt;/code&gt; bytes is found,<a name="line.429"></a>
-<span class="sourceLineNo">430</span>     * the algorithm stops looking for better matches. Higher values tend<a name="line.430"></a>
-<span class="sourceLineNo">431</span>     * to give better compression at the expense of speed. The default<a name="line.431"></a>
-<span class="sourceLineNo">432</span>     * depends on the preset.<a name="line.432"></a>
-<span class="sourceLineNo">433</span>     *<a name="line.433"></a>
-<span class="sourceLineNo">434</span>     * @throws UnsupportedOptionsException &lt;code&gt;niceLen&lt;/code&gt; is invalid<a name="line.434"></a>
-<span class="sourceLineNo">435</span>     */<a name="line.435"></a>
-<span class="sourceLineNo">436</span>    public void setNiceLen(int niceLen) throws UnsupportedOptionsException {<a name="line.436"></a>
-<span class="sourceLineNo">437</span>        if (niceLen &lt; NICE_LEN_MIN) {<a name="line.437"></a>
-<span class="sourceLineNo">438</span>            throw new UnsupportedOptionsException(<a name="line.438"></a>
-<span class="sourceLineNo">439</span>                    "Minimum nice length of matches is "<a name="line.439"></a>
-<span class="sourceLineNo">440</span>                            + NICE_LEN_MIN + " bytes: " + niceLen);<a name="line.440"></a>
-<span class="sourceLineNo">441</span>        }<a name="line.441"></a>
-<span class="sourceLineNo">442</span><a name="line.442"></a>
-<span class="sourceLineNo">443</span>        if (niceLen &gt; NICE_LEN_MAX) {<a name="line.443"></a>
-<span class="sourceLineNo">444</span>            throw new UnsupportedOptionsException(<a name="line.444"></a>
-<span class="sourceLineNo">445</span>                    "Maximum nice length of matches is " + NICE_LEN_MAX<a name="line.445"></a>
-<span class="sourceLineNo">446</span>                            + ": " + niceLen);<a name="line.446"></a>
-<span class="sourceLineNo">447</span>        }<a name="line.447"></a>
-<span class="sourceLineNo">448</span><a name="line.448"></a>
-<span class="sourceLineNo">449</span>        this.niceLen = niceLen;<a name="line.449"></a>
-<span class="sourceLineNo">450</span>    }<a name="line.450"></a>
-<span class="sourceLineNo">451</span><a name="line.451"></a>
-<span class="sourceLineNo">452</span>    /**<a name="line.452"></a>
-<span class="sourceLineNo">453</span>     * Gets the nice length of matches.<a name="line.453"></a>
-<span class="sourceLineNo">454</span>     */<a name="line.454"></a>
-<span class="sourceLineNo">455</span>    public int getNiceLen() {<a name="line.455"></a>
-<span class="sourceLineNo">456</span>        return niceLen;<a name="line.456"></a>
-<span class="sourceLineNo">457</span>    }<a name="line.457"></a>
-<span class="sourceLineNo">458</span><a name="line.458"></a>
-<span class="sourceLineNo">459</span>    /**<a name="line.459"></a>
-<span class="sourceLineNo">460</span>     * Sets the match finder type.<a name="line.460"></a>
-<span class="sourceLineNo">461</span>     * &lt;p/&gt;<a name="line.461"></a>
-<span class="sourceLineNo">462</span>     * Match finder has a major effect on compression speed, memory usage,<a name="line.462"></a>
-<span class="sourceLineNo">463</span>     * and compression ratio. Usually Hash Chain match finders are faster<a name="line.463"></a>
-<span class="sourceLineNo">464</span>     * than Binary Tree match finders. The default depends on the preset:<a name="line.464"></a>
-<span class="sourceLineNo">465</span>     * 0-3 use &lt;code&gt;MF_HC4&lt;/code&gt; and 4-9 use &lt;code&gt;MF_BT4&lt;/code&gt;.<a name="line.465"></a>
-<span class="sourceLineNo">466</span>     *<a name="line.466"></a>
-<span class="sourceLineNo">467</span>     * @throws UnsupportedOptionsException &lt;code&gt;mf&lt;/code&gt; is not supported<a name="line.467"></a>
-<span class="sourceLineNo">468</span>     */<a name="line.468"></a>
-<span class="sourceLineNo">469</span>    public void setMatchFinder(int mf) throws UnsupportedOptionsException {<a name="line.469"></a>
-<span class="sourceLineNo">470</span>        if (mf != MF_HC4 &amp;&amp; mf != MF_BT4) {<a name="line.470"></a>
-<span class="sourceLineNo">471</span>            throw new UnsupportedOptionsException(<a name="line.471"></a>
-<span class="sourceLineNo">472</span>                    "Unsupported match finder: " + mf);<a name="line.472"></a>
-<span class="sourceLineNo">473</span>        }<a name="line.473"></a>
-<span class="sourceLineNo">474</span><a name="line.474"></a>
-<span class="sourceLineNo">475</span>        this.mf = mf;<a name="line.475"></a>
-<span class="sourceLineNo">476</span>    }<a name="line.476"></a>
-<span class="sourceLineNo">477</span><a name="line.477"></a>
-<span class="sourceLineNo">478</span>    /**<a name="line.478"></a>
-<span class="sourceLineNo">479</span>     * Gets the match finder type.<a name="line.479"></a>
-<span class="sourceLineNo">480</span>     */<a name="line.480"></a>
-<span class="sourceLineNo">481</span>    public int getMatchFinder() {<a name="line.481"></a>
-<span class="sourceLineNo">482</span>        return mf;<a name="line.482"></a>
-<span class="sourceLineNo">483</span>    }<a name="line.483"></a>
-<span class="sourceLineNo">484</span><a name="line.484"></a>
-<span class="sourceLineNo">485</span>    /**<a name="line.485"></a>
-<span class="sourceLineNo">486</span>     * Sets the match finder search depth limit.<a name="line.486"></a>
-<span class="sourceLineNo">487</span>     * &lt;p/&gt;<a name="line.487"></a>
-<span class="sourceLineNo">488</span>     * The default is a special value of &lt;code&gt;0&lt;/code&gt; which indicates that<a name="line.488"></a>
-<span class="sourceLineNo">489</span>     * the depth limit should be automatically calculated by the selected<a name="line.489"></a>
-<span class="sourceLineNo">490</span>     * match finder from the nice length of matches.<a name="line.490"></a>
-<span class="sourceLineNo">491</span>     * &lt;p/&gt;<a name="line.491"></a>
-<span class="sourceLineNo">492</span>     * Reasonable depth limit for Hash Chain match finders is 4-100 and<a name="line.492"></a>
-<span class="sourceLineNo">493</span>     * 16-1000 for Binary Tree match finders. Using very high values can<a name="line.493"></a>
-<span class="sourceLineNo">494</span>     * make the compressor extremely slow with some files. Avoid settings<a name="line.494"></a>
-<span class="sourceLineNo">495</span>     * higher than 1000 unless you are prepared to interrupt the compression<a name="line.495"></a>
-<span class="sourceLineNo">496</span>     * in case it is taking far too long.<a name="line.496"></a>
-<span class="sourceLineNo">497</span>     *<a name="line.497"></a>
-<span class="sourceLineNo">498</span>     * @throws UnsupportedOptionsException &lt;code&gt;depthLimit&lt;/code&gt; is invalid<a name="line.498"></a>
-<span class="sourceLineNo">499</span>     */<a name="line.499"></a>
-<span class="sourceLineNo">500</span>    public void setDepthLimit(int depthLimit)<a name="line.500"></a>
-<span class="sourceLineNo">501</span>            throws UnsupportedOptionsException {<a name="line.501"></a>
-<span class="sourceLineNo">502</span>        if (depthLimit &lt; 0) {<a name="line.502"></a>
-<span class="sourceLineNo">503</span>            throw new UnsupportedOptionsException(<a name="line.503"></a>
-<span class="sourceLineNo">504</span>                    "Depth limit cannot be negative: " + depthLimit);<a name="line.504"></a>
-<span class="sourceLineNo">505</span>        }<a name="line.505"></a>
-<span class="sourceLineNo">506</span><a name="line.506"></a>
-<span class="sourceLineNo">507</span>        this.depthLimit = depthLimit;<a name="line.507"></a>
-<span class="sourceLineNo">508</span>    }<a name="line.508"></a>
-<span class="sourceLineNo">509</span><a name="line.509"></a>
-<span class="sourceLineNo">510</span>    /**<a name="line.510"></a>
-<span class="sourceLineNo">511</span>     * Gets the match finder search depth limit.<a name="line.511"></a>
-<span class="sourceLineNo">512</span>     */<a name="line.512"></a>
-<span class="sourceLineNo">513</span>    public int getDepthLimit() {<a name="line.513"></a>
-<span class="sourceLineNo">514</span>        return depthLimit;<a name="line.514"></a>
-<span class="sourceLineNo">515</span>    }<a name="line.515"></a>
-<span class="sourceLineNo">516</span><a name="line.516"></a>
-<span class="sourceLineNo">517</span>    public int getEncoderMemoryUsage() {<a name="line.517"></a>
-<span class="sourceLineNo">518</span>        return (mode == MODE_UNCOMPRESSED)<a name="line.518"></a>
-<span class="sourceLineNo">519</span>                ? UncompressedLZMA2OutputStream.getMemoryUsage()<a name="line.519"></a>
-<span class="sourceLineNo">520</span>                : LZMA2OutputStream.getMemoryUsage(this);<a name="line.520"></a>
-<span class="sourceLineNo">521</span>    }<a name="line.521"></a>
-<span class="sourceLineNo">522</span><a name="line.522"></a>
-<span class="sourceLineNo">523</span>    public FinishableOutputStream getOutputStream(FinishableOutputStream out) {<a name="line.523"></a>
-<span class="sourceLineNo">524</span>        if (mode == MODE_UNCOMPRESSED) {<a name="line.524"></a>
-<span class="sourceLineNo">525</span>            return new UncompressedLZMA2OutputStream(out);<a name="line.525"></a>
-<span class="sourceLineNo">526</span>        }<a name="line.526"></a>
-<span class="sourceLineNo">527</span><a name="line.527"></a>
-<span class="sourceLineNo">528</span>        return new LZMA2OutputStream(out, this);<a name="line.528"></a>
-<span class="sourceLineNo">529</span>    }<a name="line.529"></a>
-<span class="sourceLineNo">530</span><a name="line.530"></a>
-<span class="sourceLineNo">531</span>    /**<a name="line.531"></a>
-<span class="sourceLineNo">532</span>     * Gets how much memory the LZMA2 decoder will need to decompress the data<a name="line.532"></a>
-<span class="sourceLineNo">533</span>     * that was encoded with these options and stored in a .xz file.<a name="line.533"></a>
-<span class="sourceLineNo">534</span>     * &lt;p/&gt;<a name="line.534"></a>
-<span class="sourceLineNo">535</span>     * The returned value may bigger than the value returned by a direct call<a name="line.535"></a>
-<span class="sourceLineNo">536</span>     * to {@link LZMA2InputStream#getMemoryUsage(int)} if the dictionary size<a name="line.536"></a>
-<span class="sourceLineNo">537</span>     * is not 2^n or 2^n&amp;nbsp;+&amp;nbsp;2^(n-1) bytes. This is because the .xz<a name="line.537"></a>
-<span class="sourceLineNo">538</span>     * headers store the dictionary size in such a format and other values<a name="line.538"></a>
-<span class="sourceLineNo">539</span>     * are rounded up to the next such value. Such rounding is harmess except<a name="line.539"></a>
-<span class="sourceLineNo">540</span>     * it might waste some memory if an unsual dictionary size is used.<a name="line.540"></a>
-<span class="sourceLineNo">541</span>     * &lt;p/&gt;<a name="line.541"></a>
-<span class="sourceLineNo">542</span>     * If you use raw LZMA2 streams and unusual dictioanary size, call<a name="line.542"></a>
-<span class="sourceLineNo">543</span>     * {@link LZMA2InputStream#getMemoryUsage} directly to get raw decoder<a name="line.543"></a>
-<span class="sourceLineNo">544</span>     * memory requirements.<a name="line.544"></a>
-<span class="sourceLineNo">545</span>     */<a name="line.545"></a>
-<span class="sourceLineNo">546</span>    public int getDecoderMemoryUsage() {<a name="line.546"></a>
-<span class="sourceLineNo">547</span>        // Round the dictionary size up to the next 2^n or 2^n + 2^(n-1).<a name="line.547"></a>
-<span class="sourceLineNo">548</span>        int d = dictSize - 1;<a name="line.548"></a>
-<span class="sourceLineNo">549</span>        d |= d &gt;&gt;&gt; 2;<a name="line.549"></a>
-<span class="sourceLineNo">550</span>        d |= d &gt;&gt;&gt; 3;<a name="line.550"></a>
-<span class="sourceLineNo">551</span>        d |= d &gt;&gt;&gt; 4;<a name="line.551"></a>
-<span class="sourceLineNo">552</span>        d |= d &gt;&gt;&gt; 8;<a name="line.552"></a>
-<span class="sourceLineNo">553</span>        d |= d &gt;&gt;&gt; 16;<a name="line.553"></a>
-<span class="sourceLineNo">554</span>        return LZMA2InputStream.getMemoryUsage(d + 1);<a name="line.554"></a>
-<span class="sourceLineNo">555</span>    }<a name="line.555"></a>
-<span class="sourceLineNo">556</span><a name="line.556"></a>
-<span class="sourceLineNo">557</span>    public InputStream getInputStream(InputStream in) throws IOException {<a name="line.557"></a>
-<span class="sourceLineNo">558</span>        return new LZMA2InputStream(in, dictSize);<a name="line.558"></a>
-<span class="sourceLineNo">559</span>    }<a name="line.559"></a>
-<span class="sourceLineNo">560</span><a name="line.560"></a>
-<span class="sourceLineNo">561</span>    FilterEncoder getFilterEncoder() {<a name="line.561"></a>
-<span class="sourceLineNo">562</span>        return new LZMA2Encoder(this);<a name="line.562"></a>
-<span class="sourceLineNo">563</span>    }<a name="line.563"></a>
-<span class="sourceLineNo">564</span><a name="line.564"></a>
-<span class="sourceLineNo">565</span>    public Object clone() {<a name="line.565"></a>
-<span class="sourceLineNo">566</span>        try {<a name="line.566"></a>
-<span class="sourceLineNo">567</span>            return super.clone();<a name="line.567"></a>
-<span class="sourceLineNo">568</span>        } catch (CloneNotSupportedException e) {<a name="line.568"></a>
-<span class="sourceLineNo">569</span>            assert false;<a name="line.569"></a>
-<span class="sourceLineNo">570</span>            throw new RuntimeException();<a name="line.570"></a>
-<span class="sourceLineNo">571</span>        }<a name="line.571"></a>
-<span class="sourceLineNo">572</span>    }<a name="line.572"></a>
-<span class="sourceLineNo">573</span>}<a name="line.573"></a>
+<pre><span class="sourceLineNo">001</span>package org.xbib.io.compress.xz;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import org.xbib.io.compress.xz.lz.LZEncoder;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.xbib.io.compress.xz.lzma.LZMAEncoder;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.InputStream;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>/**<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * LZMA2 compression options.<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * &lt;p&gt;<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * While this allows setting the LZMA2 compression options in detail,<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * often you only need &lt;code&gt;LZMA2Options()&lt;/code&gt; or<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * &lt;code&gt;LZMA2Options(int)&lt;/code&gt;.<a name="line.14"></a>
+<span class="sourceLineNo">015</span> */<a name="line.15"></a>
+<span class="sourceLineNo">016</span>public class LZMA2Options extends FilterOptions {<a name="line.16"></a>
+<span class="sourceLineNo">017</span>    /**<a name="line.17"></a>
+<span class="sourceLineNo">018</span>     * Minimum valid compression preset level is 0.<a name="line.18"></a>
+<span class="sourceLineNo">019</span>     */<a name="line.19"></a>
+<span class="sourceLineNo">020</span>    public static final int PRESET_MIN = 0;<a name="line.20"></a>
+<span class="sourceLineNo">021</span><a name="line.21"></a>
+<span class="sourceLineNo">022</span>    /**<a name="line.22"></a>
+<span class="sourceLineNo">023</span>     * Maximum valid compression preset level is 9.<a name="line.23"></a>
+<span class="sourceLineNo">024</span>     */<a name="line.24"></a>
+<span class="sourceLineNo">025</span>    public static final int PRESET_MAX = 9;<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>    /**<a name="line.27"></a>
+<span class="sourceLineNo">028</span>     * Default compression preset level is 6.<a name="line.28"></a>
+<span class="sourceLineNo">029</span>     */<a name="line.29"></a>
+<span class="sourceLineNo">030</span>    public static final int PRESET_DEFAULT = 6;<a name="line.30"></a>
+<span class="sourceLineNo">031</span><a name="line.31"></a>
+<span class="sourceLineNo">032</span>    /**<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     * Minimum dictionary size is 4 KiB.<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     */<a name="line.34"></a>
+<span class="sourceLineNo">035</span>    public static final int DICT_SIZE_MIN = 4096;<a name="line.35"></a>
+<span class="sourceLineNo">036</span><a name="line.36"></a>
+<span class="sourceLineNo">037</span>    /**<a name="line.37"></a>
+<span class="sourceLineNo">038</span>     * Maximum dictionary size for compression is 768 MiB.<a name="line.38"></a>
+<span class="sourceLineNo">039</span>     * &lt;p&gt;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>     * The decompressor supports bigger dictionaries, up to almost 2 GiB.<a name="line.40"></a>
+<span class="sourceLineNo">041</span>     * With HC4 the encoder would support dictionaries bigger than 768 MiB.<a name="line.41"></a>
+<span class="sourceLineNo">042</span>     * The 768 MiB limit comes from the current implementation of BT4 where<a name="line.42"></a>
+<span class="sourceLineNo">043</span>     * we would otherwise hit the limits of signed ints in array indexing.<a name="line.43"></a>
+<span class="sourceLineNo">044</span>     * &lt;p&gt;<a name="line.44"></a>
+<span class="sourceLineNo">045</span>     * If you really need bigger dictionary for decompression,<a name="line.45"></a>
+<span class="sourceLineNo">046</span>     * use {@link LZMA2InputStream} directly.<a name="line.46"></a>
+<span class="sourceLineNo">047</span>     */<a name="line.47"></a>
+<span class="sourceLineNo">048</span>    public static final int DICT_SIZE_MAX = 768 &lt;&lt; 20;<a name="line.48"></a>
+<span class="sourceLineNo">049</span><a name="line.49"></a>
+<span class="sourceLineNo">050</span>    /**<a name="line.50"></a>
+<span class="sourceLineNo">051</span>     * The default dictionary size is 8 MiB.<a name="line.51"></a>
+<span class="sourceLineNo">052</span>     */<a name="line.52"></a>
+<span class="sourceLineNo">053</span>    public static final int DICT_SIZE_DEFAULT = 8 &lt;&lt; 20;<a name="line.53"></a>
+<span class="sourceLineNo">054</span><a name="line.54"></a>
+<span class="sourceLineNo">055</span>    /**<a name="line.55"></a>
+<span class="sourceLineNo">056</span>     * Maximum value for lc + lp is 4.<a name="line.56"></a>
+<span class="sourceLineNo">057</span>     */<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    public static final int LC_LP_MAX = 4;<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span>    /**<a name="line.60"></a>
+<span class="sourceLineNo">061</span>     * The default number of literal context bits is 3.<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     */<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    public static final int LC_DEFAULT = 3;<a name="line.63"></a>
+<span class="sourceLineNo">064</span><a name="line.64"></a>
+<span class="sourceLineNo">065</span>    /**<a name="line.65"></a>
+<span class="sourceLineNo">066</span>     * The default number of literal position bits is 0.<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     */<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    public static final int LP_DEFAULT = 0;<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>    /**<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * Maximum value for pb is 4.<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     */<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    public static final int PB_MAX = 4;<a name="line.73"></a>
+<span class="sourceLineNo">074</span><a name="line.74"></a>
+<span class="sourceLineNo">075</span>    /**<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     * The default number of position bits is 2.<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     */<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    public static final int PB_DEFAULT = 2;<a name="line.78"></a>
+<span class="sourceLineNo">079</span><a name="line.79"></a>
+<span class="sourceLineNo">080</span>    /**<a name="line.80"></a>
+<span class="sourceLineNo">081</span>     * Compression mode: uncompressed.<a name="line.81"></a>
+<span class="sourceLineNo">082</span>     * The data is wrapped into a LZMA2 stream without compression.<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     */<a name="line.83"></a>
+<span class="sourceLineNo">084</span>    public static final int MODE_UNCOMPRESSED = 0;<a name="line.84"></a>
+<span class="sourceLineNo">085</span><a name="line.85"></a>
+<span class="sourceLineNo">086</span>    /**<a name="line.86"></a>
+<span class="sourceLineNo">087</span>     * Compression mode: fast.<a name="line.87"></a>
+<span class="sourceLineNo">088</span>     * This is usually combined with a hash chain match finder.<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     */<a name="line.89"></a>
+<span class="sourceLineNo">090</span>    public static final int MODE_FAST = LZMAEncoder.MODE_FAST;<a name="line.90"></a>
+<span class="sourceLineNo">091</span><a name="line.91"></a>
+<span class="sourceLineNo">092</span>    /**<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     * Compression mode: normal.<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     * This is usually combined with a binary tree match finder.<a name="line.94"></a>
+<span class="sourceLineNo">095</span>     */<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    public static final int MODE_NORMAL = LZMAEncoder.MODE_NORMAL;<a name="line.96"></a>
+<span class="sourceLineNo">097</span><a name="line.97"></a>
+<span class="sourceLineNo">098</span>    /**<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     * Minimum value for &lt;code&gt;niceLen&lt;/code&gt; is 8.<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     */<a name="line.100"></a>
+<span class="sourceLineNo">101</span>    public static final int NICE_LEN_MIN = 8;<a name="line.101"></a>
+<span class="sourceLineNo">102</span><a name="line.102"></a>
+<span class="sourceLineNo">103</span>    /**<a name="line.103"></a>
+<span class="sourceLineNo">104</span>     * Maximum value for &lt;code&gt;niceLen&lt;/code&gt; is 273.<a name="line.104"></a>
+<span class="sourceLineNo">105</span>     */<a name="line.105"></a>
+<span class="sourceLineNo">106</span>    public static final int NICE_LEN_MAX = 273;<a name="line.106"></a>
+<span class="sourceLineNo">107</span><a name="line.107"></a>
+<span class="sourceLineNo">108</span>    /**<a name="line.108"></a>
+<span class="sourceLineNo">109</span>     * Match finder: Hash Chain 2-3-4<a name="line.109"></a>
+<span class="sourceLineNo">110</span>     */<a name="line.110"></a>
+<span class="sourceLineNo">111</span>    public static final int MF_HC4 = LZEncoder.MF_HC4;<a name="line.111"></a>
+<span class="sourceLineNo">112</span><a name="line.112"></a>
+<span class="sourceLineNo">113</span>    /**<a name="line.113"></a>
+<span class="sourceLineNo">114</span>     * Match finder: Binary tree 2-3-4<a name="line.114"></a>
+<span class="sourceLineNo">115</span>     */<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    public static final int MF_BT4 = LZEncoder.MF_BT4;<a name="line.116"></a>
+<span class="sourceLineNo">117</span><a name="line.117"></a>
+<span class="sourceLineNo">118</span>    private static final int[] presetToDictSize = {<a name="line.118"></a>
+<span class="sourceLineNo">119</span>            1 &lt;&lt; 18, 1 &lt;&lt; 20, 1 &lt;&lt; 21, 1 &lt;&lt; 22, 1 &lt;&lt; 22,<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            1 &lt;&lt; 23, 1 &lt;&lt; 23, 1 &lt;&lt; 24, 1 &lt;&lt; 25, 1 &lt;&lt; 26};<a name="line.120"></a>
+<span class="sourceLineNo">121</span><a name="line.121"></a>
+<span class="sourceLineNo">122</span>    private static final int[] presetToDepthLimit = {4, 8, 24, 48};<a name="line.122"></a>
+<span class="sourceLineNo">123</span><a name="line.123"></a>
+<span class="sourceLineNo">124</span>    private int dictSize;<a name="line.124"></a>
+<span class="sourceLineNo">125</span>    private byte[] presetDict = null;<a name="line.125"></a>
+<span class="sourceLineNo">126</span>    private int lc;<a name="line.126"></a>
+<span class="sourceLineNo">127</span>    private int lp;<a name="line.127"></a>
+<span class="sourceLineNo">128</span>    private int pb;<a name="line.128"></a>
+<span class="sourceLineNo">129</span>    private int mode;<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    private int niceLen;<a name="line.130"></a>
+<span class="sourceLineNo">131</span>    private int mf;<a name="line.131"></a>
+<span class="sourceLineNo">132</span>    private int depthLimit;<a name="line.132"></a>
+<span class="sourceLineNo">133</span><a name="line.133"></a>
+<span class="sourceLineNo">134</span>    /**<a name="line.134"></a>
+<span class="sourceLineNo">135</span>     * Creates new LZMA2 options and sets them to the default values.<a name="line.135"></a>
+<span class="sourceLineNo">136</span>     * This is equivalent to &lt;code&gt;LZMA2Options(PRESET_DEFAULT)&lt;/code&gt;.<a name="line.136"></a>
+<span class="sourceLineNo">137</span>     */<a name="line.137"></a>
+<span class="sourceLineNo">138</span>    public LZMA2Options() {<a name="line.138"></a>
+<span class="sourceLineNo">139</span>        try {<a name="line.139"></a>
+<span class="sourceLineNo">140</span>            setPreset(PRESET_DEFAULT);<a name="line.140"></a>
+<span class="sourceLineNo">141</span>        } catch (UnsupportedOptionsException e) {<a name="line.141"></a>
+<span class="sourceLineNo">142</span>            assert false;<a name="line.142"></a>
+<span class="sourceLineNo">143</span>            throw new RuntimeException();<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        }<a name="line.144"></a>
+<span class="sourceLineNo">145</span>    }<a name="line.145"></a>
+<span class="sourceLineNo">146</span><a name="line.146"></a>
+<span class="sourceLineNo">147</span>    /**<a name="line.147"></a>
+<span class="sourceLineNo">148</span>     * Creates new LZMA2 options and sets them to the given preset.<a name="line.148"></a>
+<span class="sourceLineNo">149</span>     *<a name="line.149"></a>
+<span class="sourceLineNo">150</span>     * @throws UnsupportedOptionsException &lt;code&gt;preset&lt;/code&gt; is not supported<a name="line.150"></a>
+<span class="sourceLineNo">151</span>     */<a name="line.151"></a>
+<span class="sourceLineNo">152</span>    public LZMA2Options(int preset) throws UnsupportedOptionsException {<a name="line.152"></a>
+<span class="sourceLineNo">153</span>        setPreset(preset);<a name="line.153"></a>
+<span class="sourceLineNo">154</span>    }<a name="line.154"></a>
+<span class="sourceLineNo">155</span><a name="line.155"></a>
+<span class="sourceLineNo">156</span>    /**<a name="line.156"></a>
+<span class="sourceLineNo">157</span>     * Creates new LZMA2 options and sets them to the given custom values.<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     *<a name="line.158"></a>
+<span class="sourceLineNo">159</span>     * @throws UnsupportedOptionsException unsupported options were specified<a name="line.159"></a>
+<span class="sourceLineNo">160</span>     */<a name="line.160"></a>
+<span class="sourceLineNo">161</span>    public LZMA2Options(int dictSize, int lc, int lp, int pb, int mode,<a name="line.161"></a>
+<span class="sourceLineNo">162</span>                        int niceLen, int mf, int depthLimit)<a name="line.162"></a>
+<span class="sourceLineNo">163</span>            throws UnsupportedOptionsException {<a name="line.163"></a>
+<span class="sourceLineNo">164</span>        setDictSize(dictSize);<a name="line.164"></a>
+<span class="sourceLineNo">165</span>        setLcLp(lc, lp);<a name="line.165"></a>
+<span class="sourceLineNo">166</span>        setPb(pb);<a name="line.166"></a>
+<span class="sourceLineNo">167</span>        setMode(mode);<a name="line.167"></a>
+<span class="sourceLineNo">168</span>        setNiceLen(niceLen);<a name="line.168"></a>
+<span class="sourceLineNo">169</span>        setMatchFinder(mf);<a name="line.169"></a>
+<span class="sourceLineNo">170</span>        setDepthLimit(depthLimit);<a name="line.170"></a>
+<span class="sourceLineNo">171</span>    }<a name="line.171"></a>
+<span class="sourceLineNo">172</span><a name="line.172"></a>
+<span class="sourceLineNo">173</span>    /**<a name="line.173"></a>
+<span class="sourceLineNo">174</span>     * Sets the compression options to the given preset.<a name="line.174"></a>
+<span class="sourceLineNo">175</span>     * &lt;p&gt;<a name="line.175"></a>
+<span class="sourceLineNo">176</span>     * The presets 0-3 are fast presets with medium compression.<a name="line.176"></a>
+<span class="sourceLineNo">177</span>     * The presets 4-6 are fairly slow presets with high compression.<a name="line.177"></a>
+<span class="sourceLineNo">178</span>     * The default preset (&lt;code&gt;PRESET_DEFAULT&lt;/code&gt;) is 6.<a name="line.178"></a>
+<span class="sourceLineNo">179</span>     * &lt;p&gt;<a name="line.179"></a>
+<span class="sourceLineNo">180</span>     * The presets 7-9 are like the preset 6 but use bigger dictionaries<a name="line.180"></a>
+<span class="sourceLineNo">181</span>     * and have higher compressor and decompressor memory requirements.<a name="line.181"></a>
+<span class="sourceLineNo">182</span>     * Unless the uncompressed size of the file exceeds 8&amp;nbsp;MiB,<a name="line.182"></a>
+<span class="sourceLineNo">183</span>     * 16&amp;nbsp;MiB, or 32&amp;nbsp;MiB, it is waste of memory to use the<a name="line.183"></a>
+<span class="sourceLineNo">184</span>     * presets 7, 8, or 9, respectively.<a name="line.184"></a>
+<span class="sourceLineNo">185</span>     *<a name="line.185"></a>
+<span class="sourceLineNo">186</span>     * @throws UnsupportedOptionsException &lt;code&gt;preset&lt;/code&gt; is not supported<a name="line.186"></a>
+<span class="sourceLineNo">187</span>     */<a name="line.187"></a>
+<span class="sourceLineNo">188</span>    public void setPreset(int preset) throws UnsupportedOptionsException {<a name="line.188"></a>
+<span class="sourceLineNo">189</span>        if (preset &lt; 0 || preset &gt; 9) {<a name="line.189"></a>
+<span class="sourceLineNo">190</span>            throw new UnsupportedOptionsException(<a name="line.190"></a>
+<span class="sourceLineNo">191</span>                    "Unsupported preset: " + preset);<a name="line.191"></a>
+<span class="sourceLineNo">192</span>        }<a name="line.192"></a>
+<span class="sourceLineNo">193</span><a name="line.193"></a>
+<span class="sourceLineNo">194</span>        lc = LC_DEFAULT;<a name="line.194"></a>
+<span class="sourceLineNo">195</span>        lp = LP_DEFAULT;<a name="line.195"></a>
+<span class="sourceLineNo">196</span>        pb = PB_DEFAULT;<a name="line.196"></a>
+<span class="sourceLineNo">197</span>        dictSize = presetToDictSize[preset];<a name="line.197"></a>
+<span class="sourceLineNo">198</span><a name="line.198"></a>
+<span class="sourceLineNo">199</span>        if (preset &lt;= 3) {<a name="line.199"></a>
+<span class="sourceLineNo">200</span>            mode = MODE_FAST;<a name="line.200"></a>
+<span class="sourceLineNo">201</span>            mf = MF_HC4;<a name="line.201"></a>
+<span class="sourceLineNo">202</span>            niceLen = preset &lt;= 1 ? 128 : NICE_LEN_MAX;<a name="line.202"></a>
+<span class="sourceLineNo">203</span>            depthLimit = presetToDepthLimit[preset];<a name="line.203"></a>
+<span class="sourceLineNo">204</span>        } else {<a name="line.204"></a>
+<span class="sourceLineNo">205</span>            mode = MODE_NORMAL;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>            mf = MF_BT4;<a name="line.206"></a>
+<span class="sourceLineNo">207</span>            niceLen = (preset == 4) ? 16 : (preset == 5) ? 32 : 64;<a name="line.207"></a>
+<span class="sourceLineNo">208</span>            depthLimit = 0;<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        }<a name="line.209"></a>
+<span class="sourceLineNo">210</span>    }<a name="line.210"></a>
+<span class="sourceLineNo">211</span><a name="line.211"></a>
+<span class="sourceLineNo">212</span>    /**<a name="line.212"></a>
+<span class="sourceLineNo">213</span>     * Sets the dictionary size in bytes.<a name="line.213"></a>
+<span class="sourceLineNo">214</span>     * &lt;p&gt;<a name="line.214"></a>
+<span class="sourceLineNo">215</span>     * The dictionary (or history buffer) holds the most recently seen<a name="line.215"></a>
+<span class="sourceLineNo">216</span>     * uncompressed data. Bigger dictionary usually means better compression.<a name="line.216"></a>
+<span class="sourceLineNo">217</span>     * However, using a dictioanary bigger than the size of the uncompressed<a name="line.217"></a>
+<span class="sourceLineNo">218</span>     * data is waste of memory.<a name="line.218"></a>
+<span class="sourceLineNo">219</span>     * &lt;p&gt;<a name="line.219"></a>
+<span class="sourceLineNo">220</span>     * Any value in the range [DICT_SIZE_MIN, DICT_SIZE_MAX] is valid,<a name="line.220"></a>
+<span class="sourceLineNo">221</span>     * but sizes of 2^n and 2^n&amp;nbsp;+&amp;nbsp;2^(n-1) bytes are somewhat<a name="line.221"></a>
+<span class="sourceLineNo">222</span>     * recommended.<a name="line.222"></a>
+<span class="sourceLineNo">223</span>     *<a name="line.223"></a>
+<span class="sourceLineNo">224</span>     * @throws UnsupportedOptionsException &lt;code&gt;dictSize&lt;/code&gt; is not supported<a name="line.224"></a>
+<span class="sourceLineNo">225</span>     */<a name="line.225"></a>
+<span class="sourceLineNo">226</span>    public void setDictSize(int dictSize) throws UnsupportedOptionsException {<a name="line.226"></a>
+<span class="sourceLineNo">227</span>        if (dictSize &lt; DICT_SIZE_MIN) {<a name="line.227"></a>
+<span class="sourceLineNo">228</span>            throw new UnsupportedOptionsException(<a name="line.228"></a>
+<span class="sourceLineNo">229</span>                    "LZMA2 dictionary size must be at least 4 KiB: "<a name="line.229"></a>
+<span class="sourceLineNo">230</span>                            + dictSize + " B");<a name="line.230"></a>
+<span class="sourceLineNo">231</span>        }<a name="line.231"></a>
+<span class="sourceLineNo">232</span><a name="line.232"></a>
+<span class="sourceLineNo">233</span>        if (dictSize &gt; DICT_SIZE_MAX) {<a name="line.233"></a>
+<span class="sourceLineNo">234</span>            throw new UnsupportedOptionsException(<a name="line.234"></a>
+<span class="sourceLineNo">235</span>                    "LZMA2 dictionary size must not exceed "<a name="line.235"></a>
+<span class="sourceLineNo">236</span>                            + (DICT_SIZE_MAX &gt;&gt; 20) + " MiB: " + dictSize + " B");<a name="line.236"></a>
+<span class="sourceLineNo">237</span>        }<a name="line.237"></a>
+<span class="sourceLineNo">238</span><a name="line.238"></a>
+<span class="sourceLineNo">239</span>        this.dictSize = dictSize;<a name="line.239"></a>
+<span class="sourceLineNo">240</span>    }<a name="line.240"></a>
+<span class="sourceLineNo">241</span><a name="line.241"></a>
+<span class="sourceLineNo">242</span>    /**<a name="line.242"></a>
+<span class="sourceLineNo">243</span>     * Gets the dictionary size in bytes.<a name="line.243"></a>
+<span class="sourceLineNo">244</span>     */<a name="line.244"></a>
+<span class="sourceLineNo">245</span>    public int getDictSize() {<a name="line.245"></a>
+<span class="sourceLineNo">246</span>        return dictSize;<a name="line.246"></a>
+<span class="sourceLineNo">247</span>    }<a name="line.247"></a>
+<span class="sourceLineNo">248</span><a name="line.248"></a>
+<span class="sourceLineNo">249</span>    /**<a name="line.249"></a>
+<span class="sourceLineNo">250</span>     * Sets a preset dictionary. Use null to disable the use of<a name="line.250"></a>
+<span class="sourceLineNo">251</span>     * a preset dictionary. By default there is no preset dictionary.<a name="line.251"></a>
+<span class="sourceLineNo">252</span>     * &lt;p&gt;<a name="line.252"></a>
+<span class="sourceLineNo">253</span>     * &lt;b&gt;The .xz format doesn't support a preset dictionary for now.<a name="line.253"></a>
+<span class="sourceLineNo">254</span>     * Do not set a preset dictionary unless you use raw LZMA2.&lt;/b&gt;<a name="line.254"></a>
+<span class="sourceLineNo">255</span>     * &lt;p&gt;<a name="line.255"></a>
+<span class="sourceLineNo">256</span>     * Preset dictionary can be useful when compressing many similar,<a name="line.256"></a>
+<span class="sourceLineNo">257</span>     * relatively small chunks of data independently from each other.<a name="line.257"></a>
+<span class="sourceLineNo">258</span>     * A preset dictionary should contain typical strings that occur in<a name="line.258"></a>
+<span class="sourceLineNo">259</span>     * the files being compressed. The most probable strings should be<a name="line.259"></a>
+<span class="sourceLineNo">260</span>     * near the end of the preset dictionary. The preset dictionary used<a name="line.260"></a>
+<span class="sourceLineNo">261</span>     * for compression is also needed for decompression.<a name="line.261"></a>
+<span class="sourceLineNo">262</span>     */<a name="line.262"></a>
+<span class="sourceLineNo">263</span>    public void setPresetDict(byte[] presetDict) {<a name="line.263"></a>
+<span class="sourceLineNo">264</span>        this.presetDict = presetDict;<a name="line.264"></a>
+<span class="sourceLineNo">265</span>    }<a name="line.265"></a>
+<span class="sourceLineNo">266</span><a name="line.266"></a>
+<span class="sourceLineNo">267</span>    /**<a name="line.267"></a>
+<span class="sourceLineNo">268</span>     * Gets the preset dictionary.<a name="line.268"></a>
+<span class="sourceLineNo">269</span>     */<a name="line.269"></a>
+<span class="sourceLineNo">270</span>    public byte[] getPresetDict() {<a name="line.270"></a>
+<span class="sourceLineNo">271</span>        return presetDict;<a name="line.271"></a>
+<span class="sourceLineNo">272</span>    }<a name="line.272"></a>
+<span class="sourceLineNo">273</span><a name="line.273"></a>
+<span class="sourceLineNo">274</span>    /**<a name="line.274"></a>
+<span class="sourceLineNo">275</span>     * Sets the number of literal context bits and literal position bits.<a name="line.275"></a>
+<span class="sourceLineNo">276</span>     * &lt;p&gt;<a name="line.276"></a>
+<span class="sourceLineNo">277</span>     * The sum of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt; is limited to 4.<a name="line.277"></a>
+<span class="sourceLineNo">278</span>     * Trying to exceed it will throw an exception. This function lets<a name="line.278"></a>
+<span class="sourceLineNo">279</span>     * you change both at the same time.<a name="line.279"></a>
+<span class="sourceLineNo">280</span>     *<a name="line.280"></a>
+<span class="sourceLineNo">281</span>     * @throws UnsupportedOptionsException &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.281"></a>
+<span class="sourceLineNo">282</span>     *                                     are invalid<a name="line.282"></a>
+<span class="sourceLineNo">283</span>     */<a name="line.283"></a>
+<span class="sourceLineNo">284</span>    public void setLcLp(int lc, int lp) throws UnsupportedOptionsException {<a name="line.284"></a>
+<span class="sourceLineNo">285</span>        if (lc &lt; 0 || lp &lt; 0 || lc &gt; LC_LP_MAX || lp &gt; LC_LP_MAX<a name="line.285"></a>
+<span class="sourceLineNo">286</span>                || lc + lp &gt; LC_LP_MAX) {<a name="line.286"></a>
+<span class="sourceLineNo">287</span>            throw new UnsupportedOptionsException(<a name="line.287"></a>
+<span class="sourceLineNo">288</span>                    "lc + lp must not exceed " + LC_LP_MAX + ": "<a name="line.288"></a>
+<span class="sourceLineNo">289</span>                            + lc + " + " + lp);<a name="line.289"></a>
+<span class="sourceLineNo">290</span>        }<a name="line.290"></a>
+<span class="sourceLineNo">291</span><a name="line.291"></a>
+<span class="sourceLineNo">292</span>        this.lc = lc;<a name="line.292"></a>
+<span class="sourceLineNo">293</span>        this.lp = lp;<a name="line.293"></a>
+<span class="sourceLineNo">294</span>    }<a name="line.294"></a>
+<span class="sourceLineNo">295</span><a name="line.295"></a>
+<span class="sourceLineNo">296</span>    /**<a name="line.296"></a>
+<span class="sourceLineNo">297</span>     * Sets the number of literal context bits.<a name="line.297"></a>
+<span class="sourceLineNo">298</span>     * &lt;p&gt;<a name="line.298"></a>
+<span class="sourceLineNo">299</span>     * All bytes that cannot be encoded as matches are encoded as literals.<a name="line.299"></a>
+<span class="sourceLineNo">300</span>     * That is, literals are simply 8-bit bytes that are encoded one at<a name="line.300"></a>
+<span class="sourceLineNo">301</span>     * a time.<a name="line.301"></a>
+<span class="sourceLineNo">302</span>     * &lt;p&gt;<a name="line.302"></a>
+<span class="sourceLineNo">303</span>     * The literal coding makes an assumption that the highest &lt;code&gt;lc&lt;/code&gt;<a name="line.303"></a>
+<span class="sourceLineNo">304</span>     * bits of the previous uncompressed byte correlate with the next byte.<a name="line.304"></a>
+<span class="sourceLineNo">305</span>     * For example, in typical English text, an upper-case letter is often<a name="line.305"></a>
+<span class="sourceLineNo">306</span>     * followed by a lower-case letter, and a lower-case letter is usually<a name="line.306"></a>
+<span class="sourceLineNo">307</span>     * followed by another lower-case letter. In the US-ASCII character set,<a name="line.307"></a>
+<span class="sourceLineNo">308</span>     * the highest three bits are 010 for upper-case letters and 011 for<a name="line.308"></a>
+<span class="sourceLineNo">309</span>     * lower-case letters. When &lt;code&gt;lc&lt;/code&gt; is at least 3, the literal<a name="line.309"></a>
+<span class="sourceLineNo">310</span>     * coding can take advantage of this property in the  uncompressed data.<a name="line.310"></a>
+<span class="sourceLineNo">311</span>     * &lt;p&gt;<a name="line.311"></a>
+<span class="sourceLineNo">312</span>     * The default value (3) is usually good. If you want maximum compression,<a name="line.312"></a>
+<span class="sourceLineNo">313</span>     * try &lt;code&gt;setLc(4)&lt;/code&gt;. Sometimes it helps a little, and sometimes it<a name="line.313"></a>
+<span class="sourceLineNo">314</span>     * makes compression worse. If it makes it worse, test for example<a name="line.314"></a>
+<span class="sourceLineNo">315</span>     * &lt;code&gt;setLc(2)&lt;/code&gt; too.<a name="line.315"></a>
+<span class="sourceLineNo">316</span>     *<a name="line.316"></a>
+<span class="sourceLineNo">317</span>     * @throws UnsupportedOptionsException &lt;code&gt;lc&lt;/code&gt; is invalid, or the sum<a name="line.317"></a>
+<span class="sourceLineNo">318</span>     *                                     of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.318"></a>
+<span class="sourceLineNo">319</span>     *                                     exceed LC_LP_MAX<a name="line.319"></a>
+<span class="sourceLineNo">320</span>     */<a name="line.320"></a>
+<span class="sourceLineNo">321</span>    public void setLc(int lc) throws UnsupportedOptionsException {<a name="line.321"></a>
+<span class="sourceLineNo">322</span>        setLcLp(lc, lp);<a name="line.322"></a>
+<span class="sourceLineNo">323</span>    }<a name="line.323"></a>
+<span class="sourceLineNo">324</span><a name="line.324"></a>
+<span class="sourceLineNo">325</span>    /**<a name="line.325"></a>
+<span class="sourceLineNo">326</span>     * Sets the number of literal position bits.<a name="line.326"></a>
+<span class="sourceLineNo">327</span>     * &lt;p&gt;<a name="line.327"></a>
+<span class="sourceLineNo">328</span>     * This affets what kind of alignment in the uncompressed data is<a name="line.328"></a>
+<span class="sourceLineNo">329</span>     * assumed when encoding literals. See {@link #setPb(int) setPb} for<a name="line.329"></a>
+<span class="sourceLineNo">330</span>     * more information about alignment.<a name="line.330"></a>
+<span class="sourceLineNo">331</span>     *<a name="line.331"></a>
+<span class="sourceLineNo">332</span>     * @throws UnsupportedOptionsException &lt;code&gt;lp&lt;/code&gt; is invalid, or the sum<a name="line.332"></a>
+<span class="sourceLineNo">333</span>     *                                     of &lt;code&gt;lc&lt;/code&gt; and &lt;code&gt;lp&lt;/code&gt;<a name="line.333"></a>
+<span class="sourceLineNo">334</span>     *                                     exceed LC_LP_MAX<a name="line.334"></a>
+<span class="sourceLineNo">335</span>     */<a name="line.335"></a>
+<span class="sourceLineNo">336</span>    public void setLp(int lp) throws UnsupportedOptionsException {<a name="line.336"></a>
+<span class="sourceLineNo">337</span>        setLcLp(lc, lp);<a name="line.337"></a>
+<span class="sourceLineNo">338</span>    }<a name="line.338"></a>
+<span class="sourceLineNo">339</span><a name="line.339"></a>
+<span class="sourceLineNo">340</span>    /**<a name="line.340"></a>
+<span class="sourceLineNo">341</span>     * Gets the number of literal context bits.<a name="line.341"></a>
+<span class="sourceLineNo">342</span>     */<a name="line.342"></a>
+<span class="sourceLineNo">343</span>    public int getLc() {<a name="line.343"></a>
+<span class="sourceLineNo">344</span>        return lc;<a name="line.344"></a>
+<span class="sourceLineNo">345</span>    }<a name="line.345"></a>
+<span class="sourceLineNo">346</span><a name="line.346"></a>
+<span class="sourceLineNo">347</span>    /**<a name="line.347"></a>
+<span class="sourceLineNo">348</span>     * Gets the number of literal position bits.<a name="line.348"></a>
+<span class="sourceLineNo">349</span>     */<a name="line.349"></a>
+<span class="sourceLineNo">350</span>    public int getLp() {<a name="line.350"></a>
+<span class="sourceLineNo">351</span>        return lp;<a name="line.351"></a>
+<span class="sourceLineNo">352</span>    }<a name="line.352"></a>
+<span class="sourceLineNo">353</span><a name="line.353"></a>
+<span class="sourceLineNo">354</span>    /**<a name="line.354"></a>
+<span class="sourceLineNo">355</span>     * Sets the number of position bits.<a name="line.355"></a>
+<span class="sourceLineNo">356</span>     * &lt;p&gt;<a name="line.356"></a>
+<span class="sourceLineNo">357</span>     * This affects what kind of alignment in the uncompressed data is<a name="line.357"></a>
+<span class="sourceLineNo">358</span>     * assumed in general. The default (2) means four-byte alignment<a name="line.358"></a>
+<span class="sourceLineNo">359</span>     * (2^&lt;code&gt;pb&lt;/code&gt; = 2^2 = 4), which is often a good choice when<a name="line.359"></a>
+<span class="sourceLineNo">360</span>     * there's no better guess.<a name="line.360"></a>
+<span class="sourceLineNo">361</span>     * &lt;p&gt;<a name="line.361"></a>
+<span class="sourceLineNo">362</span>     * When the alignment is known, setting the number of position bits<a name="line.362"></a>
+<span class="sourceLineNo">363</span>     * accordingly may reduce the file size a little. For example with text<a name="line.363"></a>
+<span class="sourceLineNo">364</span>     * files having one-byte alignment (US-ASCII, ISO-8859-*, UTF-8), using<a name="line.364"></a>
+<span class="sourceLineNo">365</span>     * &lt;code&gt;setPb(0)&lt;/code&gt; can improve compression slightly. For UTF-16<a name="line.365"></a>
+<span class="sourceLineNo">366</span>     * text, &lt;code&gt;setPb(1)&lt;/code&gt; is a good choice. If the alignment is<a name="line.366"></a>
+<span class="sourceLineNo">367</span>     * an odd number like 3 bytes, &lt;code&gt;setPb(0)&lt;/code&gt; might be the best<a name="line.367"></a>
+<span class="sourceLineNo">368</span>     * choice.<a name="line.368"></a>
+<span class="sourceLineNo">369</span>     * &lt;p&gt;<a name="line.369"></a>
+<span class="sourceLineNo">370</span>     * Even though the assumed alignment can be adjusted with<a name="line.370"></a>
+<span class="sourceLineNo">371</span>     * &lt;code&gt;setPb&lt;/code&gt; and &lt;code&gt;setLp&lt;/code&gt;, LZMA2 still slightly favors<a name="line.371"></a>
+<span class="sourceLineNo">372</span>     * 16-byte alignment. It might be worth taking into account when designing<a name="line.372"></a>
+<span class="sourceLineNo">373</span>     * file formats that are likely to be often compressed with LZMA2.<a name="line.373"></a>
+<span class="sourceLineNo">374</span>     *<a name="line.374"></a>
+<span class="sourceLineNo">375</span>     * @throws UnsupportedOptionsException &lt;code&gt;pb&lt;/code&gt; is invalid<a name="line.375"></a>
+<span class="sourceLineNo">376</span>     */<a name="line.376"></a>
+<span class="sourceLineNo">377</span>    public void setPb(int pb) throws UnsupportedOptionsException {<a name="line.377"></a>
+<span class="sourceLineNo">378</span>        if (pb &lt; 0 || pb &gt; PB_MAX) {<a name="line.378"></a>
+<span class="sourceLineNo">379</span>            throw new UnsupportedOptionsException(<a name="line.379"></a>
+<span class="sourceLineNo">380</span>                    "pb must not exceed " + PB_MAX + ": " + pb);<a name="line.380"></a>
+<span class="sourceLineNo">381</span>        }<a name="line.381"></a>
+<span class="sourceLineNo">382</span><a name="line.382"></a>
+<span class="sourceLineNo">383</span>        this.pb = pb;<a name="line.383"></a>
+<span class="sourceLineNo">384</span>    }<a name="line.384"></a>
+<span class="sourceLineNo">385</span><a name="line.385"></a>
+<span class="sourceLineNo">386</span>    /**<a name="line.386"></a>
+<span class="sourceLineNo">387</span>     * Gets the number of position bits.<a name="line.387"></a>
+<span class="sourceLineNo">388</span>     */<a name="line.388"></a>
+<span class="sourceLineNo">389</span>    public int getPb() {<a name="line.389"></a>
+<span class="sourceLineNo">390</span>        return pb;<a name="line.390"></a>
+<span class="sourceLineNo">391</span>    }<a name="line.391"></a>
+<span class="sourceLineNo">392</span><a name="line.392"></a>
+<span class="sourceLineNo">393</span>    /**<a name="line.393"></a>
+<span class="sourceLineNo">394</span>     * Sets the compression mode.<a name="line.394"></a>
+<span class="sourceLineNo">395</span>     * &lt;p&gt;<a name="line.395"></a>
+<span class="sourceLineNo">396</span>     * This specifies the method to analyze the data produced by<a name="line.396"></a>
+<span class="sourceLineNo">397</span>     * a match finder. The default is &lt;code&gt;MODE_FAST&lt;/code&gt; for presets<a name="line.397"></a>
+<span class="sourceLineNo">398</span>     * 0-3 and &lt;code&gt;MODE_NORMAL&lt;/code&gt; for presets 4-9.<a name="line.398"></a>
+<span class="sourceLineNo">399</span>     * &lt;p&gt;<a name="line.399"></a>
+<span class="sourceLineNo">400</span>     * Usually &lt;code&gt;MODE_FAST&lt;/code&gt; is used with Hash Chain match finders<a name="line.400"></a>
+<span class="sourceLineNo">401</span>     * and &lt;code&gt;MODE_NORMAL&lt;/code&gt; with Binary Tree match finders. This is<a name="line.401"></a>
+<span class="sourceLineNo">402</span>     * also what the presets do.<a name="line.402"></a>
+<span class="sourceLineNo">403</span>     * &lt;p&gt;<a name="line.403"></a>
+<span class="sourceLineNo">404</span>     * The special mode &lt;code&gt;MODE_UNCOMPRESSED&lt;/code&gt; doesn't try to<a name="line.404"></a>
+<span class="sourceLineNo">405</span>     * compress the data at all (and doesn't use a match finder) and will<a name="line.405"></a>
+<span class="sourceLineNo">406</span>     * simply wrap it in uncompressed LZMA2 chunks.<a name="line.406"></a>
+<span class="sourceLineNo">407</span>     *<a name="line.407"></a>
+<span class="sourceLineNo">408</span>     * @throws UnsupportedOptionsException &lt;code&gt;mode&lt;/code&gt; is not supported<a name="line.408"></a>
+<span class="sourceLineNo">409</span>     */<a name="line.409"></a>
+<span class="sourceLineNo">410</span>    public void setMode(int mode) throws UnsupportedOptionsException {<a name="line.410"></a>
+<span class="sourceLineNo">411</span>        if (mode &lt; MODE_UNCOMPRESSED || mode &gt; MODE_NORMAL) {<a name="line.411"></a>
+<span class="sourceLineNo">412</span>            throw new UnsupportedOptionsException(<a name="line.412"></a>
+<span class="sourceLineNo">413</span>                    "Unsupported compression mode: " + mode);<a name="line.413"></a>
+<span class="sourceLineNo">414</span>        }<a name="line.414"></a>
+<span class="sourceLineNo">415</span><a name="line.415"></a>
+<span class="sourceLineNo">416</span>        this.mode = mode;<a name="line.416"></a>
+<span class="sourceLineNo">417</span>    }<a name="line.417"></a>
+<span class="sourceLineNo">418</span><a name="line.418"></a>
+<span class="sourceLineNo">419</span>    /**<a name="line.419"></a>
+<span class="sourceLineNo">420</span>     * Gets the compression mode.<a name="line.420"></a>
+<span class="sourceLineNo">421</span>     */<a name="line.421"></a>
+<span class="sourceLineNo">422</span>    public int getMode() {<a name="line.422"></a>
+<span class="sourceLineNo">423</span>        return mode;<a name="line.423"></a>
+<span class="sourceLineNo">424</span>    }<a name="line.424"></a>
+<span class="sourceLineNo">425</span><a name="line.425"></a>
+<span class="sourceLineNo">426</span>    /**<a name="line.426"></a>
+<span class="sourceLineNo">427</span>     * Sets the nice length of matches.<a name="line.427"></a>
+<span class="sourceLineNo">428</span>     * Once a match of at least &lt;code&gt;niceLen&lt;/code&gt; bytes is found,<a name="line.428"></a>
+<span class="sourceLineNo">429</span>     * the algorithm stops looking for better matches. Higher values tend<a name="line.429"></a>
+<span class="sourceLineNo">430</span>     * to give better compression at the expense of speed. The default<a name="line.430"></a>
+<span class="sourceLineNo">431</span>     * depends on the preset.<a name="line.431"></a>
+<span class="sourceLineNo">432</span>     *<a name="line.432"></a>
+<span class="sourceLineNo">433</span>     * @throws UnsupportedOptionsException &lt;code&gt;niceLen&lt;/code&gt; is invalid<a name="line.433"></a>
+<span class="sourceLineNo">434</span>     */<a name="line.434"></a>
+<span class="sourceLineNo">435</span>    public void setNiceLen(int niceLen) throws UnsupportedOptionsException {<a name="line.435"></a>
+<span class="sourceLineNo">436</span>        if (niceLen &lt; NICE_LEN_MIN) {<a name="line.436"></a>
+<span class="sourceLineNo">437</span>            throw new UnsupportedOptionsException(<a name="line.437"></a>
+<span class="sourceLineNo">438</span>                    "Minimum nice length of matches is "<a name="line.438"></a>
+<span class="sourceLineNo">439</span>                            + NICE_LEN_MIN + " bytes: " + niceLen);<a name="line.439"></a>
+<span class="sourceLineNo">440</span>        }<a name="line.440"></a>
+<span class="sourceLineNo">441</span><a name="line.441"></a>
+<span class="sourceLineNo">442</span>        if (niceLen &gt; NICE_LEN_MAX) {<a name="line.442"></a>
+<span class="sourceLineNo">443</span>            throw new UnsupportedOptionsException(<a name="line.443"></a>
+<span class="sourceLineNo">444</span>                    "Maximum nice length of matches is " + NICE_LEN_MAX<a name="line.444"></a>
+<span class="sourceLineNo">445</span>                            + ": " + niceLen);<a name="line.445"></a>
+<span class="sourceLineNo">446</span>        }<a name="line.446"></a>
+<span class="sourceLineNo">447</span><a name="line.447"></a>
+<span class="sourceLineNo">448</span>        this.niceLen = niceLen;<a name="line.448"></a>
+<span class="sourceLineNo">449</span>    }<a name="line.449"></a>
+<span class="sourceLineNo">450</span><a name="line.450"></a>
+<span class="sourceLineNo">451</span>    /**<a name="line.451"></a>
+<span class="sourceLineNo">452</span>     * Gets the nice length of matches.<a name="line.452"></a>
+<span class="sourceLineNo">453</span>     */<a name="line.453"></a>
+<span class="sourceLineNo">454</span>    public int getNiceLen() {<a name="line.454"></a>
+<span class="sourceLineNo">455</span>        return niceLen;<a name="line.455"></a>
+<span class="sourceLineNo">456</span>    }<a name="line.456"></a>
+<span class="sourceLineNo">457</span><a name="line.457"></a>
+<span class="sourceLineNo">458</span>    /**<a name="line.458"></a>
+<span class="sourceLineNo">459</span>     * Sets the match finder type.<a name="line.459"></a>
+<span class="sourceLineNo">460</span>     * &lt;p&gt;<a name="line.460"></a>
+<span class="sourceLineNo">461</span>     * Match finder has a major effect on compression speed, memory usage,<a name="line.461"></a>
+<span class="sourceLineNo">462</span>     * and compression ratio. Usually Hash Chain match finders are faster<a name="line.462"></a>
+<span class="sourceLineNo">463</span>     * than Binary Tree match finders. The default depends on the preset:<a name="line.463"></a>
+<span class="sourceLineNo">464</span>     * 0-3 use &lt;code&gt;MF_HC4&lt;/code&gt; and 4-9 use &lt;code&gt;MF_BT4&lt;/code&gt;.<a name="line.464"></a>
+<span class="sourceLineNo">465</span>     *<a name="line.465"></a>
+<span class="sourceLineNo">466</span>     * @throws UnsupportedOptionsException &lt;code&gt;mf&lt;/code&gt; is not supported<a name="line.466"></a>
+<span class="sourceLineNo">467</span>     */<a name="line.467"></a>
+<span class="sourceLineNo">468</span>    public void setMatchFinder(int mf) throws UnsupportedOptionsException {<a name="line.468"></a>
+<span class="sourceLineNo">469</span>        if (mf != MF_HC4 &amp;&amp; mf != MF_BT4) {<a name="line.469"></a>
+<span class="sourceLineNo">470</span>            throw new UnsupportedOptionsException(<a name="line.470"></a>
+<span class="sourceLineNo">471</span>                    "Unsupported match finder: " + mf);<a name="line.471"></a>
+<span class="sourceLineNo">472</span>        }<a name="line.472"></a>
+<span class="sourceLineNo">473</span><a name="line.473"></a>
+<span class="sourceLineNo">474</span>        this.mf = mf;<a name="line.474"></a>
+<span class="sourceLineNo">475</span>    }<a name="line.475"></a>
+<span class="sourceLineNo">476</span><a name="line.476"></a>
+<span class="sourceLineNo">477</span>    /**<a name="line.477"></a>
+<span class="sourceLineNo">478</span>     * Gets the match finder type.<a name="line.478"></a>
+<span class="sourceLineNo">479</span>     */<a name="line.479"></a>
+<span class="sourceLineNo">480</span>    public int getMatchFinder() {<a name="line.480"></a>
+<span class="sourceLineNo">481</span>        return mf;<a name="line.481"></a>
+<span class="sourceLineNo">482</span>    }<a name="line.482"></a>
+<span class="sourceLineNo">483</span><a name="line.483"></a>
+<span class="sourceLineNo">484</span>    /**<a name="line.484"></a>
+<span class="sourceLineNo">485</span>     * Sets the match finder search depth limit.<a name="line.485"></a>
+<span class="sourceLineNo">486</span>     * &lt;p&gt;<a name="line.486"></a>
+<span class="sourceLineNo">487</span>     * The default is a special value of &lt;code&gt;0&lt;/code&gt; which indicates that<a name="line.487"></a>
+<span class="sourceLineNo">488</span>     * the depth limit should be automatically calculated by the selected<a name="line.488"></a>
+<span class="sourceLineNo">489</span>     * match finder from the nice length of matches.<a name="line.489"></a>
+<span class="sourceLineNo">490</span>     * &lt;p&gt;<a name="line.490"></a>
+<span class="sourceLineNo">491</span>     * Reasonable depth limit for Hash Chain match finders is 4-100 and<a name="line.491"></a>
+<span class="sourceLineNo">492</span>     * 16-1000 for Binary Tree match finders. Using very high values can<a name="line.492"></a>
+<span class="sourceLineNo">493</span>     * make the compressor extremely slow with some files. Avoid settings<a name="line.493"></a>
+<span class="sourceLineNo">494</span>     * higher than 1000 unless you are prepared to interrupt the compression<a name="line.494"></a>
+<span class="sourceLineNo">495</span>     * in case it is taking far too long.<a name="line.495"></a>
+<span class="sourceLineNo">496</span>     *<a name="line.496"></a>
+<span class="sourceLineNo">497</span>     * @throws UnsupportedOptionsException &lt;code&gt;depthLimit&lt;/code&gt; is invalid<a name="line.497"></a>
+<span class="sourceLineNo">498</span>     */<a name="line.498"></a>
+<span class="sourceLineNo">499</span>    public void setDepthLimit(int depthLimit)<a name="line.499"></a>
+<span class="sourceLineNo">500</span>            throws UnsupportedOptionsException {<a name="line.500"></a>
+<span class="sourceLineNo">501</span>        if (depthLimit &lt; 0) {<a name="line.501"></a>
+<span class="sourceLineNo">502</span>            throw new UnsupportedOptionsException(<a name="line.502"></a>
+<span class="sourceLineNo">503</span>                    "Depth limit cannot be negative: " + depthLimit);<a name="line.503"></a>
+<span class="sourceLineNo">504</span>        }<a name="line.504"></a>
+<span class="sourceLineNo">505</span><a name="line.505"></a>
+<span class="sourceLineNo">506</span>        this.depthLimit = depthLimit;<a name="line.506"></a>
+<span class="sourceLineNo">507</span>    }<a name="line.507"></a>
+<span class="sourceLineNo">508</span><a name="line.508"></a>
+<span class="sourceLineNo">509</span>    /**<a name="line.509"></a>
+<span class="sourceLineNo">510</span>     * Gets the match finder search depth limit.<a name="line.510"></a>
+<span class="sourceLineNo">511</span>     */<a name="line.511"></a>
+<span class="sourceLineNo">512</span>    public int getDepthLimit() {<a name="line.512"></a>
+<span class="sourceLineNo">513</span>        return depthLimit;<a name="line.513"></a>
+<span class="sourceLineNo">514</span>    }<a name="line.514"></a>
+<span class="sourceLineNo">515</span><a name="line.515"></a>
+<span class="sourceLineNo">516</span>    public int getEncoderMemoryUsage() {<a name="line.516"></a>
+<span class="sourceLineNo">517</span>        return (mode == MODE_UNCOMPRESSED)<a name="line.517"></a>
+<span class="sourceLineNo">518</span>                ? UncompressedLZMA2OutputStream.getMemoryUsage()<a name="line.518"></a>
+<span class="sourceLineNo">519</span>                : LZMA2OutputStream.getMemoryUsage(this);<a name="line.519"></a>
+<span class="sourceLineNo">520</span>    }<a name="line.520"></a>
+<span class="sourceLineNo">521</span><a name="line.521"></a>
+<span class="sourceLineNo">522</span>    public FinishableOutputStream getOutputStream(FinishableOutputStream out) {<a name="line.522"></a>
+<span class="sourceLineNo">523</span>        if (mode == MODE_UNCOMPRESSED) {<a name="line.523"></a>
+<span class="sourceLineNo">524</span>            return new UncompressedLZMA2OutputStream(out);<a name="line.524"></a>
+<span class="sourceLineNo">525</span>        }<a name="line.525"></a>
+<span class="sourceLineNo">526</span><a name="line.526"></a>
+<span class="sourceLineNo">527</span>        return new LZMA2OutputStream(out, this);<a name="line.527"></a>
+<span class="sourceLineNo">528</span>    }<a name="line.528"></a>
+<span class="sourceLineNo">529</span><a name="line.529"></a>
+<span class="sourceLineNo">530</span>    /**<a name="line.530"></a>
+<span class="sourceLineNo">531</span>     * Gets how much memory the LZMA2 decoder will need to decompress the data<a name="line.531"></a>
+<span class="sourceLineNo">532</span>     * that was encoded with these options and stored in a .xz file.<a name="line.532"></a>
+<span class="sourceLineNo">533</span>     * &lt;p&gt;<a name="line.533"></a>
+<span class="sourceLineNo">534</span>     * The returned value may bigger than the value returned by a direct call<a name="line.534"></a>
+<span class="sourceLineNo">535</span>     * to {@link LZMA2InputStream#getMemoryUsage(int)} if the dictionary size<a name="line.535"></a>
+<span class="sourceLineNo">536</span>     * is not 2^n or 2^n&amp;nbsp;+&amp;nbsp;2^(n-1) bytes. This is because the .xz<a name="line.536"></a>
+<span class="sourceLineNo">537</span>     * headers store the dictionary size in such a format and other values<a name="line.537"></a>
+<span class="sourceLineNo">538</span>     * are rounded up to the next such value. Such rounding is harmess except<a name="line.538"></a>
+<span class="sourceLineNo">539</span>     * it might waste some memory if an unsual dictionary size is used.<a name="line.539"></a>
+<span class="sourceLineNo">540</span>     * &lt;p&gt;<a name="line.540"></a>
+<span class="sourceLineNo">541</span>     * If you use raw LZMA2 streams and unusual dictioanary size, call<a name="line.541"></a>
+<span class="sourceLineNo">542</span>     * {@link LZMA2InputStream#getMemoryUsage} directly to get raw decoder<a name="line.542"></a>
+<span class="sourceLineNo">543</span>     * memory requirements.<a name="line.543"></a>
+<span class="sourceLineNo">544</span>     */<a name="line.544"></a>
+<span class="sourceLineNo">545</span>    public int getDecoderMemoryUsage() {<a name="line.545"></a>
+<span class="sourceLineNo">546</span>        // Round the dictionary size up to the next 2^n or 2^n + 2^(n-1).<a name="line.546"></a>
+<span class="sourceLineNo">547</span>        int d = dictSize - 1;<a name="line.547"></a>
+<span class="sourceLineNo">548</span>        d |= d &gt;&gt;&gt; 2;<a name="line.548"></a>
+<span class="sourceLineNo">549</span>        d |= d &gt;&gt;&gt; 3;<a name="line.549"></a>
+<span class="sourceLineNo">550</span>        d |= d &gt;&gt;&gt; 4;<a name="line.550"></a>
+<span class="sourceLineNo">551</span>        d |= d &gt;&gt;&gt; 8;<a name="line.551"></a>
+<span class="sourceLineNo">552</span>        d |= d &gt;&gt;&gt; 16;<a name="line.552"></a>
+<span class="sourceLineNo">553</span>        return LZMA2InputStream.getMemoryUsage(d + 1);<a name="line.553"></a>
+<span class="sourceLineNo">554</span>    }<a name="line.554"></a>
+<span class="sourceLineNo">555</span><a name="line.555"></a>
+<span class="sourceLineNo">556</span>    public InputStream getInputStream(InputStream in) throws IOException {<a name="line.556"></a>
+<span class="sourceLineNo">557</span>        return new LZMA2InputStream(in, dictSize);<a name="line.557"></a>
+<span class="sourceLineNo">558</span>    }<a name="line.558"></a>
+<span class="sourceLineNo">559</span><a name="line.559"></a>
+<span class="sourceLineNo">560</span>    FilterEncoder getFilterEncoder() {<a name="line.560"></a>
+<span class="sourceLineNo">561</span>        return new LZMA2Encoder(this);<a name="line.561"></a>
+<span class="sourceLineNo">562</span>    }<a name="line.562"></a>
+<span class="sourceLineNo">563</span><a name="line.563"></a>
+<span class="sourceLineNo">564</span>    public Object clone() {<a name="line.564"></a>
+<span class="sourceLineNo">565</span>        try {<a name="line.565"></a>
+<span class="sourceLineNo">566</span>            return super.clone();<a name="line.566"></a>
+<span class="sourceLineNo">567</span>        } catch (CloneNotSupportedException e) {<a name="line.567"></a>
+<span class="sourceLineNo">568</span>            assert false;<a name="line.568"></a>
+<span class="sourceLineNo">569</span>            throw new RuntimeException();<a name="line.569"></a>
+<span class="sourceLineNo">570</span>        }<a name="line.570"></a>
+<span class="sourceLineNo">571</span>    }<a name="line.571"></a>
+<span class="sourceLineNo">572</span>}<a name="line.572"></a>
 
 
 

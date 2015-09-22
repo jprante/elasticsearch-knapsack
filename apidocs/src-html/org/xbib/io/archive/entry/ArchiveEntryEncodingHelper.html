@@ -1,0 +1,309 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
+<span class="sourceLineNo">002</span> * Copyright (C) 2014 Jörg Prante<a name="line.2"></a>
+<span class="sourceLineNo">003</span> *<a name="line.3"></a>
+<span class="sourceLineNo">004</span> * Licensed under the Apache License, Version 2.0 (the "License");<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * you may not use this file except in compliance with the License.<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * You may obtain a copy of the License at<a name="line.6"></a>
+<span class="sourceLineNo">007</span> *<a name="line.7"></a>
+<span class="sourceLineNo">008</span> *      http://www.apache.org/licenses/LICENSE-2.0<a name="line.8"></a>
+<span class="sourceLineNo">009</span> *<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * Unless required by applicable law or agreed to in writing, software<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * distributed under the License is distributed on an "AS IS" BASIS,<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * See the License for the specific language governing permissions and<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * limitations under the License.<a name="line.14"></a>
+<span class="sourceLineNo">015</span> */<a name="line.15"></a>
+<span class="sourceLineNo">016</span>package org.xbib.io.archive.entry;<a name="line.16"></a>
+<span class="sourceLineNo">017</span><a name="line.17"></a>
+<span class="sourceLineNo">018</span>import java.nio.ByteBuffer;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import java.nio.charset.Charset;<a name="line.19"></a>
+<span class="sourceLineNo">020</span>import java.nio.charset.UnsupportedCharsetException;<a name="line.20"></a>
+<span class="sourceLineNo">021</span>import java.util.HashMap;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>import java.util.Map;<a name="line.22"></a>
+<span class="sourceLineNo">023</span><a name="line.23"></a>
+<span class="sourceLineNo">024</span>/**<a name="line.24"></a>
+<span class="sourceLineNo">025</span> * Static helper functions for encoding filenames in archives.<a name="line.25"></a>
+<span class="sourceLineNo">026</span> */<a name="line.26"></a>
+<span class="sourceLineNo">027</span>public abstract class ArchiveEntryEncodingHelper {<a name="line.27"></a>
+<span class="sourceLineNo">028</span><a name="line.28"></a>
+<span class="sourceLineNo">029</span>    /**<a name="line.29"></a>
+<span class="sourceLineNo">030</span>     * A class, which holds the high characters of a simple encoding<a name="line.30"></a>
+<span class="sourceLineNo">031</span>     * and lazily instantiates a {@link Simple8BitArchiveEntryEncoding} instance in a<a name="line.31"></a>
+<span class="sourceLineNo">032</span>     * thread-safe manner.<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     */<a name="line.33"></a>
+<span class="sourceLineNo">034</span>    private static class SimpleEncodingHolder {<a name="line.34"></a>
+<span class="sourceLineNo">035</span><a name="line.35"></a>
+<span class="sourceLineNo">036</span>        private final char[] highChars;<a name="line.36"></a>
+<span class="sourceLineNo">037</span><a name="line.37"></a>
+<span class="sourceLineNo">038</span>        private Simple8BitArchiveEntryEncoding encoding;<a name="line.38"></a>
+<span class="sourceLineNo">039</span><a name="line.39"></a>
+<span class="sourceLineNo">040</span>        /**<a name="line.40"></a>
+<span class="sourceLineNo">041</span>         * Instantiate a simple encoding holder.<a name="line.41"></a>
+<span class="sourceLineNo">042</span>         *<a name="line.42"></a>
+<span class="sourceLineNo">043</span>         * @param highChars The characters for byte codes 128 to 255.<a name="line.43"></a>
+<span class="sourceLineNo">044</span>         * @see Simple8BitArchiveEntryEncoding#Simple8BitArchiveEntryEncoding(char[])<a name="line.44"></a>
+<span class="sourceLineNo">045</span>         */<a name="line.45"></a>
+<span class="sourceLineNo">046</span>        SimpleEncodingHolder(char[] highChars) {<a name="line.46"></a>
+<span class="sourceLineNo">047</span>            this.highChars = highChars;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>        }<a name="line.48"></a>
+<span class="sourceLineNo">049</span><a name="line.49"></a>
+<span class="sourceLineNo">050</span>        /**<a name="line.50"></a>
+<span class="sourceLineNo">051</span>         * @return The associated {@link Simple8BitArchiveEntryEncoding}, which<a name="line.51"></a>
+<span class="sourceLineNo">052</span>         * is instantiated if not done so far.<a name="line.52"></a>
+<span class="sourceLineNo">053</span>         */<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        public synchronized Simple8BitArchiveEntryEncoding getEncoding() {<a name="line.54"></a>
+<span class="sourceLineNo">055</span>            if (this.encoding == null) {<a name="line.55"></a>
+<span class="sourceLineNo">056</span>                this.encoding = new Simple8BitArchiveEntryEncoding(this.highChars);<a name="line.56"></a>
+<span class="sourceLineNo">057</span>            }<a name="line.57"></a>
+<span class="sourceLineNo">058</span>            return this.encoding;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        }<a name="line.59"></a>
+<span class="sourceLineNo">060</span>    }<a name="line.60"></a>
+<span class="sourceLineNo">061</span><a name="line.61"></a>
+<span class="sourceLineNo">062</span>    private static final Map&lt;String, SimpleEncodingHolder&gt; simpleEncodings;<a name="line.62"></a>
+<span class="sourceLineNo">063</span><a name="line.63"></a>
+<span class="sourceLineNo">064</span>    static {<a name="line.64"></a>
+<span class="sourceLineNo">065</span>        simpleEncodings = new HashMap&lt;String, SimpleEncodingHolder&gt;();<a name="line.65"></a>
+<span class="sourceLineNo">066</span><a name="line.66"></a>
+<span class="sourceLineNo">067</span>        char[] cp437_high_chars =<a name="line.67"></a>
+<span class="sourceLineNo">068</span>                new char[]{0x00c7, 0x00fc, 0x00e9, 0x00e2, 0x00e4, 0x00e0,<a name="line.68"></a>
+<span class="sourceLineNo">069</span>                        0x00e5, 0x00e7, 0x00ea, 0x00eb, 0x00e8, 0x00ef,<a name="line.69"></a>
+<span class="sourceLineNo">070</span>                        0x00ee, 0x00ec, 0x00c4, 0x00c5, 0x00c9, 0x00e6,<a name="line.70"></a>
+<span class="sourceLineNo">071</span>                        0x00c6, 0x00f4, 0x00f6, 0x00f2, 0x00fb, 0x00f9,<a name="line.71"></a>
+<span class="sourceLineNo">072</span>                        0x00ff, 0x00d6, 0x00dc, 0x00a2, 0x00a3, 0x00a5,<a name="line.72"></a>
+<span class="sourceLineNo">073</span>                        0x20a7, 0x0192, 0x00e1, 0x00ed, 0x00f3, 0x00fa,<a name="line.73"></a>
+<span class="sourceLineNo">074</span>                        0x00f1, 0x00d1, 0x00aa, 0x00ba, 0x00bf, 0x2310,<a name="line.74"></a>
+<span class="sourceLineNo">075</span>                        0x00ac, 0x00bd, 0x00bc, 0x00a1, 0x00ab, 0x00bb,<a name="line.75"></a>
+<span class="sourceLineNo">076</span>                        0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561,<a name="line.76"></a>
+<span class="sourceLineNo">077</span>                        0x2562, 0x2556, 0x2555, 0x2563, 0x2551, 0x2557,<a name="line.77"></a>
+<span class="sourceLineNo">078</span>                        0x255d, 0x255c, 0x255b, 0x2510, 0x2514, 0x2534,<a name="line.78"></a>
+<span class="sourceLineNo">079</span>                        0x252c, 0x251c, 0x2500, 0x253c, 0x255e, 0x255f,<a name="line.79"></a>
+<span class="sourceLineNo">080</span>                        0x255a, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550,<a name="line.80"></a>
+<span class="sourceLineNo">081</span>                        0x256c, 0x2567, 0x2568, 0x2564, 0x2565, 0x2559,<a name="line.81"></a>
+<span class="sourceLineNo">082</span>                        0x2558, 0x2552, 0x2553, 0x256b, 0x256a, 0x2518,<a name="line.82"></a>
+<span class="sourceLineNo">083</span>                        0x250c, 0x2588, 0x2584, 0x258c, 0x2590, 0x2580,<a name="line.83"></a>
+<span class="sourceLineNo">084</span>                        0x03b1, 0x00df, 0x0393, 0x03c0, 0x03a3, 0x03c3,<a name="line.84"></a>
+<span class="sourceLineNo">085</span>                        0x00b5, 0x03c4, 0x03a6, 0x0398, 0x03a9, 0x03b4,<a name="line.85"></a>
+<span class="sourceLineNo">086</span>                        0x221e, 0x03c6, 0x03b5, 0x2229, 0x2261, 0x00b1,<a name="line.86"></a>
+<span class="sourceLineNo">087</span>                        0x2265, 0x2264, 0x2320, 0x2321, 0x00f7, 0x2248,<a name="line.87"></a>
+<span class="sourceLineNo">088</span>                        0x00b0, 0x2219, 0x00b7, 0x221a, 0x207f, 0x00b2,<a name="line.88"></a>
+<span class="sourceLineNo">089</span>                        0x25a0, 0x00a0};<a name="line.89"></a>
+<span class="sourceLineNo">090</span><a name="line.90"></a>
+<span class="sourceLineNo">091</span>        SimpleEncodingHolder cp437 = new SimpleEncodingHolder(cp437_high_chars);<a name="line.91"></a>
+<span class="sourceLineNo">092</span><a name="line.92"></a>
+<span class="sourceLineNo">093</span>        simpleEncodings.put("CP437", cp437);<a name="line.93"></a>
+<span class="sourceLineNo">094</span>        simpleEncodings.put("Cp437", cp437);<a name="line.94"></a>
+<span class="sourceLineNo">095</span>        simpleEncodings.put("cp437", cp437);<a name="line.95"></a>
+<span class="sourceLineNo">096</span>        simpleEncodings.put("IBM437", cp437);<a name="line.96"></a>
+<span class="sourceLineNo">097</span>        simpleEncodings.put("ibm437", cp437);<a name="line.97"></a>
+<span class="sourceLineNo">098</span><a name="line.98"></a>
+<span class="sourceLineNo">099</span>        char[] cp850_high_chars =<a name="line.99"></a>
+<span class="sourceLineNo">100</span>                new char[]{0x00c7, 0x00fc, 0x00e9, 0x00e2, 0x00e4, 0x00e0,<a name="line.100"></a>
+<span class="sourceLineNo">101</span>                        0x00e5, 0x00e7, 0x00ea, 0x00eb, 0x00e8, 0x00ef,<a name="line.101"></a>
+<span class="sourceLineNo">102</span>                        0x00ee, 0x00ec, 0x00c4, 0x00c5, 0x00c9, 0x00e6,<a name="line.102"></a>
+<span class="sourceLineNo">103</span>                        0x00c6, 0x00f4, 0x00f6, 0x00f2, 0x00fb, 0x00f9,<a name="line.103"></a>
+<span class="sourceLineNo">104</span>                        0x00ff, 0x00d6, 0x00dc, 0x00f8, 0x00a3, 0x00d8,<a name="line.104"></a>
+<span class="sourceLineNo">105</span>                        0x00d7, 0x0192, 0x00e1, 0x00ed, 0x00f3, 0x00fa,<a name="line.105"></a>
+<span class="sourceLineNo">106</span>                        0x00f1, 0x00d1, 0x00aa, 0x00ba, 0x00bf, 0x00ae,<a name="line.106"></a>
+<span class="sourceLineNo">107</span>                        0x00ac, 0x00bd, 0x00bc, 0x00a1, 0x00ab, 0x00bb,<a name="line.107"></a>
+<span class="sourceLineNo">108</span>                        0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x00c1,<a name="line.108"></a>
+<span class="sourceLineNo">109</span>                        0x00c2, 0x00c0, 0x00a9, 0x2563, 0x2551, 0x2557,<a name="line.109"></a>
+<span class="sourceLineNo">110</span>                        0x255d, 0x00a2, 0x00a5, 0x2510, 0x2514, 0x2534,<a name="line.110"></a>
+<span class="sourceLineNo">111</span>                        0x252c, 0x251c, 0x2500, 0x253c, 0x00e3, 0x00c3,<a name="line.111"></a>
+<span class="sourceLineNo">112</span>                        0x255a, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550,<a name="line.112"></a>
+<span class="sourceLineNo">113</span>                        0x256c, 0x00a4, 0x00f0, 0x00d0, 0x00ca, 0x00cb,<a name="line.113"></a>
+<span class="sourceLineNo">114</span>                        0x00c8, 0x0131, 0x00cd, 0x00ce, 0x00cf, 0x2518,<a name="line.114"></a>
+<span class="sourceLineNo">115</span>                        0x250c, 0x2588, 0x2584, 0x00a6, 0x00cc, 0x2580,<a name="line.115"></a>
+<span class="sourceLineNo">116</span>                        0x00d3, 0x00df, 0x00d4, 0x00d2, 0x00f5, 0x00d5,<a name="line.116"></a>
+<span class="sourceLineNo">117</span>                        0x00b5, 0x00fe, 0x00de, 0x00da, 0x00db, 0x00d9,<a name="line.117"></a>
+<span class="sourceLineNo">118</span>                        0x00fd, 0x00dd, 0x00af, 0x00b4, 0x00ad, 0x00b1,<a name="line.118"></a>
+<span class="sourceLineNo">119</span>                        0x2017, 0x00be, 0x00b6, 0x00a7, 0x00f7, 0x00b8,<a name="line.119"></a>
+<span class="sourceLineNo">120</span>                        0x00b0, 0x00a8, 0x00b7, 0x00b9, 0x00b3, 0x00b2,<a name="line.120"></a>
+<span class="sourceLineNo">121</span>                        0x25a0, 0x00a0};<a name="line.121"></a>
+<span class="sourceLineNo">122</span><a name="line.122"></a>
+<span class="sourceLineNo">123</span>        SimpleEncodingHolder cp850 = new SimpleEncodingHolder(cp850_high_chars);<a name="line.123"></a>
+<span class="sourceLineNo">124</span><a name="line.124"></a>
+<span class="sourceLineNo">125</span>        simpleEncodings.put("CP850", cp850);<a name="line.125"></a>
+<span class="sourceLineNo">126</span>        simpleEncodings.put("Cp850", cp850);<a name="line.126"></a>
+<span class="sourceLineNo">127</span>        simpleEncodings.put("cp850", cp850);<a name="line.127"></a>
+<span class="sourceLineNo">128</span>        simpleEncodings.put("IBM850", cp850);<a name="line.128"></a>
+<span class="sourceLineNo">129</span>        simpleEncodings.put("ibm850", cp850);<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    }<a name="line.130"></a>
+<span class="sourceLineNo">131</span><a name="line.131"></a>
+<span class="sourceLineNo">132</span>    /**<a name="line.132"></a>
+<span class="sourceLineNo">133</span>     * Grow a byte buffer, so it has a minimal capacity or at least<a name="line.133"></a>
+<span class="sourceLineNo">134</span>     * the double capacity of the original buffer<a name="line.134"></a>
+<span class="sourceLineNo">135</span>     *<a name="line.135"></a>
+<span class="sourceLineNo">136</span>     * @param b           The original buffer.<a name="line.136"></a>
+<span class="sourceLineNo">137</span>     * @param newCapacity The minimal requested new capacity.<a name="line.137"></a>
+<span class="sourceLineNo">138</span>     * @return A byte buffer &lt;code&gt;r&lt;/code&gt; with<a name="line.138"></a>
+<span class="sourceLineNo">139</span>     * &lt;code&gt;r.capacity() = max(b.capacity()*2,newCapacity)&lt;/code&gt; and<a name="line.139"></a>
+<span class="sourceLineNo">140</span>     * all the data contained in &lt;code&gt;b&lt;/code&gt; copied to the beginning<a name="line.140"></a>
+<span class="sourceLineNo">141</span>     * of &lt;code&gt;r&lt;/code&gt;.<a name="line.141"></a>
+<span class="sourceLineNo">142</span>     */<a name="line.142"></a>
+<span class="sourceLineNo">143</span>    static ByteBuffer growBuffer(ByteBuffer b, int newCapacity) {<a name="line.143"></a>
+<span class="sourceLineNo">144</span>        b.limit(b.position());<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        b.rewind();<a name="line.145"></a>
+<span class="sourceLineNo">146</span><a name="line.146"></a>
+<span class="sourceLineNo">147</span>        int c2 = b.capacity() * 2;<a name="line.147"></a>
+<span class="sourceLineNo">148</span>        ByteBuffer on = ByteBuffer.allocate(c2 &lt; newCapacity ? newCapacity : c2);<a name="line.148"></a>
+<span class="sourceLineNo">149</span><a name="line.149"></a>
+<span class="sourceLineNo">150</span>        on.put(b);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>        return on;<a name="line.151"></a>
+<span class="sourceLineNo">152</span>    }<a name="line.152"></a>
+<span class="sourceLineNo">153</span><a name="line.153"></a>
+<span class="sourceLineNo">154</span><a name="line.154"></a>
+<span class="sourceLineNo">155</span>    /**<a name="line.155"></a>
+<span class="sourceLineNo">156</span>     * The hexadecimal digits &lt;code&gt;0,...,9,A,...,F&lt;/code&gt; encoded as<a name="line.156"></a>
+<span class="sourceLineNo">157</span>     * ASCII bytes.<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     */<a name="line.158"></a>
+<span class="sourceLineNo">159</span>    private static final byte[] HEX_DIGITS =<a name="line.159"></a>
+<span class="sourceLineNo">160</span>            new byte[]{<a name="line.160"></a>
+<span class="sourceLineNo">161</span>                    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x41,<a name="line.161"></a>
+<span class="sourceLineNo">162</span>                    0x42, 0x43, 0x44, 0x45, 0x46<a name="line.162"></a>
+<span class="sourceLineNo">163</span>            };<a name="line.163"></a>
+<span class="sourceLineNo">164</span><a name="line.164"></a>
+<span class="sourceLineNo">165</span>    /**<a name="line.165"></a>
+<span class="sourceLineNo">166</span>     * Append &lt;code&gt;%Uxxxx&lt;/code&gt; to the given byte buffer.<a name="line.166"></a>
+<span class="sourceLineNo">167</span>     * The caller must assure, that &lt;code&gt;bb.remaining()&amp;gt;=6&lt;/code&gt;.<a name="line.167"></a>
+<span class="sourceLineNo">168</span>     *<a name="line.168"></a>
+<span class="sourceLineNo">169</span>     * @param bb The byte buffer to write to.<a name="line.169"></a>
+<span class="sourceLineNo">170</span>     * @param c  The character to write.<a name="line.170"></a>
+<span class="sourceLineNo">171</span>     */<a name="line.171"></a>
+<span class="sourceLineNo">172</span>    public static void appendSurrogate(ByteBuffer bb, char c) {<a name="line.172"></a>
+<span class="sourceLineNo">173</span><a name="line.173"></a>
+<span class="sourceLineNo">174</span>        bb.put((byte) '%');<a name="line.174"></a>
+<span class="sourceLineNo">175</span>        bb.put((byte) 'U');<a name="line.175"></a>
+<span class="sourceLineNo">176</span><a name="line.176"></a>
+<span class="sourceLineNo">177</span>        bb.put(HEX_DIGITS[(c &gt;&gt; 12) &amp; 0x0f]);<a name="line.177"></a>
+<span class="sourceLineNo">178</span>        bb.put(HEX_DIGITS[(c &gt;&gt; 8) &amp; 0x0f]);<a name="line.178"></a>
+<span class="sourceLineNo">179</span>        bb.put(HEX_DIGITS[(c &gt;&gt; 4) &amp; 0x0f]);<a name="line.179"></a>
+<span class="sourceLineNo">180</span>        bb.put(HEX_DIGITS[c &amp; 0x0f]);<a name="line.180"></a>
+<span class="sourceLineNo">181</span>    }<a name="line.181"></a>
+<span class="sourceLineNo">182</span><a name="line.182"></a>
+<span class="sourceLineNo">183</span>    /**<a name="line.183"></a>
+<span class="sourceLineNo">184</span>     * name of the encoding UTF-8<a name="line.184"></a>
+<span class="sourceLineNo">185</span>     */<a name="line.185"></a>
+<span class="sourceLineNo">186</span>    public static final String UTF8 = "UTF8";<a name="line.186"></a>
+<span class="sourceLineNo">187</span><a name="line.187"></a>
+<span class="sourceLineNo">188</span>    /**<a name="line.188"></a>
+<span class="sourceLineNo">189</span>     * variant name of the encoding UTF-8 used for comparisions.<a name="line.189"></a>
+<span class="sourceLineNo">190</span>     */<a name="line.190"></a>
+<span class="sourceLineNo">191</span>    private static final String UTF_DASH_8 = "UTF_8";<a name="line.191"></a>
+<span class="sourceLineNo">192</span><a name="line.192"></a>
+<span class="sourceLineNo">193</span>    /**<a name="line.193"></a>
+<span class="sourceLineNo">194</span>     * name of the encoding UTF-8<a name="line.194"></a>
+<span class="sourceLineNo">195</span>     */<a name="line.195"></a>
+<span class="sourceLineNo">196</span>    public static final ArchiveEntryEncoding UTF8_ENCODING = new FallbackArchiveEntryEncoding(UTF8);<a name="line.196"></a>
+<span class="sourceLineNo">197</span><a name="line.197"></a>
+<span class="sourceLineNo">198</span>    /**<a name="line.198"></a>
+<span class="sourceLineNo">199</span>     * Instantiates an encoding.<a name="line.199"></a>
+<span class="sourceLineNo">200</span>     *<a name="line.200"></a>
+<span class="sourceLineNo">201</span>     * @param name The name of the encoding. Specify {@code null} for<a name="line.201"></a>
+<span class="sourceLineNo">202</span>     *             the platform's default encoding.<a name="line.202"></a>
+<span class="sourceLineNo">203</span>     * @return An encoding for the given encoding name.<a name="line.203"></a>
+<span class="sourceLineNo">204</span>     */<a name="line.204"></a>
+<span class="sourceLineNo">205</span>    public static ArchiveEntryEncoding getEncoding(String name) {<a name="line.205"></a>
+<span class="sourceLineNo">206</span>        // fallback encoding is good enough for utf-8.<a name="line.206"></a>
+<span class="sourceLineNo">207</span>        if (isUTF8(name)) {<a name="line.207"></a>
+<span class="sourceLineNo">208</span>            return UTF8_ENCODING;<a name="line.208"></a>
+<span class="sourceLineNo">209</span>        }<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        if (name == null) {<a name="line.210"></a>
+<span class="sourceLineNo">211</span>            return new FallbackArchiveEntryEncoding();<a name="line.211"></a>
+<span class="sourceLineNo">212</span>        }<a name="line.212"></a>
+<span class="sourceLineNo">213</span>        SimpleEncodingHolder h = simpleEncodings.get(name);<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        if (h != null) {<a name="line.214"></a>
+<span class="sourceLineNo">215</span>            return h.getEncoding();<a name="line.215"></a>
+<span class="sourceLineNo">216</span>        }<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        try {<a name="line.217"></a>
+<span class="sourceLineNo">218</span>            Charset cs = Charset.forName(name);<a name="line.218"></a>
+<span class="sourceLineNo">219</span>            return new NioArchiveEntryEncoding(cs);<a name="line.219"></a>
+<span class="sourceLineNo">220</span>        } catch (UnsupportedCharsetException e) {<a name="line.220"></a>
+<span class="sourceLineNo">221</span>            return new FallbackArchiveEntryEncoding(name);<a name="line.221"></a>
+<span class="sourceLineNo">222</span>        }<a name="line.222"></a>
+<span class="sourceLineNo">223</span>    }<a name="line.223"></a>
+<span class="sourceLineNo">224</span><a name="line.224"></a>
+<span class="sourceLineNo">225</span>    /**<a name="line.225"></a>
+<span class="sourceLineNo">226</span>     * Whether a given encoding - or the platform's default encoding<a name="line.226"></a>
+<span class="sourceLineNo">227</span>     * if the parameter is null - is UTF-8.<a name="line.227"></a>
+<span class="sourceLineNo">228</span>     */<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    public static boolean isUTF8(String encoding) {<a name="line.229"></a>
+<span class="sourceLineNo">230</span>        if (encoding == null) {<a name="line.230"></a>
+<span class="sourceLineNo">231</span>            // check platform's default encoding<a name="line.231"></a>
+<span class="sourceLineNo">232</span>            encoding = System.getProperty("file.encoding");<a name="line.232"></a>
+<span class="sourceLineNo">233</span>        }<a name="line.233"></a>
+<span class="sourceLineNo">234</span>        return UTF8.equalsIgnoreCase(encoding)<a name="line.234"></a>
+<span class="sourceLineNo">235</span>                || UTF_DASH_8.equalsIgnoreCase(encoding);<a name="line.235"></a>
+<span class="sourceLineNo">236</span>    }<a name="line.236"></a>
+<span class="sourceLineNo">237</span>}<a name="line.237"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

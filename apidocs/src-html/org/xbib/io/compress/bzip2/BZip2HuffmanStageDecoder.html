@@ -1,0 +1,268 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
+<span class="sourceLineNo">002</span> * Copyright (c) 2011 Matthew Francis<a name="line.2"></a>
+<span class="sourceLineNo">003</span> * <a name="line.3"></a>
+<span class="sourceLineNo">004</span> * Permission is hereby granted, free of charge, to any person obtaining a copy<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * of this software and associated documentation files (the "Software"), to deal<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * in the Software without restriction, including without limitation the rights<a name="line.6"></a>
+<span class="sourceLineNo">007</span> * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * copies of the Software, and to permit persons to whom the Software is<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * furnished to do so, subject to the following conditions:<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * <a name="line.10"></a>
+<span class="sourceLineNo">011</span> * The above copyright notice and this permission notice shall be included in<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * all copies or substantial portions of the Software.<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * <a name="line.13"></a>
+<span class="sourceLineNo">014</span> * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * THE SOFTWARE.<a name="line.20"></a>
+<span class="sourceLineNo">021</span> */<a name="line.21"></a>
+<span class="sourceLineNo">022</span><a name="line.22"></a>
+<span class="sourceLineNo">023</span>package org.xbib.io.compress.bzip2;<a name="line.23"></a>
+<span class="sourceLineNo">024</span><a name="line.24"></a>
+<span class="sourceLineNo">025</span>import java.io.IOException;<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>/**<a name="line.28"></a>
+<span class="sourceLineNo">029</span> * A decoder for the BZip2 Huffman coding stage<a name="line.29"></a>
+<span class="sourceLineNo">030</span> */<a name="line.30"></a>
+<span class="sourceLineNo">031</span>public class BZip2HuffmanStageDecoder {<a name="line.31"></a>
+<span class="sourceLineNo">032</span><a name="line.32"></a>
+<span class="sourceLineNo">033</span>    /**<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     * The BZip2BitInputStream from which Huffman codes are read<a name="line.34"></a>
+<span class="sourceLineNo">035</span>     */<a name="line.35"></a>
+<span class="sourceLineNo">036</span>    private final BZip2BitInputStream bitInputStream;<a name="line.36"></a>
+<span class="sourceLineNo">037</span><a name="line.37"></a>
+<span class="sourceLineNo">038</span>    /**<a name="line.38"></a>
+<span class="sourceLineNo">039</span>     * The Huffman table number to use for each group of 50 symbols<a name="line.39"></a>
+<span class="sourceLineNo">040</span>     */<a name="line.40"></a>
+<span class="sourceLineNo">041</span>    private final byte[] selectors;<a name="line.41"></a>
+<span class="sourceLineNo">042</span><a name="line.42"></a>
+<span class="sourceLineNo">043</span>    /**<a name="line.43"></a>
+<span class="sourceLineNo">044</span>     * The minimum code length for each Huffman table<a name="line.44"></a>
+<span class="sourceLineNo">045</span>     */<a name="line.45"></a>
+<span class="sourceLineNo">046</span>    private final int[] minimumLengths = new int[BZip2Constants.HUFFMAN_MAXIMUM_TABLES];<a name="line.46"></a>
+<span class="sourceLineNo">047</span><a name="line.47"></a>
+<span class="sourceLineNo">048</span>    /**<a name="line.48"></a>
+<span class="sourceLineNo">049</span>     * An array of values for each Huffman table that must be subtracted from the numerical value of<a name="line.49"></a>
+<span class="sourceLineNo">050</span>     * a Huffman code of a given bit length to give its canonical code index<a name="line.50"></a>
+<span class="sourceLineNo">051</span>     */<a name="line.51"></a>
+<span class="sourceLineNo">052</span>    private final int[][] codeBases = new int[BZip2Constants.HUFFMAN_MAXIMUM_TABLES][BZip2Constants.HUFFMAN_DECODE_MAXIMUM_CODE_LENGTH + 2];<a name="line.52"></a>
+<span class="sourceLineNo">053</span><a name="line.53"></a>
+<span class="sourceLineNo">054</span>    /**<a name="line.54"></a>
+<span class="sourceLineNo">055</span>     * An array of values for each Huffman table that gives the highest numerical value of a Huffman<a name="line.55"></a>
+<span class="sourceLineNo">056</span>     * code of a given bit length<a name="line.56"></a>
+<span class="sourceLineNo">057</span>     */<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    private final int[][] codeLimits = new int[BZip2Constants.HUFFMAN_MAXIMUM_TABLES][BZip2Constants.HUFFMAN_DECODE_MAXIMUM_CODE_LENGTH + 1];<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span>    /**<a name="line.60"></a>
+<span class="sourceLineNo">061</span>     * A mapping for each Huffman table from canonical code index to output symbol<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     */<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    private final int[][] codeSymbols = new int[BZip2Constants.HUFFMAN_MAXIMUM_TABLES][BZip2Constants.HUFFMAN_MAXIMUM_ALPHABET_SIZE];<a name="line.63"></a>
+<span class="sourceLineNo">064</span><a name="line.64"></a>
+<span class="sourceLineNo">065</span>    /**<a name="line.65"></a>
+<span class="sourceLineNo">066</span>     * The Huffman table for the current group<a name="line.66"></a>
+<span class="sourceLineNo">067</span>     */<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    private int currentTable;<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>    /**<a name="line.70"></a>
+<span class="sourceLineNo">071</span>     * The index of the current group within the selectors array<a name="line.71"></a>
+<span class="sourceLineNo">072</span>     */<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    private int groupIndex = -1;<a name="line.73"></a>
+<span class="sourceLineNo">074</span><a name="line.74"></a>
+<span class="sourceLineNo">075</span>    /**<a name="line.75"></a>
+<span class="sourceLineNo">076</span>     * The byte position within the current group. A new group is selected every 50 decoded bytes<a name="line.76"></a>
+<span class="sourceLineNo">077</span>     */<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    private int groupPosition = -1;<a name="line.78"></a>
+<span class="sourceLineNo">079</span><a name="line.79"></a>
+<span class="sourceLineNo">080</span><a name="line.80"></a>
+<span class="sourceLineNo">081</span>    /**<a name="line.81"></a>
+<span class="sourceLineNo">082</span>     * @param bitInputStream   The BZip2BitInputStream from which Huffman codes are read<a name="line.82"></a>
+<span class="sourceLineNo">083</span>     * @param alphabetSize     The total number of codes (uniform for each table)<a name="line.83"></a>
+<span class="sourceLineNo">084</span>     * @param tableCodeLengths The Canonical Huffman code lengths for each table<a name="line.84"></a>
+<span class="sourceLineNo">085</span>     * @param selectors        The Huffman table number to use for each group of 50 symbols<a name="line.85"></a>
+<span class="sourceLineNo">086</span>     */<a name="line.86"></a>
+<span class="sourceLineNo">087</span>    public BZip2HuffmanStageDecoder(final BZip2BitInputStream bitInputStream, final int alphabetSize, final byte[][] tableCodeLengths, final byte[] selectors) {<a name="line.87"></a>
+<span class="sourceLineNo">088</span><a name="line.88"></a>
+<span class="sourceLineNo">089</span>        this.bitInputStream = bitInputStream;<a name="line.89"></a>
+<span class="sourceLineNo">090</span>        this.selectors = selectors;<a name="line.90"></a>
+<span class="sourceLineNo">091</span>        this.currentTable = this.selectors[0];<a name="line.91"></a>
+<span class="sourceLineNo">092</span><a name="line.92"></a>
+<span class="sourceLineNo">093</span>        createHuffmanDecodingTables(alphabetSize, tableCodeLengths);<a name="line.93"></a>
+<span class="sourceLineNo">094</span><a name="line.94"></a>
+<span class="sourceLineNo">095</span>    }<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span><a name="line.97"></a>
+<span class="sourceLineNo">098</span>    /**<a name="line.98"></a>
+<span class="sourceLineNo">099</span>     * Constructs Huffman decoding tables from lists of Canonical Huffman code lengths<a name="line.99"></a>
+<span class="sourceLineNo">100</span>     *<a name="line.100"></a>
+<span class="sourceLineNo">101</span>     * @param alphabetSize     The total number of codes (uniform for each table)<a name="line.101"></a>
+<span class="sourceLineNo">102</span>     * @param tableCodeLengths The Canonical Huffman code lengths for each table<a name="line.102"></a>
+<span class="sourceLineNo">103</span>     */<a name="line.103"></a>
+<span class="sourceLineNo">104</span>    private void createHuffmanDecodingTables(final int alphabetSize, final byte[][] tableCodeLengths) {<a name="line.104"></a>
+<span class="sourceLineNo">105</span><a name="line.105"></a>
+<span class="sourceLineNo">106</span>        for (int table = 0; table &lt; tableCodeLengths.length; table++) {<a name="line.106"></a>
+<span class="sourceLineNo">107</span><a name="line.107"></a>
+<span class="sourceLineNo">108</span>            final int[] tableBases = this.codeBases[table];<a name="line.108"></a>
+<span class="sourceLineNo">109</span>            final int[] tableLimits = this.codeLimits[table];<a name="line.109"></a>
+<span class="sourceLineNo">110</span>            final int[] tableSymbols = this.codeSymbols[table];<a name="line.110"></a>
+<span class="sourceLineNo">111</span><a name="line.111"></a>
+<span class="sourceLineNo">112</span>            final byte[] codeLengths = tableCodeLengths[table];<a name="line.112"></a>
+<span class="sourceLineNo">113</span>            int minimumLength = BZip2Constants.HUFFMAN_DECODE_MAXIMUM_CODE_LENGTH;<a name="line.113"></a>
+<span class="sourceLineNo">114</span>            int maximumLength = 0;<a name="line.114"></a>
+<span class="sourceLineNo">115</span><a name="line.115"></a>
+<span class="sourceLineNo">116</span>            // Find the minimum and maximum code length for the table<a name="line.116"></a>
+<span class="sourceLineNo">117</span>            for (int i = 0; i &lt; alphabetSize; i++) {<a name="line.117"></a>
+<span class="sourceLineNo">118</span>                maximumLength = Math.max(codeLengths[i], maximumLength);<a name="line.118"></a>
+<span class="sourceLineNo">119</span>                minimumLength = Math.min(codeLengths[i], minimumLength);<a name="line.119"></a>
+<span class="sourceLineNo">120</span>            }<a name="line.120"></a>
+<span class="sourceLineNo">121</span>            this.minimumLengths[table] = minimumLength;<a name="line.121"></a>
+<span class="sourceLineNo">122</span><a name="line.122"></a>
+<span class="sourceLineNo">123</span>            // Calculate the first output symbol for each code length<a name="line.123"></a>
+<span class="sourceLineNo">124</span>            for (int i = 0; i &lt; alphabetSize; i++) {<a name="line.124"></a>
+<span class="sourceLineNo">125</span>                tableBases[codeLengths[i] + 1]++;<a name="line.125"></a>
+<span class="sourceLineNo">126</span>            }<a name="line.126"></a>
+<span class="sourceLineNo">127</span>            for (int i = 1; i &lt; BZip2Constants.HUFFMAN_DECODE_MAXIMUM_CODE_LENGTH + 2; i++) {<a name="line.127"></a>
+<span class="sourceLineNo">128</span>                tableBases[i] += tableBases[i - 1];<a name="line.128"></a>
+<span class="sourceLineNo">129</span>            }<a name="line.129"></a>
+<span class="sourceLineNo">130</span><a name="line.130"></a>
+<span class="sourceLineNo">131</span>            // Calculate the first and last Huffman code for each code length (codes at a given<a name="line.131"></a>
+<span class="sourceLineNo">132</span>            // length are sequential in value)<a name="line.132"></a>
+<span class="sourceLineNo">133</span>            int code = 0;<a name="line.133"></a>
+<span class="sourceLineNo">134</span>            for (int i = minimumLength; i &lt;= maximumLength; i++) {<a name="line.134"></a>
+<span class="sourceLineNo">135</span>                int base = code;<a name="line.135"></a>
+<span class="sourceLineNo">136</span>                code += tableBases[i + 1] - tableBases[i];<a name="line.136"></a>
+<span class="sourceLineNo">137</span>                tableBases[i] = base - tableBases[i];<a name="line.137"></a>
+<span class="sourceLineNo">138</span>                tableLimits[i] = code - 1;<a name="line.138"></a>
+<span class="sourceLineNo">139</span>                code &lt;&lt;= 1;<a name="line.139"></a>
+<span class="sourceLineNo">140</span>            }<a name="line.140"></a>
+<span class="sourceLineNo">141</span><a name="line.141"></a>
+<span class="sourceLineNo">142</span>            // Populate the mapping from canonical code index to output symbol<a name="line.142"></a>
+<span class="sourceLineNo">143</span>            int codeIndex = 0;<a name="line.143"></a>
+<span class="sourceLineNo">144</span>            for (int bitLength = minimumLength; bitLength &lt;= maximumLength; bitLength++) {<a name="line.144"></a>
+<span class="sourceLineNo">145</span>                for (int symbol = 0; symbol &lt; alphabetSize; symbol++) {<a name="line.145"></a>
+<span class="sourceLineNo">146</span>                    if (codeLengths[symbol] == bitLength) {<a name="line.146"></a>
+<span class="sourceLineNo">147</span>                        tableSymbols[codeIndex++] = symbol;<a name="line.147"></a>
+<span class="sourceLineNo">148</span>                    }<a name="line.148"></a>
+<span class="sourceLineNo">149</span>                }<a name="line.149"></a>
+<span class="sourceLineNo">150</span>            }<a name="line.150"></a>
+<span class="sourceLineNo">151</span><a name="line.151"></a>
+<span class="sourceLineNo">152</span>        }<a name="line.152"></a>
+<span class="sourceLineNo">153</span><a name="line.153"></a>
+<span class="sourceLineNo">154</span>    }<a name="line.154"></a>
+<span class="sourceLineNo">155</span><a name="line.155"></a>
+<span class="sourceLineNo">156</span><a name="line.156"></a>
+<span class="sourceLineNo">157</span>    /**<a name="line.157"></a>
+<span class="sourceLineNo">158</span>     * Decodes and returns the next symbol<a name="line.158"></a>
+<span class="sourceLineNo">159</span>     *<a name="line.159"></a>
+<span class="sourceLineNo">160</span>     * @return The decoded symbol<a name="line.160"></a>
+<span class="sourceLineNo">161</span>     * @throws java.io.IOException if the end of the input stream is reached while decoding<a name="line.161"></a>
+<span class="sourceLineNo">162</span>     */<a name="line.162"></a>
+<span class="sourceLineNo">163</span>    public int nextSymbol() throws IOException {<a name="line.163"></a>
+<span class="sourceLineNo">164</span><a name="line.164"></a>
+<span class="sourceLineNo">165</span>        final BZip2BitInputStream bitInputStream = this.bitInputStream;<a name="line.165"></a>
+<span class="sourceLineNo">166</span><a name="line.166"></a>
+<span class="sourceLineNo">167</span>        // Move to next group selector if required<a name="line.167"></a>
+<span class="sourceLineNo">168</span>        if (((++this.groupPosition % BZip2Constants.HUFFMAN_GROUP_RUN_LENGTH) == 0)) {<a name="line.168"></a>
+<span class="sourceLineNo">169</span>            this.groupIndex++;<a name="line.169"></a>
+<span class="sourceLineNo">170</span>            if (this.groupIndex == this.selectors.length) {<a name="line.170"></a>
+<span class="sourceLineNo">171</span>                throw new BZip2Exception("Error decoding BZip2 block");<a name="line.171"></a>
+<span class="sourceLineNo">172</span>            }<a name="line.172"></a>
+<span class="sourceLineNo">173</span>            this.currentTable = this.selectors[this.groupIndex] &amp; 0xff;<a name="line.173"></a>
+<span class="sourceLineNo">174</span>        }<a name="line.174"></a>
+<span class="sourceLineNo">175</span><a name="line.175"></a>
+<span class="sourceLineNo">176</span>        final int currentTable = this.currentTable;<a name="line.176"></a>
+<span class="sourceLineNo">177</span>        final int[] tableLimits = this.codeLimits[currentTable];<a name="line.177"></a>
+<span class="sourceLineNo">178</span>        int codeLength = this.minimumLengths[currentTable];<a name="line.178"></a>
+<span class="sourceLineNo">179</span><a name="line.179"></a>
+<span class="sourceLineNo">180</span>        // Starting with the minimum bit length for the table, read additional bits one at a time<a name="line.180"></a>
+<span class="sourceLineNo">181</span>        // until a complete code is recognised<a name="line.181"></a>
+<span class="sourceLineNo">182</span>        int codeBits = bitInputStream.readBits(codeLength);<a name="line.182"></a>
+<span class="sourceLineNo">183</span>        for (; codeLength &lt;= BZip2Constants.HUFFMAN_DECODE_MAXIMUM_CODE_LENGTH; codeLength++) {<a name="line.183"></a>
+<span class="sourceLineNo">184</span>            if (codeBits &lt;= tableLimits[codeLength]) {<a name="line.184"></a>
+<span class="sourceLineNo">185</span>                // Convert the code to a symbol index and return<a name="line.185"></a>
+<span class="sourceLineNo">186</span>                return this.codeSymbols[currentTable][codeBits - this.codeBases[currentTable][codeLength]];<a name="line.186"></a>
+<span class="sourceLineNo">187</span>            }<a name="line.187"></a>
+<span class="sourceLineNo">188</span>            codeBits = (codeBits &lt;&lt; 1) | bitInputStream.readBits(1);<a name="line.188"></a>
+<span class="sourceLineNo">189</span>        }<a name="line.189"></a>
+<span class="sourceLineNo">190</span><a name="line.190"></a>
+<span class="sourceLineNo">191</span>        // A valid code was not recognised<a name="line.191"></a>
+<span class="sourceLineNo">192</span>        throw new BZip2Exception("Error decoding BZip2 block");<a name="line.192"></a>
+<span class="sourceLineNo">193</span><a name="line.193"></a>
+<span class="sourceLineNo">194</span>    }<a name="line.194"></a>
+<span class="sourceLineNo">195</span><a name="line.195"></a>
+<span class="sourceLineNo">196</span>}<a name="line.196"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

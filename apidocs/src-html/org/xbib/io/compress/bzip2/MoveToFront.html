@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>/*<a name="line.1"></a>
+<span class="sourceLineNo">002</span> * Copyright (c) 2011 Matthew Francis<a name="line.2"></a>
+<span class="sourceLineNo">003</span> * <a name="line.3"></a>
+<span class="sourceLineNo">004</span> * Permission is hereby granted, free of charge, to any person obtaining a copy<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * of this software and associated documentation files (the "Software"), to deal<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * in the Software without restriction, including without limitation the rights<a name="line.6"></a>
+<span class="sourceLineNo">007</span> * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * copies of the Software, and to permit persons to whom the Software is<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * furnished to do so, subject to the following conditions:<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * <a name="line.10"></a>
+<span class="sourceLineNo">011</span> * The above copyright notice and this permission notice shall be included in<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * all copies or substantial portions of the Software.<a name="line.12"></a>
+<span class="sourceLineNo">013</span> * <a name="line.13"></a>
+<span class="sourceLineNo">014</span> * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR<a name="line.14"></a>
+<span class="sourceLineNo">015</span> * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * THE SOFTWARE.<a name="line.20"></a>
+<span class="sourceLineNo">021</span> */<a name="line.21"></a>
+<span class="sourceLineNo">022</span><a name="line.22"></a>
+<span class="sourceLineNo">023</span>package org.xbib.io.compress.bzip2;<a name="line.23"></a>
+<span class="sourceLineNo">024</span><a name="line.24"></a>
+<span class="sourceLineNo">025</span><a name="line.25"></a>
+<span class="sourceLineNo">026</span>/**<a name="line.26"></a>
+<span class="sourceLineNo">027</span> * A 256 entry Move To Front transform<a name="line.27"></a>
+<span class="sourceLineNo">028</span> */<a name="line.28"></a>
+<span class="sourceLineNo">029</span>public class MoveToFront {<a name="line.29"></a>
+<span class="sourceLineNo">030</span><a name="line.30"></a>
+<span class="sourceLineNo">031</span>    /**<a name="line.31"></a>
+<span class="sourceLineNo">032</span>     * The Move To Front list<a name="line.32"></a>
+<span class="sourceLineNo">033</span>     */<a name="line.33"></a>
+<span class="sourceLineNo">034</span>    private final byte[] mtf = {<a name="line.34"></a>
+<span class="sourceLineNo">035</span>            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,<a name="line.35"></a>
+<span class="sourceLineNo">036</span>            24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,<a name="line.36"></a>
+<span class="sourceLineNo">037</span>            46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,<a name="line.37"></a>
+<span class="sourceLineNo">038</span>            68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,<a name="line.38"></a>
+<span class="sourceLineNo">039</span>            90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108,<a name="line.39"></a>
+<span class="sourceLineNo">040</span>            109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,<a name="line.40"></a>
+<span class="sourceLineNo">041</span>            126, 127, (byte) 128, (byte) 129, (byte) 130, (byte) 131, (byte) 132, (byte) 133, (byte) 134,<a name="line.41"></a>
+<span class="sourceLineNo">042</span>            (byte) 135, (byte) 136, (byte) 137, (byte) 138, (byte) 139, (byte) 140, (byte) 141, (byte) 142,<a name="line.42"></a>
+<span class="sourceLineNo">043</span>            (byte) 143, (byte) 144, (byte) 145, (byte) 146, (byte) 147, (byte) 148, (byte) 149, (byte) 150,<a name="line.43"></a>
+<span class="sourceLineNo">044</span>            (byte) 151, (byte) 152, (byte) 153, (byte) 154, (byte) 155, (byte) 156, (byte) 157, (byte) 158,<a name="line.44"></a>
+<span class="sourceLineNo">045</span>            (byte) 159, (byte) 160, (byte) 161, (byte) 162, (byte) 163, (byte) 164, (byte) 165, (byte) 166,<a name="line.45"></a>
+<span class="sourceLineNo">046</span>            (byte) 167, (byte) 168, (byte) 169, (byte) 170, (byte) 171, (byte) 172, (byte) 173, (byte) 174,<a name="line.46"></a>
+<span class="sourceLineNo">047</span>            (byte) 175, (byte) 176, (byte) 177, (byte) 178, (byte) 179, (byte) 180, (byte) 181, (byte) 182,<a name="line.47"></a>
+<span class="sourceLineNo">048</span>            (byte) 183, (byte) 184, (byte) 185, (byte) 186, (byte) 187, (byte) 188, (byte) 189, (byte) 190,<a name="line.48"></a>
+<span class="sourceLineNo">049</span>            (byte) 191, (byte) 192, (byte) 193, (byte) 194, (byte) 195, (byte) 196, (byte) 197, (byte) 198,<a name="line.49"></a>
+<span class="sourceLineNo">050</span>            (byte) 199, (byte) 200, (byte) 201, (byte) 202, (byte) 203, (byte) 204, (byte) 205, (byte) 206,<a name="line.50"></a>
+<span class="sourceLineNo">051</span>            (byte) 207, (byte) 208, (byte) 209, (byte) 210, (byte) 211, (byte) 212, (byte) 213, (byte) 214,<a name="line.51"></a>
+<span class="sourceLineNo">052</span>            (byte) 215, (byte) 216, (byte) 217, (byte) 218, (byte) 219, (byte) 220, (byte) 221, (byte) 222,<a name="line.52"></a>
+<span class="sourceLineNo">053</span>            (byte) 223, (byte) 224, (byte) 225, (byte) 226, (byte) 227, (byte) 228, (byte) 229, (byte) 230,<a name="line.53"></a>
+<span class="sourceLineNo">054</span>            (byte) 231, (byte) 232, (byte) 233, (byte) 234, (byte) 235, (byte) 236, (byte) 237, (byte) 238,<a name="line.54"></a>
+<span class="sourceLineNo">055</span>            (byte) 239, (byte) 240, (byte) 241, (byte) 242, (byte) 243, (byte) 244, (byte) 245, (byte) 246,<a name="line.55"></a>
+<span class="sourceLineNo">056</span>            (byte) 247, (byte) 248, (byte) 249, (byte) 250, (byte) 251, (byte) 252, (byte) 253, (byte) 254,<a name="line.56"></a>
+<span class="sourceLineNo">057</span>            (byte) 255<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    };<a name="line.58"></a>
+<span class="sourceLineNo">059</span><a name="line.59"></a>
+<span class="sourceLineNo">060</span><a name="line.60"></a>
+<span class="sourceLineNo">061</span>    /**<a name="line.61"></a>
+<span class="sourceLineNo">062</span>     * Moves a value to the head of the MTF list (forward Move To Front transform)<a name="line.62"></a>
+<span class="sourceLineNo">063</span>     *<a name="line.63"></a>
+<span class="sourceLineNo">064</span>     * @param value The value to move<a name="line.64"></a>
+<span class="sourceLineNo">065</span>     * @return The position the value moved from<a name="line.65"></a>
+<span class="sourceLineNo">066</span>     */<a name="line.66"></a>
+<span class="sourceLineNo">067</span>    public int valueToFront(final byte value) {<a name="line.67"></a>
+<span class="sourceLineNo">068</span><a name="line.68"></a>
+<span class="sourceLineNo">069</span>        final byte[] mtf = this.mtf;<a name="line.69"></a>
+<span class="sourceLineNo">070</span><a name="line.70"></a>
+<span class="sourceLineNo">071</span>        int index = 0;<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        byte temp = mtf[0];<a name="line.72"></a>
+<span class="sourceLineNo">073</span>        if (value != temp) {<a name="line.73"></a>
+<span class="sourceLineNo">074</span>            mtf[0] = value;<a name="line.74"></a>
+<span class="sourceLineNo">075</span>            while (value != temp) {<a name="line.75"></a>
+<span class="sourceLineNo">076</span>                index++;<a name="line.76"></a>
+<span class="sourceLineNo">077</span>                final byte temp2 = temp;<a name="line.77"></a>
+<span class="sourceLineNo">078</span>                temp = mtf[index];<a name="line.78"></a>
+<span class="sourceLineNo">079</span>                mtf[index] = temp2;<a name="line.79"></a>
+<span class="sourceLineNo">080</span>            }<a name="line.80"></a>
+<span class="sourceLineNo">081</span>        }<a name="line.81"></a>
+<span class="sourceLineNo">082</span><a name="line.82"></a>
+<span class="sourceLineNo">083</span>        return index;<a name="line.83"></a>
+<span class="sourceLineNo">084</span><a name="line.84"></a>
+<span class="sourceLineNo">085</span>    }<a name="line.85"></a>
+<span class="sourceLineNo">086</span><a name="line.86"></a>
+<span class="sourceLineNo">087</span><a name="line.87"></a>
+<span class="sourceLineNo">088</span>    /**<a name="line.88"></a>
+<span class="sourceLineNo">089</span>     * Gets the value from a given index and moves it to the front of the MTF list (inverse Move To<a name="line.89"></a>
+<span class="sourceLineNo">090</span>     * Front transform)<a name="line.90"></a>
+<span class="sourceLineNo">091</span>     *<a name="line.91"></a>
+<span class="sourceLineNo">092</span>     * @param index The index to move<a name="line.92"></a>
+<span class="sourceLineNo">093</span>     * @return The value at the given index<a name="line.93"></a>
+<span class="sourceLineNo">094</span>     */<a name="line.94"></a>
+<span class="sourceLineNo">095</span>    public byte indexToFront(final int index) {<a name="line.95"></a>
+<span class="sourceLineNo">096</span><a name="line.96"></a>
+<span class="sourceLineNo">097</span>        final byte[] mtf = this.mtf;<a name="line.97"></a>
+<span class="sourceLineNo">098</span><a name="line.98"></a>
+<span class="sourceLineNo">099</span>        final byte value = mtf[index];<a name="line.99"></a>
+<span class="sourceLineNo">100</span>        System.arraycopy(mtf, 0, mtf, 1, index);<a name="line.100"></a>
+<span class="sourceLineNo">101</span>        mtf[0] = value;<a name="line.101"></a>
+<span class="sourceLineNo">102</span><a name="line.102"></a>
+<span class="sourceLineNo">103</span>        return value;<a name="line.103"></a>
+<span class="sourceLineNo">104</span><a name="line.104"></a>
+<span class="sourceLineNo">105</span>    }<a name="line.105"></a>
+<span class="sourceLineNo">106</span><a name="line.106"></a>
+<span class="sourceLineNo">107</span>}<a name="line.107"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

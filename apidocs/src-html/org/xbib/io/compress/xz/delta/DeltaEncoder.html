@@ -6,22 +6,21 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz.delta;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>public class DeltaEncoder extends DeltaCoder {<a name="line.4"></a>
-<span class="sourceLineNo">005</span>    public DeltaEncoder(int distance) {<a name="line.5"></a>
-<span class="sourceLineNo">006</span>        super(distance);<a name="line.6"></a>
-<span class="sourceLineNo">007</span>    }<a name="line.7"></a>
-<span class="sourceLineNo">008</span><a name="line.8"></a>
-<span class="sourceLineNo">009</span>    public void encode(byte[] in, int in_off, int len, byte[] out) {<a name="line.9"></a>
-<span class="sourceLineNo">010</span>        for (int i = 0; i &lt; len; ++i) {<a name="line.10"></a>
-<span class="sourceLineNo">011</span>            byte tmp = history[(distance + pos) &amp; DISTANCE_MASK];<a name="line.11"></a>
-<span class="sourceLineNo">012</span>            history[pos-- &amp; DISTANCE_MASK] = in[in_off + i];<a name="line.12"></a>
-<span class="sourceLineNo">013</span>            out[i] = (byte) (in[in_off + i] - tmp);<a name="line.13"></a>
-<span class="sourceLineNo">014</span>        }<a name="line.14"></a>
-<span class="sourceLineNo">015</span>    }<a name="line.15"></a>
-<span class="sourceLineNo">016</span>}<a name="line.16"></a>
+<pre><span class="sourceLineNo">001</span>package org.xbib.io.compress.xz.delta;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>public class DeltaEncoder extends DeltaCoder {<a name="line.3"></a>
+<span class="sourceLineNo">004</span>    public DeltaEncoder(int distance) {<a name="line.4"></a>
+<span class="sourceLineNo">005</span>        super(distance);<a name="line.5"></a>
+<span class="sourceLineNo">006</span>    }<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>    public void encode(byte[] in, int in_off, int len, byte[] out) {<a name="line.8"></a>
+<span class="sourceLineNo">009</span>        for (int i = 0; i &lt; len; ++i) {<a name="line.9"></a>
+<span class="sourceLineNo">010</span>            byte tmp = history[(distance + pos) &amp; DISTANCE_MASK];<a name="line.10"></a>
+<span class="sourceLineNo">011</span>            history[pos-- &amp; DISTANCE_MASK] = in[in_off + i];<a name="line.11"></a>
+<span class="sourceLineNo">012</span>            out[i] = (byte) (in[in_off + i] - tmp);<a name="line.12"></a>
+<span class="sourceLineNo">013</span>        }<a name="line.13"></a>
+<span class="sourceLineNo">014</span>    }<a name="line.14"></a>
+<span class="sourceLineNo">015</span>}<a name="line.15"></a>
 
 
 

@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package org.xbib.elasticsearch.support.client;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import org.elasticsearch.common.io.Streams;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import org.elasticsearch.common.settings.Settings;<a name="line.4"></a>
+<span class="sourceLineNo">005</span><a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.io.IOException;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.io.InputStream;<a name="line.7"></a>
+<span class="sourceLineNo">008</span>import java.io.InputStreamReader;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import java.io.StringWriter;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import java.util.HashMap;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import java.util.Map;<a name="line.11"></a>
+<span class="sourceLineNo">012</span><a name="line.12"></a>
+<span class="sourceLineNo">013</span>public class ConfigHelper {<a name="line.13"></a>
+<span class="sourceLineNo">014</span><a name="line.14"></a>
+<span class="sourceLineNo">015</span>    private Settings.Builder settingsBuilder;<a name="line.15"></a>
+<span class="sourceLineNo">016</span><a name="line.16"></a>
+<span class="sourceLineNo">017</span>    private Settings settings;<a name="line.17"></a>
+<span class="sourceLineNo">018</span><a name="line.18"></a>
+<span class="sourceLineNo">019</span>    private Map&lt;String, String&gt; mappings = new HashMap&lt;&gt;();<a name="line.19"></a>
+<span class="sourceLineNo">020</span><a name="line.20"></a>
+<span class="sourceLineNo">021</span>    public ConfigHelper reset() {<a name="line.21"></a>
+<span class="sourceLineNo">022</span>        settingsBuilder = Settings.settingsBuilder();<a name="line.22"></a>
+<span class="sourceLineNo">023</span>        settings = null;<a name="line.23"></a>
+<span class="sourceLineNo">024</span>        mappings = new HashMap&lt;&gt;();<a name="line.24"></a>
+<span class="sourceLineNo">025</span>        return this;<a name="line.25"></a>
+<span class="sourceLineNo">026</span>    }<a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>    public ConfigHelper settings(Settings settings) {<a name="line.28"></a>
+<span class="sourceLineNo">029</span>        this.settings = settings;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>        return this;<a name="line.30"></a>
+<span class="sourceLineNo">031</span>    }<a name="line.31"></a>
+<span class="sourceLineNo">032</span><a name="line.32"></a>
+<span class="sourceLineNo">033</span>    public ConfigHelper setting(String key, String value) {<a name="line.33"></a>
+<span class="sourceLineNo">034</span>        if (settingsBuilder == null) {<a name="line.34"></a>
+<span class="sourceLineNo">035</span>            settingsBuilder = Settings.settingsBuilder();<a name="line.35"></a>
+<span class="sourceLineNo">036</span>        }<a name="line.36"></a>
+<span class="sourceLineNo">037</span>        settingsBuilder.put(key, value);<a name="line.37"></a>
+<span class="sourceLineNo">038</span>        return this;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>    }<a name="line.39"></a>
+<span class="sourceLineNo">040</span><a name="line.40"></a>
+<span class="sourceLineNo">041</span>    public ConfigHelper setting(String key, Boolean value) {<a name="line.41"></a>
+<span class="sourceLineNo">042</span>        if (settingsBuilder == null) {<a name="line.42"></a>
+<span class="sourceLineNo">043</span>            settingsBuilder = Settings.settingsBuilder();<a name="line.43"></a>
+<span class="sourceLineNo">044</span>        }<a name="line.44"></a>
+<span class="sourceLineNo">045</span>        settingsBuilder.put(key, value);<a name="line.45"></a>
+<span class="sourceLineNo">046</span>        return this;<a name="line.46"></a>
+<span class="sourceLineNo">047</span>    }<a name="line.47"></a>
+<span class="sourceLineNo">048</span><a name="line.48"></a>
+<span class="sourceLineNo">049</span>    public ConfigHelper setting(String key, Integer value) {<a name="line.49"></a>
+<span class="sourceLineNo">050</span>        if (settingsBuilder == null) {<a name="line.50"></a>
+<span class="sourceLineNo">051</span>            settingsBuilder = Settings.settingsBuilder();<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        }<a name="line.52"></a>
+<span class="sourceLineNo">053</span>        settingsBuilder.put(key, value);<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        return this;<a name="line.54"></a>
+<span class="sourceLineNo">055</span>    }<a name="line.55"></a>
+<span class="sourceLineNo">056</span><a name="line.56"></a>
+<span class="sourceLineNo">057</span>    public ConfigHelper setting(InputStream in) throws IOException {<a name="line.57"></a>
+<span class="sourceLineNo">058</span>        settingsBuilder = Settings.settingsBuilder().loadFromStream(".json", in);<a name="line.58"></a>
+<span class="sourceLineNo">059</span>        return this;<a name="line.59"></a>
+<span class="sourceLineNo">060</span>    }<a name="line.60"></a>
+<span class="sourceLineNo">061</span><a name="line.61"></a>
+<span class="sourceLineNo">062</span>    public Settings.Builder settingsBuilder() {<a name="line.62"></a>
+<span class="sourceLineNo">063</span>        return settingsBuilder != null ? settingsBuilder : Settings.settingsBuilder();<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    }<a name="line.64"></a>
+<span class="sourceLineNo">065</span><a name="line.65"></a>
+<span class="sourceLineNo">066</span>    public Settings settings() {<a name="line.66"></a>
+<span class="sourceLineNo">067</span>        if (settings != null) {<a name="line.67"></a>
+<span class="sourceLineNo">068</span>            return settings;<a name="line.68"></a>
+<span class="sourceLineNo">069</span>        }<a name="line.69"></a>
+<span class="sourceLineNo">070</span>        if (settingsBuilder == null) {<a name="line.70"></a>
+<span class="sourceLineNo">071</span>            settingsBuilder = Settings.settingsBuilder();<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        }<a name="line.72"></a>
+<span class="sourceLineNo">073</span>        return settingsBuilder.build();<a name="line.73"></a>
+<span class="sourceLineNo">074</span>    }<a name="line.74"></a>
+<span class="sourceLineNo">075</span><a name="line.75"></a>
+<span class="sourceLineNo">076</span>    public ConfigHelper mapping(String type, String mapping) throws IOException {<a name="line.76"></a>
+<span class="sourceLineNo">077</span>        mappings.put(type, mapping);<a name="line.77"></a>
+<span class="sourceLineNo">078</span>        return this;<a name="line.78"></a>
+<span class="sourceLineNo">079</span>    }<a name="line.79"></a>
+<span class="sourceLineNo">080</span><a name="line.80"></a>
+<span class="sourceLineNo">081</span>    public ConfigHelper mapping(String type, InputStream in) throws IOException {<a name="line.81"></a>
+<span class="sourceLineNo">082</span>        if (type == null) {<a name="line.82"></a>
+<span class="sourceLineNo">083</span>            return this;<a name="line.83"></a>
+<span class="sourceLineNo">084</span>        }<a name="line.84"></a>
+<span class="sourceLineNo">085</span>        StringWriter sw = new StringWriter();<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        Streams.copy(new InputStreamReader(in), sw);<a name="line.86"></a>
+<span class="sourceLineNo">087</span>        mappings.put(type, sw.toString());<a name="line.87"></a>
+<span class="sourceLineNo">088</span>        return this;<a name="line.88"></a>
+<span class="sourceLineNo">089</span>    }<a name="line.89"></a>
+<span class="sourceLineNo">090</span><a name="line.90"></a>
+<span class="sourceLineNo">091</span>    public Map&lt;String, String&gt; mappings() {<a name="line.91"></a>
+<span class="sourceLineNo">092</span>        return mappings.isEmpty() ? null : mappings;<a name="line.92"></a>
+<span class="sourceLineNo">093</span>    }<a name="line.93"></a>
+<span class="sourceLineNo">094</span><a name="line.94"></a>
+<span class="sourceLineNo">095</span>}<a name="line.95"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

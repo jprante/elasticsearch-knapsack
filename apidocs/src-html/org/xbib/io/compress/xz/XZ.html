@@ -6,52 +6,51 @@
 </head>
 <body>
 <div class="sourceContainer">
-<pre><span class="sourceLineNo">001</span><a name="line.1"></a>
-<span class="sourceLineNo">002</span>package org.xbib.io.compress.xz;<a name="line.2"></a>
-<span class="sourceLineNo">003</span><a name="line.3"></a>
-<span class="sourceLineNo">004</span>/**<a name="line.4"></a>
-<span class="sourceLineNo">005</span> * XZ constants.<a name="line.5"></a>
-<span class="sourceLineNo">006</span> */<a name="line.6"></a>
-<span class="sourceLineNo">007</span>public class XZ {<a name="line.7"></a>
-<span class="sourceLineNo">008</span>    /**<a name="line.8"></a>
-<span class="sourceLineNo">009</span>     * XZ Header Magic Bytes begin a XZ file.<a name="line.9"></a>
-<span class="sourceLineNo">010</span>     * This can be useful to detect XZ compressed data.<a name="line.10"></a>
-<span class="sourceLineNo">011</span>     */<a name="line.11"></a>
-<span class="sourceLineNo">012</span>    public static final byte[] HEADER_MAGIC = {<a name="line.12"></a>
-<span class="sourceLineNo">013</span>            (byte) 0xFD, '7', 'z', 'X', 'Z', '\0'};<a name="line.13"></a>
-<span class="sourceLineNo">014</span><a name="line.14"></a>
-<span class="sourceLineNo">015</span>    /**<a name="line.15"></a>
-<span class="sourceLineNo">016</span>     * XZ Footer Magic Bytes are the last bytes of a XZ Stream.<a name="line.16"></a>
-<span class="sourceLineNo">017</span>     */<a name="line.17"></a>
-<span class="sourceLineNo">018</span>    public static final byte[] FOOTER_MAGIC = {'Y', 'Z'};<a name="line.18"></a>
-<span class="sourceLineNo">019</span><a name="line.19"></a>
-<span class="sourceLineNo">020</span>    /**<a name="line.20"></a>
-<span class="sourceLineNo">021</span>     * Integrity check ID indicating that no integrity check is calculated.<a name="line.21"></a>
-<span class="sourceLineNo">022</span>     * &lt;p/&gt;<a name="line.22"></a>
-<span class="sourceLineNo">023</span>     * Omitting the integrity check is strongly discouraged except when<a name="line.23"></a>
-<span class="sourceLineNo">024</span>     * the integrity of the data will be verified by other means anyway,<a name="line.24"></a>
-<span class="sourceLineNo">025</span>     * and calculating the check twice would be useless.<a name="line.25"></a>
-<span class="sourceLineNo">026</span>     */<a name="line.26"></a>
-<span class="sourceLineNo">027</span>    public static final int CHECK_NONE = 0;<a name="line.27"></a>
-<span class="sourceLineNo">028</span><a name="line.28"></a>
-<span class="sourceLineNo">029</span>    /**<a name="line.29"></a>
-<span class="sourceLineNo">030</span>     * Integrity check ID for CRC32.<a name="line.30"></a>
-<span class="sourceLineNo">031</span>     */<a name="line.31"></a>
-<span class="sourceLineNo">032</span>    public static final int CHECK_CRC32 = 1;<a name="line.32"></a>
-<span class="sourceLineNo">033</span><a name="line.33"></a>
-<span class="sourceLineNo">034</span>    /**<a name="line.34"></a>
-<span class="sourceLineNo">035</span>     * Integrity check ID for CRC64.<a name="line.35"></a>
-<span class="sourceLineNo">036</span>     */<a name="line.36"></a>
-<span class="sourceLineNo">037</span>    public static final int CHECK_CRC64 = 4;<a name="line.37"></a>
-<span class="sourceLineNo">038</span><a name="line.38"></a>
-<span class="sourceLineNo">039</span>    /**<a name="line.39"></a>
-<span class="sourceLineNo">040</span>     * Integrity check ID for SHA-256.<a name="line.40"></a>
-<span class="sourceLineNo">041</span>     */<a name="line.41"></a>
-<span class="sourceLineNo">042</span>    public static final int CHECK_SHA256 = 10;<a name="line.42"></a>
-<span class="sourceLineNo">043</span><a name="line.43"></a>
-<span class="sourceLineNo">044</span>    private XZ() {<a name="line.44"></a>
-<span class="sourceLineNo">045</span>    }<a name="line.45"></a>
-<span class="sourceLineNo">046</span>}<a name="line.46"></a>
+<pre><span class="sourceLineNo">001</span>package org.xbib.io.compress.xz;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>/**<a name="line.3"></a>
+<span class="sourceLineNo">004</span> * XZ constants.<a name="line.4"></a>
+<span class="sourceLineNo">005</span> */<a name="line.5"></a>
+<span class="sourceLineNo">006</span>public class XZ {<a name="line.6"></a>
+<span class="sourceLineNo">007</span>    /**<a name="line.7"></a>
+<span class="sourceLineNo">008</span>     * XZ Header Magic Bytes begin a XZ file.<a name="line.8"></a>
+<span class="sourceLineNo">009</span>     * This can be useful to detect XZ compressed data.<a name="line.9"></a>
+<span class="sourceLineNo">010</span>     */<a name="line.10"></a>
+<span class="sourceLineNo">011</span>    public static final byte[] HEADER_MAGIC = {<a name="line.11"></a>
+<span class="sourceLineNo">012</span>            (byte) 0xFD, '7', 'z', 'X', 'Z', '\0'};<a name="line.12"></a>
+<span class="sourceLineNo">013</span><a name="line.13"></a>
+<span class="sourceLineNo">014</span>    /**<a name="line.14"></a>
+<span class="sourceLineNo">015</span>     * XZ Footer Magic Bytes are the last bytes of a XZ Stream.<a name="line.15"></a>
+<span class="sourceLineNo">016</span>     */<a name="line.16"></a>
+<span class="sourceLineNo">017</span>    public static final byte[] FOOTER_MAGIC = {'Y', 'Z'};<a name="line.17"></a>
+<span class="sourceLineNo">018</span><a name="line.18"></a>
+<span class="sourceLineNo">019</span>    /**<a name="line.19"></a>
+<span class="sourceLineNo">020</span>     * Integrity check ID indicating that no integrity check is calculated.<a name="line.20"></a>
+<span class="sourceLineNo">021</span>     * &lt;p&gt;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>     * Omitting the integrity check is strongly discouraged except when<a name="line.22"></a>
+<span class="sourceLineNo">023</span>     * the integrity of the data will be verified by other means anyway,<a name="line.23"></a>
+<span class="sourceLineNo">024</span>     * and calculating the check twice would be useless.<a name="line.24"></a>
+<span class="sourceLineNo">025</span>     */<a name="line.25"></a>
+<span class="sourceLineNo">026</span>    public static final int CHECK_NONE = 0;<a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>    /**<a name="line.28"></a>
+<span class="sourceLineNo">029</span>     * Integrity check ID for CRC32.<a name="line.29"></a>
+<span class="sourceLineNo">030</span>     */<a name="line.30"></a>
+<span class="sourceLineNo">031</span>    public static final int CHECK_CRC32 = 1;<a name="line.31"></a>
+<span class="sourceLineNo">032</span><a name="line.32"></a>
+<span class="sourceLineNo">033</span>    /**<a name="line.33"></a>
+<span class="sourceLineNo">034</span>     * Integrity check ID for CRC64.<a name="line.34"></a>
+<span class="sourceLineNo">035</span>     */<a name="line.35"></a>
+<span class="sourceLineNo">036</span>    public static final int CHECK_CRC64 = 4;<a name="line.36"></a>
+<span class="sourceLineNo">037</span><a name="line.37"></a>
+<span class="sourceLineNo">038</span>    /**<a name="line.38"></a>
+<span class="sourceLineNo">039</span>     * Integrity check ID for SHA-256.<a name="line.39"></a>
+<span class="sourceLineNo">040</span>     */<a name="line.40"></a>
+<span class="sourceLineNo">041</span>    public static final int CHECK_SHA256 = 10;<a name="line.41"></a>
+<span class="sourceLineNo">042</span><a name="line.42"></a>
+<span class="sourceLineNo">043</span>    private XZ() {<a name="line.43"></a>
+<span class="sourceLineNo">044</span>    }<a name="line.44"></a>
+<span class="sourceLineNo">045</span>}<a name="line.45"></a>
 
 
 
