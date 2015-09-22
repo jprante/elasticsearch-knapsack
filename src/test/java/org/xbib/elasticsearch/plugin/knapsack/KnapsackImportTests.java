@@ -13,7 +13,6 @@ import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportResponse;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateResponse;
 import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;
-import org.xbib.elasticsearch.support.client.ClientHelper;
 
 import java.io.BufferedReader;
 import java.io.File;

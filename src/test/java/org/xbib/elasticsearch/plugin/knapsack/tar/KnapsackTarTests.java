@@ -44,7 +44,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
                new KnapsackStateRequestBuilder(client("2"));
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         knapsackStateResponse.isExportActive(exportPath);
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // delete index
         client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
@@ -54,7 +54,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
             logger.error(knapsackImportResponse.getReason());
         }
         assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
@@ -77,7 +77,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
                 new KnapsackStateRequestBuilder(client("2"));
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         knapsackStateResponse.isExportActive(exportPath);
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // delete index
         client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
@@ -87,7 +87,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
             logger.error(knapsackImportResponse.getReason());
         }
         assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
@@ -110,7 +110,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
                 new KnapsackStateRequestBuilder(client("2"));
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         knapsackStateResponse.isExportActive(exportPath);
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // delete index
         client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
@@ -120,7 +120,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
             logger.error(knapsackImportResponse.getReason());
         }
         assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
@@ -143,7 +143,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
                 new KnapsackStateRequestBuilder(client("2"));
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         knapsackStateResponse.isExportActive(exportPath);
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // delete index
         client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
@@ -153,7 +153,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
             logger.error(knapsackImportResponse.getReason());
         }
         assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
@@ -181,7 +181,7 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
             logger.error(knapsackImportResponse.getReason());
         }
         assertTrue(knapsackImportResponse.isRunning());
-        Thread.sleep(1000L);
+        Thread.sleep(2000L);
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
