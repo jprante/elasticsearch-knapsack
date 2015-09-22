@@ -15,7 +15,8 @@
  */
 package org.xbib.elasticsearch.action.knapsack.state;
 
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequest;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
@@ -24,7 +25,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class KnapsackStateRequest extends SingleCustomOperationRequest<KnapsackStateRequest> {
+public class KnapsackStateRequest extends ActionRequest<KnapsackStateRequest> {
 
     private Path path;
 
@@ -41,6 +42,11 @@ public class KnapsackStateRequest extends SingleCustomOperationRequest<KnapsackS
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeString(path != null ? path.toUri().toString() : "");
+    }
+
+    @Override
+    public ActionRequestValidationException validate() {
+        return null;
     }
 
     @Override

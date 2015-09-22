@@ -90,8 +90,7 @@ public class RestKnapsackPushAction extends BaseRestHandler implements KnapsackP
         SearchRequest searchRequest;
         // override search action "size" (default = 10) by bulk request size. The size is per shard!
         request.params().put("size", request.param(MAX_BULK_ACTIONS_PER_REQUEST_PARAM, "1000"));
-        searchRequest = RestSearchAction.parseSearchRequest(request);
-        searchRequest.listenerThreaded(false);
+        searchRequest = RestSearchAction.parseSearchRequest(request, parseFieldMatcher);
         return searchRequest;
     }
 

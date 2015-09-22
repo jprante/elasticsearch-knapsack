@@ -15,10 +15,10 @@
  */
 package org.xbib.elasticsearch.action.knapsack.state;
 
-import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
-public class KnapsackStateAction extends IndicesAction<KnapsackStateRequest, KnapsackStateResponse, KnapsackStateRequestBuilder> {
+public class KnapsackStateAction extends Action<KnapsackStateRequest, KnapsackStateResponse, KnapsackStateRequestBuilder> {
 
     public final static String NAME = "org.xbib.elasticsearch.knapsack.state";
 
@@ -34,7 +34,7 @@ public class KnapsackStateAction extends IndicesAction<KnapsackStateRequest, Kna
     }
 
     @Override
-    public KnapsackStateRequestBuilder newRequestBuilder(IndicesAdminClient client) {
+    public KnapsackStateRequestBuilder newRequestBuilder(ElasticsearchClient client) {
         return new KnapsackStateRequestBuilder(client);
     }
 }

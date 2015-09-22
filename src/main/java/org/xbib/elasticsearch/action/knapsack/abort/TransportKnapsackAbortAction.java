@@ -18,6 +18,7 @@ package org.xbib.elasticsearch.action.knapsack.abort;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -34,8 +35,9 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
     @Inject
     public TransportKnapsackAbortAction(Settings settings,
                                         ThreadPool threadPool, ActionFilters actionFilters,
+                                        IndexNameExpressionResolver indexNameExpressionResolver,
                                         KnapsackService knapsack) {
-        super(settings, KnapsackAbortAction.NAME, threadPool, actionFilters);
+        super(settings, KnapsackAbortAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
         this.knapsack = knapsack;
     }
 
@@ -43,8 +45,7 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
     protected void doExecute(final KnapsackAbortRequest request, ActionListener<KnapsackAbortResponse> listener) {
         final KnapsackAbortResponse response = new KnapsackAbortResponse();
         try {
-            int aborted = knapsack.abort();
-            response.setAbortedTasks(aborted);
+            knapsack.abort();
             listener.onResponse(response);
         } catch (Throwable e) {
             logger.error(e.getMessage(), e);

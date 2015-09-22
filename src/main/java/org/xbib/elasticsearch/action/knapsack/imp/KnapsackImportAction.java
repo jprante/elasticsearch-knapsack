@@ -15,10 +15,10 @@
  */
 package org.xbib.elasticsearch.action.knapsack.imp;
 
-import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
-public class KnapsackImportAction extends IndicesAction<KnapsackImportRequest, KnapsackImportResponse, KnapsackImportRequestBuilder> {
+public class KnapsackImportAction extends Action<KnapsackImportRequest, KnapsackImportResponse, KnapsackImportRequestBuilder> {
 
     public final static String NAME = "org.xbib.elasticsearch.knapsack.import";
 
@@ -34,7 +34,7 @@ public class KnapsackImportAction extends IndicesAction<KnapsackImportRequest, K
     }
 
     @Override
-    public KnapsackImportRequestBuilder newRequestBuilder(IndicesAdminClient client) {
+    public KnapsackImportRequestBuilder newRequestBuilder(ElasticsearchClient client) {
         return new KnapsackImportRequestBuilder(client);
     }
 }

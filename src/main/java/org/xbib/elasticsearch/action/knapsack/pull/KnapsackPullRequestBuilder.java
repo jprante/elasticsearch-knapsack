@@ -16,19 +16,19 @@
 package org.xbib.elasticsearch.action.knapsack.pull;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 
 import java.nio.file.Path;
 import java.util.Map;
 
-public class KnapsackPullRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackPullRequest, KnapsackPullResponse, KnapsackPullRequestBuilder> {
+public class KnapsackPullRequestBuilder extends ActionRequestBuilder<KnapsackPullRequest, KnapsackPullResponse, KnapsackPullRequestBuilder> {
 
-    public KnapsackPullRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackPullRequest());
+    public KnapsackPullRequestBuilder(ElasticsearchClient client) {
+        super(client, KnapsackPullAction.INSTANCE, new KnapsackPullRequest());
     }
 
     public KnapsackPullRequestBuilder setPath(Path path) {
@@ -114,10 +114,5 @@ public class KnapsackPullRequestBuilder extends SingleCustomOperationRequestBuil
     public KnapsackPullRequestBuilder addIndexTypeMapping(String indexType, String mappingSpec) {
         request.addIndexTypeMapping(indexType, mappingSpec);
         return this;
-    }
-
-    @Override
-    protected void doExecute(ActionListener<KnapsackPullResponse> listener) {
-        client.execute(KnapsackPullAction.INSTANCE, request, listener);
     }
 }

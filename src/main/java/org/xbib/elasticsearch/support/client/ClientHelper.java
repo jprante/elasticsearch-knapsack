@@ -1,52 +1,35 @@
-/*
- * Copyright (C) 2014 Jörg Prante
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.xbib.elasticsearch.support.client;
 
 import org.elasticsearch.ElasticsearchTimeoutException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushAction;
+import org.elasticsearch.action.admin.indices.flush.FlushRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryAction;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryRequest;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryResponse;
+import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 
 import java.io.IOException;
-import java.util.List;
-
-import static org.elasticsearch.common.collect.Lists.newLinkedList;
+import java.util.Map;
 
 public class ClientHelper {
 
-    public static List<String> getConnectedNodes(TransportClient client) {
-        List<String> nodes = newLinkedList();
-        if (client.connectedNodes() != null) {
-            for (DiscoveryNode discoveryNode : client.connectedNodes()) {
-                nodes.add(discoveryNode.toString());
-            }
-        }
-        return nodes;
-    }
-
-    public static void updateIndexSetting(Client client, String index, String key, Object value) throws IOException {
+    public static void updateIndexSetting(ElasticsearchClient client, String index, String key, Object value) throws IOException {
         if (client == null) {
             throw new IOException("no client");
         }
@@ -59,41 +42,45 @@ public class ClientHelper {
         if (value == null) {
             throw new IOException("no value given");
         }
-        ImmutableSettings.Builder settingsBuilder = ImmutableSettings.settingsBuilder();
+        Settings.Builder settingsBuilder = Settings.settingsBuilder();
         settingsBuilder.put(key, value.toString());
         UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(index)
                 .settings(settingsBuilder);
-        client.admin().indices().updateSettings(updateSettingsRequest).actionGet();
+        client.execute(UpdateSettingsAction.INSTANCE, updateSettingsRequest).actionGet();
     }
 
-    public static int waitForRecovery(Client client, String index) throws IOException {
+    public static void waitForRecovery(ElasticsearchClient client) throws IOException {
+        RecoveryResponse response = client.execute(RecoveryAction.INSTANCE, new RecoveryRequest()).actionGet();
+    }
+
+    public static int waitForRecovery(ElasticsearchClient client, String index) throws IOException {
         if (index == null) {
             throw new IOException("unable to waitfor recovery, index not set");
         }
-        RecoveryResponse response = client.admin().indices().prepareRecoveries(index).execute().actionGet();
+        RecoveryResponse response = client.execute(RecoveryAction.INSTANCE, new RecoveryRequest(index)).actionGet();
         int shards = response.getTotalShards();
-        client.admin().cluster().prepareHealth(index).setWaitForActiveShards(shards).execute().actionGet();
+        client.execute(ClusterHealthAction.INSTANCE, new ClusterHealthRequest(index).waitForActiveShards(shards)).actionGet();
         return shards;
     }
 
-    public static void waitForCluster(Client client, ClusterHealthStatus status, TimeValue timeout) throws IOException {
+    public static void waitForCluster(ElasticsearchClient client, ClusterHealthStatus status, TimeValue timeout) throws IOException {
         try {
             ClusterHealthResponse healthResponse =
-                    client.admin().cluster().prepareHealth().setWaitForStatus(status).setTimeout(timeout).execute().actionGet();
+                    client.execute(ClusterHealthAction.INSTANCE, new ClusterHealthRequest().waitForStatus(status).timeout(timeout)).actionGet();
             if (healthResponse != null && healthResponse.isTimedOut()) {
                 throw new IOException("cluster state is " + healthResponse.getStatus().name()
                         + " and not " + status.name()
-                        + ", cowardly refusing to continue with operations");
+                        + ", from here on, everything will fail!");
             }
         } catch (ElasticsearchTimeoutException e) {
             throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
         }
     }
 
-    public static String clusterName(Client client) {
+    public static String clusterName(ElasticsearchClient client) {
         try {
             ClusterStateRequestBuilder clusterStateRequestBuilder =
-                    new ClusterStateRequestBuilder(client.admin().cluster()).all();
+                    new ClusterStateRequestBuilder(client, ClusterStateAction.INSTANCE).all();
             ClusterStateResponse clusterStateResponse = clusterStateRequestBuilder.execute().actionGet();
             String name = clusterStateResponse.getClusterName().value();
             int nodeCount = clusterStateResponse.getState().getNodes().size();
@@ -107,10 +94,10 @@ public class ClientHelper {
         }
     }
 
-    public static String healthColor(Client client) {
+    public static String healthColor(ElasticsearchClient client) {
         try {
             ClusterHealthResponse healthResponse =
-                    client.admin().cluster().prepareHealth().setTimeout(TimeValue.timeValueSeconds(30)).execute().actionGet();
+                    client.execute(ClusterHealthAction.INSTANCE, new ClusterHealthRequest().timeout(TimeValue.timeValueSeconds(30))).actionGet();
             ClusterHealthStatus status = healthResponse.getStatus();
             return status.name();
         } catch (ElasticsearchTimeoutException e) {
@@ -122,26 +109,31 @@ public class ClientHelper {
         }
     }
 
-    public static int updateReplicaLevel(Client client, String index, int level) throws IOException {
+    public static int updateReplicaLevel(ElasticsearchClient client, String index, int level) throws IOException {
         waitForCluster(client, ClusterHealthStatus.YELLOW, TimeValue.timeValueSeconds(30));
         updateIndexSetting(client, index, "number_of_replicas", level);
         return waitForRecovery(client, index);
     }
 
-    public static void disableRefresh(Client client, String index) throws IOException {
-        updateIndexSetting(client, index, "refresh_interval", -1);
+    public static void flushIndex(ElasticsearchClient client, String index) {
+        if (client != null && index != null) {
+            client.execute(FlushAction.INSTANCE, new FlushRequest(index)).actionGet();
+        }
     }
 
-    public static void enableRefresh(Client client, String index) throws IOException {
-        updateIndexSetting(client, index, "refresh_interval", 1000);
+    public static void refreshIndex(ElasticsearchClient client, String index) {
+        if (client != null && index != null) {
+            client.execute(RefreshAction.INSTANCE, new RefreshRequest(index)).actionGet();
+        }
     }
 
-    public static void flush(Client client, String index) {
-        client.admin().indices().prepareFlush().setIndices(index).execute().actionGet();
-    }
-
-    public static void refresh(Client client, String index) {
-        client.admin().indices().prepareRefresh().setIndices(index).setForce(true).execute().actionGet();
+    public static void putMapping(ElasticsearchClient client, ConfigHelper configHelper, String index) {
+        if (!configHelper.mappings().isEmpty()) {
+            for (Map.Entry<String, String> me : configHelper.mappings().entrySet()) {
+                client.execute(PutMappingAction.INSTANCE,
+                        new PutMappingRequest(index).type(me.getKey()).source(me.getValue())).actionGet();
+            }
+        }
     }
 
 }

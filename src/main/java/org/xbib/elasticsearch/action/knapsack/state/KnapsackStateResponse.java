@@ -18,20 +18,24 @@ package org.xbib.elasticsearch.action.knapsack.state;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.LinkedList;
 import java.util.List;
 
-import static org.elasticsearch.common.collect.Lists.newLinkedList;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class KnapsackStateResponse extends ActionResponse implements ToXContent {
 
-    private List<KnapsackState> states = newLinkedList();
+    private final static ESLogger logger= ESLoggerFactory.getLogger("state");
+
+    private List<KnapsackState> states = new LinkedList<>();
 
     public KnapsackStateResponse addState(KnapsackState state) {
         this.states.add(state);
@@ -100,7 +104,7 @@ public class KnapsackStateResponse extends ActionResponse implements ToXContent 
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
-        states = newLinkedList();
+        states = new LinkedList<>();
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
             KnapsackState ks = new KnapsackState();

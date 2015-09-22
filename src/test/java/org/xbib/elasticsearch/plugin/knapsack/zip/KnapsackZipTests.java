@@ -2,6 +2,8 @@ package org.xbib.elasticsearch.plugin.knapsack.zip;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.junit.Test;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
@@ -22,12 +24,14 @@ import static org.junit.Assert.assertTrue;
 
 public class KnapsackZipTests extends AbstractNodeTestHelper {
 
+    private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackZipTests.class.getName());
+
     @Test
     public void testZip() throws Exception {
         File exportFile = File.createTempFile("knapsack-zip-", ".zip");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content","Hello World").refresh(true)).actionGet();
-        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
+        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
                 .setPath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
@@ -36,13 +40,13 @@ public class KnapsackZipTests extends AbstractNodeTestHelper {
         }
         assertTrue(knapsackExportResponse.isRunning());
         KnapsackStateRequestBuilder knapsackStateRequestBuilder =
-               new KnapsackStateRequestBuilder(client("2").admin().indices());
+               new KnapsackStateRequestBuilder(client("2"));
         KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
         knapsackStateResponse.isExportActive(exportPath);
         Thread.sleep(1000L);
         // delete index
         client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
-        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1").admin().indices())
+        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
                 .setPath(exportPath);
         KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
         if (!knapsackImportResponse.isRunning()) {

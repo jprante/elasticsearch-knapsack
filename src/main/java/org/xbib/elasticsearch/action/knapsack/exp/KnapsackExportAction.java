@@ -15,13 +15,13 @@
  */
 package org.xbib.elasticsearch.action.knapsack.exp;
 
-import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
 /**
  * The knapsack export action exports data to archive files
  */
-public class KnapsackExportAction extends IndicesAction<KnapsackExportRequest, KnapsackExportResponse, KnapsackExportRequestBuilder> {
+public class KnapsackExportAction extends Action<KnapsackExportRequest, KnapsackExportResponse, KnapsackExportRequestBuilder> {
 
     public final static String NAME = "org.xbib.elasticsearch.knapsack.export";
 
@@ -37,7 +37,7 @@ public class KnapsackExportAction extends IndicesAction<KnapsackExportRequest, K
     }
 
     @Override
-    public KnapsackExportRequestBuilder newRequestBuilder(IndicesAdminClient client) {
+    public KnapsackExportRequestBuilder newRequestBuilder(ElasticsearchClient client) {
         return new KnapsackExportRequestBuilder(client);
     }
 }

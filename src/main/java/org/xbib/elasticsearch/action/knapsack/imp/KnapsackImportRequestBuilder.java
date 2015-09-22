@@ -15,20 +15,19 @@
  */
 package org.xbib.elasticsearch.action.knapsack.imp;
 
-import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 
 import java.nio.file.Path;
 import java.util.Map;
 
-public class KnapsackImportRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackImportRequest, KnapsackImportResponse, KnapsackImportRequestBuilder> {
+public class KnapsackImportRequestBuilder extends ActionRequestBuilder<KnapsackImportRequest, KnapsackImportResponse, KnapsackImportRequestBuilder> {
 
-    public KnapsackImportRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackImportRequest());
+    public KnapsackImportRequestBuilder(ElasticsearchClient client) {
+        super(client, KnapsackImportAction.INSTANCE, new KnapsackImportRequest());
     }
 
     public KnapsackImportRequestBuilder setPath(Path path) {
@@ -81,7 +80,7 @@ public class KnapsackImportRequestBuilder extends SingleCustomOperationRequestBu
         return this;
     }
 
-    public KnapsackImportRequestBuilder setIndexTypeNames(Map indexTypeNames) {
+    public KnapsackImportRequestBuilder setIndexTypeNames(Map<String, Object> indexTypeNames) {
         request.setIndexTypeNames(indexTypeNames);
         return this;
     }
@@ -93,11 +92,6 @@ public class KnapsackImportRequestBuilder extends SingleCustomOperationRequestBu
 
     public KnapsackImportRequestBuilder setSearchRequest(SearchRequest searchRequest) {
         request.setSearchRequest(searchRequest);
-        return this;
-    }
-
-    public KnapsackImportRequestBuilder withDecodedEntry(boolean decodedEntry) {
-        request.setDecodeEntry(decodedEntry);
         return this;
     }
 
@@ -114,10 +108,5 @@ public class KnapsackImportRequestBuilder extends SingleCustomOperationRequestBu
     public KnapsackImportRequestBuilder addIndexTypeMapping(String indexType, String mappingSpec) {
         request.addIndexTypeMapping(indexType, mappingSpec);
         return this;
-    }
-
-    @Override
-    protected void doExecute(ActionListener<KnapsackImportResponse> listener) {
-        client.execute(KnapsackImportAction.INSTANCE, request, listener);
     }
 }

@@ -15,19 +15,19 @@
  */
 package org.xbib.elasticsearch.action.knapsack.push;
 
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.TimeValue;
 import org.xbib.elasticsearch.knapsack.KnapsackRequest;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
-import static org.elasticsearch.common.collect.Maps.newHashMap;
-
-public class KnapsackPushRequest extends SingleCustomOperationRequest<KnapsackPushRequest>
+public class KnapsackPushRequest extends ActionRequest<KnapsackPushRequest>
         implements KnapsackRequest {
 
     private String host;
@@ -46,7 +46,7 @@ public class KnapsackPushRequest extends SingleCustomOperationRequest<KnapsackPu
 
     private int maxBulkConcurrency = 2 * Runtime.getRuntime().availableProcessors();
 
-    private Map<String, Object> indexTypeNames = newHashMap();
+    private Map<String, Object> indexTypeNames = new HashMap<>();
 
     private boolean withMetadata;
 
@@ -200,6 +200,11 @@ public class KnapsackPushRequest extends SingleCustomOperationRequest<KnapsackPu
         } else {
             out.writeBoolean(false);
         }
+    }
+
+    @Override
+    public ActionRequestValidationException validate() {
+        return null;
     }
 
     @Override

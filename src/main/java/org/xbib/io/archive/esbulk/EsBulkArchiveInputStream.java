@@ -16,6 +16,7 @@
 package org.xbib.io.archive.esbulk;
 
 import org.xbib.io.archive.ArchiveInputStream;
+import org.xbib.io.archive.ArchiveUtils;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,19 +56,19 @@ public class EsBulkArchiveInputStream extends ArchiveInputStream<EsBulkArchiveEn
         StringBuilder sb = new StringBuilder();
         Matcher m = indexPattern.matcher(meta);
         if (m.find()) {
-            sb.append(m.group(1));
+            sb.append(ArchiveUtils.encode(m.group(1), Charset.forName("UTF-8")));
         } else {
             throw new IOException("no _index found");
         }
         m = typePattern.matcher(meta);
         if (m.find()) {
-            sb.append('/').append(m.group(1));
+            sb.append('/').append(ArchiveUtils.encode(m.group(1), Charset.forName("UTF-8")));
         } else {
             throw new IOException("no _type found");
         }
         m = idPattern.matcher(meta);
         if (m.find()) {
-            sb.append('/').append(m.group(1));
+            sb.append('/').append(ArchiveUtils.encode(m.group(1), Charset.forName("UTF-8")));
         } else {
             throw new IOException("no _id found");
         }

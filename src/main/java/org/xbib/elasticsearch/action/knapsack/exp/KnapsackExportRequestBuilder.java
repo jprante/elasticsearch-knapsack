@@ -15,10 +15,9 @@
  */
 package org.xbib.elasticsearch.action.knapsack.exp;
 
-import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.unit.ByteSizeValue;
 
 import java.nio.file.Path;
@@ -27,10 +26,10 @@ import java.util.Map;
 /**
  * Build request for knapsack export action
  */
-public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackExportRequest, KnapsackExportResponse, KnapsackExportRequestBuilder> {
+public class KnapsackExportRequestBuilder extends ActionRequestBuilder<KnapsackExportRequest, KnapsackExportResponse, KnapsackExportRequestBuilder> {
 
-    public KnapsackExportRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackExportRequest());
+    public KnapsackExportRequestBuilder(ElasticsearchClient client) {
+        super(client, KnapsackExportAction.INSTANCE, new KnapsackExportRequest());
     }
 
     public KnapsackExportRequestBuilder setPath(Path path) {
@@ -78,18 +77,8 @@ public class KnapsackExportRequestBuilder extends SingleCustomOperationRequestBu
         return this;
     }
 
-    public KnapsackExportRequestBuilder setEncodeEntry(boolean encodeEntry) {
-        request.setEncodeEntry(encodeEntry);
-        return this;
-    }
-
     public KnapsackExportRequestBuilder withAliases(boolean withAliases) {
         request.withAliases(withAliases);
         return this;
-    }
-
-    @Override
-    protected void doExecute(ActionListener<KnapsackExportResponse> listener) {
-        client.execute(KnapsackExportAction.INSTANCE, request, listener);
     }
 }

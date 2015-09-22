@@ -15,5 +15,12 @@
                 <include>org.xbib.elasticsearch.plugin</include>
             </includes>
         </dependencySet>
-    </dependencySets>  
+    </dependencySets>
+    <files>
+        <file>
+            <source>${basedir}/src/main/resources/plugin-descriptor.properties</source>
+            <outputDirectory>/</outputDirectory>
+            <filtered>true</filtered>
+        </file>
+    </files>
 </assembly>

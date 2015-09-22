@@ -12,7 +12,7 @@ import org.xbib.elasticsearch.plugin.knapsack.tar.KnapsackTarTests;
 import org.xbib.elasticsearch.plugin.knapsack.zip.KnapsackZipTests;
 
 
-@RunWith(Suite.class)
+@RunWith(ListenerSuite.class)
 @Suite.SuiteClasses({
         KnapsackSimpleTests.class,
         KnapsackExportTests.class,

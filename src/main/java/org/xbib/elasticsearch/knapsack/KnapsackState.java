@@ -20,11 +20,11 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.joda.DateMathParser;
 import org.elasticsearch.common.joda.Joda;
-import org.elasticsearch.common.joda.time.DateTime;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,7 +32,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.common.xcontent.XContentParser.Token.END_OBJECT;
@@ -124,7 +123,7 @@ public class KnapsackState implements Streamable, ToXContent {
         };
     }
 
-    private final static DateMathParser dateParser = new DateMathParser(Joda.forPattern("dateOptionalTime"), TimeUnit.MILLISECONDS);
+    private final static DateMathParser dateParser = new DateMathParser(Joda.forPattern("dateOptionalTime"));
 
     public KnapsackState fromXContent(XContentParser parser) throws IOException {
         Long startTimestamp = new Date().getTime();

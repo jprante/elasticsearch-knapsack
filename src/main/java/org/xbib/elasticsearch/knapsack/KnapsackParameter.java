@@ -82,11 +82,6 @@ public interface KnapsackParameter {
      */
     String WITH_METADATA_PARAM = "with_metadata";
 
-    /**
-     * Should Knapsack encode/decode URI encoded archive entry names
-     */
-    String WITH_ENCODED_ENTRY_PARAM = "with_encoded_entry";
-
     String BYTES_PARAM = "bytes";
 
     String WITH_ALIASES = "with_aliases";

@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2014 Jörg Prante
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.xbib.io.archive.tar;
 
 import org.xbib.io.archive.ArchiveInputStream;
@@ -33,7 +18,7 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
 
     private final ArchiveEntryEncoding encoding;
 
-    private final InputStream in;
+    private final InputStream inStream;
 
     private final int blockSize;
 
@@ -51,6 +36,7 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
 
     private long entryOffset;
 
+
     private TarArchiveInputEntry entry;
 
     private int currRecIdx;
@@ -58,13 +44,13 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
     /**
      * Constructor for TarInputStream.
      *
-     * @param in the input stream to use
+     * @param is the input stream to use
      */
-    public TarArchiveInputStream(InputStream in) {
+    public TarArchiveInputStream(InputStream is) {
         this.encoding = ArchiveEntryEncodingHelper.getEncoding(null);
         this.readBuf = null;
         this.hasHitEOF = false;
-        this.in = in;
+        this.inStream = is;
         this.blockSize = DEFAULT_BLOCK_SIZE;
         this.recordSize = DEFAULT_RECORD_SIZE;
         this.recsPerBlock = this.blockSize / this.recordSize;
@@ -79,8 +65,10 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
      */
     @Override
     public void close() throws IOException {
-        if (in != null) {
-            in.close();
+        if (inStream != null) {
+            if (inStream != System.in) {
+                inStream.close();
+            }
         }
     }
 
@@ -257,7 +245,7 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
         int offset = 0;
         int bytesNeeded = blockSize;
         while (bytesNeeded > 0) {
-            long numBytes = in.read(blockBuffer, offset, bytesNeeded);
+            long numBytes = inStream.read(blockBuffer, offset, bytesNeeded);
             if (numBytes == -1) {
                 if (offset == 0) {
                     return false;
@@ -286,6 +274,7 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
         }
         return true;
     }
+
 
     private void paxHeaders() throws IOException {
         Map<String, String> headers = parsePaxHeaders(this);

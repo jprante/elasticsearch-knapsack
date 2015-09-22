@@ -16,26 +16,30 @@
 package org.xbib.elasticsearch.action.knapsack.push;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.count.CountAction;
 import org.elasticsearch.action.count.CountRequest;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.collect.ImmutableSet;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.joda.time.DateTime;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
@@ -43,17 +47,18 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.joda.time.DateTime;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
-import org.xbib.elasticsearch.support.client.bulk.BulkTransportClient;
+import org.xbib.elasticsearch.support.client.transport.BulkTransportClient;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
-import static org.elasticsearch.common.collect.Maps.newHashMap;
-import static org.elasticsearch.common.collect.Sets.newHashSet;
 import static org.xbib.elasticsearch.knapsack.KnapsackHelper.clientSettings;
 import static org.xbib.elasticsearch.knapsack.KnapsackHelper.getAliases;
 import static org.xbib.elasticsearch.knapsack.KnapsackHelper.getMapping;
@@ -67,8 +72,6 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
 
     private final Environment environment;
 
-    private final SettingsFilter settingsFilter;
-
     private final Client client;
 
     private final NodeService nodeService;
@@ -77,12 +80,12 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
 
     @Inject
     public TransportKnapsackPushAction(Settings settings, Environment environment,
-                                       ThreadPool threadPool, SettingsFilter settingsFilter,
+                                       ThreadPool threadPool,
                                        Client client, NodeService nodeService, ActionFilters actionFilters,
+                                       IndexNameExpressionResolver indexNameExpressionResolver,
                                        KnapsackService knapsack) {
-        super(settings, KnapsackPushAction.NAME, threadPool, actionFilters);
+        super(settings, KnapsackPushAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
         this.environment = environment;
-        this.settingsFilter = settingsFilter;
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;
@@ -98,23 +101,18 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
         try {
             final BulkTransportClient bulkClient = new BulkTransportClient();
             bulkClient.flushIngestInterval(TimeValue.timeValueSeconds(5))
-                    .maxActionsPerBulkRequest(request.getMaxActionsPerBulkRequest())
-                    .maxConcurrentBulkRequests(request.getMaxBulkConcurrency())
-                    .newClient(clientSettings(client, environment, request));
-            if (bulkClient.getConnectedNodes().isEmpty()) {
-                response.setRunning(false);
-                bulkClient.shutdown();
-            } else {
-                state.setTimestamp(new DateTime());
-                response.setRunning(true);
-                knapsack.submit(new Thread() {
-                    public void run() {
-                        performPush(request, state, bulkClient);
-                    }
-                });
-            }
+                    .maxActionsPerRequest(request.getMaxActionsPerBulkRequest())
+                    .maxConcurrentRequests(request.getMaxBulkConcurrency())
+                    .init(clientSettings(client, environment, request));
+            state.setTimestamp(new DateTime());
+            response.setRunning(true);
+            knapsack.submit(new Thread() {
+                public void run() {
+                    performPush(request, state, bulkClient);
+                }
+            });
             // ensure to add export to state before response is sent
-            knapsack.addExport(client, state);
+            knapsack.addExport(state);
             listener.onResponse(response);
         } catch (Throwable e) {
             logger.error(e.getMessage(), e);
@@ -135,7 +133,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
         try {
             logger.info("start of push: {}", state);
             long count = 0L;
-            Map<String, Set<String>> indices = newHashMap();
+            Map<String, Set<String>> indices = new HashMap<>();
             for (String s : Strings.commaDelimitedListToSet(request.getIndex())) {
                 indices.put(s, Strings.commaDelimitedListToSet(request.getType()));
             }
@@ -152,7 +150,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                         if (!"_all".equals(index)) {
                             Set<String> types = indices.get(index);
                             if (types == null) {
-                                types = newHashSet();
+                                types = new HashSet<>();
                             }
                             if (type != null) {
                                 types.add(type);
@@ -163,9 +161,9 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                 }
                 // get settings for all indices
                 logger.info("getting settings for indices {}", indices.keySet());
-                Set<String> settingsIndices = newHashSet(indices.keySet());
+                Set<String> settingsIndices = new HashSet<>(indices.keySet());
                 settingsIndices.remove("_all");
-                Map<String, String> settings = getSettings(client, settingsFilter,
+                Map<String, String> settings = getSettings(client,
                         settingsIndices.toArray(new String[settingsIndices.size()]));
                 logger.info("found indices: {}", settings.keySet());
                 // we resolved the specs in indices to the real indices in the settings
@@ -176,7 +174,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                     createIndexRequest.settings(settings.get(index));
                     logger.info("getting mappings for index {} and types {}", index, types);
                     Map<String, String> mappings = getMapping(client, index,
-                            types != null ? ImmutableSet.copyOf(types) : null);
+                            types != null ? new HashSet<>(types) : null);
                     logger.info("found mappings: {}", mappings.keySet());
                     for (String type : mappings.keySet()) {
                         logger.info("adding mapping: {}", mapType(request, index, type));
@@ -185,11 +183,12 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                     // create index
                     logger.info("creating index: {}", mapIndex(request, index));
                     try {
-                        bulkClient.client().admin().indices().create(createIndexRequest).actionGet();
+                        bulkClient.client().execute(CreateIndexAction.INSTANCE, createIndexRequest).actionGet();
                         logger.info("index created: {}", mapIndex(request, index));
                     } catch (Exception e) {
                         // maybe an index already exists exception, check if index is empty, throw exception only if not empty
-                        CountResponse countResponse = bulkClient.client().count(new CountRequest(mapIndex(request, index))).actionGet();
+                        CountResponse countResponse =
+                                bulkClient.client().execute(CountAction.INSTANCE, new CountRequest(mapIndex(request, index))).actionGet();
                         logger.info("count={} status={}", countResponse.getCount(), countResponse.status());
                         if (countResponse.getCount() > 0L) {
                             throw e;
@@ -199,7 +198,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                     Map<String, String> aliases = getAliases(client, index);
                     logger.info("found {} aliases", aliases.size());
                     if (!aliases.isEmpty()) {
-                        IndicesAliasesRequestBuilder requestBuilder = bulkClient.client().admin().indices().prepareAliases();
+                        IndicesAliasesRequestBuilder requestBuilder = new IndicesAliasesRequestBuilder(client, IndicesAliasesAction.INSTANCE);
                         for (String alias : aliases.keySet()) {
                             if (aliases.get(alias).isEmpty()) {
                                 requestBuilder.addAlias(index, alias);
@@ -214,7 +213,8 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
             }
             SearchRequest searchRequest = request.getSearchRequest();
             if (searchRequest == null) {
-                searchRequest = new SearchRequestBuilder(client).setQuery(QueryBuilders.matchAllQuery()).request();
+                searchRequest = new SearchRequestBuilder(client, SearchAction.INSTANCE)
+                        .setQuery(QueryBuilders.matchAllQuery()).request();
             }
             for (String index : indices.keySet()) {
                 searchRequest.searchType(SearchType.SCAN).scroll(request.getTimeout());
@@ -226,13 +226,11 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                     searchRequest.types(types.toArray(new String[types.size()]));
                 }
                 // use local node client here
-                SearchResponse searchResponse = client.search(searchRequest).actionGet();
+                SearchResponse searchResponse = client.execute(SearchAction.INSTANCE, searchRequest).actionGet();
                 long total = 0L;
                 while (searchResponse.getScrollId() != null && !Thread.interrupted()) {
-                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
-                            .setScroll(request.getTimeout())
-                            .execute()
-                            .actionGet();
+                    searchResponse = client.execute(SearchScrollAction.INSTANCE,
+                                new SearchScrollRequest(searchResponse.getScrollId()).scroll(request.getTimeout())).actionGet();
                     long hits = searchResponse.getHits().getHits().length;
                     if (hits == 0) {
                         break;
@@ -277,7 +275,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
             bulkClient.flushIngest();
             bulkClient.waitForResponses(TimeValue.timeValueSeconds(60));
             for (String index : indices.keySet()) {
-                bulkClient.refresh(index);
+                bulkClient.refreshIndex(index);
             }
             bulkClient.shutdown();
             logger.info("end of push: {}, count = {}", state, count);
@@ -285,7 +283,7 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
             logger.error(e.getMessage(), e);
         } finally {
             try {
-                knapsack.removeExport(client, state);
+                knapsack.removeExport(state);
             } catch (IOException e) {
                 logger.error(e.getMessage(), e);
             }

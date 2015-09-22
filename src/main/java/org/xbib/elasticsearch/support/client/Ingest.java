@@ -1,26 +1,11 @@
-/*
- * Copyright (C) 2014 Jörg Prante
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.xbib.elasticsearch.support.client;
 
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 
@@ -32,6 +17,14 @@ import java.util.Map;
  * Interface for providing convenient administrative methods for ingesting data into Elasticsearch.
  */
 public interface Ingest {
+
+    int DEFAULT_MAX_ACTIONS_PER_REQUEST = 1000;
+
+    int DEFAULT_MAX_CONCURRENT_REQUESTS = Runtime.getRuntime().availableProcessors() * 4;
+
+    ByteSizeValue DEFAULT_MAX_VOLUME_PER_REQUEST = new ByteSizeValue(10, ByteSizeUnit.MB);
+
+    TimeValue DEFAULT_FLUSH_INTERVAL = TimeValue.timeValueSeconds(30);
 
     /**
      * Index document
@@ -50,41 +43,67 @@ public interface Ingest {
      * @param index the index
      * @param type  the type
      * @param id    the id
-     * @return this
+     * @return this ingest
      */
     Ingest delete(String index, String type, String id);
 
-    Ingest newClient(Client client);
-
-    Ingest newClient(Settings settings);
-
-    Ingest newClient(Map<String, String> settings);
-
-    Client client();
+    /**
+     * Initialize, create new ingest client.
+     *
+     * @param client the Elasticsearch client
+     * @return this ingest
+     * @throws IOException if client could not get created
+     */
+    Ingest init(ElasticsearchClient client) throws IOException;
 
     /**
-     * Set the maximum number of actions per bulk request
+     * Initialize, create new ingest client.
      *
-     * @param maxActions maximum number of bulk actions
+     * @param settings settings
+     * @return this ingest
+     * @throws IOException if client could not get created
+     */
+    Ingest init(Settings settings) throws IOException;
+
+    /**
+     * Initialize, create new ingest client.
+     *
+     * @param settings settings
+     * @return this ingest
+     * @throws IOException if client could not get created
+     */
+    Ingest init(Map<String, String> settings) throws IOException;
+
+    /**
+     * Return Elasticsearch client to execute actions
+     *
+     * @return Elasticsearch client
+     */
+    ElasticsearchClient client();
+
+    /**
+     * Set the maximum number of actions per request
+     *
+     * @param maxActionsPerRequest maximum number of actions per request
      * @return this ingest
      */
-    Ingest maxActionsPerBulkRequest(int maxActions);
+    Ingest maxActionsPerRequest(int maxActionsPerRequest);
 
     /**
-     * Set the maximum concurent bulk requests
+     * Set the maximum concurent requests
      *
-     * @param maxConcurentBulkRequests maximum number of concurrent ingest requests
+     * @param maxConcurentRequests maximum number of concurrent ingest requests
      * @return this Ingest
      */
-    Ingest maxConcurrentBulkRequests(int maxConcurentBulkRequests);
+    Ingest maxConcurrentRequests(int maxConcurentRequests);
 
     /**
-     * Set the maximum volume for bulk request before flush
+     * Set the maximum volume for request before flush
      *
      * @param maxVolume maximum volume
      * @return this ingest
      */
-    Ingest maxVolumePerBulkRequest(ByteSizeValue maxVolume);
+    Ingest maxVolumePerRequest(ByteSizeValue maxVolume);
 
     /**
      * Set the flush interval for automatic flushing outstanding ingest requests
@@ -95,39 +114,17 @@ public interface Ingest {
     Ingest flushIngestInterval(TimeValue flushInterval);
 
     /**
-     * Set request timeout. Default is 60s.
+     * Get settings builder
      *
-     * @param timeout timeout
-     * @return this ingest
+     * @return settings builder
      */
-    Ingest maxRequestWait(TimeValue timeout);
-
-    /**
-     * The number of shards for index creation
-     *
-     * @param shards the number of shards
-     * @return this
-     */
-    Ingest shards(int shards);
-
-    /**
-     * The number of replica for index creation
-     *
-     * @param replica the number of replica
-     * @return this
-     */
-    Ingest replica(int replica);
-
-    void setSettings(Settings settings);
-
-    ImmutableSettings.Builder getSettingsBuilder();
-
-    Settings getSettings();
+    Settings.Builder getSettingsBuilder();
 
     /**
      * Create settings
      *
      * @param in the input stream with settings
+     * @throws IOException if setting definition could not be retrieved
      */
     void setting(InputStream in) throws IOException;
 
@@ -155,30 +152,76 @@ public interface Ingest {
      */
     void addSetting(String key, Integer value);
 
+    /**
+     * Set mapping
+     *
+     * @param type mapping type
+     * @param in   mapping definition as input stream
+     * @throws IOException if mapping could not be added
+     */
     void mapping(String type, InputStream in) throws IOException;
 
+    /**
+     * Set mapping
+     *
+     * @param type    mapping type
+     * @param mapping mapping definition as input stream
+     * @throws IOException if mapping could not be added
+     */
     void mapping(String type, String mapping) throws IOException;
 
-    Map<String, String> getMappings();
-
+    /**
+     * Put mapping
+     *
+     * @param index index
+     * @return this ingest
+     */
     Ingest putMapping(String index);
-
-    Ingest deleteMapping(String index, String type);
 
     /**
      * Create a new index
      *
+     * @param index index
      * @return this ingest
      */
     Ingest newIndex(String index);
 
+    /**
+     * Create a new index
+     *
+     * @param index    index
+     * @param type     type
+     * @param settings settings
+     * @param mappings mappings
+     * @return this ingest
+     * @throws IOException if new index creation fails
+     */
     Ingest newIndex(String index, String type, InputStream settings, InputStream mappings) throws IOException;
 
+    /**
+     * Create a new index
+     *
+     * @param index    index
+     * @param settings settings
+     * @param mappings mappings
+     * @return this ingest
+     */
     Ingest newIndex(String index, Settings settings, Map<String, String> mappings);
+
+    /**
+     * Create new mapping
+     *
+     * @param index   index
+     * @param type    index type
+     * @param mapping mapping
+     * @return this ingest
+     */
+    Ingest newMapping(String index, String type, Map<String, Object> mapping);
 
     /**
      * Delete index
      *
+     * @param index index
      * @return this ingest
      */
     Ingest deleteIndex(String index);
@@ -186,14 +229,20 @@ public interface Ingest {
     /**
      * Start bulk mode
      *
+     * @param index                index
+     * @param startRefreshInterval refresh interval before bulk
+     * @param stopRefreshInterval  refresh interval after bulk
      * @return this ingest
+     * @throws IOException if bulk could not be started
      */
-    Ingest startBulk(String index) throws IOException;
+    Ingest startBulk(String index, long startRefreshInterval, long stopRefreshInterval) throws IOException;
 
     /**
-     * Stops bulk mode. Enables refresh.
+     * Stops bulk mode
      *
+     * @param index index
      * @return this Ingest
+     * @throws IOException if bulk could not be stopped
      */
     Ingest stopBulk(String index) throws IOException;
 
@@ -216,7 +265,7 @@ public interface Ingest {
     Ingest bulkDelete(DeleteRequest deleteRequest);
 
     /**
-     * Flush ingest, move all pending documents to the bulk indexer
+     * Flush ingest, move all pending documents to the cluster.
      *
      * @return this
      */
@@ -227,46 +276,75 @@ public interface Ingest {
      *
      * @param maxWait maximum wait time
      * @return this ingest
-     * @throws InterruptedException
+     * @throws InterruptedException if wait is interrupted
      */
     Ingest waitForResponses(TimeValue maxWait) throws InterruptedException;
 
     /**
-     * Flush the index
-     */
-    Ingest flush(String index);
-
-    /**
      * Refresh the index.
      *
+     * @param index index
      * @return this ingest
      */
-    Ingest refresh(String index);
+    Ingest refreshIndex(String index);
+
+    /**
+     * Flush the index.
+     *
+     * @param index index
+     * @return this ingest
+     */
+    Ingest flushIndex(String index);
 
     /**
      * Add replica level.
      *
+     * @param index index
      * @param level the replica level
      * @return number of shards after updating replica level
+     * @throws IOException if replica could not be updated
      */
     int updateReplicaLevel(String index, int level) throws IOException;
 
     /**
      * Wait for cluster being healthy.
      *
-     * @throws IOException
+     * @param status    cluster health status to wait for
+     * @param timeValue time value
+     * @return this ingest
+     * @throws IOException if wait failed
      */
     Ingest waitForCluster(ClusterHealthStatus status, TimeValue timeValue) throws IOException;
 
     /**
      * Wait for index recovery (after replica change)
      *
+     * @param index index
      * @return number of shards found
+     * @throws IOException if wait failed
      */
     int waitForRecovery(String index) throws IOException;
 
-    State getState();
+    /**
+     * Get metric
+     *
+     * @return metric
+     */
+    Metric getMetric();
 
+    /**
+     * Set metric
+     *
+     * @param metric the metric
+     * @return this ingest
+     */
+    Ingest setMetric(Metric metric);
+
+    /**
+     * Returns true is a throwable exists
+     *
+     * @return true if a Throwable exists
+     */
     boolean hasThrowable();
 
     /**

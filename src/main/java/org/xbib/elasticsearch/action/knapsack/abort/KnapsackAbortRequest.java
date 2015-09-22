@@ -15,17 +15,23 @@
  */
 package org.xbib.elasticsearch.action.knapsack.abort;
 
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequest;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 
-public class KnapsackAbortRequest extends SingleCustomOperationRequest<KnapsackAbortRequest> {
+public class KnapsackAbortRequest extends ActionRequest<KnapsackAbortRequest> {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
+    }
+
+    @Override
+    public ActionRequestValidationException validate() {
+        return null;
     }
 
     @Override

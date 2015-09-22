@@ -61,5 +61,4 @@ public class RestKnapsackStateAction extends BaseRestHandler implements Knapsack
         }
     }
 
-
 }

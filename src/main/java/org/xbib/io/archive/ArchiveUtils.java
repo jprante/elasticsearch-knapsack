@@ -16,6 +16,7 @@
 package org.xbib.io.archive;
 
 import org.xbib.io.Packet;
+import org.xbib.io.StringPacket;
 import org.xbib.io.archive.entry.ArchiveEntryEncoding;
 import org.xbib.io.archive.entry.ArchiveEntryEncodingHelper;
 
@@ -303,7 +304,7 @@ public class ArchiveUtils {
      * @param packet the packet
      * @return teh entry name
      */
-    public static String encodeArchiveEntryName(ArchivePacket packet) {
+    public static String encodeArchiveEntryName(StringPacket packet) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < keys.length; i++) {
             if (i > 0) {
@@ -356,7 +357,7 @@ public class ArchiveUtils {
      * @param encoding the encoding to decode into
      * @return The decoded URI
      */
-    private static String decode(String s, Charset encoding) {
+    public static String decode(String s, Charset encoding) {
         if (s == null || s.isEmpty()) {
             return null;
         }
@@ -417,7 +418,7 @@ public class ArchiveUtils {
      * @param encoding The encoding to use for unsafe characters
      * @return The converted String
      */
-    private static String encode(String s, Charset encoding) {
+    public static String encode(String s, Charset encoding) {
         if (s == null || s.isEmpty()) {
             return null;
         }

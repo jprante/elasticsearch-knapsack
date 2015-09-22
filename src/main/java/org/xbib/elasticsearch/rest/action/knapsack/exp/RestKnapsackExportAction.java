@@ -70,12 +70,11 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
                     .setType(type)
                     .setPath(path)
                     .setOverwriteAllowed(request.paramAsBoolean(OVERWRITE_PARAM, false))
-                    .setEncodeEntry(request.paramAsBoolean(WITH_ENCODED_ENTRY_PARAM, true))
                     .withMetadata(request.paramAsBoolean(WITH_METADATA_PARAM, true))
                     .withAliases(request.paramAsBoolean(WITH_ALIASES, true))
                     .setIndexTypeNames(KnapsackHelper.toMap(request.param(MAP_PARAM), logger))
                     .setSearchRequest(toSearchRequest(request))
-                    .setBytesToTransfer(request.paramAsSize(BYTES_PARAM, ByteSizeValue.parseBytesSizeValue("0")));
+                    .setBytesToTransfer(request.paramAsSize(BYTES_PARAM, ByteSizeValue.parseBytesSizeValue("0", "")));
             client.admin().indices().execute(KnapsackExportAction.INSTANCE, exportRequest,
                     new RestToXContentListener<KnapsackExportResponse>(channel));
         } catch (Throwable ex) {
@@ -92,8 +91,7 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
         SearchRequest searchRequest;
         // override search action "size" (default = 10) by bulk request size. The size is per shard!
         request.params().put("size", request.param(MAX_BULK_ACTIONS_PER_REQUEST_PARAM, "1000"));
-        searchRequest = RestSearchAction.parseSearchRequest(request);
-        searchRequest.listenerThreaded(false);
+        searchRequest = RestSearchAction.parseSearchRequest(request, parseFieldMatcher);
         return searchRequest;
     }
 

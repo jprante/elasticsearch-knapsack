@@ -27,20 +27,8 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class KnapsackAbortResponse extends ActionResponse implements ToXContent {
 
-    private int abortedTasks;
-
-    public KnapsackAbortResponse setAbortedTasks(int abortedTasks) {
-        this.abortedTasks = abortedTasks;
-        return this;
-    }
-
-    public int getAbortedTasks() {
-        return abortedTasks;
-    }
-
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.field("aborted", abortedTasks > 0);
         return builder;
     }
 

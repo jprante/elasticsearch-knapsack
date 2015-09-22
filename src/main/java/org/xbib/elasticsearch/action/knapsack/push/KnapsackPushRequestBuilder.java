@@ -15,10 +15,9 @@
  */
 package org.xbib.elasticsearch.action.knapsack.push;
 
-import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.single.custom.SingleCustomOperationRequestBuilder;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.unit.TimeValue;
 
 import java.util.Map;
@@ -26,10 +25,10 @@ import java.util.Map;
 /**
  * Build request for knapsack push action
  */
-public class KnapsackPushRequestBuilder extends SingleCustomOperationRequestBuilder<KnapsackPushRequest, KnapsackPushResponse, KnapsackPushRequestBuilder> {
+public class KnapsackPushRequestBuilder extends ActionRequestBuilder<KnapsackPushRequest, KnapsackPushResponse, KnapsackPushRequestBuilder> {
 
-    public KnapsackPushRequestBuilder(IndicesAdminClient client) {
-        super(client, new KnapsackPushRequest());
+    public KnapsackPushRequestBuilder(ElasticsearchClient client) {
+        super(client, KnapsackPushAction.INSTANCE, new KnapsackPushRequest());
     }
 
     public KnapsackPushRequestBuilder setTimeout(TimeValue timeValue) {
@@ -95,10 +94,5 @@ public class KnapsackPushRequestBuilder extends SingleCustomOperationRequestBuil
     public KnapsackPushRequestBuilder setSearchRequest(SearchRequest searchRequest) {
         request.setSearchRequest(searchRequest);
         return this;
-    }
-
-    @Override
-    protected void doExecute(ActionListener<KnapsackPushResponse> listener) {
-        client.execute(KnapsackPushAction.INSTANCE, request, listener);
     }
 }

@@ -16,19 +16,20 @@
 package org.xbib.elasticsearch.action.knapsack.imp;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.Streams;
-import org.elasticsearch.common.joda.time.DateTime;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -36,13 +37,14 @@ import org.elasticsearch.index.VersionType;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.joda.time.DateTime;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.elasticsearch.support.client.Ingest;
 import org.xbib.elasticsearch.support.client.node.BulkNodeClient;
 import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.Session;
-import org.xbib.io.archive.ArchivePacket;
+import org.xbib.io.StringPacket;
 import org.xbib.io.archive.ArchiveService;
 
 import java.io.File;
@@ -51,13 +53,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
-import static org.elasticsearch.common.collect.Maps.newHashMap;
-import static org.elasticsearch.common.collect.Maps.newLinkedHashMap;
-import static org.elasticsearch.common.collect.Sets.newHashSet;
 import static org.xbib.elasticsearch.knapsack.KnapsackHelper.mapIndex;
 import static org.xbib.elasticsearch.knapsack.KnapsackHelper.mapType;
 
@@ -74,9 +76,11 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
     @Inject
     public TransportKnapsackImportAction(Settings settings,
                                          ThreadPool threadPool,
-                                         Client client, NodeService nodeService, ActionFilters actionFilters,
+                                         Client client,
+                                         NodeService nodeService, ActionFilters actionFilters,
+                                         IndexNameExpressionResolver indexNameExpressionResolver,
                                          KnapsackService knapsack) {
-        super(settings, KnapsackImportAction.NAME, threadPool, actionFilters);
+        super(settings, KnapsackImportAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;
@@ -96,26 +100,27 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             }
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());
-            final Session<ArchivePacket> session = ArchiveService.newSession(path, watcher);
-            EnumSet<Session.Mode> mode = EnumSet.of(Session.Mode.READ,
-                    request.isDecodeEntry() ? Session.Mode.URI_ENCODED : Session.Mode.NONE
-            );
-            session.open(mode, path, path.toFile());
+            final Session<StringPacket> session = ArchiveService.newSession(path, watcher);
+            EnumSet<Session.Mode> mode = EnumSet.of(Session.Mode.READ);
+            session.open(mode, path);
             if (session.isOpen()) {
                 final BulkNodeClient bulkClient = new BulkNodeClient();
                 bulkClient.flushIngestInterval(TimeValue.timeValueSeconds(5))
-                        .maxActionsPerBulkRequest(request.getMaxActionsPerBulkRequest())
-                        .maxConcurrentBulkRequests(request.getMaxBulkConcurrency())
-                        .newClient(client);
+                        .maxActionsPerRequest(request.getMaxActionsPerBulkRequest())
+                        .maxConcurrentRequests(request.getMaxBulkConcurrency())
+                        .init(client);
                 state.setTimestamp(new DateTime())
                         .setPath(path);
                 response.setRunning(true);
                 knapsack.submit(new Thread() {
                     public void run() {
-                        performImport(request, state, session, bulkClient);
+                        try {
+                            performImport(request, state, session, bulkClient);
+                        } catch (Throwable t) {
+
+                        }
                     }
                 });
-                knapsack.addImport(client, state);
             } else {
                 response.setRunning(false).setReason("session can not be opened: mode=" + mode + " path=" + path);
             }
@@ -135,17 +140,18 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
      */
     final void performImport(final KnapsackImportRequest request,
                              final KnapsackState state,
-                             final Session<ArchivePacket> session,
+                             final Session<StringPacket> session,
                              final Ingest bulkClient) {
         try {
             logger.info("start of import: {}", state);
-            final Map<String, CreateIndexRequest> indexRequestMap = newHashMap();
-            final Set<String> indexCreated = newHashSet();
-            final Map<String, String> indexReplicaMap = newHashMap();
-            final Map<String, Map<String, String>> aliasRequestMap = newHashMap();
+            knapsack.addImport(state);
+            final Map<String, CreateIndexRequest> indexRequestMap = new HashMap<>();
+            final Set<String> indexCreated = new HashSet<>();
+            final Map<String, String> indexReplicaMap = new HashMap<>();
+            final Map<String, Map<String, String>> aliasRequestMap = new HashMap<>();
             // per field
-            Map<String, ArchivePacket> packets = newLinkedHashMap();
-            ArchivePacket packet;
+            Map<String, StringPacket> packets = new LinkedHashMap<>();
+            StringPacket packet;
             String lastCoord = null;
             long count = 0L;
             while ((packet = session.read()) != null && !Thread.interrupted()) {
@@ -176,12 +182,12 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                             createIndexRequest = createIndexRequest(index);
                             indexRequestMap.put(index, createIndexRequest);
                         }
-                        ImmutableSettings.Builder indexSettingsBuilder = ImmutableSettings.settingsBuilder()
+                        Settings.Builder indexSettingsBuilder = Settings.settingsBuilder()
                                 .loadFromSource(settingsStr);
                         indexReplicaMap.put(index, indexSettingsBuilder.get("index.number_of_replicas"));
                         // get settings, but overwrite replica, and disable refresh for faster bulk
                         Settings indexSettings = indexSettingsBuilder
-                                .put("index.refresh_interval", -1)
+                                .put("index.refresh_interval", "-1s")
                                 .put("index.number_of_replicas", 0)
                                 .build();
                         logger.info("switching index {} for bulk indexing: {}", index, indexSettings.getAsMap());
@@ -199,7 +205,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                         mapping = Streams.copyToString(reader);
                         reader.close();
                     } else {
-                        mapping = packet.payload().toString();
+                        mapping = packet.payload();
                     }
                     if (!"_all".equals(index)) {
                         logger.info("index {}: found mapping {}", index, mapping);
@@ -211,11 +217,11 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                         createIndexRequest.mapping(type, mapping);
                     }
                 } else if ("_alias".equals(id)) {
-                    Map<String, String> aliases = newHashMap();
+                    Map<String, String> aliases = new HashMap<>();
                     if (aliasRequestMap.containsKey(index)) {
                         aliases = aliasRequestMap.get(index);
                     }
-                    aliases.put(type, (String) packet.payload());
+                    aliases.put(type, packet.payload());
                     aliasRequestMap.put(index, aliases);
                 } else {
                     // index normal document fields. Check for sane entries here.
@@ -250,7 +256,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                 }
             }
             for (String index : indexCreated) {
-                bulkClient.refresh(index);
+                bulkClient.refreshIndex(index);
             }
             bulkClient.shutdown();
             logger.info("end of import: {}, count = {}", state, count);
@@ -258,7 +264,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             logger.error(e.getMessage(), e);
         } finally {
             try {
-                knapsack.removeImport(client, state);
+                knapsack.removeImport(state);
                 session.close();
             } catch (IOException e) {
                 logger.error(e.getMessage(), e);
@@ -268,8 +274,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
 
     private void indexPackets(Ingest bulkClient, Map<String, CreateIndexRequest> indexRequestMap, Set<String> indexCreated,
                               Map<String, Map<String, String>> aliasRequestMap,
-                              KnapsackImportRequest request, Map<String, ArchivePacket> packets) {
-        ArchivePacket packet = packets.values().iterator().next(); // first packet
+                              KnapsackImportRequest request, Map<String, StringPacket> packets) {
+        StringPacket packet = packets.values().iterator().next(); // first packet
         String index = (String) packet.meta().get("index");
         String type = (String) packet.meta().get("type");
         String id = (String) packet.meta().get("id");
@@ -280,8 +286,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                 logger.info("creating index {}", index);
                 createIndexRequest.timeout(request.getTimeout());
                 try {
-                    CreateIndexResponse response = bulkClient.client().admin().indices()
-                            .create(createIndexRequest).actionGet();
+                    CreateIndexResponse response =
+                            bulkClient.client().execute(CreateIndexAction.INSTANCE, createIndexRequest).actionGet();
                     if (!response.isAcknowledged()) {
                         logger.warn("index creation was not acknowledged");
                     }
@@ -297,7 +303,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
         if (aliasRequestMap.containsKey(index)) {
             Map<String, String> aliases = aliasRequestMap.remove(index);
             if (request.withMetadata()) {
-                IndicesAliasesRequestBuilder requestBuilder = bulkClient.client().admin().indices().prepareAliases();
+                IndicesAliasesRequestBuilder requestBuilder =
+                        new IndicesAliasesRequestBuilder(bulkClient.client(), IndicesAliasesAction.INSTANCE);
                 for (String alias : aliases.keySet()) {
                     requestBuilder.addAlias(index, alias, aliases.get(alias));
                 }
@@ -328,14 +335,15 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                     indexRequest.timestamp(payload);
                     break;
                 case "_version":
-                    indexRequest.versionType(VersionType.EXTERNAL)
-                            .version(Long.parseLong(payload));
+                    indexRequest.versionType(VersionType.EXTERNAL).version(Long.parseLong(payload));
                     break;
                 case "_source":
                     indexRequest.source(payload);
                     break;
                 default:
-                    indexRequest.source(f, payload);
+                    if (!f.startsWith(".")) {
+                        indexRequest.source(f, payload);
+                    }
                     break;
             }
         }

@@ -15,25 +15,27 @@
  */
 package org.xbib.elasticsearch.knapsack;
 
+import com.carrotsearch.hppc.cursors.ObjectCursor;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
-import org.elasticsearch.common.hppc.cursors.ObjectCursor;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
-import org.xbib.classloader.uri.URIClassLoader;
+//import org.xbib.classloader.uri.URIClassLoader;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,8 +43,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.elasticsearch.common.collect.Maps.newHashMap;
-import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class KnapsackHelper {
@@ -52,16 +52,16 @@ public class KnapsackHelper {
 
     public static Map<String, Object> toMap(String s, ESLogger logger) throws IOException {
         Map<String, Object> map = s == null ? new HashMap<String, Object>()
-                : XContentFactory.xContent(XContentType.JSON).createParser(s).mapAndClose();
+                : XContentFactory.xContent(XContentType.JSON).createParser(s).map();
         if (map.isEmpty() && s != null && s.length() > 0) {
             logger.warn("can not parse map, check URI escape, got param: {}", s);
         }
         return map;
     }
 
-    public static Map<String, String> getSettings(Client client, SettingsFilter settingsFilter, String... index) throws IOException {
-        Map<String, String> settings = newHashMap();
-        ClusterStateRequestBuilder request = client.admin().cluster().prepareState()
+    public static Map<String, String> getSettings(ElasticsearchClient client, String... index) throws IOException {
+        Map<String, String> settings = new HashMap<>();
+        ClusterStateRequestBuilder request = new ClusterStateRequestBuilder(client, ClusterStateAction.INSTANCE)
                 .setIndices(index);
         ClusterStateResponse response = request.execute().actionGet();
         MetaData metaData = response.getState().metaData();
@@ -69,21 +69,16 @@ public class KnapsackHelper {
             // filter out the settings from the metadata
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
-                builder.startObject();
-                for (Map.Entry<String, String> entry :
-                        settingsFilter.filterSettings(indexMetaData.getSettings()).getAsMap().entrySet()) {
-                    builder.field(entry.getKey(), entry.getValue());
-                }
-                builder.endObject();
+                indexMetaData.getSettings().toXContent(builder, ToXContent.EMPTY_PARAMS);
                 settings.put(indexMetaData.getIndex(), builder.string());
             }
         }
         return settings;
     }
 
-    public static Map<String, String> getMapping(Client client, String index, Set<String> types) throws IOException {
-        Map<String, String> mappings = newHashMap();
-        ClusterStateRequestBuilder request = client.admin().cluster().prepareState();
+    public static Map<String, String> getMapping(ElasticsearchClient client, String index, Set<String> types) throws IOException {
+        Map<String, String> mappings = new HashMap<>();
+        ClusterStateRequestBuilder request = new ClusterStateRequestBuilder(client, ClusterStateAction.INSTANCE);
         if (!"_all".equals(index)) {
             request.setIndices(index);
         }
@@ -107,9 +102,9 @@ public class KnapsackHelper {
         return mappings;
     }
 
-    public static Map<String, String> getAliases(Client client, String index) throws IOException {
-        Map<String, String> aliases = newHashMap();
-        ClusterStateRequestBuilder request = client.admin().cluster().prepareState();
+    public static Map<String, String> getAliases(ElasticsearchClient client, String index) throws IOException {
+        Map<String, String> aliases = new HashMap<>();
+        ClusterStateRequestBuilder request = new ClusterStateRequestBuilder(client, ClusterStateAction.INSTANCE);
         if (!"_all".equals(index)) {
             request.setIndices(index);
         }
@@ -140,13 +135,12 @@ public class KnapsackHelper {
         return request.getIndexTypeNames().containsKey(s) ? request.getIndexTypeNames().get(s).toString() : type;
     }
 
-    public static Settings clientSettings(Client client, Environment environment, KnapsackRequest request) {
+    public static Settings clientSettings(ElasticsearchClient client, Environment environment, KnapsackRequest request) {
         String cluster = request.getCluster();
         String host = request.getHost();
         int port = request.getPort();
         if (host == null) {
-            NodesInfoResponse response = client.admin().cluster()
-                    .nodesInfo(new NodesInfoRequest().transport(true)).actionGet();
+            NodesInfoResponse response = client.execute(NodesInfoAction.INSTANCE, new NodesInfoRequest().transport(true)).actionGet();
             InetSocketTransportAddress address = (InetSocketTransportAddress) response.iterator().next()
                     .getTransport().getAddress().publishAddress();
             host = address.address().getAddress().getHostAddress();
@@ -156,11 +150,10 @@ public class KnapsackHelper {
             }
         }
         if (cluster == null) {
-            NodesInfoResponse response = client.admin().cluster()
-                    .nodesInfo(new NodesInfoRequest().transport(true)).actionGet();
+            NodesInfoResponse response = client.execute(NodesInfoAction.INSTANCE, new NodesInfoRequest().transport(true)).actionGet();
             cluster = response.getClusterName().value();
         }
-        return settingsBuilder()
+        return Settings.settingsBuilder()
                 .put("host", host)
                 .put("port", port)
                 .put("cluster.name", cluster)
@@ -169,7 +162,7 @@ public class KnapsackHelper {
                 .put("client.transport.ping_timeout", request.getTimeout()) // timeout for the transport connection
                 .put("client.transport.ignore_cluster_name", true) // we want to connect to other clusters, not ours
                 .put("path.plugins", ".dontexist") // this disables site plugins when instantiating TransportClient
-                .classLoader(getClassLoader(environment)) // this disables all jvm plugins when instantiating TransportClient
+                //.classLoader(getClassLoader(environment)) // this disables all jvm plugins when instantiating TransportClient
                 .build();
     }
 
@@ -180,9 +173,9 @@ public class KnapsackHelper {
      * @param environment the environment
      * @return a custom class loader with our dependencies
      */
-    private static ClassLoader getClassLoader(Environment environment) {
+    /*private static ClassLoader getClassLoader(Environment environment) {
         URIClassLoader classLoader = new URIClassLoader();
-        File[] libs = new File(environment.homeFile() + "/lib").listFiles();
+        File[] libs = new File(environment.libFile().toString()).listFiles();
         if (libs != null) {
             for (File file : libs) {
                 if (file.getName().toLowerCase().endsWith(".jar")) {
@@ -191,5 +184,5 @@ public class KnapsackHelper {
             }
         }
         return classLoader;
-    }
+    }*/
 }

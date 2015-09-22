@@ -19,6 +19,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -31,16 +32,14 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
 
     private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackStateAction.class.getSimpleName());
 
-    private final Client client;
-
     private final KnapsackService knapsack;
 
     @Inject
     public TransportKnapsackStateAction(Settings settings,
-                                        ThreadPool threadPool, Client client, ActionFilters actionFilters,
+                                        ThreadPool threadPool, ActionFilters actionFilters,
+                                        IndexNameExpressionResolver indexNameExpressionResolver,
                                         KnapsackService knapsack) {
-        super(settings, KnapsackStateAction.NAME, threadPool, actionFilters);
-        this.client = client;
+        super(settings, KnapsackStateAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
         this.knapsack = knapsack;
     }
 
@@ -48,10 +47,10 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
     protected void doExecute(final KnapsackStateRequest request, ActionListener<KnapsackStateResponse> listener) {
         final KnapsackStateResponse response = new KnapsackStateResponse();
         try {
-            for (KnapsackState state : knapsack.getExports(client)) {
+            for (KnapsackState state : knapsack.getExports()) {
                 response.addState(state);
             }
-            for (KnapsackState state : knapsack.getImports(client)) {
+            for (KnapsackState state : knapsack.getImports()) {
                 response.addState(state);
             }
             listener.onResponse(response);

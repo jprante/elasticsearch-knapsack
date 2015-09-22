@@ -16,9 +16,13 @@
 package org.xbib.elasticsearch.plugin.knapsack;
 
 import org.elasticsearch.action.ActionModule;
-import org.elasticsearch.cluster.settings.ClusterDynamicSettingsModule;
+import org.elasticsearch.cluster.ClusterModule;
+import org.elasticsearch.cluster.settings.Validator;
+import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Module;
-import org.elasticsearch.plugins.AbstractPlugin;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestModule;
 import org.xbib.elasticsearch.action.knapsack.abort.KnapsackAbortAction;
 import org.xbib.elasticsearch.action.knapsack.abort.TransportKnapsackAbortAction;
@@ -41,52 +45,73 @@ import org.xbib.elasticsearch.rest.action.knapsack.pull.RestKnapsackPullAction;
 import org.xbib.elasticsearch.rest.action.knapsack.push.RestKnapsackPushAction;
 import org.xbib.elasticsearch.rest.action.knapsack.state.RestKnapsackStateAction;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.elasticsearch.common.collect.Lists.newArrayList;
+public class KnapsackPlugin extends Plugin {
 
-public class KnapsackPlugin extends AbstractPlugin {
+    private final Settings settings;
+
+    @Inject
+    public KnapsackPlugin(Settings settings) {
+        this.settings = settings;
+    }
 
     @Override
     public String name() {
-        return "knapsack-" +
-                Build.getInstance().getVersion() + "-" +
-                Build.getInstance().getShortHash();
+        return "knapsack";
     }
 
     @Override
     public String description() {
-        return "Knapsack plugin for import/export";
+        return "Knapsack import/export plugin for Elasticsearch";
     }
 
     public void onModule(ActionModule module) {
-        module.registerAction(KnapsackExportAction.INSTANCE, TransportKnapsackExportAction.class);
-        module.registerAction(KnapsackPushAction.INSTANCE, TransportKnapsackPushAction.class);
-        module.registerAction(KnapsackImportAction.INSTANCE, TransportKnapsackImportAction.class);
-        module.registerAction(KnapsackPullAction.INSTANCE, TransportKnapsackPullAction.class);
-        module.registerAction(KnapsackStateAction.INSTANCE, TransportKnapsackStateAction.class);
-        module.registerAction(KnapsackAbortAction.INSTANCE, TransportKnapsackAbortAction.class);
+        if (settings.getAsBoolean("plugins.knapsack.enabled", true)) {
+            module.registerAction(KnapsackExportAction.INSTANCE, TransportKnapsackExportAction.class);
+            module.registerAction(KnapsackPushAction.INSTANCE, TransportKnapsackPushAction.class);
+            module.registerAction(KnapsackImportAction.INSTANCE, TransportKnapsackImportAction.class);
+            module.registerAction(KnapsackPullAction.INSTANCE, TransportKnapsackPullAction.class);
+            module.registerAction(KnapsackStateAction.INSTANCE, TransportKnapsackStateAction.class);
+            module.registerAction(KnapsackAbortAction.INSTANCE, TransportKnapsackAbortAction.class);
+        }
     }
 
     public void onModule(RestModule module) {
-        module.addRestAction(RestKnapsackExportAction.class);
-        module.addRestAction(RestKnapsackImportAction.class);
-        module.addRestAction(RestKnapsackPushAction.class);
-        module.addRestAction(RestKnapsackPullAction.class);
-        module.addRestAction(RestKnapsackStateAction.class);
-        module.addRestAction(RestKnapsackAbortAction.class);
+        if (settings.getAsBoolean("plugins.knapsack.enabled", true)) {
+            module.addRestAction(RestKnapsackExportAction.class);
+            module.addRestAction(RestKnapsackImportAction.class);
+            module.addRestAction(RestKnapsackPushAction.class);
+            module.addRestAction(RestKnapsackPullAction.class);
+            module.addRestAction(RestKnapsackStateAction.class);
+            module.addRestAction(RestKnapsackAbortAction.class);
+        }
     }
 
-    public void onModule(ClusterDynamicSettingsModule module) {
-        module.addDynamicSettings(KnapsackService.EXPORT_STATE_SETTING_NAME);
-        module.addDynamicSettings(KnapsackService.IMPORT_STATE_SETTING_NAME);
+    public void onModule(ClusterModule module) {
+        if ("node".equals(settings.get("client.type")) && settings.getAsBoolean("plugins.knapsack.enabled", true)) {
+            module.registerClusterDynamicSetting(KnapsackService.EXPORT_STATE_SETTING_NAME, Validator.EMPTY);
+            module.registerClusterDynamicSetting(KnapsackService.IMPORT_STATE_SETTING_NAME, Validator.EMPTY);
+        }
     }
 
     @Override
-    public Collection<Class<? extends Module>> modules() {
-        Collection<Class<? extends Module>> modules = newArrayList();
-        modules.add(KnapsackModule.class);
+    public Collection<Module> nodeModules() {
+        Collection<Module> modules = new ArrayList<>();
+        if ("node".equals(settings.get("client.type")) && settings.getAsBoolean("plugins.knapsack.enabled", true)) {
+            modules.add(new KnapsackModule());
+        }
         return modules;
+    }
+
+    @Override
+    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
+        Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
+        if ("node".equals(settings.get("client.type")) && settings.getAsBoolean("plugins.knapsack.enabled", true)) {
+            services.add(KnapsackService.class);
+        }
+        return services;
     }
 
 }

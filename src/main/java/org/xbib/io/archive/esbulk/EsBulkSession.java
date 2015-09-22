@@ -18,14 +18,14 @@ package org.xbib.io.archive.esbulk;
 import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.archive.ArchiveSession;
 
-public class EsBulkSession extends ArchiveSession {
+public class EsBulkSession extends ArchiveSession<EsBulkArchiveInputStream, EsBulkArchiveOutputStream> {
 
     protected EsBulkSession(BytesProgressWatcher watcher) {
         super(watcher);
     }
 
     @Override
-    public String getName() {
+    protected String getName() {
         return EsBulkArchiveCodec.NAME;
     }
 }

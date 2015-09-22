@@ -15,13 +15,13 @@
  */
 package org.xbib.elasticsearch.action.knapsack.push;
 
-import org.elasticsearch.action.admin.indices.IndicesAction;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
 /**
  * The knapsack push action exports data to other clusters
  */
-public class KnapsackPushAction extends IndicesAction<KnapsackPushRequest, KnapsackPushResponse, KnapsackPushRequestBuilder> {
+public class KnapsackPushAction extends Action<KnapsackPushRequest, KnapsackPushResponse, KnapsackPushRequestBuilder> {
 
     public final static String NAME = "org.xbib.elasticsearch.knapsack.push";
 
@@ -37,7 +37,7 @@ public class KnapsackPushAction extends IndicesAction<KnapsackPushRequest, Knaps
     }
 
     @Override
-    public KnapsackPushRequestBuilder newRequestBuilder(IndicesAdminClient client) {
+    public KnapsackPushRequestBuilder newRequestBuilder(ElasticsearchClient client) {
         return new KnapsackPushRequestBuilder(client);
     }
 }

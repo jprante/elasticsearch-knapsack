@@ -1,9 +1,9 @@
-![Knapsack](https://github.com/jprante/elasticsearch-knapsack/raw/master/src/site/resources/knapsack.png)
+![Knapsack](https://github.com/jprante/elasticsearch-knapsack/raw/master/src/site/resources/hitchhiker-691581_1280.jpg)
 
-Image by [DaPino](http://www.iconarchive.com/show/fishing-equipment-icons-by-dapino/backpack-icon.html) 
-[CC Attribution-Noncommercial 3.0](http://creativecommons.org/licenses/by-nc/3.0/)
+Image taken from Pixabay.com https://pixabay.com/de/tramper-daumen-hoodie-rucksack-691581/ 
+without license (CC0 Public domain)
 
-# Elasticsearch Knapsack Plugin
+# Knapsack plugin for Elasticsearch
 
 Knapsack is an "swiss knife" export/import plugin for [Elasticsearch](http://github.com/elasticsearch/elasticsearch).
 It uses archive formats (tar, zip, cpio) and also Elasticsearch bulk format with 
@@ -21,12 +21,13 @@ In archive files, the following index information is encoded:
 
 When importing archive files again, this information is reapplied.
 
-## Versions
+## Compatibility matrix
 
 ![Travis](https://travis-ci.org/jprante/elasticsearch-knapsack.png)
 
 | Elasticsearch  |   Plugin       | Release date |
 | -------------- | -------------- | ------------ |
+| 2.0.0-beta2    | 2.0.0-beta2.0  | Sep 22, 2015 |
 | 1.5.2          | 1.5.2.0        | Apr 30, 2015 |
 | 1.4.5          | 1.4.5.0        | Apr 30, 2015 |
 | 1.5.1          | 1.5.1.0        | Apr 22, 2015 |
@@ -45,9 +46,13 @@ When importing archive files again, this information is reapplied.
 | 0.19.11        | 0.19.11.3      | Feb 15, 2014 |
 | 0.19.8         | 0.19.8.1       | Feb 15, 2014 |
 
-## Installation
+## Installation 1.x
 
     ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.5.2.0/elasticsearch-knapsack-1.5.2.0-plugin.zip
+
+## Installation 2.x
+
+    ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0-beta2.0/elasticsearch-knapsack-2.0.0-beta2.0-plugin.zip
 
 Do not forget to restart the node after installation.
 
@@ -378,7 +383,7 @@ Thanks to `nicktgr15 <https://github.com/nicktgr15>` for extending Knapsack to s
 
 # License
 
-Elasticsearch Knapsack Plugin
+Knapsack Plugin for Elasticsearch
 
 Copyright (C) 2012 Jörg Prante
 
