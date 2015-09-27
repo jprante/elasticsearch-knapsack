@@ -27,6 +27,7 @@ When importing archive files again, this information is reapplied.
 
 | Elasticsearch  |   Plugin       | Release date |
 | -------------- | -------------- | ------------ |
+| 2.0.0-beta2    | 2.0.0-beta2.1  | Sep 27, 2015 |
 | 2.0.0-beta2    | 2.0.0-beta2.0  | Sep 22, 2015 |
 | 1.5.2          | 1.5.2.0        | Apr 30, 2015 |
 | 1.4.5          | 1.4.5.0        | Apr 30, 2015 |
