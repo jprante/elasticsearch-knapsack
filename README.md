@@ -29,6 +29,8 @@ When importing archive files again, this information is reapplied.
 | -------------- | -------------- | ------------ |
 | 2.0.0-beta2    | 2.0.0-beta2.1  | Sep 27, 2015 |
 | 2.0.0-beta2    | 2.0.0-beta2.0  | Sep 22, 2015 |
+| 1.6.2          | 1.6.2.0        | Sep 27, 2015 |
+| 1.5.2          | 1.5.2.1        | Sep 27, 2015 |
 | 1.5.2          | 1.5.2.0        | Apr 30, 2015 |
 | 1.4.5          | 1.4.5.0        | Apr 30, 2015 |
 | 1.5.1          | 1.5.1.0        | Apr 22, 2015 |
@@ -49,7 +51,7 @@ When importing archive files again, this information is reapplied.
 
 ## Installation 1.x
 
-    ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.5.2.0/elasticsearch-knapsack-1.5.2.0-plugin.zip
+    ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.7.2.0/elasticsearch-knapsack-1.7.2.0-plugin.zip
 
 ## Installation 2.x
 
