@@ -2,9 +2,11 @@ package org.xbib.elasticsearch.plugin.knapsack.tar;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
 import org.junit.Test;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
@@ -161,10 +163,9 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
 
 
     /**
-     * This test checks if a tar created from OS tools can be processed.
+     * This test checks if a tar created from Max OS X tar can be processed.
      * @throws Exception
      */
-    @Test
     public void testAlienTar() throws Exception {
         // delete index
         try {
@@ -185,7 +186,52 @@ public class KnapsackTarTests extends AbstractNodeTestHelper {
         // count
         long count = client("1").prepareCount("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet().getCount();
         assertEquals(1L, count);
+    }
 
+    @Test
+    public void testLongName() throws Exception {
+        File exportFile = File.createTempFile("knapsack-long-tar-", ".tar.bz2");
+        Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
+        client("1").index(new IndexRequest()
+                .index("index1")
+                .type("test1")
+                .id("veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylong")
+                .source("content", "Hello World").refresh(true)).actionGet();
+        client("1").index(new IndexRequest()
+                .index("index1")
+                .type("test1")
+                .id("anotherveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylong")
+                .source("content", "foo bar").refresh(true)).actionGet();
+        KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
+                .setPath(exportPath)
+                .setOverwriteAllowed(true);
+        KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
+        if (!knapsackExportResponse.isRunning()) {
+            logger.error(knapsackExportResponse.getReason());
+        }
+        assertTrue(knapsackExportResponse.isRunning());
+        KnapsackStateRequestBuilder knapsackStateRequestBuilder =
+                new KnapsackStateRequestBuilder(client("2"));
+        KnapsackStateResponse knapsackStateResponse = knapsackStateRequestBuilder.execute().actionGet();
+        knapsackStateResponse.isExportActive(exportPath);
+        Thread.sleep(2000L);
+        // delete index
+        client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
+        KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
+                .setPath(exportPath);
+        KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
+        if (!knapsackImportResponse.isRunning()) {
+            logger.error(knapsackImportResponse.getReason());
+        }
+        assertTrue(knapsackImportResponse.isRunning());
+        Thread.sleep(2000L);
+        // count
+        SearchResponse response = client("1").prepareSearch("index1").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+        assertEquals(2L, response.getHits().getTotalHits());
+        for (SearchHit hit : response.getHits().getHits()) {
+            logger.info("{}/{}/{}", hit.getIndex(), hit.getType(), hit.getId());
+            assertTrue(hit.getIndex().length() + hit.getType().length() + hit.getId().length() > 100);
+        }
     }
 
 }

@@ -45,7 +45,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveOutput
 
     private int assemLen;
 
-    private int longFileMode = LONGFILE_ERROR;
+    private int longFileMode = LONGFILE_GNU;
 
     private int bigNumberMode = BIGNUMBER_ERROR;
 
@@ -139,7 +139,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveOutput
      * Set the long file mode.
      * This can be LONGFILE_ERROR(0), LONGFILE_TRUNCATE(1) or LONGFILE_GNU(2).
      * This specifies the treatment of long file names (names &gt;= NAMELEN).
-     * Default is LONGFILE_ERROR.
+     * Default is LONGFILE_GNU.
      *
      * @param longFileMode the mode to use
      */

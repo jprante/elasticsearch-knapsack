@@ -1,4 +1,4 @@
-package org.xbib.elasticsearch.plugin;
+package org.xbib.suites;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

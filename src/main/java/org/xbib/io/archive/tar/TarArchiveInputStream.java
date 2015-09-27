@@ -36,7 +36,6 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
 
     private long entryOffset;
 
-
     private TarArchiveInputEntry entry;
 
     private int currRecIdx;
@@ -172,13 +171,14 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
         }
         try {
             this.entry = new TarArchiveInputEntry(headerBuf, encoding);
+            this.entryOffset = 0;
+            this.entrySize = this.entry.getEntrySize();
         } catch (IllegalArgumentException e) {
             throw new IOException("error detected parsing the header", e);
         }
-        this.entryOffset = 0;
         if (entry.isGNULongNameEntry()) {
             StringBuilder longName = new StringBuilder();
-            byte[] buf = new byte[256];
+            byte[] buf = new byte[SMALL_BUFFER_SIZE];
             int length;
             while ((length = read(buf)) >= 0) {
                 longName.append(new String(buf, 0, length));
@@ -195,7 +195,6 @@ public class TarArchiveInputStream extends ArchiveInputStream<TarArchiveInputEnt
         if (entry.isPaxHeader()) {
             paxHeaders();
         }
-        this.entrySize = entry.getEntrySize();
         return entry;
     }
 

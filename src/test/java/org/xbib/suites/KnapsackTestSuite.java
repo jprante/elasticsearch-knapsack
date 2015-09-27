@@ -1,4 +1,4 @@
-package org.xbib.elasticsearch.plugin;
+package org.xbib.suites;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -10,7 +10,6 @@ import org.xbib.elasticsearch.plugin.knapsack.bulk.KnapsackBulkTests;
 import org.xbib.elasticsearch.plugin.knapsack.cpio.KnapsackCpioTests;
 import org.xbib.elasticsearch.plugin.knapsack.tar.KnapsackTarTests;
 import org.xbib.elasticsearch.plugin.knapsack.zip.KnapsackZipTests;
-
 
 @RunWith(ListenerSuite.class)
 @Suite.SuiteClasses({

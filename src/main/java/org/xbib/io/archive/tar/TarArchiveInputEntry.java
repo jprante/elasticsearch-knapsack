@@ -117,6 +117,7 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         this.version = VERSION_POSIX;
         this.name = "";
         this.linkName = "";
+        this.linkFlag = LF_GNUTYPE_LONGNAME;
         String user = System.getProperty("user.name", "");
         if (user.length() > MAX_NAMELEN) {
             user = user.substring(0, MAX_NAMELEN);
@@ -437,8 +438,7 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
      */
     public void setDevMinor(int devNo) {
         if (devNo < 0) {
-            throw new IllegalArgumentException("Minor device number is out of "
-                    + "range: " + devNo);
+            throw new IllegalArgumentException("Minor device number is out of " + "range: " + devNo);
         }
         this.devMinor = devNo;
     }
@@ -477,8 +477,7 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
      * @return true if this is a long name extension provided by GNU tar
      */
     public boolean isGNULongNameEntry() {
-        return linkFlag == LF_GNUTYPE_LONGNAME
-                && name.equals(GNU_LONGLINK);
+        return linkFlag == LF_GNUTYPE_LONGNAME && GNU_LONGLINK.equals(name);
     }
 
     /**
@@ -487,8 +486,7 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
      * @return {@code true} if this is a Pax header.
      */
     public boolean isPaxHeader() {
-        return linkFlag == LF_PAX_EXTENDED_HEADER_LC
-                || linkFlag == LF_PAX_EXTENDED_HEADER_UC;
+        return linkFlag == LF_PAX_EXTENDED_HEADER_LC || linkFlag == LF_PAX_EXTENDED_HEADER_UC;
     }
 
     /**
@@ -551,7 +549,8 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
     private void parseTarHeader(byte[] header, ArchiveEntryEncoding encoding, final boolean oldStyle)
             throws IOException {
         int offset = 0;
-        name = oldStyle ? parseName(header, offset, NAMELEN) : parseName(header, offset, NAMELEN, encoding);
+        int type = evaluateType(header);
+        name = parseFileName(header);
         offset += NAMELEN;
         mode = (int) parseOctalOrBinary(header, offset, MODELEN);
         offset += MODELEN;
@@ -559,7 +558,11 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         offset += UIDLEN;
         groupId = (int) parseOctalOrBinary(header, offset, GIDLEN);
         offset += GIDLEN;
-        size = parseOctalOrBinary(header, offset, SIZELEN);
+        if (type == GNU_FORMAT) {
+            size = getSize(header, offset, SIZELEN);
+        } else {
+            size = parseOctalOrBinary(header, offset, SIZELEN);
+        }
         offset += SIZELEN;
         modTime = parseOctalOrBinary(header, offset, MODTIMELEN);
         offset += MODTIMELEN;
@@ -567,22 +570,8 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         linkFlag = header[offset++];
         linkName = oldStyle ? parseName(header, offset, NAMELEN) : parseName(header, offset, NAMELEN, encoding);
         offset += NAMELEN;
-        parseName(header, offset, MAGICLEN); // magic
-        offset += MAGICLEN;
-        version = parseName(header, offset, VERSIONLEN);
-        offset += VERSIONLEN;
-        userName = oldStyle ? parseName(header, offset, UNAMELEN) : parseName(header, offset, UNAMELEN, encoding);
-        offset += UNAMELEN;
-        groupName = oldStyle ? parseName(header, offset, GNAMELEN) : parseName(header, offset, GNAMELEN, encoding);
-        offset += GNAMELEN;
-        devMajor = (int) parseOctalOrBinary(header, offset, DEVLEN);
-        offset += DEVLEN;
-        devMinor = (int) parseOctalOrBinary(header, offset, DEVLEN);
-        offset += DEVLEN;
-
-        int type = evaluateType(header);
         switch (type) {
-            case FORMAT_OLDGNU: {
+            case UNIX_FORMAT: {
                 offset += ATIMELEN_GNU;
                 offset += CTIMELEN_GNU;
                 offset += OFFSETLEN_GNU;
@@ -595,22 +584,22 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
                 offset += REALSIZELEN_GNU;
                 break;
             }
-            case FORMAT_POSIX:
-            default: {
-                String prefix = oldStyle
-                        ? parseName(header, offset, PREFIXLEN)
-                        : parseName(header, offset, PREFIXLEN, encoding);
-                // SunOS tar -E does not add / to directory names, so fix up to be consistent
-                if (isDirectory() && !name.endsWith("/")) {
-                    name = name + "/";
-                }
-                if (prefix.length() > 0) {
-                    name = prefix + "/" + name;
-                }
+            case POSIX_FORMAT: {
+                parseName(header, offset, MAGICLEN); // magic
+                offset += MAGICLEN;
+                version = parseName(header, offset, VERSIONLEN);
+                offset += VERSIONLEN;
+                userName = oldStyle ? parseName(header, offset, UNAMELEN) : parseName(header, offset, UNAMELEN, encoding);
+                offset += UNAMELEN;
+                groupName = oldStyle ? parseName(header, offset, GNAMELEN) : parseName(header, offset, GNAMELEN, encoding);
+                offset += GNAMELEN;
+                devMajor = (int) parseOctalOrBinary(header, offset, DEVLEN);
+                offset += DEVLEN;
+                devMinor = (int) parseOctalOrBinary(header, offset, DEVLEN);
+                offset += DEVLEN;
             }
         }
     }
-
 
     /**
      * Evaluate an entry's header format from a header buffer.
@@ -619,27 +608,26 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
      * @return format type
      */
     private int evaluateType(byte[] header) {
-        if (ArchiveUtils.matchAsciiBuffer(MAGIC_GNU, header, MAGIC_OFFSET, MAGICLEN)) {
-            return FORMAT_OLDGNU;
+        if (ArchiveUtils.matchAsciiBuffer(MAGIC_UNIX, header, MAGIC_OFFSET, MAGICLEN)) {
+            return UNIX_FORMAT;
         }
         if (ArchiveUtils.matchAsciiBuffer(MAGIC_POSIX, header, MAGIC_OFFSET, MAGICLEN)) {
-            return FORMAT_POSIX;
+            return POSIX_FORMAT;
+        }
+        if (ArchiveUtils.matchAsciiBuffer(MAGIC_GNU, header, MAGIC_OFFSET, MAGICLEN)) {
+            return GNU_FORMAT;
         }
         return 0;
     }
 
-
     /**
      * Parse an octal string from a buffer.
-     * <p/>
      * <p>Leading spaces are ignored.
      * The buffer must contain a trailing space or NUL,
      * and may contain an additional trailing space or NUL.</p>
-     * <p/>
      * <p>The input buffer is allowed to contain all NULs,
      * in which case the method returns 0L
      * (this allows for missing fields).</p>
-     * <p/>
      * <p>To work-around some tar implementations that insert a
      * leading NUL this method returns 0 if it detects a leading NUL.</p>
      *
@@ -653,16 +641,12 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         long result = 0;
         int end = offset + length;
         int start = offset;
-
         if (length < 2) {
             throw new IllegalArgumentException("Length " + length + " must be at least 2");
         }
-
         if (buffer[start] == 0) {
             return 0L;
         }
-
-        // Skip leading spaces
         while (start < end) {
             if (buffer[start] == ' ') {
                 start++;
@@ -670,8 +654,6 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
                 break;
             }
         }
-
-        // Must have trailing NUL or space
         byte trailer;
         trailer = buffer[end - 1];
         if (trailer == 0 || trailer == ' ') {
@@ -679,12 +661,10 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         } else {
             throw new IllegalArgumentException(exceptionMessage(buffer, offset, length, end - 1, trailer));
         }
-        // May have additional NUL or space
         trailer = buffer[end - 1];
         if (trailer == 0 || trailer == ' ') {
             end--;
         }
-
         for (; start < end; start++) {
             final byte currentByte = buffer[start];
             if (currentByte < '0' || currentByte > '7') {
@@ -829,5 +809,34 @@ public class TarArchiveInputEntry implements TarConstants, ArchiveEntry {
         return "";
     }
 
+    private long getSize(byte[] header, int offset, int length) {
+        long test = parseOctal(header, offset, length);
+        if (test <= 0 && header[offset] == (byte) 128) {
+            byte[] last = new byte[length];
+            System.arraycopy(header, offset, last, 0, length);
+            last[0] = (byte) 0;
+            long rSize = new BigInteger(last).longValue();
+            last = null;
+            return rSize;
+        }
+        return test;
+    }
+
+    private String parseFileName(byte[] header) {
+        StringBuilder result = new StringBuilder(256);
+        // If header[345] is not equal to zero, then it is the "prefix"
+        // that 'ustar' defines. It must be prepended to the "normal"
+        // name field. We are responsible for the separating '/'.
+        if (header[345] != 0) {
+            for (int i = 345; i < 500 && header[i] != 0; ++i) {
+                result.append((char) header[i]);
+            }
+            result.append("/");
+        }
+        for (int i = 0; i < 100 && header[i] != 0; ++i) {
+            result.append((char) header[i]);
+        }
+        return result.toString();
+    }
 }
 

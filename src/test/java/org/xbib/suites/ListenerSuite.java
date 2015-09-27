@@ -1,4 +1,4 @@
-package org.xbib.elasticsearch.plugin;
+package org.xbib.suites;
 
 import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;

@@ -1,4 +1,4 @@
-package org.xbib.io.compress;
+package org.xbib.suites;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
