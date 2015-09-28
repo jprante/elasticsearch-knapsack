@@ -69,7 +69,9 @@ public class KnapsackHelper {
             // filter out the settings from the metadata
             for (IndexMetaData indexMetaData : metaData) {
                 final XContentBuilder builder = jsonBuilder();
+                builder.startObject();
                 indexMetaData.getSettings().toXContent(builder, ToXContent.EMPTY_PARAMS);
+                builder.endObject();
                 settings.put(indexMetaData.getIndex(), builder.string());
             }
         }

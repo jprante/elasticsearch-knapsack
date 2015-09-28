@@ -27,7 +27,7 @@ public class CompressCodecService {
     private final static CompressCodecService instance = new CompressCodecService();
 
     private CompressCodecService() {
-        ServiceLoader<CompressCodec> loader = ServiceLoader.load(CompressCodec.class);
+        ServiceLoader<CompressCodec> loader = ServiceLoader.load(CompressCodec.class, getClass().getClassLoader());
         for (CompressCodec codec : loader) {
             if (!codecs.containsKey(codec.getName())) {
                 codecs.put(codec.getName(), codec);
