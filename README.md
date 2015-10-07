@@ -53,11 +53,26 @@ When importing archive files again, this information is reapplied.
 
     ./bin/plugin -install knapsack -url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/1.7.2.0/elasticsearch-knapsack-1.7.2.0-plugin.zip
 
+Do not forget to restart the node after installation.
+
 ## Installation 2.x
 
     ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0-beta2.0/elasticsearch-knapsack-2.0.0-beta2.0-plugin.zip
 
 Do not forget to restart the node after installation.
+
+Note: If you get an error while importing like this
+
+    {"error":{"root_cause":[{"type":"access_control_exception","reason":"access denied (\"java.io.FilePermission\" \"/foo/bar.zip\" \"read\")"}],"type":"access_control_exception","reason":"access denied (\"java.io.FilePermission\" \"/foo/bar.zip\" \"read\")"},"status":500}
+
+then you are blocked by the new Elasticsearch security manager.
+
+There is no good solution yet. The knapsack default path might change in the future to the `path.data` directory. If you want other directories,  there is a workaround by disabling security manager on the knapsack node completely, with flag `security.manager.enabled` to `false`.
+
+    ./bin/elasticsearch -Des.cluster.name=mycluster -Dsecurity.manager.enabled=false
+
+I recommend to add a node with knapsack plugin installed only, no data, no master, and removing the node after the export/import completed, to keep the impact of disabled security manager as low as possible. All other nodes can keep security manager enabled.
+
 
 ## Project docs
 
