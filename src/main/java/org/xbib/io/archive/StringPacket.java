@@ -23,46 +23,46 @@ import java.util.Map;
 /**
  * The information packet for the archive session
  */
-public class ArchivePacket implements Packet<Object> {
+public class StringPacket implements Packet<String> {
 
     /**
      * Meta data for the payload
      */
-    private Map<String, Object> meta = new HashMap<String, Object>();
+    private Map<String,Object> meta =  new HashMap<String,Object>();
 
     /**
      * The payload
      */
-    private Object payload;
+    private String payload;
 
-    public ArchivePacket() {
+    public StringPacket() {
     }
 
     @Override
-    public ArchivePacket meta(Map<String, Object> meta) {
+    public StringPacket meta(Map<String,Object> meta) {
         this.meta = meta;
         return this;
     }
 
     @Override
-    public ArchivePacket meta(String key, Object value) {
+    public StringPacket meta(String key, Object value) {
         meta.put(key, value);
         return this;
     }
 
     @Override
-    public Map<String, Object> meta() {
+    public Map<String,Object> meta() {
         return meta;
     }
 
     @Override
-    public ArchivePacket payload(Object payload) {
+    public StringPacket payload(String payload) {
         this.payload = payload;
         return this;
     }
 
     @Override
-    public Object payload() {
+    public String payload() {
         return payload;
     }
 
