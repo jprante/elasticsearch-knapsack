@@ -66,8 +66,6 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
 
     private AtomicLong archiveCounter = new AtomicLong();
 
-    private boolean uriEncoded;
-
     protected ArchiveSession(BytesProgressWatcher watcher) {
         this.watcher = watcher;
         this.packetCounter = 0L;
@@ -90,9 +88,6 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         this.mode = mode;
         this.file = file;
         this.path = path;
-        if (mode.contains(Mode.URI_ENCODED)) {
-            uriEncoded = true;
-        }
         if (mode.contains(Mode.READ)) {
             this.in = createArchiveInputStream();
             this.isOpen = this.in != null;
@@ -294,11 +289,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
             if (o == null) {
                 o = EMPTY; // writing "null" here avoids File.separator at the end of the name
             }
-            if (uriEncoded) {
-                sb.append(encode(o.toString(), UTF8));
-            } else {
-                sb.append(o.toString());
-            }
+            sb.append(encode(o.toString(), UTF8));
         }
         return sb.toString();
     }
@@ -311,9 +302,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
     private void decodeArchiveEntryName(Packet packet, String archiveEntryName) {
         String[] components = split(archiveEntryName, File.separator);
         for (int i = 0; i < components.length; i++) {
-            if (uriEncoded) {
-                components[i] = decode(components[i] != null ? components[i] : "", UTF8);
-            }
+            components[i] = decode(components[i] != null ? components[i] : "", UTF8);
             packet.meta(keys[i], components[i]);
         }
     }

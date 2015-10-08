@@ -303,7 +303,7 @@ public class ArchiveUtils {
      * @param packet the packet
      * @return teh entry name
      */
-    public static String encodeArchiveEntryName(ArchivePacket packet) {
+    public static String encodeArchiveEntryName(StringPacket packet) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < keys.length; i++) {
             if (i > 0) {
