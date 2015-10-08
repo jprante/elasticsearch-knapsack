@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A basic archive session
  */
-public abstract class ArchiveSession<I extends ArchiveInputStream, O extends ArchiveOutputStream> implements Session<ArchivePacket> {
+public abstract class ArchiveSession<I extends ArchiveInputStream, O extends ArchiveOutputStream> implements Session<StringPacket> {
 
     private final static ESLogger logger = ESLoggerFactory.getLogger(ArchiveSession.class.getSimpleName());
 
@@ -161,12 +161,12 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
     }
 
     @Override
-    public ArchivePacket newPacket() {
-        return new ArchivePacket();
+    public StringPacket newPacket() {
+        return new StringPacket();
     }
 
     @Override
-    public synchronized ArchivePacket read() throws IOException {
+    public synchronized StringPacket read() throws IOException {
         if (!isOpen()) {
             throw new IOException("not open");
         }
@@ -177,15 +177,18 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         if (entry == null) {
             return null;
         }
-        ArchivePacket packet = newPacket();
+        StringPacket packet = newPacket();
         String name = entry.getName();
         packet.meta("name", name);
         decodeArchiveEntryName(packet, name);
         int size = (int)entry.getEntrySize();
         if (size >= 0) {
-            byte[] b = new byte[size]; // naive but fast, heap may explode
-            int num = in.read(b, 0, size); // fill byte array from stream
-            packet.payload(new String(b));
+            // naive but fast, heap may explode
+            byte[] b = new byte[size];
+            // fill byte array from stream
+            int num = in.read(b, 0, size);
+            // UTF-8 here
+            packet.payload(new String(b, "UTF-8"));
         } else {
             // slow copy, unknown size (zip deflate method)
             ByteArrayOutputStream b = new ByteArrayOutputStream();
@@ -198,7 +201,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
 
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized void write(ArchivePacket packet) throws IOException {
+    public synchronized void write(StringPacket packet) throws IOException {
         if (!isOpen()) {
             throw new IOException("not open");
         }
@@ -208,7 +211,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         if (packet == null || packet.payload() == null) {
             throw new IOException("no payload to write for entry");
         }
-        byte[] buf = packet.payload().toString().getBytes();
+        byte[] buf = packet.payload().getBytes("UTF-8");
         String name = encodeArchiveEntryName(packet);
         ArchiveEntry entry = out.newArchiveEntry();
         entry.setName(name);
@@ -281,7 +284,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
      * @param packet the packet
      * @return teh entry name
      */
-    private String encodeArchiveEntryName(ArchivePacket packet) {
+    private String encodeArchiveEntryName(StringPacket packet) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < keys.length; i++) {
             if (i > 0) {

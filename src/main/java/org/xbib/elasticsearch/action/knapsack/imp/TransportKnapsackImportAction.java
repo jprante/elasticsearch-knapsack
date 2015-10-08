@@ -40,7 +40,7 @@ import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.elasticsearch.support.client.Ingest;
 import org.xbib.elasticsearch.support.client.node.BulkNodeClient;
 import org.xbib.io.Session;
-import org.xbib.io.archive.ArchivePacket;
+import org.xbib.io.archive.StringPacket;
 import org.xbib.io.archive.ArchiveService;
 import org.xbib.io.BytesProgressWatcher;
 
@@ -94,7 +94,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             }
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());
-            final Session<ArchivePacket> session = ArchiveService.newSession(path, watcher);
+            final Session<StringPacket> session = ArchiveService.newSession(path, watcher);
             EnumSet<Session.Mode> mode = EnumSet.of(Session.Mode.READ,
                     request.isDecodeEntry() ? Session.Mode.URI_ENCODED : Session.Mode.NONE
             );
@@ -133,7 +133,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
      */
     final void performImport(final KnapsackImportRequest request,
                             final KnapsackState state,
-                            final Session<ArchivePacket> session,
+                            final Session<StringPacket> session,
                             final Ingest bulkClient) {
         try {
             logger.info("start of import: {}", state);
@@ -142,8 +142,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
             final Map<String, String> indexReplicaMap = newHashMap();
             final Map<String, Map<String,String>> aliasRequestMap = newHashMap();
             // per field
-            Map<String, ArchivePacket> packets = newLinkedHashMap();
-            ArchivePacket packet;
+            Map<String, StringPacket> packets = newLinkedHashMap();
+            StringPacket packet;
             String lastCoord = null;
             long count = 0L;
             while ((packet = session.read()) != null && !Thread.interrupted()) {
@@ -266,8 +266,8 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
 
     private void indexPackets(Ingest bulkClient, Map<String, CreateIndexRequest> indexRequestMap, Set<String> indexCreated,
                               Map<String,Map<String,String>> aliasRequestMap,
-                              KnapsackImportRequest request, Map<String, ArchivePacket> packets)  {
-        ArchivePacket packet = packets.values().iterator().next(); // first packet
+                              KnapsackImportRequest request, Map<String, StringPacket> packets)  {
+        StringPacket packet = packets.values().iterator().next(); // first packet
         String index = (String)packet.meta().get("index");
         String type = (String)packet.meta().get("type");
         String id = (String)packet.meta().get("id");
