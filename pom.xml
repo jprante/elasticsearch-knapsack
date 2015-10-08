@@ -7,7 +7,7 @@
 
     <groupId>org.xbib.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-knapsack</artifactId>
-    <version>1.5.2.1</version>
+    <version>1.5.2.2</version>
 
     <packaging>jar</packaging>
 
@@ -273,5 +273,30 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <profiles>
+
+        <profile>
+            <id>doclint-java8-disable</id>
+            <activation>
+                <os>
+                    <name>mac os x</name>
+                </os>
+                <jdk>[1.8,</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <additionalparam>-Xdoclint:none</additionalparam>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 
 </project>

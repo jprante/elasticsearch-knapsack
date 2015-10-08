@@ -41,9 +41,9 @@ import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.io.BytesProgressWatcher;
 import org.xbib.io.Session;
-import org.xbib.io.archive.ArchivePacket;
 import org.xbib.io.archive.ArchiveService;
 import org.xbib.io.archive.ArchiveSession;
+import org.xbib.io.StringPacket;
 import org.xbib.io.archive.esbulk.EsBulkSession;
 
 import java.io.File;
@@ -101,9 +101,8 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());
             final ArchiveSession session = ArchiveService.newSession(path, watcher);
-            EnumSet<Session.Mode> mode = EnumSet.of(request.isOverwriteAllowed() ? Session.Mode.OVERWRITE : Session.Mode.WRITE,
-                    request.isEncodeEntry() ? Session.Mode.URI_ENCODED : Session.Mode.NONE);
-            session.open(mode, path, path.toFile());
+            EnumSet<Session.Mode> mode = EnumSet.of(request.isOverwriteAllowed() ? Session.Mode.OVERWRITE : Session.Mode.WRITE);
+            session.open(mode, path);
             if (session.isOpen()) {
                 state.setPath(path).setTimestamp(new DateTime());
                 response.setRunning(true);
@@ -172,7 +171,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                 // get mapping and alias per index and create index if copy mode is enabled
                 for (String index : settings.keySet()) {
                     CreateIndexRequest createIndexRequest = createIndexRequest(mapIndex(request, index));
-                    ArchivePacket packet = new ArchivePacket();
+                    StringPacket packet = new StringPacket();
                     packet.meta("index", mapIndex(request, index));
                     packet.meta("type", "_settings");
                     packet.payload(settings.get(index));
@@ -183,7 +182,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                     Map<String, String> mappings = getMapping(client, index, types != null ? ImmutableSet.copyOf(types) : null);
                     logger.info("found mappings: {}", mappings.keySet());
                     for (String type : mappings.keySet()) {
-                        packet = new ArchivePacket();
+                        packet = new StringPacket();
                         packet.meta("index", mapIndex(request, index));
                         packet.meta("type", mapType(request, index, type));
                         packet.meta("id", "_mapping");
@@ -197,7 +196,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                         Map<String, String> aliases = getAliases(client, index);
                         logger.info("found {} aliases", aliases.size());
                         for (String alias : aliases.keySet()) {
-                            packet = new ArchivePacket();
+                            packet = new StringPacket();
                             packet.meta("index", mapIndex(request, index));
                             packet.meta("type", alias);
                             packet.meta("id", "_alias");
@@ -236,7 +235,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                     logger.debug("total={} hits={} took={}", total, hits, searchResponse.getTookInMillis());
                     for (SearchHit hit : searchResponse.getHits()) {
                         for (String f : hit.getFields().keySet()) {
-                            ArchivePacket packet = new ArchivePacket();
+                            StringPacket packet = new StringPacket();
                             packet.meta("index", mapIndex(request, hit.getIndex()));
                             packet.meta("type", mapType(request, hit.getIndex(), hit.getType()));
                             packet.meta("id", hit.getId());
@@ -245,7 +244,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                             session.write(packet);
                         }
                         if (!hit.getFields().keySet().contains("_source")) {
-                            ArchivePacket packet = new ArchivePacket();
+                            StringPacket packet = new StringPacket();
                             packet.meta("index", mapIndex(request, hit.getIndex()));
                             packet.meta("type", mapType(request, hit.getIndex(), hit.getType()));
                             packet.meta("id", hit.getId());
