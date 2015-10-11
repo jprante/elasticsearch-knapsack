@@ -65,7 +65,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
     public void testEncodedEntry() throws Exception {
         File exportFile = File.createTempFile("minimal-import-", ".bulk");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
-        client("1").index(new IndexRequest().index("index1").type("test1").id("https://www.google.de").source("content","Hello World").refresh(true)).actionGet();
+        client("1").index(new IndexRequest().index("index1").type("test1").id("https://www.google.de").source("content","Hello Jörg").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1").admin().indices())
                 .setPath(exportPath)
                 .setOverwriteAllowed(true);
@@ -81,7 +81,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         Thread.sleep(1000L);
         BufferedReader reader = new BufferedReader(new FileReader(exportFile));
         assertEquals("{\"index\":{\"_index\":\"index1\",\"_type\":\"test1\",\"_id\":\"https://www.google.de\"}", reader.readLine());
-        assertEquals("{\"content\":\"Hello World\"}", reader.readLine());
+        assertEquals("{\"content\":\"Hello Jörg\"}", reader.readLine());
         reader.close();
         // delete index
         client("1").admin().indices().prepareDelete("index1").execute().actionGet();
