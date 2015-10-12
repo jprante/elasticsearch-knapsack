@@ -16,6 +16,7 @@
 package org.xbib.io.archive;
 
 import org.xbib.io.Packet;
+import org.xbib.io.StringPacket;
 import org.xbib.io.archive.entry.ArchiveEntryEncoding;
 import org.xbib.io.archive.entry.ArchiveEntryEncodingHelper;
 
@@ -303,7 +304,7 @@ public class ArchiveUtils {
      * @param packet the packet
      * @return teh entry name
      */
-    public static String encodeArchiveEntryName(ArchivePacket packet) {
+    public static String encodeArchiveEntryName(StringPacket packet) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < keys.length; i++) {
             if (i > 0) {
