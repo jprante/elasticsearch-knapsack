@@ -188,6 +188,10 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
         return clusterService.state().getMetaData().transientSettings();
     }
 
+    private void removeClusterSettings(final String name) {
+        updateClusterSettings(name, null);
+    }
+
     private void updateClusterSettings(final String name, final String value) {
         logger.debug("update cluster settings: {} -> {}", name, value);
         final ClusterService clusterService = injector.getInstance(ClusterService.class);
@@ -196,14 +200,23 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
                 @Override
                 public ClusterState execute(ClusterState currentState) throws Exception {
                     Settings oldSettings = clusterService.state().getMetaData().transientSettings();
-                    Settings newSettings = Settings.settingsBuilder()
-                            .put(oldSettings)
-                            .put(name, value)
-                            .build();
                     MetaData.Builder mdBuilder = MetaData.builder(currentState.metaData());
-                    mdBuilder.transientSettings(newSettings);
-                    logger.debug("cluster transient settings update done: {} -> {}",
-                            oldSettings.getAsMap(), newSettings.getAsMap());
+                    if (value != null) {
+                        Settings newSettings = Settings.settingsBuilder()
+                                .put(oldSettings)
+                                .put(name, value)
+                                .build();
+                        mdBuilder.transientSettings(newSettings);
+                        logger.debug("cluster transient settings update done: {} -> {}",
+                                oldSettings.getAsMap(), newSettings.getAsMap());
+                    } else {
+                        Settings.Builder newSettings = Settings.settingsBuilder()
+                                .put(oldSettings);
+                        newSettings.remove(name);
+                        mdBuilder.transientSettings(newSettings.build());
+                        logger.debug("cluster transient settings update done: {} -> {}",
+                                oldSettings.getAsMap(), newSettings.build());
+                    }
                     return ClusterState.builder(currentState).metaData(mdBuilder).build();
                 }
 
@@ -215,7 +228,6 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
         } catch (Throwable t) {
             logger.error("submitStateUpdateTask failure", t);
         }
-
     }
 
     private static List<KnapsackState> parseStates(String value) throws IOException {
@@ -251,9 +263,12 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
         tasks.add(f);
     }
 
-    public void abort() {
+    public void abort(boolean reset) {
         doClose();
         this.executor = newExecutorService();
+        if (reset) {
+            removeClusterSettings("import");
+            removeClusterSettings("export");
+        }
     }
-
 }

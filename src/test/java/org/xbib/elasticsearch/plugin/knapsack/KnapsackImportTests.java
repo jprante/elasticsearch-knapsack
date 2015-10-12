@@ -34,9 +34,9 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         File exportFile = File.createTempFile("minimal-import-", ".bulk");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1")
-                .source("content", "Hello World").refresh(true)).actionGet();
+                .source("content", "Hello Jörg").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                .setPath(exportPath)
+                .setArchivePath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         if (!knapsackExportResponse.isRunning()) {
@@ -50,12 +50,12 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         Thread.sleep(2000L);
         BufferedReader reader = new BufferedReader(new FileReader(exportFile));
         assertEquals("{\"index\":{\"_index\":\"index1\",\"_type\":\"test1\",\"_id\":\"doc1\"}", reader.readLine());
-        assertEquals("{\"content\":\"Hello World\"}", reader.readLine());
+        assertEquals("{\"content\":\"Hello Jörg\"}", reader.readLine());
         reader.close();
         // delete index
         client("1").admin().indices().prepareDelete("index1").execute().actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
-                .setPath(exportPath);
+                .setArchivePath(exportPath);
         KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
         if (!knapsackImportResponse.isRunning()) {
             logger.error(knapsackImportResponse.getReason());
@@ -72,9 +72,9 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         File exportFile = File.createTempFile("test-encoded-", ".bulk");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("https://www.google.de")
-                .source("content","Hello World").refresh(true)).actionGet();
+                .source("content", "Hello Jörg").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                .setPath(exportPath)
+                .setArchivePath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         if (!knapsackExportResponse.isRunning()) {
@@ -88,12 +88,12 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         assertFalse(knapsackStateResponse.isExportActive(exportPath));
         BufferedReader reader = new BufferedReader(new FileReader(exportFile));
         assertEquals("{\"index\":{\"_index\":\"index1\",\"_type\":\"test1\",\"_id\":\"https://www.google.de\"}", reader.readLine());
-        assertEquals("{\"content\":\"Hello World\"}", reader.readLine());
+        assertEquals("{\"content\":\"Hello Jörg\"}", reader.readLine());
         reader.close();
         // delete index
         client("1").admin().indices().prepareDelete("index1").execute().actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
-                .setPath(exportPath);
+                .setArchivePath(exportPath);
         KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
         if (!knapsackImportResponse.isRunning()) {
             logger.error(knapsackImportResponse.getReason());
@@ -110,9 +110,9 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         File exportFile = File.createTempFile("encoded-tar-", ".tar");
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("https://www.google.de")
-                .source("content","Hello World").refresh(true)).actionGet();
+                .source("content", "Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                .setPath(exportPath)
+                .setArchivePath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         if (!knapsackExportResponse.isRunning()) {
@@ -128,7 +128,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         // delete index
         client("1").admin().indices().prepareDelete("index1").execute().actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
-                .setPath(exportPath);
+                .setArchivePath(exportPath);
         KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
         if (!knapsackImportResponse.isRunning()) {
             logger.error(knapsackImportResponse.getReason());
@@ -147,7 +147,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         client("1").index(new IndexRequest().index("index1").type("test1").id("https://www.google.de")
                 .source("content", "Hello World").refresh(true)).actionGet();
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                .setPath(exportPath)
+                .setArchivePath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         if (!knapsackExportResponse.isRunning()) {
@@ -162,7 +162,7 @@ public class KnapsackImportTests extends AbstractNodeTestHelper {
         // delete index
         client("1").admin().indices().prepareDelete("index1").execute().actionGet();
         KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
-                .setPath(exportPath);
+                .setArchivePath(exportPath);
         KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
         if (!knapsackImportResponse.isRunning()) {
             logger.error(knapsackImportResponse.getReason());

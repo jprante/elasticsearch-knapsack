@@ -30,8 +30,8 @@ public class KnapsackImportRequestBuilder extends ActionRequestBuilder<KnapsackI
         super(client, KnapsackImportAction.INSTANCE, new KnapsackImportRequest());
     }
 
-    public KnapsackImportRequestBuilder setPath(Path path) {
-        request.setPath(path);
+    public KnapsackImportRequestBuilder setArchivePath(Path archivePath) {
+        request.setArchivePath(archivePath);
         return this;
     }
 

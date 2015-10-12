@@ -32,8 +32,8 @@ public class KnapsackExportRequestBuilder extends ActionRequestBuilder<KnapsackE
         super(client, KnapsackExportAction.INSTANCE, new KnapsackExportRequest());
     }
 
-    public KnapsackExportRequestBuilder setPath(Path path) {
-        request.setPath(path);
+    public KnapsackExportRequestBuilder setArchivePath(Path archivePath) {
+        request.setArchivePath(archivePath);
         return this;
     }
 

@@ -34,7 +34,7 @@ import java.util.Map;
 public class KnapsackExportRequest extends ActionRequest<KnapsackExportRequest>
         implements KnapsackRequest {
 
-    private Path path;
+    private Path archivePath;
 
     private TimeValue timeout;
 
@@ -76,13 +76,13 @@ public class KnapsackExportRequest extends ActionRequest<KnapsackExportRequest>
         return false;
     }
 
-    public KnapsackExportRequest setPath(Path path) {
-        this.path = path;
+    public KnapsackExportRequest setArchivePath(Path archivePath) {
+        this.archivePath = archivePath;
         return this;
     }
 
-    public Path getPath() {
-        return path;
+    public Path getArchivePath() {
+        return archivePath;
     }
 
     public KnapsackExportRequest setIndex(String index) {
@@ -170,7 +170,7 @@ public class KnapsackExportRequest extends ActionRequest<KnapsackExportRequest>
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeString(path.toUri().toString());
+        out.writeString(archivePath.toUri().toString());
         if (timeout != null) {
             out.writeBoolean(true);
             timeout.writeTo(out);
@@ -201,7 +201,7 @@ public class KnapsackExportRequest extends ActionRequest<KnapsackExportRequest>
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
-        path = Paths.get(URI.create(in.readString()));
+        archivePath = Paths.get(URI.create(in.readString()));
         if (in.readBoolean()) {
             timeout = TimeValue.readTimeValue(in);
         }

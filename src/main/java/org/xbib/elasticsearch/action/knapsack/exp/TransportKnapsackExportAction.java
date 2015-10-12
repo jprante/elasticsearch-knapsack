@@ -35,6 +35,7 @@ import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
+import org.xbib.elasticsearch.knapsack.KnapsackParameter;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.io.BytesProgressWatcher;
@@ -88,9 +89,10 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
         final KnapsackExportResponse response = new KnapsackExportResponse()
                 .setState(state);
         try {
-            Path path = request.getPath();
+            Path path = request.getArchivePath();
             if (path == null) {
-                path = new File("_all.tar.gz").toPath();
+                String dataPath = settings.get(KnapsackParameter.KNAPSACK_PATH, settings.get(KnapsackParameter.KNAPSACK_DEFAULT_PATH, "."));
+                path = new File(dataPath + File.separator + "_all.tar.gz").toPath();
             }
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());

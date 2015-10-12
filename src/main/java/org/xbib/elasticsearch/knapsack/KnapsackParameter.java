@@ -28,9 +28,19 @@ public interface KnapsackParameter {
     String TYPE_PARAM = "type";
 
     /**
-     * The file path for the knapsack archive
+     * The archive file path parameter name for the knapsack archive
      */
-    String PATH_PARAM = "path";
+    String PATH_PARAM = "archivepath";
+
+    /**
+     * The parameter for configuring archive location
+     */
+    String KNAPSACK_PATH = "path.knapsack";
+
+    /**
+     * The default archives are read.written into this path
+     */
+    String KNAPSACK_DEFAULT_PATH = "path.logs";
 
     /**
      * the Elasticsearch host for knapsack push/pull

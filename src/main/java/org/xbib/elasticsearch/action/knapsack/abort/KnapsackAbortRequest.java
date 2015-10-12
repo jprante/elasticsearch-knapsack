@@ -24,9 +24,15 @@ import java.io.IOException;
 
 public class KnapsackAbortRequest extends ActionRequest<KnapsackAbortRequest> {
 
-    @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
+    private boolean reset;
+
+    public KnapsackAbortRequest setReset(boolean reset) {
+        this.reset = reset;
+        return this;
+    }
+
+    public boolean getReset() {
+        return reset;
     }
 
     @Override
@@ -37,5 +43,12 @@ public class KnapsackAbortRequest extends ActionRequest<KnapsackAbortRequest> {
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
+        reset = in.readBoolean();
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        super.writeTo(out);
+        out.writeBoolean(reset);
     }
 }

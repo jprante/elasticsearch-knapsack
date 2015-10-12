@@ -60,13 +60,16 @@ public class RestKnapsackImportAction extends BaseRestHandler implements Knapsac
         try {
             final String index = request.param(INDEX_PARAM, "_all");
             final String type = request.param(TYPE_PARAM);
-            final String defaultSpec = index + (type != null ? "_" + type : "") + ".tar.gz";
-            File file = new File(request.param(PATH_PARAM, defaultSpec));
-            final Path path = file.toPath();
+            String archivePathString = request.param(PATH_PARAM);
+            if (archivePathString == null) {
+                String dataPath = settings.get(KnapsackParameter.KNAPSACK_PATH, settings.get(KnapsackParameter.KNAPSACK_DEFAULT_PATH, "."));
+                archivePathString = dataPath + File.separator + index + (type != null ? "_" + type : "") + ".tar.gz";
+            }
+            final Path archivePath = new File(archivePathString).toPath();
             KnapsackImportRequest importRequest = new KnapsackImportRequest()
                     .setIndex(index)
                     .setType(type)
-                    .setPath(path)
+                    .setArchivePath(archivePath)
                     .setTimeout(request.paramAsTime(TIMEOUT_PARAM, TimeValue.timeValueSeconds(30L)))
                     .setMaxActionsPerBulkRequest(request.paramAsInt(MAX_BULK_ACTIONS_PER_REQUEST_PARAM, 1000))
                     .setMaxBulkConcurrency(request.paramAsInt(MAX_BULK_CONCURRENCY_PARAM,

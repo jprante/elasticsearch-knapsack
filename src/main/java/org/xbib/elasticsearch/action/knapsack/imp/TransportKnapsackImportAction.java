@@ -38,6 +38,7 @@ import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
+import org.xbib.elasticsearch.knapsack.KnapsackParameter;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 import org.xbib.elasticsearch.support.client.Ingest;
@@ -94,9 +95,10 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
         final KnapsackImportResponse response = new KnapsackImportResponse()
                 .setState(state);
         try {
-            Path path = request.getPath();
+            Path path = request.getArchivePath();
             if (path == null) {
-                path = new File("_all.tar.gz").toPath();
+                String dataPath = settings.get(KnapsackParameter.KNAPSACK_PATH, settings.get(KnapsackParameter.KNAPSACK_DEFAULT_PATH, "."));
+                path = new File(dataPath + File.separator + "_all.tar.gz").toPath();
             }
             ByteSizeValue bytesToTransfer = request.getBytesToTransfer();
             BytesProgressWatcher watcher = new BytesProgressWatcher(bytesToTransfer.bytes());
@@ -117,7 +119,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                         try {
                             performImport(request, state, session, bulkClient);
                         } catch (Throwable t) {
-
+                            //
                         }
                     }
                 });
@@ -173,7 +175,7 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
                         settingsStr = Streams.copyToString(reader);
                         reader.close();
                     } else {
-                        settingsStr = packet.payload().toString();
+                        settingsStr = packet.payload();
                     }
                     if (!"_all".equals(index)) {
                         logger.info("index {}: found settings {}", index, settingsStr);

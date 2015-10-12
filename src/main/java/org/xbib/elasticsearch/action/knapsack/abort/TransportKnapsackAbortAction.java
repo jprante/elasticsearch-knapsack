@@ -45,7 +45,7 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
     protected void doExecute(final KnapsackAbortRequest request, ActionListener<KnapsackAbortResponse> listener) {
         final KnapsackAbortResponse response = new KnapsackAbortResponse();
         try {
-            knapsack.abort();
+            knapsack.abort(request.getReset());
             listener.onResponse(response);
         } catch (Throwable e) {
             logger.error(e.getMessage(), e);

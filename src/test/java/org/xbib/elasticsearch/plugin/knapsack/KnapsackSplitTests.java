@@ -38,7 +38,7 @@ public class KnapsackSplitTests extends AbstractNodeTestHelper {
             }
             // 275 bytes = ~10 docs per archive
             KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                    .setPath(exportPath)
+                    .setArchivePath(exportPath)
                     .setBytesToTransfer(ByteSizeValue.parseBytesSizeValue("275b", ""));
             KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
             assertTrue(knapsackExportResponse.isRunning());
@@ -50,7 +50,7 @@ public class KnapsackSplitTests extends AbstractNodeTestHelper {
             // delete index
             client("1").admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
             KnapsackImportRequestBuilder knapsackImportRequestBuilder = new KnapsackImportRequestBuilder(client("1"))
-                    .setPath(exportPath)
+                    .setArchivePath(exportPath)
                     .setMaxActionsPerBulkRequest(100);
             KnapsackImportResponse knapsackImportResponse = knapsackImportRequestBuilder.execute().actionGet();
             Thread.sleep(2000L);

@@ -24,4 +24,9 @@ public class KnapsackAbortRequestBuilder extends ActionRequestBuilder<KnapsackAb
         super(client, KnapsackAbortAction.INSTANCE, new KnapsackAbortRequest());
     }
 
+    public KnapsackAbortRequestBuilder setReset(boolean reset) {
+        request().setReset(reset);
+        return this;
+    }
+
 }

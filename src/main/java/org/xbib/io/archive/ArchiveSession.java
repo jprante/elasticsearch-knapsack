@@ -139,6 +139,9 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         O archiveOut;
         FileOutputStream out;
         if (!file.exists() || file.length() == 0 || overwrite) {
+            if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
+                throw new IOException("can not create directory: " + file.getParent());
+            }
             out = new FileOutputStream(file);
         } else {
             throw new FileNotFoundException("can't open for output, check existence or access rights: " + file.getAbsolutePath());
@@ -182,12 +185,12 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         if (size >= 0) {
             byte[] b = new byte[size]; // naive but fast, heap may explode
             int num = in.read(b, 0, size); // fill byte array from stream
-            packet.payload(new String(b));
+            packet.payload(new String(b, "UTF-8"));
         } else {
             // slow copy, unknown size (zip deflate method)
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             Streams.copy(in, b);
-            packet.payload(new String(b.toByteArray()));
+            packet.payload(new String(b.toByteArray(), "UTF-8"));
         }
         packetCounter++;
         return packet;
@@ -205,7 +208,7 @@ public abstract class ArchiveSession<I extends ArchiveInputStream, O extends Arc
         if (packet == null || packet.payload() == null) {
             throw new IOException("no payload to write for entry");
         }
-        byte[] buf = packet.payload().getBytes();
+        byte[] buf = packet.payload().getBytes("UTF-8");
         String name = ArchiveUtils.encodeArchiveEntryName(packet);
         ArchiveEntry entry = out.newArchiveEntry();
         entry.setName(name);

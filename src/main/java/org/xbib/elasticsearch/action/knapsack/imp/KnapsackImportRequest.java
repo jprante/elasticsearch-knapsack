@@ -34,7 +34,7 @@ import java.util.Map;
 public class KnapsackImportRequest extends ActionRequest<KnapsackImportRequest>
         implements KnapsackRequest {
 
-    private Path path;
+    private Path archivePath;
 
     private String host;
 
@@ -198,13 +198,13 @@ public class KnapsackImportRequest extends ActionRequest<KnapsackImportRequest>
         return withMetadata;
     }
 
-    public KnapsackImportRequest setPath(Path path) {
-        this.path = path;
+    public KnapsackImportRequest setArchivePath(Path archivePath) {
+        this.archivePath = archivePath;
         return this;
     }
 
-    public Path getPath() {
-        return path;
+    public Path getArchivePath() {
+        return archivePath;
     }
 
     public KnapsackImportRequest setBytesToTransfer(ByteSizeValue bytesToTransfer) {
@@ -219,7 +219,7 @@ public class KnapsackImportRequest extends ActionRequest<KnapsackImportRequest>
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeString(path.toUri().toString());
+        out.writeString(archivePath.toUri().toString());
         out.writeString(host);
         out.writeInt(port);
         out.writeString(cluster);
@@ -254,7 +254,7 @@ public class KnapsackImportRequest extends ActionRequest<KnapsackImportRequest>
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
-        path = Paths.get(URI.create(in.readString()));
+        archivePath = Paths.get(URI.create(in.readString()));
         host = in.readString();
         port = in.readInt();
         cluster = in.readString();

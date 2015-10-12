@@ -36,7 +36,7 @@ public class KnapsackExportTests extends AbstractNodeTestHelper {
         ClientHelper.waitForRecovery(client("1"), "index1");
         logger.info("recovered");
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
-                .setPath(exportPath)
+                .setArchivePath(exportPath)
                 .setOverwriteAllowed(true);
         KnapsackExportResponse knapsackExportResponse = requestBuilder.execute().actionGet();
         if (!knapsackExportResponse.isRunning()) {

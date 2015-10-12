@@ -31,6 +31,7 @@ import org.xbib.elasticsearch.action.knapsack.abort.KnapsackAbortRequest;
 import org.xbib.elasticsearch.action.knapsack.abort.KnapsackAbortResponse;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestRequest.Method.DELETE;
 
 public class RestKnapsackAbortAction extends BaseRestHandler {
 
@@ -42,12 +43,15 @@ public class RestKnapsackAbortAction extends BaseRestHandler {
 
         controller.registerHandler(POST, "/_export/abort", this);
         controller.registerHandler(POST, "/_import/abort", this);
+        controller.registerHandler(DELETE, "/_export/abort", this);
+        controller.registerHandler(DELETE, "/_import/abort", this);
     }
 
     @Override
     public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
         try {
             KnapsackAbortRequest abortRequest = new KnapsackAbortRequest();
+            abortRequest.setReset(request.method().equals(DELETE));
             client.admin().indices().execute(KnapsackAbortAction.INSTANCE, abortRequest,
                     new RestToXContentListener<KnapsackAbortResponse>(channel));
         } catch (Throwable ex) {

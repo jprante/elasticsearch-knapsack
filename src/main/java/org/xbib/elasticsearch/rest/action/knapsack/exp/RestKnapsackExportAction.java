@@ -62,13 +62,16 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
         try {
             final String index = request.param(INDEX_PARAM, "_all");
             final String type = request.param(TYPE_PARAM);
-            final String defaultSpec = index + (type != null ? "_" + type : "") + ".tar.gz";
-            File file = new File(request.param(PATH_PARAM, defaultSpec));
-            final Path path = file.toPath();
+            String archivePathString = request.param(PATH_PARAM);
+            if (archivePathString == null) {
+                String dataPath = settings.get(KnapsackParameter.KNAPSACK_PATH, settings.get(KnapsackParameter.KNAPSACK_DEFAULT_PATH, "."));
+                archivePathString = dataPath + File.separator + index + (type != null ? "_" + type : "") + ".tar.gz";
+            }
+            final Path archivePath = new File(archivePathString).toPath();
             KnapsackExportRequest exportRequest = new KnapsackExportRequest()
                     .setIndex(index)
                     .setType(type)
-                    .setPath(path)
+                    .setArchivePath(archivePath)
                     .setOverwriteAllowed(request.paramAsBoolean(OVERWRITE_PARAM, false))
                     .withMetadata(request.paramAsBoolean(WITH_METADATA_PARAM, true))
                     .withAliases(request.paramAsBoolean(WITH_ALIASES, true))
