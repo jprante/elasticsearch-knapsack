@@ -54,6 +54,7 @@ public class KnapsackExportTests extends AbstractNodeTestHelper {
         assertEquals("{\"index\":{\"_index\":\"index1\",\"_type\":\"test1\",\"_id\":\"doc1\"}", reader.readLine());
         assertEquals("{\"content\":\"Hello World\"}", reader.readLine());
         reader.close();
+        logger.info("done");
     }
 
 }

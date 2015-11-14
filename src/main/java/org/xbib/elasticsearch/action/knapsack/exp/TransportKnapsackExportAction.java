@@ -231,6 +231,9 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                     total += hits;
                     logger.debug("total={} hits={} took={}", total, hits, searchResponse.getTookInMillis());
                     for (SearchHit hit : searchResponse.getHits()) {
+                        if (KnapsackService.INDEX_NAME.equals(hit.getIndex())) {
+                            continue;
+                        }
                         for (String f : hit.getFields().keySet()) {
                             StringPacket packet = new StringPacket();
                             packet.meta("index", mapIndex(request, hit.getIndex()));

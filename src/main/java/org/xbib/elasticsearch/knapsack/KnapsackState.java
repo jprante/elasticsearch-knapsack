@@ -20,6 +20,8 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.joda.DateMathParser;
 import org.elasticsearch.common.joda.Joda;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -125,6 +127,8 @@ public class KnapsackState implements Streamable, ToXContent {
 
     private final static DateMathParser dateParser = new DateMathParser(Joda.forPattern("dateOptionalTime"));
 
+    private final static ESLogger logger = ESLoggerFactory.getLogger("state");
+
     public KnapsackState fromXContent(XContentParser parser) throws IOException {
         Long startTimestamp = new Date().getTime();
         Path path = null;
@@ -132,26 +136,31 @@ public class KnapsackState implements Streamable, ToXContent {
         String nodeName = null;
         String currentFieldName = null;
         Token token;
-        while ((token = parser.nextToken()) != END_OBJECT) {
-            if (token == FIELD_NAME) {
+        while ((token = parser.nextToken()) != null) {
+            if (token == END_OBJECT) {
+                break;
+            }
+            else if (token == FIELD_NAME) {
                 currentFieldName = parser.currentName();
             } else if (token.isValue() || token == VALUE_NULL) {
-                switch (currentFieldName) {
-                    case "mode":
-                        mode = parser.text();
-                        break;
-                    case "started":
-                        startTimestamp = parser.text() != null ? dateParser.parse(parser.text(), now()) : null;
-                        break;
-                    case "path":
-                        path = parser.text() != null ? Paths.get(URI.create(parser.text())) : null;
-                        break;
-                    case "cluster_address":
-                        address = parser.text();
-                        break;
-                    case "node_name":
-                        nodeName = parser.text();
-                        break;
+                if (currentFieldName != null) {
+                    switch (currentFieldName) {
+                        case "mode":
+                            mode = parser.text();
+                            break;
+                        case "started":
+                            startTimestamp = parser.text() != null ? dateParser.parse(parser.text(), now()) : null;
+                            break;
+                        case "path":
+                            path = parser.text() != null ? Paths.get(URI.create(parser.text())) : null;
+                            break;
+                        case "cluster_address":
+                            address = parser.text();
+                            break;
+                        case "node_name":
+                            nodeName = parser.text();
+                            break;
+                    }
                 }
             }
         }

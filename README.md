@@ -1,7 +1,7 @@
-![Knapsack](https://github.com/jprante/elasticsearch-knapsack/raw/master/src/site/resources/hitchhiker-691581_1280.jpg)
+![Knapsack](https://github.com/jprante/elasticsearch-knapsack/raw/master/src/site/resources/knapsack.jpg)
 
-Image taken from Pixabay.com https://pixabay.com/de/tramper-daumen-hoodie-rucksack-691581/ 
-without license (CC0 Public domain)
+Image by [Rick McCharles](https://www.flickr.com/photos/rickmccharles/3820820609)
+CC BY 2.0 https://creativecommons.org/licenses/by/2.0/
 
 # Knapsack plugin for Elasticsearch
 
@@ -27,13 +27,14 @@ When importing archive files again, this information is reapplied.
 
 | Elasticsearch  |   Plugin       | Release date |
 | -------------- | -------------- | ------------ |
+| 2.0.0          | 2.0.0.0        | Nov 14, 2015 |
 | 2.0.0-rc1      | 2.0.0-rc1.0    | Oct 12, 2015 |
 
 For older releases and 1.x versions, see the repective branches.
 
 ## Installation 2.x
 
-    ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0-rc1.0/elasticsearch-knapsack-2.0.0-rc1.0-plugin.zip
+    ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.0.0.0/elasticsearch-knapsack-2.0.0.0-plugin.zip
 
 Do not forget to restart the node after installation.
 
