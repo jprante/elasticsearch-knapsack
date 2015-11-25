@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lzma;
 
 import org.xbib.io.compress.xz.lz.LZEncoder;
@@ -12,7 +11,7 @@ public abstract class LZMAEncoder extends LZMACoder {
     /**
      * LZMA2 chunk is considered full when its uncompressed size exceeds
      * <code>LZMA2_UNCOMPRESSED_LIMIT</code>.
-     * <p/>
+     * <p>
      * A compressed LZMA2 chunk can hold 2 MiB of uncompressed data.
      * A single LZMA symbol may indicate up to MATCH_LEN_MAX bytes
      * of data, so the LZMA2 chunk is considered full when there is
@@ -24,7 +23,7 @@ public abstract class LZMAEncoder extends LZMACoder {
     /**
      * LZMA2 chunk is considered full when its compressed size exceeds
      * <code>LZMA2_COMPRESSED_LIMIT</code>.
-     * <p/>
+     * <p>
      * The maximum compressed size of a LZMA2 chunk is 64 KiB.
      * A single LZMA symbol might use 20 bytes of space even though
      * it usually takes just one byte or so. Two more bytes are needed
@@ -139,17 +138,17 @@ public abstract class LZMAEncoder extends LZMACoder {
 
     /**
      * Gets the next LZMA symbol.
-     * <p/>
+     * <p>
      * There are three types of symbols: literal (a single byte),
      * repeated match, and normal match. The symbol is indicated
      * by the return value and by the variable <code>back</code>.
-     * <p/>
+     * <p>
      * Literal: <code>back == -1</code> and return value is <code>1</code>.
      * The literal itself needs to be read from <code>lz</code> separately.
-     * <p/>
+     * <p>
      * Repeated match: <code>back</code> is in the range [0, 3] and
      * the return value is the length of the repeated match.
-     * <p/>
+     * <p>
      * Normal match: <code>back - REPS<code> (<code>back - 4</code>)
      * is the distance of the match and the return value is the length
      * of the match.

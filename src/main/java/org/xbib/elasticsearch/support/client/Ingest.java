@@ -58,7 +58,7 @@ public interface Ingest {
 
     Ingest newClient(Settings settings);
 
-    Ingest newClient(Map<String,String> settings);
+    Ingest newClient(Map<String, String> settings);
 
     Client client();
 
@@ -174,7 +174,7 @@ public interface Ingest {
 
     Ingest newIndex(String index, String type, InputStream settings, InputStream mappings) throws IOException;
 
-    Ingest newIndex(String index, Settings settings, Map<String,String> mappings);
+    Ingest newIndex(String index, Settings settings, Map<String, String> mappings);
 
     /**
      * Delete index
@@ -200,6 +200,7 @@ public interface Ingest {
     /**
      * Bulked index request. Each request will be added to a queue for bulking requests.
      * Submitting request will be done when bulk limits are exceeded.
+     *
      * @param indexRequest the index request to add
      * @return this ingest
      */
@@ -208,6 +209,7 @@ public interface Ingest {
     /**
      * Bulked delete request. Each request will be added to a queue for bulking requests.
      * Submitting request will be done when bulk limits are exceeded.
+     *
      * @param deleteRequest the delete request to add
      * @return this ingest
      */

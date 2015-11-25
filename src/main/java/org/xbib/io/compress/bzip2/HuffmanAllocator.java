@@ -25,7 +25,7 @@ package org.xbib.io.compress.bzip2;
 
 /**
  * An in-place, length restricted Canonical Huffman code length allocator
- * <p/>
+ * <p>
  * Based on the algorithm proposed by R. L. Milidiú, A. A. Pessoa and E. S. Laber in "In-place
  * Length-Restricted Prefix Coding" (see: http://www-di.inf.puc-rio.br/~laber/public/spire98.ps)
  * and incorporating additional ideas from the implementation of "shcodec" by Simakov Alexander

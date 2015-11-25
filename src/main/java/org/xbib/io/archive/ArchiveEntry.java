@@ -46,6 +46,7 @@ public interface ArchiveEntry {
 
     /**
      * Sets the date of the last modification of this entry.
+     *
      * @param date the date
      * @return this archive entry
      */

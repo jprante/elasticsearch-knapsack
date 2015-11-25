@@ -236,10 +236,10 @@ public class URIResourceFinder implements ResourceFinder {
             throw new IOException("File is not readable: " + cacheFile.getAbsolutePath());
         }
         return cacheFile.isDirectory() ?
-            // DirectoryResourceLocation will only return "file" URLs within this directory
-            // do not use the DirectoryResourceLocation for non file based uris
-            new DirectoryResourceLocation(cacheFile) :
-            new JarResourceLocation(codeSource, cacheFile);
+                // DirectoryResourceLocation will only return "file" URLs within this directory
+                // do not use the DirectoryResourceLocation for non file based uris
+                new DirectoryResourceLocation(cacheFile) :
+                new JarResourceLocation(codeSource, cacheFile);
     }
 
     private List<URI> getManifestClassPath(ResourceLocation resourceLocation) {

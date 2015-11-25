@@ -820,9 +820,9 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
     }
 
     private void formatBigIntegerBinary(final long value, byte[] buf,
-                                               final int offset,
-                                               final int length,
-                                               final boolean negative) {
+                                        final int offset,
+                                        final int length,
+                                        final boolean negative) {
         BigInteger val = BigInteger.valueOf(value);
         final byte[] b = val.toByteArray();
         final int len = b.length;
@@ -871,4 +871,3 @@ public class TarArchiveOutputEntry implements TarConstants, ArchiveEntry {
     }
 
 }
-

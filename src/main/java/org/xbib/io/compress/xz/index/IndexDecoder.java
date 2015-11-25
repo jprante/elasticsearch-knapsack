@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.index;
 
 import org.xbib.io.compress.xz.CorruptedInputException;

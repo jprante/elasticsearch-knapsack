@@ -147,7 +147,7 @@ public class KnapsackPushRequest extends SingleCustomOperationRequest<KnapsackPu
         return maxBulkConcurrency;
     }
 
-    public KnapsackPushRequest setIndexTypeNames(Map<String,Object> indexTypeNames) {
+    public KnapsackPushRequest setIndexTypeNames(Map<String, Object> indexTypeNames) {
         this.indexTypeNames = indexTypeNames;
         return this;
     }

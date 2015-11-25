@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lz;
 
 import java.io.IOException;
@@ -84,7 +83,7 @@ public abstract class LZEncoder {
 
     /**
      * Creates a new LZEncoder.
-     * <p/>
+     * <p>
      *
      * @param dictSize        dictionary size
      * @param extraSizeBefore number of bytes to keep available in the
@@ -252,7 +251,7 @@ public abstract class LZEncoder {
 
     /**
      * Get the number of bytes available, including the current byte.
-     * <p/>
+     * <p>
      * Note that the result is undefined if <code>getMatches</code> or
      * <code>skip</code> hasn't been called yet and no preset dictionary
      * is being used.
@@ -272,11 +271,11 @@ public abstract class LZEncoder {
 
     /**
      * Gets the byte from the given backward offset.
-     * <p/>
+     *
      * The current byte is at <code>0</code>, the previous byte
      * at <code>1</code> etc. To get a byte at zero-based distance,
-     * use <code>getByte(dist + 1)<code>.
-     * <p/>
+     * use <code>getByte(dist + 1)</code>.
+     *
      * This function is equivalent to <code>getByte(0, backward)</code>.
      */
     public int getByte(int backward) {

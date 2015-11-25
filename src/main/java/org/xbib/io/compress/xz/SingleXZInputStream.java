@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.check.Check;
@@ -16,12 +15,12 @@ import java.io.InputStream;
  * and the read position in the input stream is left at the first byte
  * after the end of the XZ Stream. This can be useful when XZ data has
  * been stored inside some other file format or protocol.
- * <p/>
+ * <p>
  * Unless you know what you are doing, don't use this class to decompress
  * standalone .xz files. For that purpose, use <code>XZInputStream</code>.
- * <p/>
- * <h4>When uncompressed size is known beforehand</h4>
- * <p/>
+ * <p>
+ * When uncompressed size is known beforehand
+ * <p>
  * If you are decompressing complete XZ streams and your application knows
  * exactly how much uncompressed data there should be, it is good to try
  * reading one more byte by calling <code>read()</code> and checking
@@ -44,7 +43,7 @@ public class SingleXZInputStream extends InputStream {
     /**
      * Creates a new XZ decompressor that decompresses exactly one
      * XZ Stream from <code>in</code> without a memory usage limit.
-     * <p/>
+     * <p>
      * This constructor reads and parses the XZ Stream Header (12 bytes)
      * from <code>in</code>. The header of the first Block is not read
      * until <code>read</code> is called.
@@ -66,7 +65,7 @@ public class SingleXZInputStream extends InputStream {
     /**
      * Creates a new XZ decompressor that decompresses exactly one
      * XZ Stream from <code>in</code> with an optional memory usage limit.
-     * <p/>
+     * <p>
      * This is identical to <code>SingleXZInputStream(InputStream)</code>
      * except that this takes also the <code>memoryLimit</code> argument.
      *
@@ -128,7 +127,7 @@ public class SingleXZInputStream extends InputStream {
 
     /**
      * Decompresses the next byte from this input stream.
-     * <p/>
+     * <p>
      * Reading lots of data with <code>read()</code> from this input stream
      * may be inefficient. Wrap it in {@link java.io.BufferedInputStream}
      * if you need to read lots of data one byte at a time.
@@ -149,7 +148,7 @@ public class SingleXZInputStream extends InputStream {
 
     /**
      * Decompresses into an array of bytes.
-     * <p/>
+     * <p>
      * If <code>len</code> is zero, no bytes are read and <code>0</code>
      * is returned. Otherwise this will try to decompress <code>len</code>
      * bytes of uncompressed data. Less than <code>len</code> bytes may

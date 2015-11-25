@@ -113,7 +113,7 @@ public class BulkTransportClient extends BaseIngestTransportClient implements In
     }
 
     @Override
-    public BulkTransportClient newClient(Map<String,String> settings) {
+    public BulkTransportClient newClient(Map<String, String> settings) {
         return this.newClient(ImmutableSettings.settingsBuilder().put(settings).build());
     }
 

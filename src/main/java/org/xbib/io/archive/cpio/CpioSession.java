@@ -15,8 +15,8 @@
  */
 package org.xbib.io.archive.cpio;
 
-import org.xbib.io.archive.ArchiveSession;
 import org.xbib.io.BytesProgressWatcher;
+import org.xbib.io.archive.ArchiveSession;
 
 public class CpioSession extends ArchiveSession {
 

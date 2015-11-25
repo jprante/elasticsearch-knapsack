@@ -32,7 +32,7 @@ import java.util.Map;
 import static org.elasticsearch.common.collect.Maps.newHashMap;
 
 public class KnapsackPullRequest extends SingleCustomOperationRequest<KnapsackPullRequest>
-    implements KnapsackRequest {
+        implements KnapsackRequest {
 
     private Path path;
 

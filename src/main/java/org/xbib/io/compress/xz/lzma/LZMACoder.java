@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lzma;
 
 import org.xbib.io.compress.xz.rangecoder.RangeCoder;

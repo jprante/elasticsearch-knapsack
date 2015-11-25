@@ -38,7 +38,7 @@ public abstract class AbstractNodeTestHelper {
     @Before
     public void setUp() throws Exception {
         startNode("1");
-        //startNode("2"); // two nodes, for testing state
+        startNode("2"); // two nodes, for testing state
     }
 
     @After
@@ -67,7 +67,7 @@ public abstract class AbstractNodeTestHelper {
                 .put("http.enabled", false)
                 .put("discovery.zen.multicast.enabled", false)
                 .build();
-        Node node = nodeBuilder().settings(finalSettings).build();
+        Node node = nodeBuilder().local(false).settings(finalSettings).build();
         Client client = node.client();
         nodes.put(id, node);
         clients.put(id, client);

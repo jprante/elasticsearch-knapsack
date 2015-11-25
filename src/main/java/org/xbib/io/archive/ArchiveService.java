@@ -15,8 +15,8 @@
  */
 package org.xbib.io.archive;
 
-import org.xbib.io.compress.CompressCodecService;
 import org.xbib.io.BytesProgressWatcher;
+import org.xbib.io.compress.CompressCodecService;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -55,7 +55,7 @@ public class ArchiveService {
     }
 
     @SuppressWarnings("unchecked")
-    public static <I extends ArchiveInputStream, O extends ArchiveOutputStream> ArchiveSession<I,O> newSession(Path path, BytesProgressWatcher watcher) {
+    public static <I extends ArchiveInputStream, O extends ArchiveOutputStream> ArchiveSession<I, O> newSession(Path path, BytesProgressWatcher watcher) {
         for (String archiverName : getCodecs()) {
             if (canOpen(archiverName, path)) {
                 return codecs.get(archiverName).newSession(watcher);

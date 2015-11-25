@@ -48,7 +48,7 @@ public class BytesProgressWatcher {
 
     private long endTimeCurrentTransferMS = -1;
 
-    private Map<Long,Long> historyOfBytesBySecond = new TreeMap<Long,Long>();
+    private Map<Long, Long> historyOfBytesBySecond = new TreeMap<Long, Long>();
 
     private long earliestHistorySecond = Long.MAX_VALUE;
 
@@ -267,7 +267,7 @@ public class BytesProgressWatcher {
      */
     public static long calculateRemainingTime(BytesProgressWatcher[] progressWatchers) {
         long bytesRemaining = sumBytesToTransfer(progressWatchers)
-                        - sumBytesTransferred(progressWatchers);
+                - sumBytesTransferred(progressWatchers);
         double bytesPerSecond = calculateOverallBytesPerSecond(progressWatchers);
         if (Math.abs(bytesPerSecond) < 0.001d) {
             // No transfer has occurred yet.

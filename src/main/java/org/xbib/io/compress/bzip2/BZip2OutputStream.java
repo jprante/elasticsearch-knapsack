@@ -28,7 +28,7 @@ import java.io.OutputStream;
 
 /**
  * <p>An OutputStream wrapper that compresses BZip2 data</p>
- * <p/>
+ *
  * <p>Instances of this class are not threadsafe.</p>
  */
 public class BZip2OutputStream extends OutputStream {

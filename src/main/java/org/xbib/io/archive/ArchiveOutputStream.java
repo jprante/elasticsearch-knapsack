@@ -56,6 +56,7 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
 
     /**
      * Creates a new archive entry for this archive output stream
+     *
      * @return the new archive entry
      * @throws IOException
      */
@@ -82,7 +83,7 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
     /**
      * Finishes the addition of entries to this stream, without closing it.
      * Additional data can be written, if the format supports it.
-     * <p/>
+     * <p>
      * The finish() method throws an Exception if the user forgets to close the entry
      * .
      *
@@ -92,7 +93,7 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
 
     /**
      * Writes a byte to the current archive entry.
-     *
+     * <p>
      * This method simply calls write( byte[], 0, 1 ).
      *
      * @param b The byte to be written.

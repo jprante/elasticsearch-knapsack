@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.lz;
 
 final class BT4 extends LZEncoder {

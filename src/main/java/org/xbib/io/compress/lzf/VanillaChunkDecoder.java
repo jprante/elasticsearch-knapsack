@@ -12,7 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */package org.xbib.io.compress.lzf;
+ */
+package org.xbib.io.compress.lzf;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -208,7 +209,7 @@ public class VanillaChunkDecoder extends ChunkDecoder {
     }
 
     protected static void copyUpTo32WithSwitch(byte[] in, int inPos, byte[] out, int outPos,
-                                                     int lengthMinusOne) {
+                                               int lengthMinusOne) {
         switch (lengthMinusOne) {
             case 31:
                 out[outPos++] = in[inPos++];

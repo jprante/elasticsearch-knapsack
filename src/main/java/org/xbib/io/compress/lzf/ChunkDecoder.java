@@ -208,7 +208,7 @@ public abstract class ChunkDecoder {
     }
 
     protected static void readFully(InputStream is, boolean compressed,
-                                          byte[] outputBuffer, int offset, int len) throws IOException {
+                                    byte[] outputBuffer, int offset, int len) throws IOException {
         int left = len;
         while (left > 0) {
             int count = is.read(outputBuffer, offset, left);

@@ -27,14 +27,14 @@ import java.util.HashMap;
  * CPIOArchiveOutputStream is a stream for writing CPIO streams. All formats of
  * CPIO are supported (old ASCII, old binary, new portable format and the new
  * portable format with CRC).
- * <p/>
- * <p/>
+ * <p>
+ * <p>
  * An entry can be written by creating an instance of CpioArchiveEntry and fill
  * it with the necessary values and put it into the CPIO stream. Afterwards
  * write the contents of the file into the CPIO stream. Either close the stream
  * by calling finish() or put a next entry into the cpio stream.
- * <p/>
- * <code><pre>
+ * <p>
+ * <code>
  * CpioArchiveOutputStream out = new CpioArchiveOutputStream(
  *         new FileOutputStream(new File("test.cpio")));
  * CpioArchiveEntry entry = new CpioArchiveEntry();
@@ -46,8 +46,8 @@ import java.util.HashMap;
  * out.putArchiveEntry(entry);
  * out.write(testContents.getBytes());
  * out.close();
- * </pre></code>
- * <p/>
+ * </code>
+ * <p>
  * Note: This implementation should be compatible to cpio 2.5
  */
 public class CpioArchiveOutputStream extends ArchiveOutputStream<CpioArchiveEntry> implements CpioConstants {

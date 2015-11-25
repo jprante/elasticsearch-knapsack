@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.lz.LZEncoder;
@@ -9,7 +8,7 @@ import java.io.InputStream;
 
 /**
  * LZMA2 compression options.
- * <p/>
+ * <p>
  * While this allows setting the LZMA2 compression options in detail,
  * often you only need <code>LZMA2Options()</code> or
  * <code>LZMA2Options(int)</code>.
@@ -37,12 +36,12 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Maximum dictionary size for compression is 768 MiB.
-     * <p/>
+     * <p>
      * The decompressor supports bigger dictionaries, up to almost 2 GiB.
      * With HC4 the encoder would support dictionaries bigger than 768 MiB.
      * The 768 MiB limit comes from the current implementation of BT4 where
      * we would otherwise hit the limits of signed ints in array indexing.
-     * <p/>
+     * <p>
      * If you really need bigger dictionary for decompression,
      * use {@link LZMA2InputStream} directly.
      */
@@ -173,11 +172,11 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the compression options to the given preset.
-     * <p/>
+     * <p>
      * The presets 0-3 are fast presets with medium compression.
      * The presets 4-6 are fairly slow presets with high compression.
      * The default preset (<code>PRESET_DEFAULT</code>) is 6.
-     * <p/>
+     * <p>
      * The presets 7-9 are like the preset 6 but use bigger dictionaries
      * and have higher compressor and decompressor memory requirements.
      * Unless the uncompressed size of the file exceeds 8&nbsp;MiB,
@@ -212,12 +211,12 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the dictionary size in bytes.
-     * <p/>
+     * <p>
      * The dictionary (or history buffer) holds the most recently seen
      * uncompressed data. Bigger dictionary usually means better compression.
      * However, using a dictioanary bigger than the size of the uncompressed
      * data is waste of memory.
-     * <p/>
+     * <p>
      * Any value in the range [DICT_SIZE_MIN, DICT_SIZE_MAX] is valid,
      * but sizes of 2^n and 2^n&nbsp;+&nbsp;2^(n-1) bytes are somewhat
      * recommended.
@@ -250,10 +249,10 @@ public class LZMA2Options extends FilterOptions {
     /**
      * Sets a preset dictionary. Use null to disable the use of
      * a preset dictionary. By default there is no preset dictionary.
-     * <p/>
+     * <p>
      * <b>The .xz format doesn't support a preset dictionary for now.
      * Do not set a preset dictionary unless you use raw LZMA2.</b>
-     * <p/>
+     * <p>
      * Preset dictionary can be useful when compressing many similar,
      * relatively small chunks of data independently from each other.
      * A preset dictionary should contain typical strings that occur in
@@ -274,7 +273,7 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the number of literal context bits and literal position bits.
-     * <p/>
+     * <p>
      * The sum of <code>lc</code> and <code>lp</code> is limited to 4.
      * Trying to exceed it will throw an exception. This function lets
      * you change both at the same time.
@@ -296,11 +295,11 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the number of literal context bits.
-     * <p/>
+     * <p>
      * All bytes that cannot be encoded as matches are encoded as literals.
      * That is, literals are simply 8-bit bytes that are encoded one at
      * a time.
-     * <p/>
+     * <p>
      * The literal coding makes an assumption that the highest <code>lc</code>
      * bits of the previous uncompressed byte correlate with the next byte.
      * For example, in typical English text, an upper-case letter is often
@@ -309,7 +308,7 @@ public class LZMA2Options extends FilterOptions {
      * the highest three bits are 010 for upper-case letters and 011 for
      * lower-case letters. When <code>lc</code> is at least 3, the literal
      * coding can take advantage of this property in the  uncompressed data.
-     * <p/>
+     * <p>
      * The default value (3) is usually good. If you want maximum compression,
      * try <code>setLc(4)</code>. Sometimes it helps a little, and sometimes it
      * makes compression worse. If it makes it worse, test for example
@@ -325,7 +324,7 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the number of literal position bits.
-     * <p/>
+     * <p>
      * This affets what kind of alignment in the uncompressed data is
      * assumed when encoding literals. See {@link #setPb(int) setPb} for
      * more information about alignment.
@@ -354,12 +353,12 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the number of position bits.
-     * <p/>
+     * <p>
      * This affects what kind of alignment in the uncompressed data is
      * assumed in general. The default (2) means four-byte alignment
      * (2^<code>pb</code> = 2^2 = 4), which is often a good choice when
      * there's no better guess.
-     * <p/>
+     * <p>
      * When the alignment is known, setting the number of position bits
      * accordingly may reduce the file size a little. For example with text
      * files having one-byte alignment (US-ASCII, ISO-8859-*, UTF-8), using
@@ -367,7 +366,7 @@ public class LZMA2Options extends FilterOptions {
      * text, <code>setPb(1)</code> is a good choice. If the alignment is
      * an odd number like 3 bytes, <code>setPb(0)</code> might be the best
      * choice.
-     * <p/>
+     * <p>
      * Even though the assumed alignment can be adjusted with
      * <code>setPb</code> and <code>setLp</code>, LZMA2 still slightly favors
      * 16-byte alignment. It might be worth taking into account when designing
@@ -393,15 +392,15 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the compression mode.
-     * <p/>
+     * <p>
      * This specifies the method to analyze the data produced by
      * a match finder. The default is <code>MODE_FAST</code> for presets
      * 0-3 and <code>MODE_NORMAL</code> for presets 4-9.
-     * <p/>
+     * <p>
      * Usually <code>MODE_FAST</code> is used with Hash Chain match finders
      * and <code>MODE_NORMAL</code> with Binary Tree match finders. This is
      * also what the presets do.
-     * <p/>
+     * <p>
      * The special mode <code>MODE_UNCOMPRESSED</code> doesn't try to
      * compress the data at all (and doesn't use a match finder) and will
      * simply wrap it in uncompressed LZMA2 chunks.
@@ -458,7 +457,7 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the match finder type.
-     * <p/>
+     * <p>
      * Match finder has a major effect on compression speed, memory usage,
      * and compression ratio. Usually Hash Chain match finders are faster
      * than Binary Tree match finders. The default depends on the preset:
@@ -484,11 +483,11 @@ public class LZMA2Options extends FilterOptions {
 
     /**
      * Sets the match finder search depth limit.
-     * <p/>
+     * <p>
      * The default is a special value of <code>0</code> which indicates that
      * the depth limit should be automatically calculated by the selected
      * match finder from the nice length of matches.
-     * <p/>
+     * <p>
      * Reasonable depth limit for Hash Chain match finders is 4-100 and
      * 16-1000 for Binary Tree match finders. Using very high values can
      * make the compressor extremely slow with some files. Avoid settings
@@ -531,14 +530,14 @@ public class LZMA2Options extends FilterOptions {
     /**
      * Gets how much memory the LZMA2 decoder will need to decompress the data
      * that was encoded with these options and stored in a .xz file.
-     * <p/>
+     * <p>
      * The returned value may bigger than the value returned by a direct call
      * to {@link LZMA2InputStream#getMemoryUsage(int)} if the dictionary size
      * is not 2^n or 2^n&nbsp;+&nbsp;2^(n-1) bytes. This is because the .xz
      * headers store the dictionary size in such a format and other values
      * are rounded up to the next such value. Such rounding is harmess except
      * it might waste some memory if an unsual dictionary size is used.
-     * <p/>
+     * <p>
      * If you use raw LZMA2 streams and unusual dictioanary size, call
      * {@link LZMA2InputStream#getMemoryUsage} directly to get raw decoder
      * memory requirements.

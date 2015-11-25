@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.common;
 
 import java.io.IOException;

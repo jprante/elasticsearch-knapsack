@@ -15,8 +15,8 @@
  */
 package org.xbib.io.archive.zip;
 
-import org.xbib.io.archive.ArchiveSession;
 import org.xbib.io.BytesProgressWatcher;
+import org.xbib.io.archive.ArchiveSession;
 
 public class ZipSession extends ArchiveSession {
 

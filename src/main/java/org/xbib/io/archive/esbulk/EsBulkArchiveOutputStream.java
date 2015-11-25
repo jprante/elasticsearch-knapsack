@@ -16,6 +16,8 @@
 package org.xbib.io.archive.esbulk;
 
 import org.xbib.io.archive.ArchiveOutputStream;
+import org.xbib.io.StringPacket;
+import org.xbib.io.archive.ArchiveUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -39,12 +41,13 @@ public class EsBulkArchiveOutputStream extends ArchiveOutputStream<EsBulkArchive
 
     @Override
     public void putArchiveEntry(EsBulkArchiveEntry entry) throws IOException {
-        String[] s = entry.getName().split("/");
-        if (s.length < 3) {
-            return;
-        }
+        StringPacket packet = new StringPacket();
+        ArchiveUtils.decodeArchiveEntryName(packet, entry.getName());
         StringBuilder sb = new StringBuilder();
-        sb.append("{\"index\":{\"_index\":\"").append(s[0]).append("\",\"_type\":\"").append(s[1]).append("\",\"_id\":\"").append(s[2]).append("\"}\n");
+        sb.append("{\"index\":{\"_index\":\"").append(packet.meta().get(ArchiveUtils.keys[0]))
+                .append("\",\"_type\":\"").append(packet.meta().get(ArchiveUtils.keys[1]))
+                .append("\",\"_id\":\"").append(packet.meta().get(ArchiveUtils.keys[2]))
+                .append("\"}\n");
         out.write(sb.toString().getBytes("UTF-8"));
     }
 

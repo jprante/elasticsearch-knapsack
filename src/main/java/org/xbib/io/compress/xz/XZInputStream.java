@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.common.DecoderUtil;
@@ -9,26 +8,26 @@ import java.io.InputStream;
 
 /**
  * Decompresses a .xz file in streamed mode (no seeking).
- * <p/>
+ * <p>
  * Use this to decompress regular standalone .xz files. This reads from
  * its input stream until the end of the input or until an error occurs.
  * This supports decompressing concatenated .xz files.
- * <p/>
- * <h4>Typical use cases</h4>
- * <p/>
+ * <p>
+ * Typical use cases
+ * <p>
  * Getting an input stream to decompress a .xz file:
  * <p><blockquote><pre>
  * InputStream infile = new FileInputStream("foo.xz");
  * XZInputStream inxz = new XZInputStream(infile);
  * </pre></blockquote>
- * <p/>
+ * <p>
  * It's important to keep in mind that decompressor memory usage depends
  * on the settings used to compress the file. The worst-case memory usage
  * of XZInputStream is currently 1.5&nbsp;GiB. Still, very few files will
  * require more than about 65&nbsp;MiB because that's how much decompressing
  * a file created with the highest preset level will need, and only a few
  * people use settings other than the predefined presets.
- * <p/>
+ * <p>
  * It is possible to specify a memory usage limit for
  * <code>XZInputStream</code>. If decompression requires more memory than
  * the specified limit, MemoryLimitException will be thrown when reading
@@ -38,9 +37,9 @@ import java.io.InputStream;
  * InputStream infile = new FileInputStream("foo.xz");
  * XZInputStream inxz = new XZInputStream(infile, 100 * 1024);
  * </pre></blockquote>
- * <p/>
- * <h4>When uncompressed size is known beforehand</h4>
- * <p/>
+ * <p>
+ * When uncompressed size is known beforehand
+ * <p>
  * If you are decompressing complete files and your application knows
  * exactly how much uncompressed data there should be, it is good to try
  * reading one more byte by calling <code>read()</code> and checking
@@ -60,7 +59,7 @@ public class XZInputStream extends InputStream {
 
     /**
      * Creates a new XZ decompressor without a memory usage limit.
-     * <p/>
+     * <p>
      * This constructor reads and parses the XZ Stream Header (12 bytes)
      * from <code>in</code>. The header of the first Block is not read
      * until <code>read</code> is called.
@@ -81,7 +80,7 @@ public class XZInputStream extends InputStream {
 
     /**
      * Creates a new XZ decompressor with an optional memory usage limit.
-     * <p/>
+     * <p>
      * This is identical to <code>XZInputStream(InputStream)</code> except
      * that this takes also the <code>memoryLimit</code> argument.
      *
@@ -106,7 +105,7 @@ public class XZInputStream extends InputStream {
 
     /**
      * Decompresses the next byte from this input stream.
-     * <p/>
+     * <p>
      * Reading lots of data with <code>read()</code> from this input stream
      * may be inefficient. Wrap it in {@link java.io.BufferedInputStream}
      * if you need to read lots of data one byte at a time.
@@ -127,7 +126,7 @@ public class XZInputStream extends InputStream {
 
     /**
      * Decompresses into an array of bytes.
-     * <p/>
+     * <p>
      * If <code>len</code> is zero, no bytes are read and <code>0</code>
      * is returned. Otherwise this will try to decompress <code>len</code>
      * bytes of uncompressed data. Less than <code>len</code> bytes may

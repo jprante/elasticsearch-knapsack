@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.rangecoder;
 
 import org.xbib.io.compress.xz.CorruptedInputException;

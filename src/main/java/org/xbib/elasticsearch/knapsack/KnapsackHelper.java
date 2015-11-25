@@ -51,7 +51,7 @@ public class KnapsackHelper {
     }
 
     public static Map<String, Object> toMap(String s, ESLogger logger) throws IOException {
-        Map<String, Object> map = s == null ? new HashMap<String,Object>()
+        Map<String, Object> map = s == null ? new HashMap<String, Object>()
                 : XContentFactory.xContent(XContentType.JSON).createParser(s).mapAndClose();
         if (map.isEmpty() && s != null && s.length() > 0) {
             logger.warn("can not parse map, check URI escape, got param: {}", s);
@@ -107,8 +107,8 @@ public class KnapsackHelper {
         return mappings;
     }
 
-    public static Map<String,String> getAliases(Client client, String index) throws IOException {
-        Map<String,String> aliases = newHashMap();
+    public static Map<String, String> getAliases(Client client, String index) throws IOException {
+        Map<String, String> aliases = newHashMap();
         ClusterStateRequestBuilder request = client.admin().cluster().prepareState();
         if (!"_all".equals(index)) {
             request.setFilterIndices(index);
@@ -147,7 +147,7 @@ public class KnapsackHelper {
         if (host == null) {
             NodesInfoResponse response = client.admin().cluster()
                     .nodesInfo(new NodesInfoRequest().transport(true)).actionGet();
-            InetSocketTransportAddress address = (InetSocketTransportAddress)response.iterator().next()
+            InetSocketTransportAddress address = (InetSocketTransportAddress) response.iterator().next()
                     .getTransport().getAddress().publishAddress();
             host = address.address().getAddress().getHostAddress();
             port = address.address().getPort();

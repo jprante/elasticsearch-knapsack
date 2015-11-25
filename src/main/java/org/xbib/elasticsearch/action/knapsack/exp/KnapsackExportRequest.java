@@ -42,17 +42,19 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
 
     private Map<String, Object> indexTypeNames = newHashMap();
 
-    private boolean withMetadata;
-
     private String index = "_all";
 
     private String type;
 
     private SearchRequest searchRequest;
 
+    private boolean withMetadata;
+
     private boolean overwrite;
 
     private boolean encodeEntry;
+
+    private boolean withAliases;
 
     private ByteSizeValue bytesToTransfer = ByteSizeValue.parseBytesSizeValue("0");
 
@@ -112,22 +114,13 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
         return limit;
     }
 
-    public KnapsackExportRequest setIndexTypeNames(Map indexTypeNames) {
+    public KnapsackExportRequest setIndexTypeNames(Map<String, Object> indexTypeNames) {
         this.indexTypeNames = indexTypeNames;
         return this;
     }
 
     public Map<String, Object> getIndexTypeNames() {
         return indexTypeNames;
-    }
-
-    public KnapsackExportRequest withMetadata(boolean withMetadata) {
-        this.withMetadata = withMetadata;
-        return this;
-    }
-
-    public boolean withMetadata() {
-        return withMetadata;
     }
 
     public KnapsackExportRequest setSearchRequest(SearchRequest searchRequest) {
@@ -137,6 +130,25 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
 
     public SearchRequest getSearchRequest() {
         return searchRequest;
+    }
+
+
+    public KnapsackExportRequest setBytesToTransfer(ByteSizeValue bytesToTransfer) {
+        this.bytesToTransfer = bytesToTransfer;
+        return this;
+    }
+
+    public ByteSizeValue getBytesToTransfer() {
+        return bytesToTransfer;
+    }
+
+    public KnapsackExportRequest withMetadata(boolean withMetadata) {
+        this.withMetadata = withMetadata;
+        return this;
+    }
+
+    public boolean isWithMetadata() {
+        return withMetadata;
     }
 
     public KnapsackExportRequest setOverwriteAllowed(boolean overwrite) {
@@ -157,13 +169,13 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
         return encodeEntry;
     }
 
-    public KnapsackExportRequest setBytesToTransfer(ByteSizeValue bytesToTransfer) {
-        this.bytesToTransfer = bytesToTransfer;
+    public KnapsackExportRequest withAliases(boolean withAliases) {
+        this.withAliases = withAliases;
         return this;
     }
 
-    public ByteSizeValue getBytesToTransfer() {
-        return bytesToTransfer;
+    public boolean isWithAliases() {
+        return withAliases;
     }
 
     @Override
@@ -181,6 +193,7 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
         out.writeBoolean(withMetadata);
         out.writeBoolean(overwrite);
         out.writeBoolean(encodeEntry);
+        out.writeBoolean(withAliases);
         out.writeString(index);
         out.writeString(type);
         if (searchRequest != null) {
@@ -204,6 +217,7 @@ public class KnapsackExportRequest extends SingleCustomOperationRequest<Knapsack
         withMetadata = in.readBoolean();
         overwrite = in.readBoolean();
         encodeEntry = in.readBoolean();
+        withAliases = in.readBoolean();
         index = in.readString();
         type = in.readString();
         if (in.readBoolean()) {

@@ -1,10 +1,9 @@
-
 package org.xbib.io.compress.xz;
 
 /**
  * Thrown when the memory usage limit given to the XZ decompressor
  * would be exceeded.
- * <p/>
+ * <p>
  * The amount of memory required and the memory usage limit are
  * included in the error detail message in human readable format.
  */
@@ -16,7 +15,7 @@ public class MemoryLimitException extends XZIOException {
 
     /**
      * Creates a new MemoryLimitException.
-     * <p/>
+     * <p>
      * The amount of memory needed and the memory usage limit are
      * included in the error detail message.
      *

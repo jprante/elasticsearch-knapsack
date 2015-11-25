@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.check;
 
 public class CRC32 extends Check {

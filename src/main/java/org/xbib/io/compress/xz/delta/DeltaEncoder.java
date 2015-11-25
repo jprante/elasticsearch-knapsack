@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz.delta;
 
 public class DeltaEncoder extends DeltaCoder {

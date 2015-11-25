@@ -1,4 +1,3 @@
-
 package org.xbib.io.compress.xz;
 
 import org.xbib.io.compress.xz.check.Check;
@@ -16,13 +15,13 @@ import java.util.Arrays;
 /**
  * Decompresses a .xz file in random access mode.
  * This supports decompressing concatenated .xz files.
- * <p/>
+ *
  * Each .xz file consist of one or more Streams. Each Stream consist of zero
  * or more Blocks. Each Stream contains an Index of Streams' Blocks.
  * The Indexes from all Streams are loaded in RAM by a constructor of this
  * class. A typical .xz file has only one Stream, and parsing its Index will
  * need only three or four seeks.
- * <p/>
+ *
  * To make random access possible, the data in a .xz file must be splitted
  * into multiple Blocks of reasonable size. Decompression can only start at
  * a Block boundary. When seeking to an uncompressed offset that is not at
@@ -31,29 +30,29 @@ import java.util.Arrays;
  * mean faster seeks to arbitrary uncompressed offsets. On the other hand,
  * smaller Blocks mean worse compression. So one has to make a compromise
  * between random access speed and compression ratio.
- * <p/>
+ * <p>
  * Implementation note: This class uses linear search to locate the correct
  * Stream from the data structures in RAM. It was the simplest to implement
  * and should be fine as long as there aren't too many Streams. The correct
  * Block inside a Stream is located using binary search and thus is fast
  * even with a huge number of Blocks.
- * <p/>
- * <h4>Memory usage</h4>
- * <p/>
+ * <p>
+ * Memory usage
+ * <p>
  * The amount of memory needed for the Indexes is taken into account when
  * checking the memory usage limit. Each Stream is calculated to need at
  * least 1&nbsp;KiB of memory and each Block 16 bytes of memory, rounded up
  * to the next kibibyte. So unless the file has a huge number of Streams or
  * Blocks, these don't take significant amount of memory.
- * <p/>
- * <h4>Creating random-accessible .xz files</h4>
- * <p/>
+ * <p>
+ * Creating random-accessible .xz files
+ * <p>
  * When using {@link XZOutputStream}, a new Block can be started by calling
  * its {@link XZOutputStream#endBlock() endBlock} method. If you know
  * that the decompressor will need to seek only to certain offsets, it can
  * be a good idea to start a new Block at (some of) these offsets (and
  * perhaps only at these offsets to get better compression ratio).
- * <p/>
+ * <p>
  * liblzma in XZ Utils supports starting a new Block with
  * <code>LZMA_FULL_FLUSH</code>. XZ Utils 5.1.1alpha added threaded
  * compression which creates multi-Block .xz files. XZ Utils 5.1.1alpha
@@ -326,7 +325,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * Gets the types of integrity checks used in the .xz file.
      * Multiple checks are possible only if there are multiple
      * concatenated XZ Streams.
-     * <p/>
+     * <p>
      * The returned value has a bit set for every check type that is present.
      * For example, if CRC64 and SHA-256 were used, the return value is
      * <code>(1&nbsp;&lt;&lt;&nbsp;XZ.CHECK_CRC64)
@@ -376,7 +375,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
 
     /**
      * Decompresses into an array of bytes.
-     * <p/>
+     * <p>
      * If <code>len</code> is zero, no bytes are read and <code>0</code>
      * is returned. Otherwise this will try to decompress <code>len</code>
      * bytes of uncompressed data. Less than <code>len</code> bytes may
@@ -534,7 +533,7 @@ public class SeekableXZInputStream extends SeekableInputStream {
      * This only stores the new position, so this function itself is always
      * very fast. The actual seek is done when <code>read</code> is called
      * to read at least one byte.
-     * <p/>
+     * <p>
      * Seeking past the end of the stream is possible. In that case
      * <code>read</code> will return <code>-1</code> to indicate
      * the end of the stream.
