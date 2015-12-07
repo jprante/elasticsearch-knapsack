@@ -15,7 +15,6 @@
  */
 package org.xbib.elasticsearch.action.knapsack.state;
 
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.client.ElasticsearchClient;
 

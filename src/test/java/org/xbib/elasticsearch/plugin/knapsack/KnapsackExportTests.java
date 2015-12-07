@@ -8,8 +8,8 @@ import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateResponse;
-import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;
 import org.xbib.elasticsearch.support.client.ClientHelper;
+import org.xbib.elasticsearch.util.NodeTestUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class KnapsackExportTests extends AbstractNodeTestHelper {
+public class KnapsackExportTests extends NodeTestUtils {
 
     private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackExportTests.class.getName());
 

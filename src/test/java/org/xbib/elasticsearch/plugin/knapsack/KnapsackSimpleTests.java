@@ -5,9 +5,9 @@ import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
 import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.imp.KnapsackImportResponse;
-import org.xbib.elasticsearch.plugin.helper.AbstractNodeTestHelper;
+import org.xbib.elasticsearch.util.NodeTestUtils;
 
-public class KnapsackSimpleTests extends AbstractNodeTestHelper {
+public class KnapsackSimpleTests extends NodeTestUtils {
 
     @Test
     public void testSimpleEmptyExport() throws Exception {

@@ -32,6 +32,7 @@ import org.elasticsearch.indices.IndexAlreadyExistsException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -144,6 +145,9 @@ public class KnapsackService extends AbstractLifecycleComponent<KnapsackService>
 
     private void add(String name, List<KnapsackState> values, KnapsackState targetValue) throws IOException {
         logger.debug("add: {} -> {}", name, values);
+        if (values == null) {
+            values = Collections.emptyList();
+        }
         put(name, generate(ImmutableList.<KnapsackState>builder()
                 .addAll(values)
                 .add(targetValue)
