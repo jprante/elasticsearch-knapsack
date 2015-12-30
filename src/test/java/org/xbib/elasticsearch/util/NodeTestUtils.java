@@ -13,6 +13,7 @@ import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
@@ -146,7 +147,8 @@ public class NodeTestUtils {
         //Node node = NodeBuilder.nodeBuilder().settings(nodeSettings).local(true).build().start();
         Set<Class<? extends Plugin>> plugins = new HashSet<>();
         plugins.add(KnapsackPlugin.class);
-        Node node = new MockNode(nodeSettings, plugins);
+        Environment environment = new Environment(nodeSettings);
+        Node node = new MockNode(environment, plugins);
         node.start();
         return node;
     }
@@ -196,7 +198,8 @@ public class NodeTestUtils {
         // ES 2.1 renders NodeBuilder as useless
         Set<Class<? extends Plugin>> plugins = new HashSet<>();
         plugins.add(KnapsackPlugin.class);
-        Node node = new MockNode(nodeSettings, plugins);
+        Environment environment = new Environment(nodeSettings);
+        Node node = new MockNode(environment, plugins);
         AbstractClient client = (AbstractClient)node.client();
         nodes.put(id, node);
         clients.put(id, client);
