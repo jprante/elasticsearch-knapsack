@@ -81,7 +81,7 @@ public class KnapsackPullRequestBuilder extends ActionRequestBuilder<KnapsackPul
         return this;
     }
 
-    public KnapsackPullRequestBuilder setIndexTypeNames(Map indexTypeNames) {
+    public KnapsackPullRequestBuilder setIndexTypeNames(Map<String, Object> indexTypeNames) {
         request.setIndexTypeNames(indexTypeNames);
         return this;
     }

@@ -20,9 +20,6 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.count.CountAction;
-import org.elasticsearch.action.count.CountRequest;
-import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
@@ -30,7 +27,6 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.search.SearchScrollRequest;
-import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
@@ -41,16 +37,16 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
+import org.xbib.elasticsearch.helper.client.BulkTransportClient;
+import org.xbib.elasticsearch.helper.client.ClientBuilder;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
-import org.xbib.elasticsearch.support.client.transport.BulkTransportClient;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -70,8 +66,6 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
 
     private final static ESLogger logger = ESLoggerFactory.getLogger(KnapsackPushAction.class.getSimpleName());
 
-    private final Environment environment;
-
     private final Client client;
 
     private final NodeService nodeService;
@@ -79,13 +73,12 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackPushAction(Settings settings, Environment environment,
+    public TransportKnapsackPushAction(Settings settings,
                                        ThreadPool threadPool,
                                        Client client, NodeService nodeService, ActionFilters actionFilters,
                                        IndexNameExpressionResolver indexNameExpressionResolver,
                                        KnapsackService knapsack) {
         super(settings, KnapsackPushAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
-        this.environment = environment;
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;
@@ -99,11 +92,12 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
         final KnapsackPushResponse response = new KnapsackPushResponse()
                 .setState(state);
         try {
-            final BulkTransportClient bulkClient = new BulkTransportClient();
-            bulkClient.flushIngestInterval(TimeValue.timeValueSeconds(5))
-                    .maxActionsPerRequest(request.getMaxActionsPerBulkRequest())
-                    .maxConcurrentRequests(request.getMaxBulkConcurrency())
-                    .init(clientSettings(client, environment, request));
+            final BulkTransportClient bulkClient = ClientBuilder.builder()
+                    .put(ClientBuilder.MAX_ACTIONS_PER_REQUEST, request.getMaxActionsPerBulkRequest())
+                    .put(ClientBuilder.MAX_CONCURRENT_REQUESTS, request.getMaxBulkConcurrency())
+                    .put(ClientBuilder.FLUSH_INTERVAL, TimeValue.timeValueSeconds(5))
+                    .put(clientSettings(client, request))
+                    .toBulkTransportClient();
             state.setTimestamp(new DateTime());
             response.setRunning(true);
             knapsack.submit(new Thread() {
@@ -187,10 +181,11 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                         logger.info("index created: {}", mapIndex(request, index));
                     } catch (Exception e) {
                         // maybe an index already exists exception, check if index is empty, throw exception only if not empty
-                        CountResponse countResponse =
-                                bulkClient.client().execute(CountAction.INSTANCE, new CountRequest(mapIndex(request, index))).actionGet();
-                        logger.info("count={} status={}", countResponse.getCount(), countResponse.status());
-                        if (countResponse.getCount() > 0L) {
+                        SearchResponse searchResponse = bulkClient.client()
+                                .execute(SearchAction.INSTANCE, new SearchRequest(mapIndex(request, index)))
+                                .actionGet();
+                        logger.info("count={} status={}", searchResponse.getHits().getTotalHits());
+                        if (searchResponse.getHits().getTotalHits() > 0L) {
                             throw e;
                         }
                     }
@@ -216,8 +211,8 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                 searchRequest = new SearchRequestBuilder(client, SearchAction.INSTANCE)
                         .setQuery(QueryBuilders.matchAllQuery()).request();
             }
+            long total = 0L;
             for (String index : indices.keySet()) {
-                searchRequest.searchType(SearchType.SCAN).scroll(request.getTimeout());
                 if (!"_all".equals(index)) {
                     searchRequest.indices(index);
                 }
@@ -225,18 +220,14 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                 if (types != null) {
                     searchRequest.types(types.toArray(new String[types.size()]));
                 }
+                searchRequest.scroll(request.getTimeout());
                 // use local node client here
                 SearchResponse searchResponse = client.execute(SearchAction.INSTANCE, searchRequest).actionGet();
-                long total = 0L;
-                while (searchResponse.getScrollId() != null && !Thread.interrupted()) {
-                    searchResponse = client.execute(SearchScrollAction.INSTANCE,
-                                new SearchScrollRequest(searchResponse.getScrollId()).scroll(request.getTimeout())).actionGet();
-                    long hits = searchResponse.getHits().getHits().length;
-                    if (hits == 0) {
-                        break;
-                    }
-                    total += hits;
-                    logger.debug("total={} hits={} took={}", total, hits, searchResponse.getTookInMillis());
+                do {
+                    total += searchResponse.getHits().getHits().length;
+                    logger.debug("total={} hits={} took={}", total,
+                            searchResponse.getHits().getHits().length,
+                            searchResponse.getTookInMillis());
                     for (SearchHit hit : searchResponse.getHits()) {
                         IndexRequest indexRequest = new IndexRequest(mapIndex(request, hit.getIndex()),
                                 mapType(request, hit.getIndex(), hit.getType()), hit.getId());
@@ -270,7 +261,9 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
                         }
                         bulkClient.bulkIndex(indexRequest);
                     }
-                }
+                    searchResponse = client.execute(SearchScrollAction.INSTANCE,
+                            new SearchScrollRequest(searchResponse.getScrollId()).scroll(request.getTimeout())).actionGet();
+                } while (searchResponse.getHits().getHits().length > 0 && !Thread.interrupted());
             }
             bulkClient.flushIngest();
             bulkClient.waitForResponses(TimeValue.timeValueSeconds(60));

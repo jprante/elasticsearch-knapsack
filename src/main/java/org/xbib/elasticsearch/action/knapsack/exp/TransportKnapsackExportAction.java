@@ -21,7 +21,6 @@ import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Client;
@@ -33,6 +32,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.joda.time.DateTime;
 import org.xbib.elasticsearch.knapsack.KnapsackParameter;
@@ -82,6 +82,7 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void doExecute(final KnapsackExportRequest request, ActionListener<KnapsackExportResponse> listener) {
         final KnapsackState state = new KnapsackState()
                 .setMode("export")
@@ -205,10 +206,10 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
             SearchRequest searchRequest = request.getSearchRequest();
             if (searchRequest == null) {
                 searchRequest = new SearchRequestBuilder(client, SearchAction.INSTANCE)
-                        .setQuery(QueryBuilders.matchAllQuery()).request();
+                        .setQuery(QueryBuilders.matchAllQuery()).addSort(SortBuilders.fieldSort("_doc")).request();
             }
+            long total = 0L;
             for (String index : indices.keySet()) {
-                searchRequest.searchType(SearchType.SCAN).scroll(request.getTimeout());
                 if (!"_all".equals(index)) {
                     searchRequest.indices(index);
                 }
@@ -216,20 +217,14 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                 if (types != null) {
                     searchRequest.types(types.toArray(new String[types.size()]));
                 }
+                searchRequest.scroll(request.getTimeout());
                 // use local node client here
                 SearchResponse searchResponse = client.search(searchRequest).actionGet();
-                long total = 0L;
-                while (searchResponse.getScrollId() != null && !Thread.interrupted()) {
-                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
-                            .setScroll(request.getTimeout())
-                            .execute()
-                            .actionGet();
-                    long hits = searchResponse.getHits().getHits().length;
-                    if (hits == 0) {
-                        break;
-                    }
-                    total += hits;
-                    logger.debug("total={} hits={} took={}", total, hits, searchResponse.getTookInMillis());
+                do {
+                    total += searchResponse.getHits().getHits().length;
+                    logger.debug("total={} hits={} took={}", total,
+                            searchResponse.getHits().getHits().length,
+                            searchResponse.getTookInMillis());
                     for (SearchHit hit : searchResponse.getHits()) {
                         if (KnapsackService.INDEX_NAME.equals(hit.getIndex())) {
                             continue;
@@ -253,11 +248,14 @@ public class TransportKnapsackExportAction extends TransportAction<KnapsackExpor
                             session.write(packet);
                         }
                     }
-                }
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
+                            .setScroll(request.getTimeout()).execute().actionGet();
+                } while (searchResponse.getHits().getHits().length > 0 && !Thread.interrupted());
             }
             session.close();
-            logger.info("end of export: {}, packets = {}, total bytes transferred = {}, rate = {}",
+            logger.info("end of export: {}, packets = {}, docs = {}, total bytes transferred = {}, rate = {}",
                     state, session.getPacketCounter(),
+                    total,
                     session.getWatcher().getTotalBytesInAllTransfers(),
                     String.format("%f", session.getWatcher().getRecentByteRatePerSecond()));
         } catch (Throwable e) {

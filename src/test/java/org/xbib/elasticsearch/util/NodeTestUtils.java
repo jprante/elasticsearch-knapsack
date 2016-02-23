@@ -4,7 +4,6 @@ import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.support.AbstractClient;
@@ -65,7 +64,7 @@ public class NodeTestUtils {
             try {
                 ClusterHealthResponse healthResponse =
                         client("1").execute(ClusterHealthAction.INSTANCE, new ClusterHealthRequest()
-                                .waitForStatus(ClusterHealthStatus.YELLOW)
+                                .waitForYellowStatus()
                                 .timeout(TimeValue.timeValueSeconds(30)))
                                 .actionGet();
                 if (healthResponse != null && healthResponse.isTimedOut()) {

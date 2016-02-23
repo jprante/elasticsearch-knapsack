@@ -35,9 +35,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
-//import org.xbib.classloader.uri.URIClassLoader;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -137,7 +135,7 @@ public class KnapsackHelper {
         return request.getIndexTypeNames().containsKey(s) ? request.getIndexTypeNames().get(s).toString() : type;
     }
 
-    public static Settings clientSettings(ElasticsearchClient client, Environment environment, KnapsackRequest request) {
+    public static Settings clientSettings(ElasticsearchClient client, KnapsackRequest request) {
         String cluster = request.getCluster();
         String host = request.getHost();
         int port = request.getPort();

@@ -8,7 +8,6 @@ import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.exp.KnapsackExportResponse;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateRequestBuilder;
 import org.xbib.elasticsearch.action.knapsack.state.KnapsackStateResponse;
-import org.xbib.elasticsearch.support.client.ClientHelper;
 import org.xbib.elasticsearch.util.NodeTestUtils;
 
 import java.io.BufferedReader;
@@ -33,7 +32,6 @@ public class KnapsackExportTests extends NodeTestUtils {
         Path exportPath = Paths.get(URI.create("file:" + exportFile.getAbsolutePath()));
         client("1").index(new IndexRequest().index("index1").type("test1").id("doc1").source("content", "Hello World").refresh(true)).actionGet();
         logger.info("waiting for recovery");
-        ClientHelper.waitForRecovery(client("1"), "index1");
         logger.info("recovered");
         KnapsackExportRequestBuilder requestBuilder = new KnapsackExportRequestBuilder(client("1"))
                 .setArchivePath(exportPath)

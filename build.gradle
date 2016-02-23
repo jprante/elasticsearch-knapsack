@@ -1,0 +1,181 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '1.2.2'
+}
+
+def xbibGroup = 'org.xbib.elasticsearch.plugin'
+def xbibVersion = '2.2.0.0'
+
+group = xbibGroup
+version = xbibVersion
+
+println "Current JVM: " + org.gradle.internal.jvm.Jvm.current()
+
+ext {
+    pluginName = 'knapsack'
+    pluginClassname  = 'org.xbib.elasticsearch.plugin.knapsack.KnapsackPlugin'
+    pluginDescription = 'An import/export plugin for Elasticsearch'
+    versions = [
+            'elasticsearch' : '2.2.0',
+            'elasticsearch-helper' : '2.2.0.3',
+            'log4j': '2.5',
+            'junit' : '4.12',
+            'wagon' : '2.10'
+    ]
+}
+
+apply plugin: 'java'
+apply plugin: 'maven'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    jcenter()
+    maven {
+        url "http://xbib.org/repository"
+    }
+}
+
+sourceSets {
+    integrationTest {
+        java {
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+            srcDir file('src/integration-test/java')
+        }
+        resources.srcDir file('src/integration-test/resources')
+    }
+}
+
+configurations {
+    wagon
+    integrationTestCompile.extendsFrom testCompile
+    integrationTestRuntime.extendsFrom testRuntime
+    releaseJars {
+        extendsFrom runtime
+        exclude group: 'org.elasticsearch'
+        exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+    }
+}
+
+dependencies {
+    compile "org.elasticsearch:elasticsearch:${versions.elasticsearch}"
+    compile "org.xbib.elasticsearch.plugin:elasticsearch-helper:${versions.'elasticsearch-helper'}"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:${versions.log4j}"
+    compile "org.apache.logging.log4j:log4j-core:${versions.log4j}"
+    testCompile "junit:junit:${versions.junit}"
+    integrationTestCompile "junit:junit:${versions.junit}"
+    //releaseJars "${project.group}:${project.name}:${project.version}:all"
+    wagon "org.apache.maven.wagon:wagon-ssh-external:${versions.wagon}"
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
+test {
+    systemProperties['path.home'] = System.getProperty("user.dir")
+    testLogging {
+        showStandardStreams = false
+        exceptionFormat = 'full'
+    }
+}
+
+task integrationTest(type: Test, dependsOn: ['unpackPlugin']) {
+    testClassesDir = sourceSets.integrationTest.output.classesDir
+    classpath = configurations.integrationTestCompile
+    classpath += fileTree("plugins/${pluginName}").include('*.jar')
+    classpath += sourceSets.integrationTest.output
+    // without this trick to remove identical jars from classpath, an Elasticsearch bug whines about a "jar hell"
+    classpath -= configurations.releaseJars
+    outputs.upToDateWhen { false }
+    systemProperty 'path.home', projectDir.absolutePath
+    testLogging.showStandardStreams = false
+}
+
+integrationTest.mustRunAfter test
+check.dependsOn integrationTest
+
+clean {
+    delete "plugins"
+    delete "data"
+    delete "logs"
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    from sourceSets.main.allSource
+    into 'build/tmp/sources'
+    classifier 'sources'
+}
+
+shadowJar {
+    baseName =  project.name
+    version = project.version
+    classifier = 'all'
+}
+
+task makePluginDescriptor(type: Copy) {
+    from 'src/main/templates'
+    into 'build/tmp/plugin'
+    expand([
+            'descriptor': [
+                    'name': pluginName,
+                    'classname': pluginClassname,
+                    'description': pluginDescription,
+                    'jvm': true,
+                    'site': false,
+                    'isolated': true,
+                    'version': project.property('version'),
+                    'javaVersion': project.property('targetCompatibility'),
+                    'elasticsearchVersion' : versions.elasticsearch
+            ]
+    ])
+}
+
+task pluginZip(type: Zip, dependsOn: [':jar', ':makePluginDescriptor']) {
+    from files(libsDir)
+    from configurations.releaseJars
+    from 'build/tmp/plugin'
+    classifier = 'plugin'
+}
+
+task unpackPlugin(type: Copy, dependsOn: [':pluginZip']) {
+    delete "plugins"
+    from configurations.releaseJars
+    from 'build/tmp/plugin'
+    into "plugins/${pluginName}"
+}
+
+artifacts {
+    archives sourcesJar, shadowJar, pluginZip
+}
+
+uploadArchives {
+    repositories {
+        if (project.hasProperty("xbibUsername")) {
+            mavenDeployer {
+                configuration = configurations.wagon
+                repository(
+                        id: 'xbib.org',
+                        url: uri('scpexe://xbib.org/repository'),
+                        authentication: [userName: xbibUsername, privateKey: xbibPrivateKey]
+                )
+                pom.project {
+                    inceptionYear '2012'
+                    licenses {
+                        license {
+                            name 'The Apache Software License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                            distribution 'repo'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

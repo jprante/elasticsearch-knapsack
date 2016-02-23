@@ -50,9 +50,9 @@ public class KnapsackPullRequest extends ActionRequest<KnapsackPullRequest>
 
     private int maxBulkConcurrency = 2 * Runtime.getRuntime().availableProcessors();
 
-    private Map indexTypeNames = new HashMap();
+    private Map<String,Object> indexTypeNames = new HashMap<>();
 
-    private Map indexTypeDefinitions = new HashMap();
+    private Map<String,Object> indexTypeDefinitions = new HashMap<>();
 
     private String index = "_all";
 
@@ -147,7 +147,7 @@ public class KnapsackPullRequest extends ActionRequest<KnapsackPullRequest>
         return maxBulkConcurrency;
     }
 
-    public KnapsackPullRequest setIndexTypeNames(Map indexTypeNames) {
+    public KnapsackPullRequest setIndexTypeNames(Map<String,Object> indexTypeNames) {
         this.indexTypeNames = indexTypeNames;
         return this;
     }

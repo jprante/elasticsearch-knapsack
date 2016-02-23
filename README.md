@@ -27,6 +27,7 @@ When importing archive files again, this information is reapplied.
 
 | Elasticsearch  |   Plugin       | Release date |
 | -------------- | -------------- | ------------ |
+| 2.2.0          | 2.2.0.0        | Feb 23, 2016 |
 | 2.1.1          | 2.1.1.0        | Dec 30, 2015 |
 | 2.1.0          | 2.1.0.0        | Dec  7, 2015 |
 | 2.0.0          | 2.0.0.0        | Nov 14, 2015 |
@@ -36,7 +37,7 @@ For older releases and 1.x versions, see the repective branches.
 
 ## Installation 2.x
 
-    ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.1.1.0/elasticsearch-knapsack-2.1.1.0-plugin.zip
+    ./bin/plugin install http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-knapsack/2.2.0.0/elasticsearch-knapsack-2.2.0.0-plugin.zip
 
 Do not forget to restart the node after installation.
 
