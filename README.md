@@ -324,6 +324,37 @@ or
 
     curl -XPOST 'localhost:9200/_import/abort'
 
+# Handing Parent/Child documents
+
+## Exporting 
+
+Handling dependant documents is bit tricky since indexing a child document requires the presence of its parent document. A simple approach is to export the documents into seperate archives by using a query. In case your child documents are located in the same type as the parent documents, define the appropriate filter in the query. If you have stored the child documents in a seperate type, you can export the type containing the parent documents like this:
+
+    curl -XPOST 'localhost:9200/myIndex/myParentDocs/_export?path=/tmp/myIndex_myParentDocs.zip'
+
+When exporting the type containing the child documents, include the "_parent" meta field
+
+    curl -XPOST 'localhost:9200/myIndex/myChildDocs/_export?path=/tmp/myIndex_myChildDocs.zip'' -d '{
+       "query" : {
+           "match_all" : {
+           }
+       },
+       "fields" : [ "_parent", "_source" ]
+    }'
+
+
+## Importing Parent/Child documents
+
+Before you import the parent documents, you have to create the index manually first: Each type export only contains the mapping of that spedific type and you cannot add a dependant mapping in a second step later. All dependant mappings must be created at the same time otherwise you'll get an error like "java.lang.IllegalArgumentException: Can't specify parent if no parent field has been configured". After creating the index, import the parent documents:
+
+    curl -XPOST 'localhost:9200/myIndex/myParentDocs/_import?path=/tmp/myIndex_myParentDocs.zip&createIndex=false'
+
+Then import the child documents:
+
+    curl -XPOST 'localhost:9200/myIndex/myChildDocs/_import?path=/tmp/myIndex_myChildDocs.zip&createIndex=false'
+    
+Repeat this for all your child types.
+
 # Java API
 
 Knapsack implements all actions as Java transport actions in ELasticsearch.
