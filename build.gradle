@@ -1,34 +1,45 @@
-plugins {
-    id 'java'
-    id 'com.github.johnrengelman.shadow' version '1.2.2'
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'co.riiid:gradle-github-plugin:0.4.2'
+        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3"
+    }
 }
 
-def xbibGroup = 'org.xbib.elasticsearch.plugin'
-def xbibVersion = '2.2.0.0'
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '1.2.3'
+    id 'org.ajoberstar.grgit' version '1.4.2'
+}
 
-group = xbibGroup
-version = xbibVersion
-
-println "Current JVM: " + org.gradle.internal.jvm.Jvm.current()
+group = 'org.xbib.elasticsearch.plugin'
+version = '2.1.2.0'
 
 ext {
     pluginName = 'knapsack'
     pluginClassname  = 'org.xbib.elasticsearch.plugin.knapsack.KnapsackPlugin'
     pluginDescription = 'An import/export plugin for Elasticsearch'
+    user = 'jprante'
+    name = 'elasticsearch-knapsack'
+    scmUrl = 'https://github.com/' + user + '/' + name
+    scmConnection = 'scm:git:git://github.com/' + user + '/' + name + '.git'
+    scmDeveloperConnection = 'scm:git:git://github.com/' + user + '/' + name + '.git'
     versions = [
-            'elasticsearch' : '2.2.0',
-            'elasticsearch-helper' : '2.2.0.3',
-            'log4j': '2.5',
-            'junit' : '4.12',
-            'wagon' : '2.10'
+        'elasticsearch' : '2.1.2',
+        'elasticsearch-helper' : '2.1.1.5',
+        'log4j': '2.5',
+        'junit' : '4.12',
+        'wagon' : '2.10'
     ]
 }
 
 apply plugin: 'java'
 apply plugin: 'maven'
-
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+apply plugin: 'signing'
+apply plugin: 'co.riiid.gradle'
 
 repositories {
     mavenCentral()
@@ -70,12 +81,16 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-core:${versions.log4j}"
     testCompile "junit:junit:${versions.junit}"
     integrationTestCompile "junit:junit:${versions.junit}"
+    releaseJars "${project.group}:${project.name}:${project.version}"
     //releaseJars "${project.group}:${project.name}:${project.version}:all"
     wagon "org.apache.maven.wagon:wagon-ssh-external:${versions.wagon}"
 }
 
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
 tasks.withType(JavaCompile) {
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    options.compilerArgs << "-Xlint:unchecked,deprecation"
 }
 
 test {
@@ -107,18 +122,6 @@ clean {
     delete "logs"
 }
 
-task sourcesJar(type: Jar, dependsOn: classes) {
-    from sourceSets.main.allSource
-    into 'build/tmp/sources'
-    classifier 'sources'
-}
-
-shadowJar {
-    baseName =  project.name
-    version = project.version
-    classifier = 'all'
-}
-
 task makePluginDescriptor(type: Copy) {
     from 'src/main/templates'
     into 'build/tmp/plugin'
@@ -137,45 +140,47 @@ task makePluginDescriptor(type: Copy) {
     ])
 }
 
-task pluginZip(type: Zip, dependsOn: [':jar', ':makePluginDescriptor']) {
-    from files(libsDir)
+task buildPluginZip(type: Zip, dependsOn: [':jar', ':makePluginDescriptor']) {
     from configurations.releaseJars
     from 'build/tmp/plugin'
     classifier = 'plugin'
 }
 
-task unpackPlugin(type: Copy, dependsOn: [':pluginZip']) {
+task unpackPlugin(type: Copy, dependsOn: [':buildPluginZip']) {
     delete "plugins"
     from configurations.releaseJars
     from 'build/tmp/plugin'
     into "plugins/${pluginName}"
 }
 
-artifacts {
-    archives sourcesJar, shadowJar, pluginZip
+task sourcesJar(type: Jar, dependsOn: classes) {
+    from sourceSets.main.allSource
+    into 'build/tmp/sources'
+    classifier 'sources'
 }
 
-uploadArchives {
-    repositories {
-        if (project.hasProperty("xbibUsername")) {
-            mavenDeployer {
-                configuration = configurations.wagon
-                repository(
-                        id: 'xbib.org',
-                        url: uri('scpexe://xbib.org/repository'),
-                        authentication: [userName: xbibUsername, privateKey: xbibPrivateKey]
-                )
-                pom.project {
-                    inceptionYear '2012'
-                    licenses {
-                        license {
-                            name 'The Apache Software License, Version 2.0'
-                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                            distribution 'repo'
-                        }
-                    }
-                }
-            }
-        }
+shadowJar {
+    baseName = project.name
+    classifier = 'all'
+}
+
+task javadocJar(type: Jar, dependsOn: classes) {
+    from javadoc
+    into 'build/tmp'
+    classifier 'javadoc'
+}
+
+artifacts {
+    archives javadocJar, sourcesJar, shadowJar, buildPluginZip
+}
+
+if (project.hasProperty('signing.keyId')) {
+    signing {
+        sign configurations.archives
     }
 }
+
+ext.grgit = org.ajoberstar.grgit.Grgit.open()
+
+apply from: 'gradle/git.gradle'
+apply from: 'gradle/publish.gradle'
