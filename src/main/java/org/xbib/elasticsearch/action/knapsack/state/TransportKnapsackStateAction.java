@@ -25,6 +25,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 import org.xbib.elasticsearch.knapsack.KnapsackState;
 
@@ -38,8 +39,9 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
     public TransportKnapsackStateAction(Settings settings,
                                         ThreadPool threadPool, ActionFilters actionFilters,
                                         IndexNameExpressionResolver indexNameExpressionResolver,
+                                        TransportService transportService,
                                         KnapsackService knapsack) {
-        super(settings, KnapsackStateAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
+        super(settings, KnapsackStateAction.NAME, threadPool, actionFilters, indexNameExpressionResolver, transportService.getTaskManager());
         this.knapsack = knapsack;
     }
 

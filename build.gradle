@@ -15,7 +15,7 @@ plugins {
 }
 
 group = 'org.xbib.elasticsearch.plugin'
-version = '2.2.1.0'
+version = '2.3.0.0'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -37,8 +37,8 @@ ext {
     scmConnection = 'scm:git:git://github.com/' + user + '/' + name + '.git'
     scmDeveloperConnection = 'scm:git:git://github.com/' + user + '/' + name + '.git'
     versions = [
-        'elasticsearch' : '2.2.1',
-        'elasticsearch-helper' : '2.2.1.0',
+        'elasticsearch' : '2.3.0',
+        'elasticsearch-helper' : '2.3.0.0',
         'log4j': '2.5',
         'junit' : '4.12',
         'wagon' : '2.10'

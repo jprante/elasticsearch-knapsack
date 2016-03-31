@@ -42,6 +42,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
 import org.joda.time.DateTime;
 import org.xbib.elasticsearch.helper.client.BulkTransportClient;
 import org.xbib.elasticsearch.helper.client.ClientBuilder;
@@ -73,12 +74,12 @@ public class TransportKnapsackPushAction extends TransportAction<KnapsackPushReq
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackPushAction(Settings settings,
-                                       ThreadPool threadPool,
+    public TransportKnapsackPushAction(Settings settings, ThreadPool threadPool,
                                        Client client, NodeService nodeService, ActionFilters actionFilters,
                                        IndexNameExpressionResolver indexNameExpressionResolver,
+                                       TransportService transportService,
                                        KnapsackService knapsack) {
-        super(settings, KnapsackPushAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
+        super(settings, KnapsackPushAction.NAME, threadPool, actionFilters, indexNameExpressionResolver, transportService.getTaskManager());
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;
