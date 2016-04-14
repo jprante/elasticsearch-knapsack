@@ -37,6 +37,7 @@ import org.elasticsearch.index.VersionType;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
 import org.joda.time.DateTime;
 import org.xbib.elasticsearch.helper.client.BulkNodeClient;
 import org.xbib.elasticsearch.helper.client.ClientBuilder;
@@ -75,13 +76,12 @@ public class TransportKnapsackImportAction extends TransportAction<KnapsackImpor
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackImportAction(Settings settings,
-                                         ThreadPool threadPool,
-                                         Client client,
-                                         NodeService nodeService, ActionFilters actionFilters,
+    public TransportKnapsackImportAction(Settings settings, ThreadPool threadPool,
+                                         Client client, NodeService nodeService, ActionFilters actionFilters,
                                          IndexNameExpressionResolver indexNameExpressionResolver,
+                                         TransportService transportService,
                                          KnapsackService knapsack) {
-        super(settings, KnapsackImportAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
+        super(settings, KnapsackImportAction.NAME, threadPool, actionFilters, indexNameExpressionResolver, transportService.getTaskManager());
         this.client = client;
         this.nodeService = nodeService;
         this.knapsack = knapsack;

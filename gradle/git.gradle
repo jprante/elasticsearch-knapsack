@@ -1,0 +1,9 @@
+
+task gitRelease(dependsOn: build) << {
+    grgit.add(patterns: ['.'], update: true)
+    grgit.commit(message: "release of ${project.version}")
+    grgit.tag.remove(names: [project.version])
+    grgit.tag.add(name: project.version)
+    grgit.push()
+    grgit.push(tags: true)
+}

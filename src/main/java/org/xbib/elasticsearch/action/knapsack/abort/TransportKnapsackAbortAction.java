@@ -24,6 +24,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
 import org.xbib.elasticsearch.knapsack.KnapsackService;
 
 public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortRequest, KnapsackAbortResponse> {
@@ -33,11 +34,11 @@ public class TransportKnapsackAbortAction extends TransportAction<KnapsackAbortR
     private final KnapsackService knapsack;
 
     @Inject
-    public TransportKnapsackAbortAction(Settings settings,
+    public TransportKnapsackAbortAction(Settings settings, TransportService transportService,
                                         ThreadPool threadPool, ActionFilters actionFilters,
                                         IndexNameExpressionResolver indexNameExpressionResolver,
                                         KnapsackService knapsack) {
-        super(settings, KnapsackAbortAction.NAME, threadPool, actionFilters, indexNameExpressionResolver);
+        super(settings, KnapsackAbortAction.NAME, threadPool, actionFilters, indexNameExpressionResolver, transportService.getTaskManager());
         this.knapsack = knapsack;
     }
 

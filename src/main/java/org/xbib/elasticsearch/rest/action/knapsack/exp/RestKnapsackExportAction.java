@@ -91,10 +91,10 @@ public class RestKnapsackExportAction extends BaseRestHandler implements Knapsac
     }
 
     private SearchRequest toSearchRequest(RestRequest request) {
-        SearchRequest searchRequest;
         // override search action "size" (default = 10) by bulk request size. The size is per shard!
         request.params().put("size", request.param(MAX_BULK_ACTIONS_PER_REQUEST_PARAM, "1000"));
-        searchRequest = RestSearchAction.parseSearchRequest(request, parseFieldMatcher);
+        SearchRequest searchRequest = new SearchRequest();
+        RestSearchAction.parseSearchRequest(searchRequest, request, parseFieldMatcher, null);
         return searchRequest;
     }
 
