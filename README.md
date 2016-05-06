@@ -361,7 +361,7 @@ Repeat this for all your child types.
 
 # Java API
 
-Knapsack implements all actions as Java transport actions in ELasticsearch.
+Knapsack implements all actions as Java transport actions in Elasticsearch.
 
 You can consult the junit tests for finding out how to use the API. To give you an impression, 
 here is just an example for a very minimal export/import cycle using the `bulk` archive format.
