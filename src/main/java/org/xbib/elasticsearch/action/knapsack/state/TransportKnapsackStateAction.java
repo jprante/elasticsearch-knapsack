@@ -49,11 +49,13 @@ public class TransportKnapsackStateAction extends TransportAction<KnapsackStateR
     protected void doExecute(final KnapsackStateRequest request, ActionListener<KnapsackStateResponse> listener) {
         final KnapsackStateResponse response = new KnapsackStateResponse();
         try {
-            for (KnapsackState state : knapsack.getExports()) {
-                response.addState(state);
-            }
-            for (KnapsackState state : knapsack.getImports()) {
-                response.addState(state);
+            if (knapsack != null) {
+                for (KnapsackState state : knapsack.getExports()) {
+                    response.addState(state);
+                }
+                for (KnapsackState state : knapsack.getImports()) {
+                    response.addState(state);
+                }
             }
             listener.onResponse(response);
         } catch (Throwable e) {
