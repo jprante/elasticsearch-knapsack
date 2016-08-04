@@ -1,20 +1,3 @@
-apply plugin: 'io.codearte.nexus-staging'
-
-/*
-nexus {
-    attachJavadoc = true
-    attachSources = true
-    attachTests = true
-    sign = true
-    repositoryUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
-    snapshotRepositoryUrl = 'https://oss.sonatype.org/content/repositories/snapshots'
-}
-*/
-
-nexusStaging {
-    packageGroup = "org.xbib"
-}
-
 task xbibUpload(type: Upload) {
     configuration = configurations.archives
     uploadDescriptor = true
@@ -22,25 +5,27 @@ task xbibUpload(type: Upload) {
         if (project.hasProperty("xbibUsername")) {
             mavenDeployer {
                 configuration = configurations.wagon
-                repository(id: 'xbib.org',
-                        url: uri('scpexe://xbib.org/repository'),
-                        authentication: [userName: xbibUsername, privateKey: xbibPrivateKey])
+                repository(url: uri('scpexe://xbib.org/repository')) {
+                    authentication(userName: xbibUsername, privateKey: xbibPrivateKey)
+                }
             }
         }
     }
 }
 
-task mavenCentralUpload(type: Upload) {
+task sonaTypeUpload(type: Upload) {
     configuration = configurations.archives
     uploadDescriptor = true
     repositories {
         if (project.hasProperty('ossrhUsername')) {
             mavenDeployer {
                 beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-                repository(id: 'ossrh', url: uri(ossrhReleaseUrl),
-                        authentication: [userName: ossrhUsername, password: ossrhPassword])
-                snapshotRepository(id: 'ossrh', url: uri(ossrhSnapshotUrl),
-                        authentication: [userName: ossrhUsername, password: ossrhPassword])
+                repository(url: uri(ossrhReleaseUrl)) {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+                snapshotRepository(url: uri(ossrhSnapshotUrl)) {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
                 pom.project {
                     name pluginName
                     description pluginDescription
